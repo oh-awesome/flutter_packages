@@ -200,6 +200,456 @@ class ExampleHostApi {
       return (pigeonVar_replyList[0] as bool?)!;
     }
   }
+
+  Future<Object?> sendNull(Object? arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendNull', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return replyList[0];
+    }
+  }
+
+  Future<bool> sendTrue(bool arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendTrue', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as bool?)!;
+    }
+  }
+  Future<bool> sendFalse(bool arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendFalse', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as bool?)!;
+    }
+  }
+
+  Future<int> sendInt(int arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as int?)!;
+    }
+  }
+  Future<double> sendDouble(double arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendDouble', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as double?)!;
+    }
+  }
+
+  Future<String> sendString(String arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendString', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as String?)!;
+    }
+  }
+  Future<Uint8List> sendUint8List(Uint8List arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendUint8List', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as Uint8List?)!;
+    }
+  }
+
+  Future<Int32List> sendInt32List(Int32List arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt32List', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as Int32List?)!;
+    }
+  }
+  Future<Int64List> sendInt64List(Int64List arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt64List', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as Int64List?)!;
+    }
+  }
+
+  Future<Float64List> sendFloat64List(Float64List arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendFloat64List', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as Float64List?)!;
+    }
+  }
+  Future<List<String?>> sendList(List<String?> arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendList', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as List<Object?>?)!.cast<String?>();
+    }
+  }
+
+  Future<Map<String?, String?>> sendMap(Map<String?, String?> arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendMap', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as Map<Object?, Object?>?)!.cast<String?, String?>();
+    }
+  }
+
+  Future<Code> sendEnum(Code arg_data) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.sendEnum', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(<Object?>[arg_data.index]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return Code.values[replyList[0]! as int];
+    }
+  }
+
+  Future<String> flutterInvokeSync() async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.flutterInvokeSync', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as String?)!;
+    }
+  }
+  Future<String> flutterInvokeAsync() async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.flutterInvokeAsync', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as String?)!;
+    }
+  }
+
+  Future<String> errorHandling() async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.errorHandling', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as String?)!;
+    }
+  }
+
+  Future<String> taskQueueTest() async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.pigeon_demo.MyHostApi.taskQueueTest', pigeonChannelCodec,
+        binaryMessenger: pigeonVar_binaryMessenger);
+    final List<Object?>? replyList =
+    await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as String?)!;
+    }
+  }
+
+
 }
 
 abstract class MessageFlutterApi {
