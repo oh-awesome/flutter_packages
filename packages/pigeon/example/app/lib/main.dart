@@ -9,13 +9,26 @@ import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/messages.g.dart';
+//import 'src/messages.g.dart';
+import 'src/pigeonFlutter.dart';
 
 // #docregion main-dart-flutter
-class _ExampleFlutterApi implements MessageFlutterApi {
+class _ExampleFlutterApi implements MyFlutterApi {
   @override
   String flutterMethod(String? aString) {
     return aString ?? '';
+  }
+
+  @override
+  Future<String> platformInvokeAsync() {
+    // TODO: implement platformInvokeAsync
+    throw UnimplementedError();
+  }
+
+  @override
+  String platformInvokeSync() {
+    // TODO: implement platformInvokeSync
+    throw UnimplementedError();
   }
 }
 // #enddocregion main-dart-flutter
@@ -23,7 +36,7 @@ class _ExampleFlutterApi implements MessageFlutterApi {
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
 // #docregion main-dart-flutter
-  MessageFlutterApi.setUp(_ExampleFlutterApi());
+  MyFlutterApi.setUp(_ExampleFlutterApi());
 // #enddocregion main-dart-flutter
   runApp(const MyApp());
 }
@@ -54,53 +67,18 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final ExampleHostApi _hostApi = ExampleHostApi();
+  BasicMessageChannel channel = const BasicMessageChannel<String?>(
+    'flutter/pigeonTest',
+    StringCodec(),
+  );
+  final MyHostApi _hostApi = MyHostApi();
   String? _hostCallResult;
   var _methodResult;
 
-  /// Calls host method `add` with provided arguments.
-  Future<int> add(int a, int b) async {
-    try {
-      return await _hostApi.add(a, b);
-    } catch (e) {
-      // handle error.
-      return 0;
-    }
-  }
-
-  /// Sends message through host api using `MessageData` class
-  /// and api `sendMessage` method.
-  Future<bool> sendMessage(String messageText) {
-    final MessageData message = MessageData(
-      code: Code.one,
-      data: <String?, String?>{'header': 'this is a header'},
-      description: 'uri text',
-    );
-    try {
-      return _hostApi.sendMessage(message);
-    } catch (e) {
-      // handle error.
-      return Future<bool>(() => true);
-    }
-  }
-  // #enddocregion main-dart
 
   @override
   void initState() {
     super.initState();
-    _getHostLanguage();
-  }
-
-  void _getHostLanguage() {
-    _hostApi.getHostLanguage().then((String response) {
-      setState(() {
-        _hostCallResult = 'Hello from $response!';
-      });
-    }).onError<PlatformException>((PlatformException error, StackTrace _) {
-      setState(() {
-        _hostCallResult = 'Failed to get host language: ${error.message}';
-      });
-    });
   }
 
   @override
@@ -118,28 +96,6 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Container(
-                    child: Text(
-                      _hostCallResult ?? 'Waiting for host language...',
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  ),
-                  if (_hostCallResult == null)
-                    const CircularProgressIndicator(),
-                  Container(
-                      width: MediaQuery.of(context).size.width,
-                      padding: const EdgeInsets.only(top: 12.0),
-                      child: Center(
-                        child: ElevatedButton(
-                            onPressed: () {
-                              add(3, 4).then((onValue) {
-                                setState(() {
-                                  _methodResult = '$onValue';
-                                });
-                              });
-                            },
-                            child: const Text('add')),
-                      )),
                   Container(
                       width: MediaQuery.of(context).size.width,
                       padding: const EdgeInsets.only(top: 12.0),
@@ -276,6 +232,16 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Center(
                         child: ElevatedButton(
                             onPressed: () {
+                              _sendNestedDatatypeToPlatform();
+                            },
+                            child: const Text('_sendNestedDatatype')),
+                      )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
                               _SendEnum();
                             },
                             child: const Text('sendEnum')),
@@ -319,6 +285,26 @@ class _MyHomePageState extends State<MyHomePage> {
                               _TaskQueueTest();
                             },
                             child: const Text('taskQueueTest')),
+                      )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
+                              _platformInvokeFlutterSync();
+                            },
+                            child: const Text('platformInvokeFlutterSync')),
+                      )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
+                              _platformInvokeFlutterAsync();
+                            },
+                            child: const Text('platformInvokeFlutterAsync')),
                       )),
                 ],
               ),
@@ -451,29 +437,42 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Future<void> _SendCustomClassMessage() async {
-    final MessageData message = MessageData(
-      code: Code.one,
-      data: <String?, String?>{'header': 'this is a header'},
-      description: 'uri text',
-    );
+    Object? result =
+    await _hostApi.sendCustomClass(Student(name: "zhangsan", age: 18));
+    Student student = result as Student;
+    String studentStr = "Student{name='${student.name}', age=${student.age}}";
+    setState(() {
+      _methodResult = studentStr;
+    });
+  }
+
+  Future<void> _sendNestedDatatypeToPlatform() async {
+    try{
+      Object? result = await _hostApi.sendNestedDatatype(
+          Person(name: "lisi", age: 20, identity: Identity.teacher));
+      Person person = result as Person;
+      String personStr =
+          "Person{name='${person.name}', age=${person.age}, identity=${person.identity}}";
+      print(personStr);
+      setState(() {
+        _methodResult = personStr;
+      });
+    }catch(e){
+      // handle error.
+    }
+
+  }
+
+  Future<void> _SendEnum() async {
     try {
-      Object? result = await _hostApi.sendMessage(message);
+     Object? result = await _hostApi.sendEnum(Identity.student);
+      print(result);
       setState(() {
         _methodResult = result;
       });
     } catch (e) {
       // handle error.
     }
-  }
-
-  Future<void> _SendEnum() async {
-    try {
-      Object? result = await _hostApi.sendEnum(Code.one);
-      print(result);
-      setState(() {
-        _methodResult = result;
-      });
-    } catch (e) {}
   }
 
   Future<void> _FlutterInvokeSync() async {
@@ -504,6 +503,23 @@ class _MyHomePageState extends State<MyHomePage> {
     Object? result = await _hostApi.taskQueueTest();
     setState(() {
       _methodResult = result;
+      _methodResult = '已废弃，不需要使用此方法了';
+    });
+  }
+
+  Future<void> _platformInvokeFlutterSync() async {
+    Object? result = await channel.send("platformInvokeSync");
+    setState(() {
+      _methodResult = result;
+      _methodResult = 'Sync改为参数方式了';
+    });
+  }
+
+  Future<void> _platformInvokeFlutterAsync() async {
+    Object? result = await channel.send("platformInvokeAsync");
+    setState(() {
+      _methodResult = result;
+      _methodResult = 'Async改为参数方式了';
     });
   }
 }

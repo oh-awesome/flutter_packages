@@ -50,6 +50,13 @@ export enum Code {
   TWO
 }
 
+export class CodeEnum {
+  index: number | null = null;
+  constructor(index: number) {
+    this.index = index;
+  }
+}
+
 /* Generated class from Pigeon that represents data sent in messages.*/
 export class MessageData {
   private name?: string;
@@ -72,13 +79,13 @@ export class MessageData {
     return this.description;
   }
 
-  private code?: Code;
+  private code?: CodeEnum;
 
-  public setCode(code: Code): void {
+  public setCode(code: CodeEnum): void {
     this.code = code;
   }
 
-  getCode(): Code | undefined {
+  getCode(): CodeEnum | undefined {
     return this.code;
   }
 
@@ -92,7 +99,7 @@ export class MessageData {
     return this.data;
   }
 
-  constructor(name?: string, description?: string, code?: Code, data?: Map<string, string>) {
+  constructor(name?: string, description?: string, code?: CodeEnum, data?: Map<string, string>) {
     this.name = name;
     this.description = description;
     this.code = code;
@@ -122,8 +129,7 @@ export class MessageData {
     pigeonResult.setName(name as string);
     let description: Object = arr[1];
     pigeonResult.setDescription(description as string);
-    let code: Object = arr[2];
-    pigeonResult.setCode(code as Code);
+    pigeonResult.setCode(new CodeEnum(arr[2]! as number));
     let data: Object = arr[3];
     pigeonResult.setData(data as Map<string, string>);
     return pigeonResult;
@@ -205,7 +211,7 @@ export abstract class ExampleHostApi {
 
   abstract sendMap(data: Map<string, string>): Map<string, string>;
 
-  abstract sendEnum(data: Code): Code;
+  abstract sendEnum(data: CodeEnum): CodeEnum;
 
   abstract flutterInvokeSync(): string;
 
@@ -593,7 +599,7 @@ export abstract class ExampleHostApi {
             let args: Array<Object> = message as Array<Object>;
             let res: Array<Object> = [];
             try {
-              let output: Code = api!.sendEnum(args[0] as Code);
+              let output: CodeEnum = api!.sendEnum(new CodeEnum(args[0] as number));
               res.push(output);
             } catch (error) {
               let wrappedError: Array<Object> = wrapError(error);

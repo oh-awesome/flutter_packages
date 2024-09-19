@@ -17,10 +17,19 @@ import {
   FlutterPlugin,
   FlutterPluginBinding
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
-import { ExampleHostApi, FlutterError, Code, MessageData, Result } from './Messages';
+//import { ExampleHostApi, FlutterError, CodeEnum, MessageData, Result } from './Messages';
+import { MyHostApi, IdentityEnum,FlutterError, Result, Person, Student } from './PigeonOhos';
 
 
-class HostApiImp extends ExampleHostApi {
+class HostApiImp extends MyHostApi {
+  sendCustomClass(data: Student): Student {
+    return data;
+  }
+
+  sendNestedDatatype(data: Person): Person {
+    //throw new Error('Method not implemented.');
+    return data;
+  }
   getHostLanguage(): string {
     console.log("testFlutter-Pigeon " + "ets HostApiImp " + " getHostLanguage ");
     return 'ArkTS';
@@ -30,16 +39,6 @@ class HostApiImp extends ExampleHostApi {
     return a + b;
   }
 
-  ///尝试将MessageData返回
-  sendMessage(message: MessageData, result: Result<boolean>): void {
-    let mapData = message.getData();
-    if (mapData) {
-      for (let key of mapData.keys()) {
-        let value = mapData.get(key);
-      }
-    }
-    result.success(true);
-  }
 
   sendNull(data: Object): Object {
     return data;
@@ -95,7 +94,7 @@ class HostApiImp extends ExampleHostApi {
     return data;
   }
 
-  sendEnum(data: Code): Code {
+  sendEnum(data: IdentityEnum): IdentityEnum {
     return data;
   }
 
@@ -127,10 +126,10 @@ export default class MessagePlugin implements FlutterPlugin {
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding) {
-    ExampleHostApi.setup(binding.getBinaryMessenger(), new HostApiImp());
+    MyHostApi.setup(binding.getBinaryMessenger(), new HostApiImp());
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding) {
-    ExampleHostApi.setup(binding.getBinaryMessenger(), null);
+    MyHostApi.setup(binding.getBinaryMessenger(), null);
   }
 }
