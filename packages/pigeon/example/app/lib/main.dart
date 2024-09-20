@@ -9,22 +9,29 @@ import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'src/messages.g.dart';
+import 'src/pigeonFlutter.dart';
 
-// #docregion main-dart-flutter
-class _ExampleFlutterApi implements MessageFlutterApi {
+
+class _ExampleFlutterApi implements DemoFlutterApi {
   @override
   String flutterMethod(String? aString) {
     return aString ?? '';
   }
+
+  @override
+  Future<String> platformInvokeAsync() {
+    throw UnimplementedError();
+  }
+
+  @override
+  String platformInvokeSync() {
+    throw UnimplementedError();
+  }
 }
-// #enddocregion main-dart-flutter
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-// #docregion main-dart-flutter
-  MessageFlutterApi.setUp(_ExampleFlutterApi());
-// #enddocregion main-dart-flutter
+  DemoFlutterApi.setUp(_ExampleFlutterApi());
   runApp(const MyApp());
 }
 
@@ -54,53 +61,14 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
-  final ExampleHostApi _hostApi = ExampleHostApi();
-  String? _hostCallResult;
+
+  final DemoHostApi _hostApi = DemoHostApi();
+
   var _methodResult;
-
-  /// Calls host method `add` with provided arguments.
-  Future<int> add(int a, int b) async {
-    try {
-      return await _hostApi.add(a, b);
-    } catch (e) {
-      // handle error.
-      return 0;
-    }
-  }
-
-  /// Sends message through host api using `MessageData` class
-  /// and api `sendMessage` method.
-  Future<bool> sendMessage(String messageText) {
-    final MessageData message = MessageData(
-      code: Code.one,
-      data: <String?, String?>{'header': 'this is a header'},
-      description: 'uri text',
-    );
-    try {
-      return _hostApi.sendMessage(message);
-    } catch (e) {
-      // handle error.
-      return Future<bool>(() => true);
-    }
-  }
-  // #enddocregion main-dart
 
   @override
   void initState() {
     super.initState();
-    _getHostLanguage();
-  }
-
-  void _getHostLanguage() {
-    _hostApi.getHostLanguage().then((String response) {
-      setState(() {
-        _hostCallResult = 'Hello from $response!';
-      });
-    }).onError<PlatformException>((PlatformException error, StackTrace _) {
-      setState(() {
-        _hostCallResult = 'Failed to get host language: ${error.message}';
-      });
-    });
   }
 
   @override
@@ -118,28 +86,6 @@ class _MyHomePageState extends State<MyHomePage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: <Widget>[
-                  Container(
-                    child: Text(
-                      _hostCallResult ?? 'Waiting for host language...',
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  ),
-                  if (_hostCallResult == null)
-                    const CircularProgressIndicator(),
-                  Container(
-                      width: MediaQuery.of(context).size.width,
-                      padding: const EdgeInsets.only(top: 12.0),
-                      child: Center(
-                        child: ElevatedButton(
-                            onPressed: () {
-                              add(3, 4).then((onValue) {
-                                setState(() {
-                                  _methodResult = '$onValue';
-                                });
-                              });
-                            },
-                            child: const Text('add')),
-                      )),
                   Container(
                       width: MediaQuery.of(context).size.width,
                       padding: const EdgeInsets.only(top: 12.0),
@@ -276,6 +222,16 @@ class _MyHomePageState extends State<MyHomePage> {
                       child: Center(
                         child: ElevatedButton(
                             onPressed: () {
+                              _sendNestedDatatypeToPlatform();
+                            },
+                            child: const Text('_sendNestedDatatype')),
+                      )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
                               _SendEnum();
                             },
                             child: const Text('sendEnum')),
@@ -320,6 +276,26 @@ class _MyHomePageState extends State<MyHomePage> {
                             },
                             child: const Text('taskQueueTest')),
                       )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
+                              _platformInvokeFlutterSync();
+                            },
+                            child: const Text('platformInvokeFlutterSync')),
+                      )),
+                  Container(
+                      width: MediaQuery.of(context).size.width,
+                      padding: const EdgeInsets.only(top: 12.0),
+                      child: Center(
+                        child: ElevatedButton(
+                            onPressed: () {
+                              _platformInvokeFlutterAsync();
+                            },
+                            child: const Text('platformInvokeFlutterAsync')),
+                      )),
                 ],
               ),
             ),
@@ -338,7 +314,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  //sendNull
+  ///sendNull
   Future<void> _SendNull() async {
     Object? result = await _hostApi.sendNull(null);
     print(result);
@@ -347,7 +323,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendTrue
+  ///sendTrue
   Future<void> _SendTrue() async {
     Object? result = _hostApi.sendTrue(true);
     print(result);
@@ -356,8 +332,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendFalse
-
+  ///sendFalse
   Future<void> _SendFalse() async {
     Object? result = _hostApi.sendFalse(false);
     print(result);
@@ -366,7 +341,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendInt
+  ///sendInt
   Future<void> _SendInt() async {
     Object? result = _hostApi.sendInt(100);
     print(result);
@@ -375,7 +350,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendDouble
+  ///sendDouble
   Future<void> _SendDouble() async {
     Object? result = await _hostApi.sendDouble(100.256861);
     print(result);
@@ -384,7 +359,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendString
+  ///sendString
   Future<void> _SendString() async {
     Object? result = await _hostApi.sendString('sendStringValue');
     print(result);
@@ -393,7 +368,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendUint8List
+  ///sendUint8List
   Future<void> _SendUint8List() async {
     Object? result =
         await _hostApi.sendUint8List(Uint8List.fromList([1, 2, 3]));
@@ -403,7 +378,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendInt32List
+  ///sendInt32List
   Future<void> _SendInt32List() async {
     Object? result =
         await _hostApi.sendInt32List(Int32List.fromList([4, 5, 6]));
@@ -413,7 +388,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendInt64List
+  ///sendInt64List
   Future<void> _SendInt64List() async {
     Object? result = await _hostApi.sendInt64List(Int64List.fromList(
         [9223372036854775807, 9223372036854775806, 9223372036854775805]));
@@ -423,7 +398,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  //sendFloat64List
+  ///sendFloat64List
   Future<void> _SendFloat64List() async {
     Object? result = await _hostApi
         .sendFloat64List(Float64List.fromList([12.3, 45.6, 78.9]));
@@ -433,6 +408,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  ///sendList
   Future<void> _SendList() async {
     Object? result = await _hostApi.sendList(['zhangsan', 'lisi', 'zhangwu']);
     print(result);
@@ -441,6 +417,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  ///sendMap
   Future<void> _SendMap() async {
     Object? result =
         await _hostApi.sendMap({'Name': 'zhangsan', 'Country': 'China'});
@@ -450,32 +427,48 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  ///sendCustomClass
   Future<void> _SendCustomClassMessage() async {
-    final MessageData message = MessageData(
-      code: Code.one,
-      data: <String?, String?>{'header': 'this is a header'},
-      description: 'uri text',
-    );
-    try {
-      Object? result = await _hostApi.sendMessage(message);
+    Object? result =
+    await _hostApi.sendCustomClass(Student(name: "zhangsan", age: 18));
+    Student student = result as Student;
+    String studentStr = "Student{name='${student.name}', age=${student.age}}";
+    setState(() {
+      _methodResult = studentStr;
+    });
+  }
+
+  ///sendNestedData
+  Future<void> _sendNestedDatatypeToPlatform() async {
+    try{
+      Object? result = await _hostApi.sendNestedDatatype(
+          Person(name: "lisi", age: 20, identity: Identity.teacher));
+      Person person = result as Person;
+      String personStr =
+          "Person{name='${person.name}', age=${person.age}, identity=${person.identity}}";
+      print(personStr);
       setState(() {
-        _methodResult = result;
+        _methodResult = personStr;
       });
     } catch (e) {
-      // handle error.
+      print(e);
     }
   }
 
+  ///sendEnum
   Future<void> _SendEnum() async {
     try {
-      Object? result = await _hostApi.sendEnum(Code.one);
+     Object? result = await _hostApi.sendEnum(Identity.student);
       print(result);
       setState(() {
         _methodResult = result;
       });
-    } catch (e) {}
+    } catch (e) {
+      print(e);
+    }
   }
 
+  ///InvokeSync
   Future<void> _FlutterInvokeSync() async {
     Object? result = await _hostApi.flutterInvokeSync();
     setState(() {
@@ -490,6 +483,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
+  ///ErrorHandling
   Future<void> _ErrorHandlingTest() async {
     try {
       await _hostApi.errorHandling();
@@ -500,8 +494,26 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  ///Deprecated
   Future<void> _TaskQueueTest() async {
     Object? result = await _hostApi.taskQueueTest();
+    setState(() {
+      _methodResult = result;
+      _methodResult = '已废弃，不需要使用此方法了';
+    });
+  }
+
+  ///platformInvokeFlutterSync
+  Future<void> _platformInvokeFlutterSync() async {
+    Object? result = await _hostApi.flutterInvokeSync();
+    setState(() {
+      _methodResult = result;
+    });
+  }
+
+  ///platformInvokeFlutterAsync
+  Future<void> _platformInvokeFlutterAsync() async {
+    Object? result = await _hostApi.flutterInvokeAsync();
     setState(() {
       _methodResult = result;
     });

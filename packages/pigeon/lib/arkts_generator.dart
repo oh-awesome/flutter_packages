@@ -34,6 +34,8 @@ const String _codecName = 'PigeonCodec';
 const String _overflowClassName = '${classNamePrefix}CodecOverflow';
 // Used to create classes with type number rather than long.
 const String _forceInt = '${varNamePrefix}forceInt';
+///Enum companion suffix
+const String _enumCompanionSuffix = 'Enum';
 
 /// Documentation comment spec.
 const DocumentCommentSpecification _docCommentSpec =
@@ -117,11 +119,13 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
           .replaceAllMapped(regex, (Match m) => '${m[1]}_${m[2]}')
           .toUpperCase();
     }
-
+    const List<String> generatedEnumMessages = <String>[
+      ' Generated enum from Pigeon that represents data sent in messages.'
+    ];
     indent.newln();
     addDocumentationComments(
-        indent, anEnum.documentationComments, _docCommentSpec);
-
+        indent, anEnum.documentationComments, _docCommentSpec,
+        generatorComments:generatedEnumMessages);
     indent.write('export enum ${anEnum.name} ');
     indent.addScoped('{', '}', () {
       enumerate(anEnum.members, (int index, final EnumMember member) {
@@ -130,6 +134,23 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         indent.writeln(
             '${camelToSnake(member.name)}${index == anEnum.members.length - 1 ? '' : ','}');
       });
+    });
+    const List<String> generatedEnumCompanionMessages = <String>[
+      '''
+ Generated enum Companion class from Pigeon that represents data sent 
+   in messages.Do not delete otherwise enum type data transfer will failed'''
+    ];
+    indent.newln();
+    addDocumentationComments(
+        indent, anEnum.documentationComments, _docCommentSpec,
+        generatorComments:generatedEnumCompanionMessages);
+    indent.write('export class ${anEnum.name}$_enumCompanionSuffix ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('index:number|null = null;');
+      indent.addScoped('constructor(index:number){', '}', () {
+        indent.writeln('this.index = index;');
+      });
+
     });
   }
 
@@ -181,21 +202,35 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
       NamedType field,{bool isPrimitive = false,}) {
     final HostDatatype hostDatatype = getFieldHostDatatype(
         field, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-    indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
-    indent.newln();
-
-    indent.writeScoped(
-        'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
-        '}', () {
-      indent.writeln('this.${field.name} = ${field.name};');
-    });
-
-    indent.newln();
-    indent
-        .write('${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
-    indent.addScoped('{', '}', () {
-      indent.writeln('return this.${field.name};');
-    });
+    if(field.type.isEnum){
+      indent.writeln('private ${field.name}?: ${hostDatatype.datatype}$_enumCompanionSuffix;');
+      indent.newln();
+      indent.writeScoped(
+          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}$_enumCompanionSuffix):void {',
+          '}', () {
+        indent.writeln('this.${field.name} = ${field.name};');
+      });
+      indent.newln();
+      indent
+          .write('${_makeGetter(field)}(): ${hostDatatype.datatype}$_enumCompanionSuffix | undefined');
+      indent.addScoped('{', '}', () {
+        indent.writeln('return this.${field.name};');
+      });
+    }else{
+      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
+      indent.newln();
+      indent.writeScoped(
+          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
+          '}', () {
+        indent.writeln('this.${field.name} = ${field.name};');
+      });
+      indent.newln();
+      indent
+          .write('${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
+      indent.addScoped('{', '}', () {
+        indent.writeln('return this.${field.name};');
+      });
+    }
   }
 
   void _writeDataClassSignature(
@@ -234,7 +269,11 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
       for (final NamedType element in klass.fields) {
         final String type = _arkTSTypeForDartType(element.type);
         final String name = getSafeConstructorArgument(element.name);
-        argSignature.add('$name?: $type');
+        if(element.type.isEnum){
+          argSignature.add('$name?: $type$_enumCompanionSuffix');
+        }else{
+          argSignature.add('$name?: $type');
+        }
       }
     }
     indent.add('(${argSignature.join(', ')}) ');
@@ -260,10 +299,16 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
       indent.writeln('let arr: Object[] = new Array();');
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         final String fieldName = field.name;
-
-        indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
-          indent.writeln('arr.push(this.$fieldName);');
-        });
+        if(field.type.isEnum){
+          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+            indent.writeln('arr.push(Object.values(${field.type.baseName})'
+                '.indexOf(this.$fieldName.index! as ${field.type.baseName}));');
+          });
+        }else{
+          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+            indent.writeln('arr.push(this.$fieldName);');
+          });
+        }
       }
       indent.writeln('return arr;');
     });
@@ -287,9 +332,14 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
           (int index, final NamedType field) {
         final String fieldVariable = field.name;
         final String setter = _makeSetter(field);
-        indent.writeln('let $fieldVariable: Object = arr[$index];');
-        indent
-            .writeln('$result.$setter(${_castObject(field, fieldVariable)});');
+        if(field.type.isEnum){
+          indent
+              .writeln('$result.$setter(new ${field.type.baseName}$_enumCompanionSuffix(arr[$index]! as number));');
+        }else{
+          indent.writeln('let $fieldVariable: Object = arr[$index];');
+          indent
+              .writeln('$result.$setter(${_castObject(field, fieldVariable)});');
+        }
       });
       indent.writeln('return ${result};');
     });
@@ -307,11 +357,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
   String _castObject(NamedType field, String varName) {
     final HostDatatype hostDatatype = getFieldHostDatatype(
         field, (TypeDeclaration x) => _arkTSTypeForDartType(x));
-    if (field.type.baseName == 'int') {
-      return '($varName == null) ? null : ((typeof $varName === \'number\' ) ?  $varName as number: $varName as ${hostDatatype.datatype})';
-    } else {
-      return _cast(varName, artTSType: hostDatatype.datatype);
-    }
+    return _cast(varName, artTSType: hostDatatype.datatype);
   }
 
   @override
@@ -535,23 +581,13 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     final String channelName = makeChannelName(api, method, dartPackageName);
     indent.write('');
     indent.addScoped('{', '}', () {
-      String? taskQueue;
-      if (method.taskQueueType != TaskQueueType.serial) {
-        taskQueue = 'taskQueue';
-        indent.writeln(
-            'let taskQueue: TaskQueue = binaryMessenger.makeBackgroundTaskQueue();');
-      }
       indent.writeln('let channel: BasicMessageChannel<Object> =');
       indent.nest(2, () {
         indent.writeln('new BasicMessageChannel(');
         indent.nest(2, () {
           indent
               .write('binaryMessenger, "$channelName", ${api.name}.getCodec()');
-          if (taskQueue != null) {
-            indent.addln(', $taskQueue);');
-          } else {
-            indent.addln(');');
-          }
+          indent.addln(');');
         });
       });
       indent.write('if (api != null) ');
@@ -568,8 +604,13 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
               indent.writeln(
                   'let args: Array<Object> = message as Array<Object>;');
               enumerate(method.parameters, (int index, NamedType arg) {
-                final String argExpression =
+                String argExpression =
                     'args[$index] as ${_arkTSTypeForDartType(arg.type)}';
+                if (method.returnType.isEnum) {
+                  argExpression =
+                      'new ${_arkTSTypeForDartType(arg.type)}$_enumCompanionSuffix'
+                      '${'(args[$index] as number)'}';
+                }
                 methodArgument.add(argExpression);
               });
             }
@@ -607,7 +648,11 @@ let $resultName: Result<$returnType> = new ResultImp();
                   indent.writeln('$call;');
                   indent.writeln('res.push(null);');
                 } else {
-                  indent.writeln('let output: $returnType = $call;');
+                  if(method.returnType.isEnum){
+                    indent.writeln('let output: $returnType$_enumCompanionSuffix = $call;');
+                  }else{
+                    indent.writeln('let output: $returnType = $call;');
+                  }
                   indent.writeln('res.push(output);');
                 }
               });
@@ -647,7 +692,11 @@ let $resultName: Result<$returnType> = new ResultImp();
           method.parameters.map((NamedType e) => e.name);
       argSignature
           .addAll(map2(argTypes, argNames, (String argType, String argName) {
-        return '$argName: $argType ';
+            if(method.returnType.isEnum){
+              return '$argName: $argType$_enumCompanionSuffix ';
+            }else{
+              return '$argName: $argType ';
+            }
       }));
     }
     if (method.isAsynchronous) {
@@ -662,8 +711,13 @@ let $resultName: Result<$returnType> = new ResultImp();
     } else {
       indent.newln();
     }
-    indent.writeln(
-        'abstract ${method.name}(${argSignature.join(', ')}): $returnType;');
+    if (method.returnType.isEnum) {
+      indent.writeln('abstract ${method.name}(${argSignature.join(', ')}): '
+          '$returnType$_enumCompanionSuffix;');
+    } else {
+      indent.writeln(
+          'abstract ${method.name}(${argSignature.join(', ')}): $returnType;');
+    }
   }
 
   void _writeResultInterface(Indent indent) {
@@ -847,16 +901,15 @@ getByte(n: number): number {
       {required String dartPackageName}) {
     final List<EnumeratedType> enumeratedTypes =
         getEnumeratedTypes(root).toList();
-
     void writeEncodeLogic(EnumeratedType customType) {
-      bool isEnum = customType.type != CustomTypes.customClass;
+      bool isEnum = customType.type == CustomTypes.customEnum;
       final String nullCheck = customType.type == CustomTypes.customEnum
           ? 'value == null ? null : '
           : '';
-       String valueString ="";
+       String valueString ='';
        if(isEnum){
          valueString = customType.enumeration < maximumCodecFieldKey
-             ? '$nullCheck Object.values(${customType.name}).indexOf(value as ${customType.name})'
+             ? '$nullCheck Object.values(${customType.name}).indexOf(value.index as ${customType.name})'
              : 'wrap.toList()';
        }else{
          valueString = customType.enumeration < maximumCodecFieldKey
@@ -867,7 +920,8 @@ getByte(n: number): number {
       final int enumeration = customType.enumeration < maximumCodecFieldKey
           ? customType.enumeration
           : maximumCodecFieldKey;
-      if(!isEnum){
+      final bool isCustom = customType.type == CustomTypes.customClass;
+      if(isCustom){
         indent.add('if (value instanceof ${customType.name}) ');
         indent.addScoped('{', '} else ', () {
           if (customType.enumeration >= maximumCodecFieldKey) {
@@ -875,15 +929,26 @@ getByte(n: number): number {
                 'let wrap:$_overflowClassName = new $_overflowClassName();');
             indent.writeln(
                 'wrap.setType(${customType.enumeration - maximumCodecFieldKey});');
-            if (isEnum) {
-              indent.writeln(
-                  'wrap.setWrapped($nullCheck Object.values(${customType.name}).indexOf(value as ${customType.name});');
-            } else {
-              indent.writeln(
-                  'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());');
-            }
+
+            indent.writeln(
+                'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());');
           }
           indent.writeln('stream.writeUint8(this.getByte(${enumeration}));');
+          indent.writeln('this.writeValue(stream, $valueString);');
+        }, addTrailingNewline: false);
+      } else {
+        indent.add('if (value instanceof ${customType.name}$_enumCompanionSuffix) ');
+        indent.addScoped('{', '} else ', () {
+          if (customType.enumeration >= maximumCodecFieldKey) {
+            indent.writeln(
+                'let wrap:$_overflowClassName = new $_overflowClassName();');
+            indent.writeln(
+                'wrap.setType(${customType.enumeration
+                    - maximumCodecFieldKey});');
+            indent.writeln(
+                'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());');
+          }
+          indent.writeln('stream.writeUint8(this.getByte($enumeration));');
           indent.writeln('this.writeValue(stream, $valueString);');
         }, addTrailingNewline: false);
       }
