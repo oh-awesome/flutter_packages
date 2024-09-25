@@ -151,12 +151,14 @@ class _MyAppState extends State<_MyApp> {
     if (_queryProductError == null) {
       stack.add(
         ListView(
-          children: <Widget>[
-            _buildConnectionCheckTile(),
-            _buildProductList(),
-            _buildConsumableBox(),
-            _buildRestoreButton(),
-          ],
+          children: Platform.operatingSystem == 'ohos'
+              ? <Widget>[_buildConnectionCheckTile(), _buildProductList(), _buildConsumableBox()]
+              : <Widget>[
+                  _buildConnectionCheckTile(),
+                  _buildProductList(),
+                  _buildConsumableBox(),
+                  _buildRestoreButton(),
+                ],
         ),
       );
     } else {
@@ -164,7 +166,7 @@ class _MyAppState extends State<_MyApp> {
     }
     if (_purchasePending) {
       stack.add(
-        const Stack(
+        Stack(
           children: <Widget>[
             Opacity(opacity: 0.3, child: ModalBarrier(dismissible: false, color: Colors.grey)),
             Center(child: CircularProgressIndicator()),
@@ -253,11 +255,13 @@ class _MyAppState extends State<_MyApp> {
         return ListTile(
           title: Text(productDetails.title),
           subtitle: Text(productDetails.description),
-          trailing: previousPurchase != null && Platform.isIOS
-              ? IconButton(
-                  onPressed: () => confirmPriceChange(context),
-                  icon: const Icon(Icons.upgrade),
-                )
+          trailing: previousPurchase != null
+              ? Platform.isIOS
+                    ? IconButton(
+                        onPressed: () => confirmPriceChange(context),
+                        icon: const Icon(Icons.upgrade),
+                      )
+                    : const SizedBox.shrink()
               : TextButton(
                   style: TextButton.styleFrom(
                     backgroundColor: Colors.green[800],
