@@ -44,6 +44,7 @@ export class UrlLauncher implements UrlLauncherApi {
   static LAUNCH_TYPE_MAILTO: string = 'mailto:';
   static LAUNCH_TYPE_SMS: string = 'sms:';
   static LAUNCH_TYPE_FILE: string = 'file:';
+  static LAUNCH_TYPE_APP_GALLERY: string = 'store:';
 
   static MMS_BUNDLE_NAME = "com.ohos.mms";
   static MMS_ABILITY_NAME = "com.ohos.mms.MainAbility";
@@ -84,7 +85,8 @@ export class UrlLauncher implements UrlLauncherApi {
         encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_WEB_HTTPS) ||
         encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_MAILTO) ||
         encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_SMS) ||
-        encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_FILE)) {
+        encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_FILE) ||
+        encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_APP_GALLERY)) {
       return true;
     }
 
@@ -120,6 +122,8 @@ export class UrlLauncher implements UrlLauncherApi {
       return this.launchSms(url);
     } else if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_FILE)) {
       return this.launchFile(url);
+    } else if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_APP_GALLERY)) {
+      return this.launchAppGallery(url);
     } else {
       return this.launchOther(url);
     }
@@ -236,6 +240,28 @@ export class UrlLauncher implements UrlLauncherApi {
       return false
     }
     return true;
+  }
+
+  /**
+   * 跳转到应用商店详情页
+   * 文档参考：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-ability-kit#section42001122242
+   * @param url
+   * @returns
+   */
+  launchAppGallery(url: string): boolean {
+    Log.d(TAG, 'launchAppGallery:' + url);
+    //url 格式示范 store://appgallery.huawei.com/app/detail?id=C5765880207855137621
+    let want: Want = {
+      'action': 'ohos.want.action.appdetail',
+      'uri': url,
+    };
+    try {
+      this.context.startAbility(want)
+    } catch (e) {
+      Log.e(TAG, 'launchAppGallery failed. err:' + JSON.stringify(e))
+      return false
+    }
+    return true
   }
 
   launchOther(url: string): boolean {
