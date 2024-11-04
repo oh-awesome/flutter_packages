@@ -58,14 +58,16 @@ export class VideoPlayer {
   private eventSink: QueuingEventSink | null = null;
   private interruptMode: audio.InterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
   private fd: number | null = null;
+  private headers: Record<string, string> | null;
 
-  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean) {
+  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
     this.textureEntry = textureEntry;
     this.surfaceId = textureEntry.getSurfaceId().toString();
     this.url = url;
     this.iUrl = iUrl;
     this.eventChannel = eventChannel;
+    this.headers = headers;
     if (AudioFocus == true) {
       this.interruptMode = audio.InterruptMode.SHARE_MODE;
       Log.i(TAG, "set interruptMode : " + this.interruptMode);
@@ -93,6 +95,13 @@ export class VideoPlayer {
         this.avPlayer.url = this.getIUri();
       } else {
         this.avPlayer.fdSrc = this.url!;
+      }
+
+      if (this.headers != null) {
+        let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.iUrl, this.headers);
+        let playbackStrategy: media.PlaybackStrategy = {preferredWidth: 1, preferredHeight: 2, preferredBufferDuration: 20, preferredHdr: false};
+        // 设置媒体来源和播放策略
+        await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
       }
     }
   }
@@ -135,7 +144,6 @@ export class VideoPlayer {
           this.duration = this.avPlayer.duration;
           break;
         case AvplayerStatus.PLAYING:
-          this.setBright();
           this.status = CommonConstants.STATUS_START;
           this.watchStatus();
           break;
@@ -225,7 +233,7 @@ export class VideoPlayer {
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
-      this.avPlayer.seek(position, media.SeekMode.SEEK_PREV_SYNC);
+      this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
@@ -578,10 +586,6 @@ export class VideoPlayer {
     let iUrl = this.iUrl;
     const ohosFilePrefix = 'file://';
     if (iUrl != null && iUrl.startsWith(ohosFilePrefix)) {
-      const dartFilePrefix = 'file:///';
-      if (iUrl.startsWith(dartFilePrefix)) {
-        iUrl = ohosFilePrefix + iUrl.slice(dartFilePrefix.length);
-      }
       this.fd = fs.openSync(iUrl, fs.OpenMode.READ_ONLY).fd;
       iUrl = `fd://${this.fd!.toString()}`;
     }

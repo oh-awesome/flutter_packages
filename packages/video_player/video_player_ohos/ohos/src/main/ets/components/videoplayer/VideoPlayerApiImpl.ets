@@ -38,6 +38,7 @@ import { media } from '@kit.MediaKit';
 import { EventChannel } from '@ohos/flutter_ohos';
 import { GlobalContext } from './util/GlobalContext';
 import { window } from '@kit.ArkUI';
+import { image } from '@kit.ImageKit';
 
 const TAG: string = "VideoPlayerApiImpl";
 export class VideoPlayerApiImpl {
@@ -45,6 +46,7 @@ export class VideoPlayerApiImpl {
   private flutterState: FlutterState | null = null;
   private binding: AbilityPluginBinding | null = null;
   private AudioFocus: Boolean = false;
+  private pixelMaps: HashMap<string, image.PixelMap> = new HashMap();
 
   constructor(flutterState: FlutterState | null, binding: AbilityPluginBinding | null) {
     this.flutterState = flutterState;
@@ -79,6 +81,10 @@ export class VideoPlayerApiImpl {
     let flutterRenderer = this.flutterState.getTextureRegistry();
     let uri: string = arg.getUri();
     let asset: string = arg.getAsset();
+    let header: Record<string, string> = {};
+    arg.getHttpHeaders().forEach((value, key) => {
+      header[key.toString()] = value.toString();
+    })
     let textureId: number = flutterRenderer.getTextureId();
     Log.i(TAG, "enter getRawFd, textureId=" + textureId);
     let surfaceTextureEntry: SurfaceTextureEntry = flutterRenderer.registerTexture(textureId);
@@ -89,8 +95,9 @@ export class VideoPlayerApiImpl {
         width: -1,
         height: -1
       });
+      this.pixelMaps.set(JSON.stringify(arg), pixelMap);
       avImageGenerator.release();
-      flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+      flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
     } else if (uri != null && uri.startsWith("fd://")) {
       let avImageGenerator = await media.createAVImageGenerator();
       avImageGenerator.fdSrc = {
@@ -100,17 +107,18 @@ export class VideoPlayerApiImpl {
         width: -1,
         height: -1
       });
+      this.pixelMaps.set(JSON.stringify(arg), pixelMap);
       avImageGenerator.release();
-      flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+      flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
     }
     let eventChannel: EventChannel = new EventChannel(this.flutterState.getBinaryMessenger(), "flutter.io/videoPlayer/videoEvents" + textureId.toString());
     if (asset != null) {
       let rawFileDescriptor: resourceManager.RawFileDescriptor = await this.getContext().resourceManager.getRawFd("flutter_assets/" + asset);
-      let videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, rawFileDescriptor, null, eventChannel, this.AudioFocus);
+      let videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, rawFileDescriptor, null, eventChannel, this.AudioFocus, null);
       await videoPlayer.createAVPlayer();
       this.videoPlayers.set(textureId.toString(), videoPlayer);
     } else if (uri != null) {
-      let videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, null, uri, eventChannel, this.AudioFocus);
+      let videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, null, uri, eventChannel, this.AudioFocus, header);
       await videoPlayer.createAVPlayer();
       this.videoPlayers.set(textureId.toString(), videoPlayer);
     }

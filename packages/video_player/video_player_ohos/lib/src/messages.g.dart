@@ -14,9 +14,7 @@
 */
 
 import 'dart:async';
-import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 
-import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
 import 'package:flutter/services.dart';
 
 class TextureMessage {
@@ -271,7 +269,6 @@ class OhosVideoPlayerApi {
   static const MessageCodec<Object?> codec = _OhosVideoPlayerApiCodec();
 
   Future<void> initialize() async {
-    print("dev.flutter.pigeon.OhosVideoPlayerApi.initialize->");
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.OhosVideoPlayerApi.initialize', codec,
         binaryMessenger: _binaryMessenger);
@@ -480,12 +477,12 @@ class OhosVideoPlayerApi {
     }
   }
 
-  Future<void> pause(TextureMessage arg_msg) async {
+  Future<void> pause(TextureMessage argMsg) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.OhosVideoPlayerApi.pause', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_msg]) as List<Object?>?;
+        await channel.send(<Object?>[argMsg]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
