@@ -29,7 +29,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
 version: 1.0.0+1
-homepage: https://gitee.com/openharmony-sig/flutter_packages
+homepage: https://gitee.com/openharmony-sig/flutter_packages/tree/br_video_player-v2.9.2_ohos/packages/video_player
 
 environment:
   sdk: ">=2.19.0 <4.0.0"
