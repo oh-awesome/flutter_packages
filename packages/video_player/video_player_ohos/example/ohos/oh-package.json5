@@ -10,6 +10,8 @@
     "@ohos/hypium": "1.0.6"
   },
   "overrides": {
-    "@ohos/flutter_ohos": "file:./har/flutter.har"
+    "@ohos/flutter_ohos": "file:./har/flutter.har",
+    "video_player_ohos": "file:./har/video_player_ohos.har",
+    "@ohos/flutter_module": "file:./entry"
   }
 }
