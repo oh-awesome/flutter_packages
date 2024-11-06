@@ -17,7 +17,7 @@ repository: https://gitee.com/openharmony-sig/flutter_packages/tree/master/packa
 issue_tracker: https://gitee.com/openharmony-sig/flutter_packages/issues
 
 version: 0.8.7+4
-homepage: https://gitee.com/openharmony-sig/flutter_packages/tree/br_image_picker-v1.1.2_ohos/packages/video_player
+homepage: https://gitee.com/she-taotao/flutter_packages/tree/br_image_picker-v1.1.2_ohos/packages/image_picker/image_picker_ohos
 
 environment:
   sdk: ">=2.18.0 <4.0.0"
