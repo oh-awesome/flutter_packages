@@ -55,14 +55,16 @@
     NSLocale *locale = NSLocale.systemLocale;
     [self setValue:locale ?: [NSNull null] forKey:@"priceLocale"];
     [self setValue:map[@"downloadContentLengths"] ?: @(0) forKey:@"downloadContentLengths"];
-    SKProductSubscriptionPeriodStub *period =
-        [[SKProductSubscriptionPeriodStub alloc] initWithMap:map[@"subscriptionPeriod"]];
-    [self setValue:period ?: [NSNull null] forKey:@"subscriptionPeriod"];
-    SKProductDiscountStub *discount =
-        [[SKProductDiscountStub alloc] initWithMap:map[@"introductoryPrice"]];
-    [self setValue:discount ?: [NSNull null] forKey:@"introductoryPrice"];
-    [self setValue:map[@"subscriptionGroupIdentifier"] ?: [NSNull null]
-            forKey:@"subscriptionGroupIdentifier"];
+    if (@available(iOS 11.2, *)) {
+      SKProductSubscriptionPeriodStub *period =
+          [[SKProductSubscriptionPeriodStub alloc] initWithMap:map[@"subscriptionPeriod"]];
+      [self setValue:period ?: [NSNull null] forKey:@"subscriptionPeriod"];
+      SKProductDiscountStub *discount =
+          [[SKProductDiscountStub alloc] initWithMap:map[@"introductoryPrice"]];
+      [self setValue:discount ?: [NSNull null] forKey:@"introductoryPrice"];
+      [self setValue:map[@"subscriptionGroupIdentifier"] ?: [NSNull null]
+              forKey:@"subscriptionGroupIdentifier"];
+    }
     if (@available(iOS 12.2, *)) {
       NSMutableArray *discounts = [[NSMutableArray alloc] init];
       for (NSDictionary *discountMap in map[@"discounts"]) {
@@ -111,13 +113,8 @@
   for (NSString *identifier in self.identifers) {
     [productArray addObject:@{@"productIdentifier" : identifier}];
   }
-  SKProductsResponseStub *response;
-  if (self.returnError) {
-    response = nil;
-  } else {
-    response = [[SKProductsResponseStub alloc] initWithMap:@{@"products" : productArray}];
-  }
-
+  SKProductsResponseStub *response =
+      [[SKProductsResponseStub alloc] initWithMap:@{@"products" : productArray}];
   if (self.error) {
     [self.delegate request:self didFailWithError:self.error];
   } else {
@@ -145,6 +142,7 @@
 @end
 
 @interface InAppPurchasePluginStub ()
+
 @end
 
 @implementation InAppPurchasePluginStub
@@ -154,9 +152,6 @@
 }
 
 - (SKProduct *)getProduct:(NSString *)productID {
-  if ([productID isEqualToString:@""]) {
-    return nil;
-  }
   return [[SKProductStub alloc] initWithProductID:productID];
 }
 
