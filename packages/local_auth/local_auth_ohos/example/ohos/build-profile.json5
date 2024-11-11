@@ -1,20 +1,6 @@
 {
   "app": {
-    "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\hoperun\\.ohos\\config\\default_ohos_UL2s9jZgWwl9nXXJl5w1X8UObnnp_IQQYH2J_GgVsLA=.cer",
-          "storePassword": "0000001B2A1396E0C8ED9F9A6088E6FA5107DE52FAF62E8D34A39C4D841D139CB8A1ABAFEB4464369E72F5",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001BD3EA3B3DF38F7971626248E73224286F8334BDD7895E70C2D711F5E05C2E1106E148B998E3EC62",
-          "profile": "C:\\Users\\hoperun\\.ohos\\config\\default_ohos_UL2s9jZgWwl9nXXJl5w1X8UObnnp_IQQYH2J_GgVsLA=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\hoperun\\.ohos\\config\\default_ohos_UL2s9jZgWwl9nXXJl5w1X8UObnnp_IQQYH2J_GgVsLA=.p12"
-        }
-      }
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
