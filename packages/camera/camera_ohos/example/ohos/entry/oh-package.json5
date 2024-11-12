@@ -6,8 +6,11 @@
   "author": "",
   "license": "",
   "dependencies": {
+<<<<<<< HEAD
     "camera_ohos": "file:../har/camera_ohos.har",
     "path_provider_ohos": "file:../har/path_provider_ohos.har",
     "video_player_ohos": "file:../har/video_player_ohos.har"
+=======
+>>>>>>> cd63c57eb (修改camera前置摄像头录制视频上下颠倒问题)
   }
 }

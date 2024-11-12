@@ -55,7 +55,7 @@ import systemDateTime from '@ohos.systemDateTime';
 import photoAccessHelper from '@ohos.file.photoAccessHelper';
 import { picker } from '@kit.CoreFileKit';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
-import { FlashMode } from './features/flash/FlashMode';
+import display from '@ohos.display';
 
 const TAG = "Camera";
 
@@ -760,13 +760,19 @@ export class Camera implements CameraCaptureStateListener {
         let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
         this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
         let fd = this.captureFile.fd;
+        let displayRotation = display.getDefaultDisplaySync().rotation;
+        let previewRotation = this.previewOutput?.getPreviewRotation(displayRotation);
         // 当前录像配置
         let aVRecorderConfig: media.AVRecorderConfig = {
           audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
           videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
           profile: this.aVRecorderProfile,
           url: `fd://${fd}`,
+<<<<<<< HEAD
           rotation: pre ? 90 : 270, // 90°为默认后置摄像头竖屏显示角度，270°为默认前置摄像头竖屏显示角度，如果由于设备原因或应用期望以其他方式显示等原因，请根据实际情况调整该参数
+=======
+          rotation: previewRotation,
+>>>>>>> cd63c57eb (修改camera前置摄像头录制视频上下颠倒问题)
         };
         await this.avRecorder.prepare(aVRecorderConfig).then(async () => {
           this.videoId = await this.avRecorder?.getInputSurface();
