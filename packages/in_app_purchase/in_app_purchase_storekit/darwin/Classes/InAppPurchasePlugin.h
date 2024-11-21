@@ -7,12 +7,10 @@
 #else
 #import <Flutter/Flutter.h>
 #endif
-#import "messages.g.h"
-
 @class FIAPaymentQueueHandler;
 @class FIAPReceiptManager;
 
-@interface InAppPurchasePlugin : NSObject <FlutterPlugin, InAppPurchaseAPI>
+@interface InAppPurchasePlugin : NSObject <FlutterPlugin>
 
 @property(strong, nonatomic) FIAPaymentQueueHandler *paymentQueueHandler;
 

@@ -4,44 +4,54 @@
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:in_app_purchase_android/billing_client_wrappers.dart';
-import 'package:in_app_purchase_android/src/messages.g.dart';
-import 'package:mockito/mockito.dart';
+import 'package:in_app_purchase_android/src/channel.dart';
 
-import 'billing_client_wrapper_test.mocks.dart';
+import '../stub_in_app_purchase_platform.dart';
+import 'purchase_wrapper_test.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late MockInAppPurchaseApi mockApi;
+  final StubInAppPurchasePlatform stubPlatform = StubInAppPurchasePlatform();
   late BillingClientManager manager;
+  late Completer<void> connectedCompleter;
+
+  const String startConnectionCall =
+      'BillingClient#startConnection(BillingClientStateListener)';
+  const String endConnectionCall = 'BillingClient#endConnection()';
+  const String onBillingServiceDisconnectedCallback =
+      'BillingClientStateListener#onBillingServiceDisconnected()';
+
+  setUpAll(() => _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+      .defaultBinaryMessenger
+      .setMockMethodCallHandler(channel, stubPlatform.fakeMethodCallHandler));
 
   setUp(() {
     WidgetsFlutterBinding.ensureInitialized();
-    mockApi = MockInAppPurchaseApi();
-    when(mockApi.startConnection(any, any)).thenAnswer(
-        (_) async => PlatformBillingResult(responseCode: 0, debugMessage: ''));
-    manager = BillingClientManager(
-        billingClientFactory: (PurchasesUpdatedListener listener,
-                UserSelectedAlternativeBillingListener?
-                    alternativeBillingListener) =>
-            BillingClient(listener, alternativeBillingListener, api: mockApi));
+    connectedCompleter = Completer<void>.sync();
+    stubPlatform.addResponse(
+      name: startConnectionCall,
+      value: buildBillingResultMap(
+        const BillingResultWrapper(responseCode: BillingResponse.ok),
+      ),
+      additionalStepBeforeReturn: (dynamic _) => connectedCompleter.future,
+    );
+    stubPlatform.addResponse(name: endConnectionCall);
+    manager = BillingClientManager();
   });
+
+  tearDown(() => stubPlatform.reset());
 
   group('BillingClientWrapper', () {
     test('connects on initialization', () {
-      verify(mockApi.startConnection(any, any)).called(1);
+      expect(stubPlatform.countPreviousCalls(startConnectionCall), equals(1));
     });
 
     test('waits for connection before executing the operations', () async {
-      final Completer<void> connectedCompleter = Completer<void>();
-      when(mockApi.startConnection(any, any)).thenAnswer((_) async {
-        connectedCompleter.complete();
-        return PlatformBillingResult(responseCode: 0, debugMessage: '');
-      });
-
       final Completer<void> calledCompleter1 = Completer<void>();
       final Completer<void> calledCompleter2 = Completer<void>();
       unawaited(manager.runWithClient((BillingClient _) async {
@@ -60,39 +70,21 @@ void main() {
 
     test('re-connects when client sends onBillingServiceDisconnected',
         () async {
+      connectedCompleter.complete();
       // Ensures all asynchronous connected code finishes.
       await manager.runWithClientNonRetryable((_) async {});
 
-      manager.client.hostCallbackHandler.onBillingServiceDisconnected(0);
-      verify(mockApi.startConnection(any, any)).called(2);
-    });
-
-    test('re-connects when host calls reconnectWithBillingChoiceMode',
-        () async {
-      // Ensures all asynchronous connected code finishes.
-      await manager.runWithClientNonRetryable((_) async {});
-
-      await manager.reconnectWithBillingChoiceMode(
-          BillingChoiceMode.alternativeBillingOnly);
-      // Verify that connection was ended.
-      verify(mockApi.endConnection()).called(1);
-
-      clearInteractions(mockApi);
-
-      /// Fake the disconnect that we would expect from a endConnectionCall.
-      manager.client.hostCallbackHandler.onBillingServiceDisconnected(0);
-      // Verify that after connection ended reconnect was called.
-      final VerificationResult result =
-          verify(mockApi.startConnection(any, captureAny));
-      expect(result.captured.single,
-          PlatformBillingChoiceMode.alternativeBillingOnly);
+      await manager.client.callHandler(
+        const MethodCall(onBillingServiceDisconnectedCallback,
+            <String, dynamic>{'handle': 0}),
+      );
+      expect(stubPlatform.countPreviousCalls(startConnectionCall), equals(2));
     });
 
     test(
       're-connects when operation returns BillingResponse.serviceDisconnected',
       () async {
-        clearInteractions(mockApi);
-
+        connectedCompleter.complete();
         int timesCalled = 0;
         final BillingResultWrapper result = await manager.runWithClient(
           (BillingClient _) async {
@@ -104,43 +96,23 @@ void main() {
             );
           },
         );
-        verify(mockApi.startConnection(any, any)).called(1);
+        expect(stubPlatform.countPreviousCalls(startConnectionCall), equals(2));
         expect(timesCalled, equals(2));
         expect(result.responseCode, equals(BillingResponse.ok));
       },
     );
 
     test('does not re-connect when disposed', () {
-      clearInteractions(mockApi);
+      connectedCompleter.complete();
       manager.dispose();
-      verifyNever(mockApi.startConnection(any, any));
-      verify(mockApi.endConnection()).called(1);
-    });
-
-    test(
-        'Emits UserChoiceDetailsWrapper when onUserChoiceAlternativeBilling is called',
-        () async {
-      // Ensures all asynchronous connected code finishes.
-      await manager.runWithClientNonRetryable((_) async {});
-
-      const UserChoiceDetailsWrapper expected = UserChoiceDetailsWrapper(
-        originalExternalTransactionId: 'TransactionId',
-        externalTransactionToken: 'TransactionToken',
-        products: <UserChoiceDetailsProductWrapper>[
-          UserChoiceDetailsProductWrapper(
-              id: 'id1',
-              offerToken: 'offerToken1',
-              productType: ProductType.inapp),
-          UserChoiceDetailsProductWrapper(
-              id: 'id2',
-              offerToken: 'offerToken2',
-              productType: ProductType.inapp),
-        ],
-      );
-      final Future<UserChoiceDetailsWrapper> detailsFuture =
-          manager.userChoiceDetailsStream.first;
-      manager.onUserChoiceAlternativeBilling(expected);
-      expect(await detailsFuture, expected);
+      expect(stubPlatform.countPreviousCalls(startConnectionCall), equals(1));
+      expect(stubPlatform.countPreviousCalls(endConnectionCall), equals(1));
     });
   });
 }
+
+/// This allows a value of type T or T? to be treated as a value of type T?.
+///
+/// We use this so that APIs that have become non-nullable can still be used
+/// with `!` and `?` on the stable branch.
+T? _ambiguate<T>(T? value) => value;

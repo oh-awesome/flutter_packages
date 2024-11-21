@@ -55,14 +55,6 @@ void main() {
       ]);
     });
 
-    test('countryCode', () async {
-      final String country = await inAppPurchase.countryCode();
-      expect(country, 'USA');
-      expect(fakePlatform.log, <Matcher>[
-        isMethodCall('countryCode', arguments: null),
-      ]);
-    });
-
     test('purchaseStream', () async {
       final bool isEmptyStream = await inAppPurchase.purchaseStream.isEmpty;
       expect(isEmptyStream, true);
@@ -199,11 +191,5 @@ class MockInAppPurchasePlatform extends Fake
   Future<void> restorePurchases({String? applicationUserName}) {
     log.add(const MethodCall('restorePurchases'));
     return Future<void>.value();
-  }
-
-  @override
-  Future<String> countryCode() {
-    log.add(const MethodCall('countryCode'));
-    return Future<String>.value('USA');
   }
 }

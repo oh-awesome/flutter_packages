@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase_android/in_app_purchase_android.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 import 'package:in_app_purchase_storekit/in_app_purchase_storekit.dart';
+import 'package:in_app_purchase_ohos/in_app_purchase_ohos.dart';
 
 export 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart'
     show
@@ -16,7 +17,8 @@ export 'package:in_app_purchase_platform_interface/in_app_purchase_platform_inte
         PurchaseDetails,
         PurchaseParam,
         PurchaseStatus,
-        PurchaseVerificationData;
+        PurchaseVerificationData,
+        PurchaseStatus;
 
 /// Basic API for making in app purchases across multiple platforms.
 class InAppPurchase implements InAppPurchasePlatformAdditionProvider {
@@ -37,6 +39,8 @@ class InAppPurchase implements InAppPurchasePlatformAdditionProvider {
     } else if (defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.macOS) {
       InAppPurchaseStoreKitPlatform.registerPlatform();
+    } else if (defaultTargetPlatform == TargetPlatform.ohos) {
+      InAppPurchaseOhosPlatform.registerPlatform();
     }
 
     _instance = InAppPurchase._();
@@ -209,20 +213,4 @@ class InAppPurchase implements InAppPurchasePlatformAdditionProvider {
       InAppPurchasePlatform.instance.restorePurchases(
         applicationUserName: applicationUserName,
       );
-
-  /// Returns the user's country.
-  ///
-  /// Android:
-  /// Returns Play billing country code based on ISO-3166-1 alpha2 format.
-  ///
-  /// See: https://developer.android.com/reference/com/android/billingclient/api/BillingConfig
-  /// See: https://unicode.org/cldr/charts/latest/supplemental/territory_containment_un_m_49.html
-  ///
-  /// iOS:
-  /// Returns the country code from SKStoreFrontWrapper.
-  ///
-  /// See: https://developer.apple.com/documentation/storekit/skstorefront?language=objc
-  ///
-  ///
-  Future<String> countryCode() => InAppPurchasePlatform.instance.countryCode();
 }

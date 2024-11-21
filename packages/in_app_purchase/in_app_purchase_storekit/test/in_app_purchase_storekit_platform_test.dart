@@ -13,7 +13,6 @@ import 'package:in_app_purchase_storekit/store_kit_wrappers.dart';
 
 import 'fakes/fake_storekit_platform.dart';
 import 'store_kit_wrappers/sk_test_stub_objects.dart';
-import 'test_api.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -22,7 +21,10 @@ void main() {
   late InAppPurchaseStoreKitPlatform iapStoreKitPlatform;
 
   setUpAll(() {
-    TestInAppPurchaseApi.setup(fakeStoreKitPlatform);
+    _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
+        .defaultBinaryMessenger
+        .setMockMethodCallHandler(
+            SystemChannels.platform, fakeStoreKitPlatform.onMethodCall);
   });
 
   setUp(() {
@@ -78,9 +80,9 @@ void main() {
 
   group('restore purchases', () {
     test('should emit restored transactions on purchase stream', () async {
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           0, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT1'));
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           1, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT2'));
       final Completer<List<PurchaseDetails>> completer =
           Completer<List<PurchaseDetails>>();
@@ -99,9 +101,9 @@ void main() {
       final List<PurchaseDetails> details = await completer.future;
 
       expect(details.length, 2);
-      for (int i = 0; i < fakeStoreKitPlatform.transactionList.length; i++) {
+      for (int i = 0; i < fakeStoreKitPlatform.transactions.length; i++) {
         final SKPaymentTransactionWrapper expected =
-            fakeStoreKitPlatform.transactionList[i];
+            fakeStoreKitPlatform.transactions[i];
         final PurchaseDetails actual = details[i];
 
         expect(actual.purchaseID, expected.transactionIdentifier);
@@ -136,11 +138,11 @@ void main() {
     });
 
     test('should not block transaction updates', () async {
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           0, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT1'));
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           1, fakeStoreKitPlatform.createPurchasedTransaction('foo', 'bar'));
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           2, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT2'));
       final Completer<List<PurchaseDetails>> completer =
           Completer<List<PurchaseDetails>>();
@@ -157,9 +159,9 @@ void main() {
       await iapStoreKitPlatform.restorePurchases();
       final List<PurchaseDetails> details = await completer.future;
       expect(details.length, 3);
-      for (int i = 0; i < fakeStoreKitPlatform.transactionList.length; i++) {
+      for (int i = 0; i < fakeStoreKitPlatform.transactions.length; i++) {
         final SKPaymentTransactionWrapper expected =
-            fakeStoreKitPlatform.transactionList[i];
+            fakeStoreKitPlatform.transactions[i];
         final PurchaseDetails actual = details[i];
 
         expect(actual.purchaseID, expected.transactionIdentifier);
@@ -180,7 +182,7 @@ void main() {
     test(
         'should emit empty transaction if transactions array does not contain a transaction with PurchaseStatus.restored status.',
         () async {
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           0, fakeStoreKitPlatform.createPurchasedTransaction('foo', 'bar'));
       final Completer<List<List<PurchaseDetails>>> completer =
           Completer<List<List<PurchaseDetails>>>();
@@ -202,9 +204,9 @@ void main() {
       final List<List<PurchaseDetails>> details = await completer.future;
       expect(details.length, 2);
       expect(details[0], <List<PurchaseDetails>>[]);
-      for (int i = 0; i < fakeStoreKitPlatform.transactionList.length; i++) {
+      for (int i = 0; i < fakeStoreKitPlatform.transactions.length; i++) {
         final SKPaymentTransactionWrapper expected =
-            fakeStoreKitPlatform.transactionList[i];
+            fakeStoreKitPlatform.transactions[i];
         final PurchaseDetails actual = details[1][i];
 
         expect(actual.purchaseID, expected.transactionIdentifier);
@@ -224,9 +226,9 @@ void main() {
 
     test('receipt error should populate null to verificationData.data',
         () async {
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           0, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT1'));
-      fakeStoreKitPlatform.transactionList.insert(
+      fakeStoreKitPlatform.transactions.insert(
           1, fakeStoreKitPlatform.createRestoredTransaction('foo', 'RT2'));
       fakeStoreKitPlatform.receiptData = null;
       final Completer<List<PurchaseDetails>> completer =
@@ -570,14 +572,10 @@ void main() {
       expect(fakeStoreKitPlatform.queueIsActive, false);
     });
   });
-
-  group('billing configuration', () {
-    test('country_code', () async {
-      const String expectedCountryCode = 'CA';
-      fakeStoreKitPlatform.setStoreFrontInfo(
-          countryCode: expectedCountryCode, identifier: 'ABC');
-      final String? countryCode = await iapStoreKitPlatform.getCountryCode();
-      expect(countryCode, expectedCountryCode);
-    });
-  });
 }
+
+/// This allows a value of type T or T? to be treated as a value of type T?.
+///
+/// We use this so that APIs that have become non-nullable can still be used
+/// with `!` and `?` on the stable branch.
+T? _ambiguate<T>(T? value) => value;
