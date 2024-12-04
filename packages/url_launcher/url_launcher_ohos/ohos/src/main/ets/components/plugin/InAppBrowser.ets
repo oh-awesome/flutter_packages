@@ -15,6 +15,7 @@
 import web_webview from '@ohos.web.webview';
 import router from '@ohos.router';
 import { ValueType } from '@kit.ArkData';
+import { emitter } from '@kit.BasicServicesKit';
 
 @Entry
 @Component
@@ -33,6 +34,10 @@ export struct InAppBrowser {
     this.enableJavaScript = options['enableJavaScript'] as boolean;
     this.enableDomStorage = options['enableDomStorage'] as boolean;
     this.my_header_value=  params ['my_header_key'] as string;
+    emitter.once("closeWebView", () => {
+      console.info('closeWebView');
+      router.back({url:'pages/Index'})
+    });
   }
   build() {
     Row() {
