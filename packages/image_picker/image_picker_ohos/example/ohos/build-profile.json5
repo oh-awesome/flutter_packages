@@ -22,30 +22,6 @@
           ]
         }
       ]
-    },
-    {
-      "name": "video_player_ohos",
-      "srcPath": "../../../../../../../Pub/cache/git/flutter_packages-c9cb253582c3b0c626a70c9103fc4906695b3d76/packages/video_player/video_player_ohos/ohos",
-      "targets": [
-        {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
-    },
-    {
-      "name": "image_picker_ohos",
-      "srcPath": "../../ohos",
-      "targets": [
-        {
-          "name": "default",
-          "applyToProducts": [
-            "default"
-          ]
-        }
-      ]
     }
   ]
 }
