@@ -24,6 +24,8 @@ flutter:
         default_package: shared_preferences_web
       windows:
         default_package: shared_preferences_windows
+      ohos:
+        default_package: shared_preferences_ohos
 
 dependencies:
   flutter:
@@ -34,6 +36,11 @@ dependencies:
   shared_preferences_platform_interface: ^2.4.0
   shared_preferences_web: ^2.4.0
   shared_preferences_windows: ^2.4.0
+  shared_preferences_ohos:
+    git:
+      url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+      path: "packages/shared_preferences/shared_preferences_ohos"
+      ref: "br_shared_preferences-v2.3.2_ohos"
 
 dev_dependencies:
   flutter_test:
