@@ -116,6 +116,22 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _launchEmail(String url) async {
+    if (!await launcher.launch(
+      url,
+      useSafariVC: false,
+      useWebView: false,
+      enableJavaScript: false,
+      enableDomStorage: false,
+      universalLinksOnly: false,
+      headers: <String, String>{
+        'harmony_browser_page': 'pages/LaunchInAppPage'
+      },
+    )) {
+      throw Exception('Could not launch $url');
+    }
+  }
+
   Widget _launchStatus(BuildContext context, AsyncSnapshot<void> snapshot) {
     if (snapshot.hasError) {
       return Text('Error: ${snapshot.error}');
@@ -213,6 +229,13 @@ class _MyHomePageState extends State<MyHomePage> {
                   });
                 }),
                 child: const Text('Launch in app + close after 5 seconds'),
+              ),
+              const Padding(padding: EdgeInsets.all(16.0)),
+              ElevatedButton(
+                onPressed: () => setState(() {
+                  _launched = _launchEmail('mailto:admin@exmaple.com');
+                }),
+                child: const Text('Launch in emial'),
               ),
               const Padding(padding: EdgeInsets.all(16.0)),
               FutureBuilder<void>(future: _launched, builder: _launchStatus),
