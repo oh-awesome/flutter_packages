@@ -910,7 +910,6 @@ export class Camera implements CameraCaptureStateListener {
   dispose() {
     console.error(TAG, 'dispose');
     this.close();
-    this.flutterTexture.release();
     this.getDeviceOrientationManager().stop();
   }
 
