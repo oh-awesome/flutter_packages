@@ -752,7 +752,6 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startCapture(record: boolean, stream: boolean) {
-    let pre = CameraUtils.isFlashModeSupported(this.getCurSession(),FlashMode.getValueForString('torch')!);
     if (!this.pausedPreview) {
       this.getCurSession().stop();
     }
@@ -772,11 +771,7 @@ export class Camera implements CameraCaptureStateListener {
           videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
           profile: this.aVRecorderProfile,
           url: `fd://${fd}`,
-<<<<<<< HEAD
-          rotation: pre ? 90 : 270, // 90°为默认后置摄像头竖屏显示角度，270°为默认前置摄像头竖屏显示角度，如果由于设备原因或应用期望以其他方式显示等原因，请根据实际情况调整该参数
-=======
           rotation: previewRotation,
->>>>>>> cd63c57eb (修改camera前置摄像头录制视频上下颠倒问题)
         };
         await this.avRecorder.prepare(aVRecorderConfig).then(async () => {
           this.videoId = await this.avRecorder?.getInputSurface();
