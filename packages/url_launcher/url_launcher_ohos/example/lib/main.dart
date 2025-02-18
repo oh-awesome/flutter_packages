@@ -41,6 +41,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _hasCallSupport = false;
   Future<void>? _launched;
   String _phone = '';
+  String? _launchAppGalleryLog = null;
 
   @override
   void initState() {
@@ -144,6 +145,29 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Future<void> _launchAppGalleryDetails(String url) async {
+    //store://appgallery.huawei.com/app/detail?id=APPID'
+    if (await launcher.canLaunch(url)) {
+      var result = await launcher.launchUrl(
+        url,
+        const LaunchOptions(mode: PreferredLaunchMode.externalApplication),
+      );
+      if (result) {
+        setState(() {
+          _launchAppGalleryLog = "Launched $url";
+        });
+      } else {
+        setState(() {
+          _launchAppGalleryLog = "Could not launch $url";
+        });
+      }
+    } else {
+      setState(() {
+        _launchAppGalleryLog = "canLaunch=false, $url";
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // onPressed calls using this URL are not gated on a 'canLaunch' check
@@ -168,8 +192,8 @@ class _MyHomePageState extends State<MyHomePage> {
               ElevatedButton(
                 onPressed: _hasCallSupport
                     ? () => setState(() {
-                          _launched = _makePhoneCall(_phone);
-                        })
+                  _launched = _makePhoneCall(_phone);
+                })
                     : null,
                 child: _hasCallSupport
                     ? const Text('Make phone call')
@@ -214,6 +238,18 @@ class _MyHomePageState extends State<MyHomePage> {
                 }),
                 child: const Text('Launch in app + close after 5 seconds'),
               ),
+              const Padding(padding: EdgeInsets.all(16.0)),
+              ElevatedButton(
+                onPressed: () => setState(() {
+                  //此处包名应该更换成 C+AppID
+                  const String url =
+                      'store://appgallery.huawei.com/app/detail?id=com.huawei.hmsapp.himovie';
+                  _launched = _launchAppGalleryDetails(url);
+                }),
+                child: const Text('Launch AppGallery Details'),
+              ),
+              if (_launchAppGalleryLog?.isNotEmpty ?? false)
+                Text(_launchAppGalleryLog!),
               const Padding(padding: EdgeInsets.all(16.0)),
               FutureBuilder<void>(future: _launched, builder: _launchStatus),
             ],
