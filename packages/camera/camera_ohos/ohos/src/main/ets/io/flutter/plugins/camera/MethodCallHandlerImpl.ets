@@ -92,7 +92,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         // 检查权限
         this.cameraPermissions.requestPermissions(
           this.context,
-          false,
+          call.argument('enableAudio'),
           (errCode: string | null, errDesc: string | null) => {
             if (errCode == null) {
               try {

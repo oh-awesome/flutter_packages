@@ -10,11 +10,12 @@ import { BusinessError } from '@ohos.base';
 
 type ResultCallback = (errCode: string | null, errDesc: string | null) => void;
 
-const cameraPermission: Array<Permissions> =
+const photoPermission: Array<Permissions> =
+  ['ohos.permission.CAMERA'];
+
+const videoPermission: Array<Permissions> =
   ['ohos.permission.CAMERA',
     'ohos.permission.MICROPHONE'];
-
-const audioPermission: Array<Permissions> = ['ohos.permission.CAPTURE_VOICE_DOWNLINK_AUDIO'];
 
 async function checkAccessToken(permission: Permissions): Promise<abilityAccessCtrl.GrantStatus> {
   let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
@@ -53,14 +54,14 @@ export class CameraPermissions {
     enableAudio: boolean,
     callback: ResultCallback
   ) {
-    const hasCameraPermission: boolean = await checkPermissions(cameraPermission);
-    const hasAudioPermission: boolean = enableAudio && await checkPermissions(audioPermission);
+    const hasCameraPermission: boolean = await checkPermissions(photoPermission);
+    const hasAudioPermission: boolean = enableAudio && await checkPermissions(videoPermission);
 
     if (!hasCameraPermission || !hasAudioPermission) {
       let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
 
       // requestPermissionsFromUser会判断权限的授权状态来决定是否唤起弹窗
-      atManager.requestPermissionsFromUser(context, enableAudio ? cameraPermission : cameraPermission)
+      atManager.requestPermissionsFromUser(context, enableAudio ? videoPermission : photoPermission)
         .then((data: PermissionRequestResult) => {
           let grantStatus: Array<number> = data.authResults;
           let length: number = grantStatus.length;
