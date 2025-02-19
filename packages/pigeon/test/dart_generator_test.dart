@@ -2085,4 +2085,56 @@ name: foobar
     expect(code, contains('buffer.putUint8(4);'));
     expect(code, contains('buffer.putInt64(value);'));
   });
+
+  test('codec writeValue chains else if without extra spacing', () {
+    final Root root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'foo',
+              location: ApiLocation.host,
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'a',
+                  type: TypeDeclaration(
+                    baseName: 'First',
+                    isNullable: false,
+                    associatedClass: emptyClass,
+                  ),
+                ),
+                Parameter(
+                  name: 'b',
+                  type: TypeDeclaration(
+                    baseName: 'Second',
+                    isNullable: false,
+                    associatedClass: emptyClass,
+                  ),
+                ),
+              ],
+              returnType: const TypeDeclaration.voidDeclaration(),
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[
+        Class(name: 'First', fields: <NamedType>[]),
+        Class(name: 'Second', fields: <NamedType>[]),
+      ],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const DartGenerator generator = DartGenerator();
+    generator.generate(
+      const InternalDartOptions(),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final String code = sink.toString();
+    expect(code, contains('} else if (value is First) {'));
+    expect(code, contains('} else if (value is Second) {'));
+    expect(code, isNot(contains('}    else if')));
+  });
 }
