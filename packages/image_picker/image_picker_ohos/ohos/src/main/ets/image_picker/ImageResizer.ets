@@ -91,26 +91,26 @@ export default class ImageResizer {
     let shouldDownscale: boolean = shouldDownscaleWidth || shouldDownscaleHeight;
 
     if (shouldDownscale) {
-      let downscaledWidth: number = (height / originalHeight) * originalWidth;
-      let downscaledHeight: number = (width / originalWidth) * originalHeight;
+      let realDownscaledWidth: number = (height / originalHeight) * originalWidth;
+      let realDownscaledHeight: number = (width / originalWidth) * originalHeight;
 
       if (width < height) {
         if (!hasMaxWidth) {
-          width = downscaledWidth;
+          width = realDownscaledWidth;
         } else {
-          height = downscaledHeight;
+          height = realDownscaledHeight;
         }
       } else if (height < width) {
         if (!hasMaxHeight) {
-          height = downscaledHeight;
+          height = realDownscaledHeight;
         } else {
-          width = downscaledWidth;
+          width = realDownscaledWidth;
         }
       } else {
         if (originalWidth < originalHeight) {
-          width = downscaledWidth;
+          width = realDownscaledWidth;
         } else if (originalHeight < originalWidth) {
-          height = downscaledHeight;
+          height = realDownscaledHeight;
         }
       }
     }
