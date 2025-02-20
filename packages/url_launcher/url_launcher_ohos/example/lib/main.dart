@@ -271,7 +271,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 onPressed: () => setState(() {
                   _launched = _launchEmail('mailto:admin@exmaple.com');
                 }),
-                child: const Text('Launch in emial'),
+                child: const Text('Launch in email'),
               ),
               const Padding(padding: EdgeInsets.all(16.0)),
               FutureBuilder<void>(future: _launched, builder: _launchStatus),
