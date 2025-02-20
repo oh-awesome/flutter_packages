@@ -48,6 +48,7 @@ export default class DateTimeUtil {
   }
 
   /**
+   * Avoid repetition
    * 时分秒格式修饰
    * @param hours
    * @param minutes

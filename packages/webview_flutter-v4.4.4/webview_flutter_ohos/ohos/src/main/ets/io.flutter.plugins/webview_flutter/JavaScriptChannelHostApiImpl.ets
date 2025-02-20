@@ -21,7 +21,8 @@ export class JavaScriptChannelHostApiImpl extends JavaScriptChannelHostApi {
   /**
    * Creates a host API that handles creating {@link JavaScriptChannel}s.
    *
-   * @param instanceManager maintains instances stored to communicate with Dart objects
+   * @param instanceManager maintains instances stored to communicate with Dart 
+   *        objects
    * @param javaScriptChannelCreator handles creating {@link JavaScriptChannel}s
    * @param flutterApi handles sending messages to Dart
    * @param platformThreadHandler handles making callbacks on the desired thread

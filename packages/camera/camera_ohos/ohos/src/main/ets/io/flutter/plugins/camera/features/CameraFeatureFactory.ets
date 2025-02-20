@@ -26,8 +26,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the auto focus feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @param recordingVideo indicates if the camera is currently recording.
    * @return newly created instance of the AutoFocusFeature class.
    */
@@ -36,8 +36,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the exposure lock feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *    about the cameras features.
    * @return newly created instance of the ExposureLockFeature class.
    */
   createExposureLockFeature(cameraProperties: CameraProperties): ExposureLockFeature;
@@ -45,8 +45,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the exposure offset feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @return newly created instance of the ExposureOffsetFeature class.
    */
   createExposureOffsetFeature(cameraProperties: CameraProperties): ExposureOffsetFeature;
@@ -54,8 +54,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the flash feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @return newly created instance of the FlashFeature class.
    */
   createFlashFeature(cameraProperties: CameraProperties): FlashFeature;
@@ -63,8 +63,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the resolution feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @param initialSetting initial resolution preset.
    * @param cameraName the name of the camera which can be used to identify the camera device.
    * @return newly created instance of the ResolutionFeature class.
@@ -77,8 +77,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the focus point feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @param sensorOrientationFeature instance of the SensorOrientationFeature class containing
    *     information about the sensor and device orientation.
    * @return newly created instance of the FocusPointFeature class.
@@ -91,8 +91,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the FPS range feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @return newly created instance of the FpsRangeFeature class.
    */
 
@@ -101,8 +101,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the sensor orientation feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @param activity current activity associated with the camera plugin.
    * @param dartMessenger instance of the DartMessenger class, used to send state updates back to
    *     Dart.
@@ -117,8 +117,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the zoom level feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *      about the cameras features.
    * @return newly created instance of the ZoomLevelFeature class.
    */
 
@@ -127,8 +127,8 @@ export interface CameraFeatureFactory {
   /**
    * Creates a new instance of the exposure point feature.
    *
-   * @param cameraProperties instance of the CameraProperties class containing information about the
-   *     cameras features.
+   * @param cameraProperties instance of the CameraProperties class containing information 
+   *     about the cameras features.
    * @param sensorOrientationFeature instance of the SensorOrientationFeature class containing
    *     information about the sensor and device orientation.
    * @return newly created instance of the ExposurePointFeature class.
