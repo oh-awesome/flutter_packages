@@ -20,6 +20,7 @@ import bundleManager from '@ohos.bundle.bundleManager';
 import router from '@ohos.router'
 import promptAction from '@ohos.promptAction';
 import { BusinessError } from '@kit.BasicServicesKit';
+import { emitter } from '@kit.BasicServicesKit';
 
 const TAG = 'UrlLauncher'
 
@@ -305,7 +306,9 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   closeWebView(): boolean {
-    throw new Error('Method not implemented.');
+    // throw new Error('Method not implemented.');
+    emitter.emit("closeWebView");
+    return true;
   }
 
   getCodec(): MessageCodec<ESObject> {
