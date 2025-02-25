@@ -5,6 +5,8 @@
 import web_webview from '@ohos.web.webview';
 import router from '@ohos.router';
 import { ValueType } from '@kit.ArkData';
+import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
+import { emitter } from '@kit.BasicServicesKit';
 
 @Entry
 @Component
@@ -21,6 +23,10 @@ export struct InAppBrowser {
     let options = params['options'] as Map<string, ValueType>;
     this.enableJavaScript = options['enableJavaScript'] as boolean;
     this.enableDomStorage = options['enableDomStorage'] as boolean;
+    emitter.once("closeWebView", () => {
+      router.back();
+      Log.d("InAppBrowser", "closeWebView done");
+    })
   }
 
   build() {
