@@ -24,7 +24,7 @@ export struct InAppBrowser {
     this.enableJavaScript = options['enableJavaScript'] as boolean;
     this.enableDomStorage = options['enableDomStorage'] as boolean;
     emitter.once("closeWebView", () => {
-      router.back({url:'pages/Index'});
+      router.back();
       Log.d("InAppBrowser", "closeWebView done");
     })
   }
