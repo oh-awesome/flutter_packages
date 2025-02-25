@@ -306,7 +306,6 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   closeWebView(): boolean {
-    // throw new Error('Method not implemented.');
     emitter.emit("closeWebView");
     return true;
   }
