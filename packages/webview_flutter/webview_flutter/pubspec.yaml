@@ -35,7 +35,7 @@ dependencies:
       path: packages/webview_flutter/webview_flutter_wkwebview
   webview_flutter_ohos:
     git:
-      url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/webview_flutter/webview_flutter_ohos"
 
 dev_dependencies:
