@@ -130,7 +130,7 @@ Officia irure in non voluptate adipisicing sit amet tempor duis dolore deserunt 
 
 In laboris eiusmod reprehenderit aliquip sit proident occaecat. Non sit labore anim elit veniam Lorem minim commodo eiusmod irure do minim nisi.
 
-![alt](resource:assets/logo.png)
+![alt](../assets/logo.png)
 
 # Extended Syntax
 
