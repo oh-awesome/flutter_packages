@@ -338,7 +338,7 @@ export default class ImagePickerDelegate {
 
   handlerCaptureVideoResult(code: number, path: string): void {
     let pathList: ArrayList<string> = new ArrayList();
-    if (code == 0 || path != null) {
+    if (code === 0 || path !== null) {
       let file = fs.openSync(path, fs.OpenMode.READ_ONLY);
       pathList.add(path)
       pathList.add(file.fd.toString());
@@ -353,7 +353,6 @@ export default class ImagePickerDelegate {
         this.cache.saveResult(pathList, null, null);
       }
     } else {
-      Log.i(ImagePickerDelegate.TAG, pathList[0]);
       localResult.success(pathList);
     }
   }
@@ -428,7 +427,6 @@ export default class ImagePickerDelegate {
         this.cache.saveResult(pathList, null, null);
       }
     } else {
-      Log.i(ImagePickerDelegate.TAG, pathList[0]);
       localResult.success(pathList);
     }
   }
