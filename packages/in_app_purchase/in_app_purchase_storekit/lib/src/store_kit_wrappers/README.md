@@ -2,4 +2,4 @@
 
 This exposes Dart endpoints through to the
 [StoreKit](https://developer.apple.com/documentation/storekit) APIs. Can be used
-as an alternative to [in_app_purchase](../in_app_purchase/README.md).
+as an alternative to [in_app_purchase](/packages/in_app_purchase/in_app_purchase/README.md).
