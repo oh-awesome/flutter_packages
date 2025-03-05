@@ -10,6 +10,7 @@ import fs from '@ohos.file.fs'
 import common from '@ohos.app.ability.common';
 import ImagePickerCache, { CacheType } from './ImagePickerCache'
 import FileUtils from './FileUtils'
+import { fileUri } from '@kit.CoreFileKit';
 import {
   FlutterError,
   ImageSelectionOptions,
@@ -26,6 +27,7 @@ import UIAbility from '@ohos.app.ability.UIAbility';
 import { BusinessError } from '@ohos.base';
 import { cameraPicker, camera } from '@kit.CameraKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
+import DateTimeUtil from './DateTimeUtil';
 
 export default class ImagePickerDelegate {
   readonly REQUEST_CODE_CHOOSE_IMAGE_FROM_GALLERY = 2342;
@@ -46,8 +48,8 @@ export default class ImagePickerDelegate {
   private cameraPosition: camera.CameraPosition = camera.CameraPosition.CAMERA_POSITION_BACK;
 
   constructor(ability: UIAbility, imageResizer: ImageResizer, cache: ImagePickerCache, context?: common.UIAbilityContext,
-              pendingImageOptions?: ImageSelectionOptions, pendingVideoOptions?: VideoSelectionOptions,
-              result?: Result<ArrayList<string>>, fileUtils?: FileUtils) {
+    pendingImageOptions?: ImageSelectionOptions, pendingVideoOptions?: VideoSelectionOptions,
+    result?: Result<ArrayList<string>>, fileUtils?: FileUtils) {
     this.imageResizer = imageResizer;
     if (result != null) {
       this.pendingCallState = new PendingCallState(pendingImageOptions as ESObject, pendingVideoOptions, result);
@@ -155,7 +157,7 @@ export default class ImagePickerDelegate {
 
   // 选择多个图片或者多个视频
   chooseMediaFromGallery(options: MediaSelectionOptions, generalOptions: GeneralOptions,
-                         result: Result<ArrayList<string>>): void {
+    result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(options.getImageSelectionOptions(), null, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
@@ -227,14 +229,36 @@ export default class ImagePickerDelegate {
   }
 
   async launchTakeVideoWithCameraWant(duration: number): Promise<void> {
+
+    const fileName = this.getDisplayName(false);
+    let url = `${(this.context as Context).cacheDir}/${fileName}`;
+    url = fileUri.getUriFromPath(url);
+    await this.openOrCreateFile(url);
     let pickerProfile: cameraPicker.PickerProfile = {
       cameraPosition: this.cameraPosition,
-      videoDuration: duration
+      videoDuration: duration,
+      saveUri: url
     }
 
     cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.VIDEO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
-      this.handlerCaptureImageResult(pickerResult.resultCode, pickerResult.resultUri);
+      this.handlerCaptureVideoResult(pickerResult.resultCode, pickerResult.resultUri);
     })
+  }
+
+  private async openOrCreateFile(uri: string):Promise<void>{
+    const file: fs.File = await fs.open(uri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+    fs.close(file);
+  }
+
+  private getDisplayName(isPhoto: boolean): string{
+    const mDateTimeUtil : DateTimeUtil = new DateTimeUtil();
+    const mData: string = mDateTimeUtil.getDate();
+    const mTime: string = mDateTimeUtil.getTime();
+    if (isPhoto) {
+      return `${`IMG_${mData}_${mTime}`}.jpg`;
+    }else {
+      return `${`VID_${mData}_${mTime}`}.mp4`;
+    }
   }
 
   // 选择单个图片
@@ -288,7 +312,7 @@ export default class ImagePickerDelegate {
   }
 
   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
-                             result: Result<ArrayList<string>>): boolean {
+    result: Result<ArrayList<string>>): boolean {
     if (this.pendingCallState != null && this.pendingCallState != undefined) {
       Log.i(ImagePickerDelegate.TAG, "There is already an open gallery, use it directly to select images");
     } else {
@@ -313,12 +337,23 @@ export default class ImagePickerDelegate {
   }
 
   handlerCaptureVideoResult(code: number, path: string): void {
-    if (code == 0 || code == -1) {
-      Log.e(ImagePickerDelegate.TAG, "startAbilityForResult for taking video success");
-      this.handleVideoResult(path, false);
+    let pathList: ArrayList<string> = new ArrayList();
+    if (code === 0 || path !== null) {
+      let file = fs.openSync(path, fs.OpenMode.READ_ONLY);
+      pathList.add(path)
+      pathList.add(file.fd.toString());
     }
-    else {
-      this.finishWithSuccess(null);
+    let localResult: Result<ArrayList<string>> | null = null;
+    if (this.pendingCallState !== null) {
+      localResult = this.pendingCallState.result;
+    }
+    this.pendingCallState = null;
+    if (localResult == null) {
+      if (!pathList.isEmpty()) {
+        this.cache.saveResult(pathList, null, null);
+      }
+    } else {
+      localResult.success(pathList);
     }
   }
 
@@ -392,7 +427,6 @@ export default class ImagePickerDelegate {
         this.cache.saveResult(pathList, null, null);
       }
     } else {
-      Log.i(ImagePickerDelegate.TAG, pathList[0]);
       localResult.success(pathList);
     }
   }
@@ -436,7 +470,7 @@ class PendingCallState {
   result: Result<ArrayList<string>>;
 
   constructor(imageOptions: ImageSelectionOptions | ESObject, videoOptions: VideoSelectionOptions | ESObject,
-              result: Result<ArrayList<string>>) {
+    result: Result<ArrayList<string>>) {
     this.imageOptions = imageOptions;
     this.videoOptions = videoOptions;
     this.result = result;
