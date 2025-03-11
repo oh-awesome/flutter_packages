@@ -74,18 +74,18 @@ class _MyHomePageState extends State<MyHomePage> {
   final TextEditingController maxHeightController = TextEditingController();
   final TextEditingController qualityController = TextEditingController();
 
-  Future<void> _playVideo(int? file) async {
+  Future<void> _playVideo(XFile? file) async {
     if (file != null && mounted) {
       await _disposeVideoController();
       late VideoPlayerController controller;
 
-      controller = VideoPlayerController.fileFd(file);
+      controller = VideoPlayerController.file(File(file.path));
       _controller = controller;
       const double volume = 1.0;
-      unawaited(controller.setVolume(volume));
-      unawaited(controller.initialize());
-      unawaited(controller.setLooping(true));
-      unawaited(controller.play());
+      await controller.setVolume(volume);
+      await controller.initialize();
+      await controller.setLooping(true);
+      await controller.play();
       setState(() {});
     }
   }
@@ -106,8 +106,7 @@ class _MyHomePageState extends State<MyHomePage> {
         if (file != null && context.mounted) {
           _showPickedSnackBar(context, <XFile>[file]);
         }
-        final int fileFd = (_picker as ImagePickerOhos).getFileFd(file?.path);
-        await _playVideo(fileFd);
+        await _playVideo(file);
       } else if (isMultiImage) {
         await _displayPickImageDialog(context,
             (double? maxWidth, double? maxHeight, int? quality) async {
@@ -226,16 +225,9 @@ class _MyHomePageState extends State<MyHomePage> {
         textAlign: TextAlign.center,
       );
     }
-    final Map<String?, int?> fileFdlist = (_picker as ImagePickerOhos).fileFdlist;
-    String path = '';
-    for(final String? key in fileFdlist.keys){
-      if(fileFdlist[key].toString() == _controller!.dataSource.split('//')[1]){
-        path = key!.split('/').last;
-      }
-    }
     return Padding(
       padding: const EdgeInsets.all(10.0),
-      child: Column(children: <Widget>[Text(path), AspectRatioVideo(_controller)])
+      child: AspectRatioVideo(_controller)
     );
   }
 
@@ -291,8 +283,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildInlineVideoPlayer(int index) {
-    final VideoPlayerController controller =
-        VideoPlayerController.fileFd((_picker as ImagePickerOhos).getFileFd(_mediaFileList![index].path));
+    final VideoPlayerController controller = VideoPlayerController.file(File(_mediaFileList![index].path));
     const double volume = 1.0;
     controller.setVolume(volume);
     controller.initialize();
@@ -317,8 +308,7 @@ class _MyHomePageState extends State<MyHomePage> {
     if (response.file != null) {
       if (response.type == RetrieveType.video) {
         _isVideo = true;
-        final int fileFd = (_picker as ImagePickerOhos).getFileFd(response.file?.path);
-        await _playVideo(fileFd);
+        await _playVideo(response.file);
       } else {
         _isVideo = false;
         setState(() {
