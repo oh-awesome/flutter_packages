@@ -229,28 +229,25 @@ export default class ImagePickerDelegate {
   }
 
   async launchTakeVideoWithCameraWant(duration: number): Promise<void> {
-
-    const fileName = this.getDisplayName(false);
-    let url = `${(this.context as Context).cacheDir}/${fileName}`;
-    url = fileUri.getUriFromPath(url);
-    await this.openOrCreateFile(url);
+    const fileName = this.saveFileName(false);
+    let filePath = `${(this.context as Context).cacheDir}/${fileName}`;
     let pickerProfile: cameraPicker.PickerProfile = {
       cameraPosition: this.cameraPosition,
       videoDuration: duration,
-      saveUri: url
+      saveUri: this.saveFileUri(filePath)
     }
 
     cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.VIDEO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
-      this.handlerCaptureVideoResult(pickerResult.resultCode, pickerResult.resultUri);
+      this.handlerCaptureVideoResult(pickerResult.resultCode, filePath);
     })
   }
 
-  private async openOrCreateFile(uri: string):Promise<void>{
-    const file: fs.File = await fs.open(uri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    fs.close(file);
+  private saveFileUri(filePath: string): string{
+    fs.createRandomAccessFileSync(filePath, fs.OpenMode.CREATE);
+    return fileUri.getUriFromPath(filePath)
   }
 
-  private getDisplayName(isPhoto: boolean): string{
+  private saveFileName(isPhoto: boolean): string{
     const mDateTimeUtil : DateTimeUtil = new DateTimeUtil();
     const mData: string = mDateTimeUtil.getDate();
     const mTime: string = mDateTimeUtil.getTime();
@@ -301,19 +298,22 @@ export default class ImagePickerDelegate {
   }
 
   launchTakeImageWithCameraWant() {
+    const fileName = this.saveFileName(true);
+    let filePath = `${(this.context as Context).cacheDir}/${fileName}`;
     let pickerProfile: cameraPicker.PickerProfile = {
       cameraPosition: this.cameraPosition,
+      saveUri: this.saveFileUri(filePath)
     }
 
     cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.PHOTO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
       this.pendingCameraMediaUri = pickerResult.resultUri;
-      this.handlerCaptureImageResult(pickerResult.resultCode, pickerResult.resultUri);
+      this.handlerCaptureImageResult(pickerResult.resultCode, filePath);
     })
   }
 
   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
     result: Result<ArrayList<string>>): boolean {
-    if (this.pendingCallState != null && this.pendingCallState != undefined) {
+    if (this.pendingCallState !== null && this.pendingCallState !== undefined) {
       Log.i(ImagePickerDelegate.TAG, "There is already an open gallery, use it directly to select images");
     } else {
       Log.i(ImagePickerDelegate.TAG, "Prepare to awaken a new one");
@@ -328,8 +328,7 @@ export default class ImagePickerDelegate {
   }
 
   handlerCaptureImageResult(code: number, path: string): void {
-    if (code == 0 || code == -1) {
-      Log.e(ImagePickerDelegate.TAG, "startAbilityForResult for taking image success");
+    if (code === 0) {
       this.handleImageResult(path, true);
     } else {
       this.finishWithSuccess(null);
@@ -337,24 +336,7 @@ export default class ImagePickerDelegate {
   }
 
   handlerCaptureVideoResult(code: number, path: string): void {
-    let pathList: ArrayList<string> = new ArrayList();
-    if (code === 0 || path !== null) {
-      let file = fs.openSync(path, fs.OpenMode.READ_ONLY);
-      pathList.add(path)
-      pathList.add(file.fd.toString());
-    }
-    let localResult: Result<ArrayList<string>> | null = null;
-    if (this.pendingCallState !== null) {
-      localResult = this.pendingCallState.result;
-    }
-    this.pendingCallState = null;
-    if (localResult == null) {
-      if (!pathList.isEmpty()) {
-        this.cache.saveResult(pathList, null, null);
-      }
-    } else {
-      localResult.success(pathList);
-    }
+    this.finishWithSuccess(code === 0 ? path : null);
   }
 
   async handleImageResult(path: string, shouldDeleteOriginalIfScaled: boolean): Promise<void> {
@@ -377,18 +359,18 @@ export default class ImagePickerDelegate {
 
   async handleMediaResult(paths: Array<string>) {
     let localImageOptions: ImageSelectionOptions | null = null;
-    if (this.pendingCallState != null) {
+    if (this.pendingCallState !== null) {
       localImageOptions = this.pendingCallState.imageOptions;
     }
 
-    if (localImageOptions != null) {
+    if (localImageOptions !== null) {
       for (let i: number = 0; i < paths.length; i++) {
         let path = paths[i];
         Log.i("yjm 0801 path" + i, ":" + path);
         let finalImagePath = await this.getResizedImagePath(path, localImageOptions).then((path) => {
           return path;
         });
-        if (finalImagePath != null && finalImagePath == path) {
+        if (finalImagePath !== null && finalImagePath === path) {
           fs.unlink(path);
         }
         this.finishWithSuccess(finalImagePath);
@@ -401,20 +383,11 @@ export default class ImagePickerDelegate {
   }
 
   finishWithSuccess(path: string | null): void {
-
     Log.i(ImagePickerDelegate.TAG, path);
     let pathList: ArrayList<string> = new ArrayList();
-    if (path != null) {
-      let realPath = FileUtils.getPathFromUri(this.context as Context, path);
-      Log.i(ImagePickerDelegate.TAG, "realPath :" + realPath);
-      let file = fs.openSync(realPath, fs.OpenMode.READ_ONLY);
-      if (realPath != null) {
-        path = realPath;
-      }
-      pathList.add(realPath)
-      pathList.add(file.fd.toString());
+    if (path !== null) {
+      pathList.add(path)
     }
-
     let localResult: Result<ArrayList<string>> | null = null;
 
     if (this.pendingCallState !== null) {
@@ -422,7 +395,7 @@ export default class ImagePickerDelegate {
     }
     this.pendingCallState = null;
 
-    if (localResult == null) {
+    if (localResult === null) {
       if (!pathList.isEmpty()) {
         this.cache.saveResult(pathList, null, null);
       }
@@ -438,19 +411,10 @@ export default class ImagePickerDelegate {
     }
     this.pendingCallState = null;
 
-    if (localResult == null) {
+    if (localResult === null) {
       this.cache.saveResult(path as ArrayList<string>, null, null);
     } else if (path) {
-
-      Log.i(ImagePickerDelegate.TAG, path[0]);
-      let pathList: ArrayList<string> = new ArrayList();
-      for (let i = 0; i < path.length; i++) {
-        const element: string = path[i];
-        let file = fs.openSync(element);
-        pathList.add(element);
-        pathList.add(file.fd.toString());
-      }
-      localResult.success(pathList as ArrayList<string>);
+      localResult.success(path);
     }
   }
 
