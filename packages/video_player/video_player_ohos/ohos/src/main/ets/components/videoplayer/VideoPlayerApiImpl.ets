@@ -31,6 +31,7 @@ import { window } from '@kit.ArkUI';
 import { image } from '@kit.ImageKit';
 
 const TAG: string = "VideoPlayerApiImpl";
+const BLACK_COLOR = 0xFF000000;
 export class VideoPlayerApiImpl {
   private videoPlayers: HashMap<String, VideoPlayer> = new HashMap<String, VideoPlayer>();
   private flutterState: FlutterState | null = null;
@@ -65,6 +66,17 @@ export class VideoPlayerApiImpl {
     return this.binding.getAbility().context;
   }
 
+  async createBlackPixelMap(width: number, height: number): Promise<image.PixelMap> {
+    const pixels32 = new Uint32Array(width * height);
+    pixels32.fill(BLACK_COLOR);
+    const opts: image.InitializationOptions = {
+      editable: true,
+      pixelFormat: image.PixelMapFormat.RGBA_8888,
+      size: { width, height }
+    };
+    return image.createPixelMap(pixels32.buffer, opts);
+  }
+
   async create(arg: CreateMessage): Promise<TextureMessage> {
     let windowClass = await window.getLastWindow(this.getContext())
     GlobalContext.getContext().setObject("windowClass", windowClass)
@@ -86,6 +98,10 @@ export class VideoPlayerApiImpl {
     let textureId: number = flutterRenderer.getTextureId();
     Log.i(TAG, "enter getRawFd, textureId=" + textureId);
     let surfaceTextureEntry: SurfaceTextureEntry = flutterRenderer.registerTexture(textureId);
+    let windowProperties = windowClass.getWindowProperties();
+    const width = windowProperties.windowRect.width;
+    const height = windowProperties.windowRect.height;
+    flutterRenderer.setTextureBackGroundPixelMap(textureId, await this.createBlackPixelMap(width, height));
     if (asset != null) {
       Log.i(TAG, "asset create called, asset is" + asset);
       let avMetaExtractor = await media.createAVMetadataExtractor();
