@@ -227,8 +227,8 @@ export class UrlLauncher implements UrlLauncherApi {
   launchMail(url: string): boolean {
     let mailAddress = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_MAILTO + ':');
     let want: Want = {
-      abilityName: 'PhoneAbility',
-      bundleName: 'com.huawei.hmos.email',
+      uri: mailAddress,
+      action: 'ohos.want.action.sendToData',
     }
     try {
       this.context.startAbility(want)
