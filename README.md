@@ -1,6 +1,6 @@
 ## 仓库介绍
 
-该仓库基于上游Flutter社区[packages仓库](https://github.com/flutter/packages/),基于commitId：b8b84b2304f00a3f93ce585cc7a30e1235bde7a0。
+[原始仓来源](https://github.com/flutter/packages/)  
 
 该仓库主要新增对OpenHarmony平台的兼容。
 
@@ -245,46 +245,49 @@
 ### 一、工具库pigeon使用
 
 1. 引入pigeon库，在pubspec.yaml中dev_dependencies新增配置：
- ```
-dev_dependencies:
-  pigeon:
-    git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
-      path: "packages/pigeon"
- ```
-2. 项目根目录运行`flutter pub get`；
 
-3. 项目根目录运行`flutter pub run pigeon --input <dart通信模型文件路径> --arkts_out <arkts平台方法代码输出文件路径，示例./ohos/entry/src/main/ets/xxx.ets>`
+    ```
+    dev_dependencies:
+      pigeon:
+        git:
+          url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+          path: "packages/pigeon"
+    ```
 
- 将会生成Flutter与OpenHarmony平台通信的模板代码；
+2. 项目根目录运行 `flutter pub get`。
 
-4. 调用示例，参考packages/pigeon/example/app/ohos/entry/src/main/ets/plugins/MessagePlugin.ets
+3. 项目根目录运行 `flutter pub run pigeon --input <dart通信模型文件路径> --arkts_out <arkts平台方法代码输出文件路径，示例./ohos/entry/src/main/ets/xxx.ets>`，将会生成Flutter与OpenHarmony平台通信的模板代码。
+
+4. 调用示例，参考packages/pigeon/example/app/ohos/entry/src/main/ets/plugins/MessagePlugin.ets。
 
 ### 二、 插件库使用
 
-以path_provider举例：
+ 以 path_provider 举例：
+
 1. 在引用的项目中，pubspec.yaml中dependencies新增配置：
-```
-dependencies:
-  path_provider:
-    git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
-      path: "packages/path_provider/path_provider"
-```
 
-2、项目根目录运行`flutter pub get`；（ohos/entry/oh-package.json5会自动添加相关插件har依赖）
+    ```
+    dependencies:
+      path_provider:
+        git:
+          url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+          path: "packages/path_provider/path_provider"
+    ```
 
-3、在业务代码中调用path_provider相关api，它会在OpenHarmony平台正常运行。
+2. 项目根目录运行 `flutter pub get`，ohos/entry/oh-package.json5会自动添加相关插件har依赖。
 
-示例：在某个Flutter兼容OpenHarmony项目中加入支持OpenHarmony平台的path_provider库依赖；
+3. 在业务代码中调用path_provider相关api，它会在OpenHarmony平台正常运行。
 
-可参考示例：https://gitcode.com/openharmony-sig/flutter_samples/tree/master/ohos/pictures_provider_demo
+    示例：在某个Flutter兼容OpenHarmony项目中加入支持OpenHarmony平台的path_provider库依赖。
+
+    可参考示例：[pictures_provider_demo](https://gitcode.com/openharmony-sig/flutter_samples/tree/master/ohos/pictures_provider_demo)
 
 ## FAQ
 
-### 一、 运行 `flutter pub get` 遇到 `"File name too long"` 问题
+1. 运行 `flutter pub get` 遇到 `"File name too long"` 问题。
 
-打开`Git Bash`或`运行 cmd`（需要将git添加到环境变量中）,执行以下命令：
-``` 
-  git config --global core.longpaths true
-```
+    打开 `Git Bash` 或 `运行 cmd`（需要将git添加到环境变量中），执行以下命令：
+    
+    ``` 
+      git config --global core.longpaths true
+    ```
