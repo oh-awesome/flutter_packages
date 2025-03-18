@@ -337,6 +337,22 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         formatHint = null,
         super(const VideoPlayerValue(duration: Duration.zero));
 
+  /// Constructs a [VideoPlayerController] playing a video from a file.
+  ///
+  /// This will load the file from a fd://fileFd constructed from file picker.
+  /// This is supported on ohos only.
+  VideoPlayerController.fileFd(int fileFd,
+      {Future<ClosedCaptionFile>? closedCaptionFile,
+        this.videoPlayerOptions,
+        this.httpHeaders = const <String, String>{}})
+      : _closedCaptionFileFuture = closedCaptionFile,
+        dataSource = "fd://$fileFd",
+        dataSourceType = DataSourceType.file,
+        package = null,
+        formatHint = null,
+        super(const VideoPlayerValue(duration: Duration.zero));
+
+
   /// Constructs a [VideoPlayerController] playing a video from a contentUri.
   ///
   /// This will load the video from the input content-URI.
