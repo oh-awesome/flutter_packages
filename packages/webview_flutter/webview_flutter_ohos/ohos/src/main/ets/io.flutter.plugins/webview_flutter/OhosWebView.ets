@@ -75,14 +75,6 @@ export struct OhosWebView {
           .onPrompt(this.webView.onJsPrompt)
           .mixedMode(MixedMode.All)
           .onOverrideUrlLoading(this.webView.onOverrideUrlLoading)
-          .gesture(
-            PinchGesture({ fingers: 2 })
-              .onActionUpdate((event: GestureEvent) => {
-                if (event && this.webView.getWebSettings().getSupportZoom()) {
-                  this.controller.zoom(event.scale);
-                }
-              })
-          )
           .onFullScreenEnter(this.webView.onFullScreenEnter)
           .onFullScreenExit(this.webView.onFullScreenExit)
       }
