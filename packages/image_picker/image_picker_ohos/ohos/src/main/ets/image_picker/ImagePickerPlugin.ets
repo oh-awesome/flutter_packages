@@ -87,15 +87,14 @@ export default class ImagePickerPlugin implements FlutterPlugin, AbilityAware {
 
   pickImages(source: SourceSpecification, options: ImageSelectionOptions, generalOptions: GeneralOptions, result: Result<ArrayList<string>>) {
     let delegate: ImagePickerDelegate | null = this.getImagePickerDelegate();
-    if (delegate == null) {
-      let temp: Error =
+    if (delegate === null) {
       result.error(new FlutterError("no_ability", "image_picker plugin requires a foreground ability", null));
       return;
     }
 
     this.setCameraDevice(delegate, source);
     if (generalOptions.getAllowMultiple()) {
-      delegate.chooseMultiImagesFromGallery(options, generalOptions.getUsePhotoPicker(), result);
+      delegate.chooseMultiImagesFromGallery(options, generalOptions, result);
     } else {
       switch (source.getType()) {
         case SourceType.GALLERY: {
@@ -111,7 +110,7 @@ export default class ImagePickerPlugin implements FlutterPlugin, AbilityAware {
 
   pickVideos(source: SourceSpecification, options: VideoSelectionOptions, generalOptions: GeneralOptions, result: Result<ArrayList<string>>): void {
     let delegate: ImagePickerDelegate | null = this.getImagePickerDelegate();
-    if (delegate == null) {
+    if (delegate === null) {
       result.error(new FlutterError("no_ability", "image_pickerplugin requires a foreground ability", null));
       return;
     }
@@ -134,7 +133,7 @@ export default class ImagePickerPlugin implements FlutterPlugin, AbilityAware {
 
   pickMedia(mediaSelectionOptions: MediaSelectionOptions, generalOptions: GeneralOptions, result: Result<ArrayList<string>>): void {
     let delegate: ImagePickerDelegate | null = this.getImagePickerDelegate();
-    if (delegate == null) {
+    if (delegate === null) {
       result.error(new FlutterError("no_ability", "image_pickerplugin requires a foreground ability", null));
       return;
     }

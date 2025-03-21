@@ -162,8 +162,11 @@ export default class ImagePickerDelegate {
       this.finishWithAlreadyActiveError(result);
       return;
     }
-
-    this.chooseMedia(generalOptions.getAllowMultiple() ? 9 : 1, 'handleChooseMediaResult')
+    let limit = 1;
+    if (generalOptions.getAllowMultiple()) {
+      limit = generalOptions.getLimit();
+    }
+    this.chooseMedia(limit, 'handleChooseMediaResult')
   }
 
   handleChooseMediaResult(code: number, uris: Array<string>): void {
@@ -279,13 +282,13 @@ export default class ImagePickerDelegate {
   }
 
   // 选择多个图片
-  chooseMultiImagesFromGallery(options: ImageSelectionOptions, usePhotoPicker: boolean, result: Result<ArrayList<string>>): void {
+  chooseMultiImagesFromGallery(options: ImageSelectionOptions, generalOptions: GeneralOptions, result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(options, null, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
     }
-
-    this.chooseMedia(9, 'handleChooseMediaResult', photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE)
+    let limit = generalOptions.getLimit();
+    this.chooseMedia(limit, 'handleChooseMediaResult', photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE)
   }
 
   // 唤起相机拍照
