@@ -12,6 +12,8 @@ import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/B
 import BasicMessageChannel from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 
+export const MAX_SELECT_NUMBER: number = 500;
+
 export enum SourceCamera {
   REAR = 0,
   FRONT = 1
@@ -60,11 +62,14 @@ export class FlutterError extends Error {
 class GeneralOptionsBuilder {
   setAllowMultiple: (setterArg: boolean) => ESObject
   setUsePhotoPicker: (setterArg: boolean) => ESObject
+  setLimit:(setterArg: number) => ESObject
   build: () => ESObject
 
-  constructor(setAllowMultiple: (setterArg: boolean) => ESObject, setUsePhotoPicker: (setterArg: boolean) => ESObject, build: () => ESObject) {
+  constructor(setAllowMultiple: (setterArg: boolean) => ESObject, setUsePhotoPicker: (setterArg: boolean) => ESObject,
+    setLimit: (setterArg: number) => ESObject, build: () => ESObject) {
     this.setAllowMultiple = setAllowMultiple
     this.setUsePhotoPicker = setUsePhotoPicker
+    this.setLimit = setLimit
     this.build = build
   }
 }
@@ -72,8 +77,20 @@ class GeneralOptionsBuilder {
 export class GeneralOptions {
   private allowMultiple: boolean = false;
   private usePhotoPicker: boolean = false;
+  private limit: number = 1;
 
   private constructor() {
+  }
+
+  getLimit(): number {
+    if(this.limit !== null) {
+        return this.limit > MAX_SELECT_NUMBER ? MAX_SELECT_NUMBER : this.limit;
+    }
+    return MAX_SELECT_NUMBER;
+  }
+
+  setLimit(setterArg: number): void {
+    this.limit = setterArg ?? MAX_SELECT_NUMBER;
   }
 
   getAllowMultiple(): boolean {
@@ -104,10 +121,14 @@ export class GeneralOptions {
   }, (setterArg: boolean) => {
     this.usePhotoPicker = setterArg;
     return this;
+  }, (setterArg: number) => {
+    this.limit = setterArg;
+    return this;
   }, (): ESObject => {
     const pigeonReturn: ESObject = new GeneralOptions();
     pigeonReturn.setAllowMultiple(this.allowMultiple);
     pigeonReturn.setUsePhotoPicker(this.usePhotoPicker);
+    pigeonReturn.setLimit(this.limit);
     return pigeonReturn;
   }
   )
@@ -116,6 +137,7 @@ export class GeneralOptions {
     const toListResult: ArrayList<ESObject> = new ArrayList<ESObject>();
     toListResult.add(this.allowMultiple);
     toListResult.add(this.usePhotoPicker);
+    toListResult.add(this.limit);
     return toListResult;
   }
 
@@ -125,6 +147,8 @@ export class GeneralOptions {
     pigeonResult.setAllowMultiple(allowMultiple);
     const usePhotoPicker: ESObject = list[1];
     pigeonResult.setUsePhotoPicker(usePhotoPicker);
+    const limit: ESObject = list[2];
+    pigeonResult.setLimit(limit);
     return pigeonResult;
   }
 }
@@ -667,7 +691,7 @@ export abstract class ImagePickerApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.ImagePickerApi.pickImages",
+        "dev.flutter.pigeon.image_picker_ohos.ImagePickerApi.pickImages",
         ImagePickerApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
@@ -697,7 +721,7 @@ export abstract class ImagePickerApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.ImagePickerApi.pickVideos",
+        "dev.flutter.pigeon.image_picker_ohos.ImagePickerApi.pickVideos",
         ImagePickerApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
@@ -725,7 +749,7 @@ export abstract class ImagePickerApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.ImagePickerApi.pickMedia",
+        "dev.flutter.pigeon.image_picker_ohos.ImagePickerApi.pickMedia",
         ImagePickerApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
@@ -752,7 +776,7 @@ export abstract class ImagePickerApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.ImagePickerApi.retrieveLostResults",
+        "dev.flutter.pigeon.image_picker_ohos.ImagePickerApi.retrieveLostResults",
         ImagePickerApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
