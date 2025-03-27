@@ -177,7 +177,8 @@ export class UrlLauncher implements UrlLauncherApi {
   // 只支持沙箱路径
   launchFile(url: string): boolean {
     let fileUrl = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_FILE + '://');
-    let filePath = this.context.filesDir + fileUrl;
+    let fileName = url.substring(url.lastIndexOf('/') + 1);
+    let filePath = this.context.filesDir + '/' + fileName;
     // 将沙箱路径转换为uri
     let uriFromPath = fileuri.getUriFromPath(filePath);
     Log.d(TAG, 'launchFile:' + fileUrl + '  uriFromPath:' + uriFromPath);
