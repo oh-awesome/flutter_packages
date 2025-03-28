@@ -1,17 +1,6 @@
-/*
- * Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2013 The Flutter Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 import 'src/messages.g.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -22,7 +11,6 @@ class ImagePickerOhos extends ImagePickerPlatform {
       : _hostApi = api ?? ImagePickerApi();
 
   final ImagePickerApi _hostApi;
-  final Map<String?, int?> fileFdlist = new Map();
   bool useOhosPhotoPicker = false;
   static void registerWith() {
     ImagePickerPlatform.instance = ImagePickerOhos();
@@ -68,7 +56,8 @@ class ImagePickerOhos extends ImagePickerPlatform {
     double? maxWidth,
     double? maxHeight,
     int? imageQuality,
-  }) async {
+    int? limit,
+  }) {
     if (imageQuality != null && (imageQuality < 0 || imageQuality > 100)) {
       throw ArgumentError.value(
           imageQuality, 'imageQuality', 'must be between 0 and 100');
@@ -82,23 +71,22 @@ class ImagePickerOhos extends ImagePickerPlatform {
       throw ArgumentError.value(maxHeight, 'maxHeight', 'cannot be negative');
     }
 
-    final List<String?> path = await _hostApi.pickImages(
+    if (limit != null && limit < 2) {
+      throw ArgumentError.value(limit, 'limit', 'cannot be lower than 2');
+    }
+
+    return _hostApi.pickImages(
       SourceSpecification(type: SourceType.gallery),
       ImageSelectionOptions(
           maxWidth: maxWidth,
           maxHeight: maxHeight,
           quality: imageQuality ?? 100),
       GeneralOptions(
-          allowMultiple: true, usePhotoPicker: useOhosPhotoPicker),
+        allowMultiple: true,
+        usePhotoPicker: useOhosPhotoPicker,
+        limit: limit,
+      ),
     );
-
-    List<String?> pathList = [];
-
-    for(int i = 0 ; i<path.length; i+=2){
-      pathList.add(path[i]);
-    }
-
-    return pathList;
   }
 
   Future<String?> _getImagePath({
@@ -163,15 +151,7 @@ class ImagePickerOhos extends ImagePickerPlatform {
         usePhotoPicker: useOhosPhotoPicker,
       ),
     );
-    fileFdlist[paths.first] = int.parse(paths[1] ?? '0');
     return paths.isEmpty ? null : paths.first;
-  }
-
-  int getFileFd(String? file) {
-    if(file == null){
-      return 0;
-    }
-    return fileFdlist[file]!;
   }
 
   @override
@@ -227,23 +207,33 @@ class ImagePickerOhos extends ImagePickerPlatform {
   }
 
   @override
+  Future<List<XFile>> getMultiImageWithOptions({
+    MultiImagePickerOptions options = const MultiImagePickerOptions(),
+  }) async {
+    final List<dynamic> paths = await _getMultiImagePath(
+      maxWidth: options.imageOptions.maxWidth,
+      maxHeight: options.imageOptions.maxHeight,
+      imageQuality: options.imageOptions.imageQuality,
+      limit: options.limit,
+    );
+
+    if (paths.isEmpty) {
+      return <XFile>[];
+    }
+
+    return paths.map((dynamic path) => XFile(path as String)).toList();
+  }
+
+  @override
   Future<List<XFile>> getMedia({
     required MediaOptions options,
   }) async {
-    final List<String?> paths = await _hostApi.pickMedia(
+    return (await _hostApi.pickMedia(
       _mediaOptionsToMediaSelectionOptions(options),
-      GeneralOptions(
-        allowMultiple: options.allowMultiple,
-        usePhotoPicker: useOhosPhotoPicker,
-      ),
-    );
-    final List<String?> pathList = [];
-    for(int i = 1; i< paths.length; i+=2){
-      fileFdlist[paths[i-1]] = int.parse(paths[i] ?? '0');
-      pathList.add(paths[i - 1]);
-    }
-        
-    return pathList.map((String? path) => XFile(path!)).toList();
+      _mediaOptionsToGeneralOptions(options),
+    ))
+        .map((String? path) => XFile(path!))
+        .toList();
   }
 
   @override
@@ -290,6 +280,29 @@ class ImagePickerOhos extends ImagePickerPlatform {
     }
     return ImageSelectionOptions(
         quality: imageQuality ?? 100, maxHeight: maxHeight, maxWidth: maxWidth);
+  }
+
+  GeneralOptions _mediaOptionsToGeneralOptions(MediaOptions options) {
+    final bool allowMultiple = options.allowMultiple;
+    final int? limit = options.limit;
+
+    if (!allowMultiple && limit != null) {
+      throw ArgumentError.value(
+        allowMultiple,
+        'allowMultiple',
+        'cannot be false, when limit is not null',
+      );
+    }
+
+    if (limit != null && limit < 2) {
+      throw ArgumentError.value(limit, 'limit', 'cannot be lower then 2');
+    }
+
+    return GeneralOptions(
+      allowMultiple: allowMultiple,
+      usePhotoPicker: useOhosPhotoPicker,
+      limit: limit,
+    );
   }
 
   @override
