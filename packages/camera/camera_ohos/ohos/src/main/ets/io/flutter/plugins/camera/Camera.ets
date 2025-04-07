@@ -55,7 +55,7 @@ import systemDateTime from '@ohos.systemDateTime';
 import photoAccessHelper from '@ohos.file.photoAccessHelper';
 import { picker } from '@kit.CoreFileKit';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
-import { FlashMode } from './features/flash/FlashMode';
+import display from '@ohos.display';
 
 const TAG = "Camera";
 
@@ -270,6 +270,10 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   setFocusMode(result: MethodResult, newMode: camera.FocusMode) {
+    if (!this.getCurSession().isFocusModeSupported(newMode)) {
+      result.error("setFocusModeFailed", "The focus mode is unsupported.", null);
+      return;
+    }
     const autoFocusFeature: AutoFocusFeature = this.cameraFeatures.getAutoFocus();
     autoFocusFeature.setValue(newMode);
 
@@ -370,10 +374,10 @@ export class Camera implements CameraCaptureStateListener {
   // 设置曝光模式。
   // 进行设置之前，需要先检查设备是否支持指定的曝光模式，可使用方法isExposureModeSupported。
   setExposureMode(result: MethodResult, newMode: camera.ExposureMode) {
-    // if (CameraUtils.isExposureModeSupported(this.photoSession!, newMode)) {
-    //   result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
-    //   return;
-    // }
+    if (!CameraUtils.isExposureModeSupported(this.photoSession!, newMode)) {
+      result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
+      return;
+    }
 
     let modeExistence: boolean = false;
     Object.values(camera.ExposureMode).forEach(async (value) => {
@@ -748,7 +752,6 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startCapture(record: boolean, stream: boolean) {
-    let pre = CameraUtils.isFlashModeSupported(this.getCurSession(),FlashMode.getValueForString('torch')!);
     if (!this.pausedPreview) {
       this.getCurSession().stop();
     }
@@ -760,13 +763,15 @@ export class Camera implements CameraCaptureStateListener {
         let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
         this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
         let fd = this.captureFile.fd;
+        let displayRotation = display.getDefaultDisplaySync().rotation;
+        let previewRotation: camera.ImageRotation | undefined = this.previewOutput?.getPreviewRotation(displayRotation);
         // 当前录像配置
         let aVRecorderConfig: media.AVRecorderConfig = {
           audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
           videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
           profile: this.aVRecorderProfile,
           url: `fd://${fd}`,
-          rotation: pre ? 90 : 270, // 90°为默认后置摄像头竖屏显示角度，270°为默认前置摄像头竖屏显示角度，如果由于设备原因或应用期望以其他方式显示等原因，请根据实际情况调整该参数
+          rotation: previewRotation,
         };
         await this.avRecorder.prepare(aVRecorderConfig).then(async () => {
           this.videoId = await this.avRecorder?.getInputSurface();
@@ -914,7 +919,6 @@ export class Camera implements CameraCaptureStateListener {
   dispose() {
     console.error(TAG, 'dispose');
     this.close();
-    this.flutterTexture.release();
     this.getDeviceOrientationManager().stop();
   }
 
