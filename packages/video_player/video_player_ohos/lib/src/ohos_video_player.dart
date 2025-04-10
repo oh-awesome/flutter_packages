@@ -50,8 +50,12 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
         httpHeaders = dataSource.httpHeaders;
         break;
       case DataSourceType.file:
-        int fileFd = await VideoPlayerOhosChannel.getFileFdByPath(dataSource.uri);
-        uri = 'fd://$fileFd';
+        if (dataSource.uri.toString().startsWith('fd://')) {
+          uri = dataSource.uri;
+        } else {
+          int fileFd = await VideoPlayerOhosChannel.getFileFdByPath(dataSource.uri);
+          uri = 'fd://$fileFd';
+        }
         httpHeaders = dataSource.httpHeaders;
         break;
       case DataSourceType.contentUri:
