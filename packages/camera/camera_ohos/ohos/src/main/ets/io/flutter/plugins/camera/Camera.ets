@@ -19,7 +19,7 @@ import Ability from '@ohos.app.ability.Ability';
 import UIAbility from '@ohos.app.ability.UIAbility';
 import camera from '@ohos.multimedia.camera';
 import image from '@ohos.multimedia.image';
-import { HashMap, List } from '@kit.ArkTS';
+import { buffer, HashMap, List } from '@kit.ArkTS';
 import { EventChannel, Log } from '@ohos/flutter_ohos';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { SurfaceTextureEntry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
@@ -83,7 +83,6 @@ export class Camera implements CameraCaptureStateListener {
   private cameraCaptureCallback: CameraCaptureCallback;
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
-  private imageReceiver: image.ImageReceiver | null = null;
   imageStreamReader: ImageStreamReader | null = null;
   private previewOutput: camera.PreviewOutput | null = null;
   private pausedPreview: boolean = false; // 暂停预览
@@ -117,6 +116,8 @@ export class Camera implements CameraCaptureStateListener {
   private phAccessHelper: photoAccessHelper.PhotoAccessHelper;
   private videoPath: string | undefined = undefined;
   private videoId: string | undefined = undefined;
+  private takePictureResult: MethodResult | undefined;
+  private takePictureName: string = '';
 
   constructor(
     ability: UIAbility,
@@ -175,11 +176,6 @@ export class Camera implements CameraCaptureStateListener {
           + "\" is not supported by this plugin.");
       return;
     }
-
-    this.imageReceiver = image.createImageReceiver(
-      resolutionFeature.getCaptureSize(),
-      image.ImageFormat.JPEG,
-      1);
 
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
     if (imageFormat == null) {
@@ -446,41 +442,9 @@ export class Camera implements CameraCaptureStateListener {
       result.error("captureAlreadyActive", "Picture is currently already being captured", null);
       return;
     }
-
-    //接收图片时注册回调
-    this.imageReceiver?.on('imageArrival', () => {
-      this.imageReceiver?.readNextImage((err, _image) => {
-        if (err || _image === undefined) {
-          return;
-        }
-        _image.getComponent(image.ComponentType.JPEG, (errMsg, img) => {
-          if (errMsg || img === undefined) {
-            return;
-          }
-          let buffer: ArrayBuffer;
-          if (img.byteBuffer) {
-            buffer = img.byteBuffer;
-          } else {
-            console.error(TAG, 'img.byteBuffer is undefined');
-            this.dartMessenger.sendCameraErrorEvent('img.byteBuffer is undefined');
-            return;
-          }
-          this.savePicture(buffer, _image).then((path: string) => {
-            result.success(path);
-          });
-        })
-      });
-    })
+    this.takePictureResult = result;
+    this.takePictureName = '/IMG_' + Date.now().toString() + '.jpg';
     this.runPictureAutoFocus();
-  }
-
-  async savePicture(buffer: ArrayBuffer, img: image.Image) {
-    let photoUri: string = getContext(this).cacheDir + '/IMG_' + Date.now().toString() + '.jpg';
-    let file: fs.File = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    await fs.write(file.fd, buffer);
-    fs.closeSync(file);
-    img.release();
-    return photoUri;
   }
 
   /** Start capturing a picture, doing autofocus first. */
@@ -640,8 +604,15 @@ export class Camera implements CameraCaptureStateListener {
     let photoProfile = this.cameraOutputCapability.photoProfiles.find((profile: camera.Profile) => {
       return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
     });
-    let rSurfaceId = await this.imageReceiver!.getReceivingSurfaceId();
-    this.photoOutPut = this.cameraManager.createPhotoOutput(photoProfile, rSurfaceId);
+    this.photoOutPut = this.cameraManager.createPhotoOutput(photoProfile);
+
+    this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
+      if (err) {
+        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
+        return;
+      }
+      this.mediaLibRequestBuffer(photoAsset);
+    });
 
     this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
     this.photoSession.beginConfig();
@@ -653,6 +624,31 @@ export class Camera implements CameraCaptureStateListener {
     if (this.pausedPreview) {
       await this.previewOutput.stop();
     }
+  }
+
+  mediaLibRequestBuffer(photoAsset: photoAccessHelper.PhotoAsset) {
+    let requestOptions: photoAccessHelper.RequestOptions = {
+      deliveryMode: photoAccessHelper.DeliveryMode.BALANCE_MODE,
+    }
+    let that = this;
+    photoAccessHelper.MediaAssetManager.requestImageData(this.applicationContext, photoAsset,
+      requestOptions, {
+        onDataPrepared(data: ArrayBuffer) {
+          that.convertBufferToFile(data);
+        }
+      });
+  }
+
+  convertBufferToFile(data: ArrayBuffer) {
+    let photoUri: string = getContext(this).cacheDir + this.takePictureName;
+    let file: fs.File = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+    fs.write(file.fd, data).then(() => {
+      fs.closeSync(file);
+      if (this.takePictureResult) {
+        this.takePictureResult.success(photoUri)
+        this.takePictureResult = undefined;
+      }
+    });
   }
 
   async pauseVideoRecording(result: MethodResult) {
@@ -843,8 +839,6 @@ export class Camera implements CameraCaptureStateListener {
   // 关闭
   public close(): void {
     this.stopAndReleaseCamera();
-    this.imageReceiver?.release();
-    this.imageReceiver = null;
 
     this.avRecorder?.reset();
     this.avRecorder?.release();
@@ -959,6 +953,7 @@ export class Camera implements CameraCaptureStateListener {
   private async releasePhotoOutput() {
     if (this.photoOutPut != null) {
       try {
+        this.photoOutPut.off('photoAssetAvailable')
         await this.photoOutPut.release();
         this.photoOutPut = null;
       } catch (e) {
