@@ -338,7 +338,7 @@ export class WebViewPlatformView extends PlatformView {
       return true;
     }
 
-    if (this.webViewClint && request.isRequestGesture()) {
+    if (this.webViewClint) {
       return this.webViewClint.shouldOverrideUrlLoading(this, request);
     }
 
