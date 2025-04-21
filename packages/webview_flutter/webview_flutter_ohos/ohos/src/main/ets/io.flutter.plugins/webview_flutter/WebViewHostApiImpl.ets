@@ -301,6 +301,8 @@ export class WebViewPlatformView extends PlatformView {
   private onDisposeCallback?: () => void;
 
   private rotation: number = 0;
+  
+  private userAgentString: string = '';
 
   onDownloadStart = (event: ESObject) => {
     if (this.downloadListener && this.downloadListener.onDownloadStart) {
@@ -413,6 +415,9 @@ export class WebViewPlatformView extends PlatformView {
 
   onControllerAttached = () => {
     Log.d(TAG, "onControllerAttached");
+    if (this.userAgentString) {
+      this.setCustomUserAgent(this.userAgentString)
+    }
     this.controllerAttached = true
   }
 
@@ -475,6 +480,11 @@ export class WebViewPlatformView extends PlatformView {
 
   getController(): web_webview.WebviewController {
     return this.controller;
+  }
+
+  setCustomUserAgent(userAgentString: string) {
+    this.userAgentString = userAgentString;
+    this.controller.setCustomUserAgent(userAgentString);
   }
 
   setUrl(url: string): void {
@@ -627,7 +637,7 @@ class WebSettingsImpl implements WebSettings {
 
   async setUserAgentString(userAgentString: string) {
     await this.webView.waitControllerAttached();
-    this.webView.getController().setCustomUserAgent(userAgentString);
+    this.webView.setCustomUserAgent(userAgentString);
     // 解决webview无法返回首页的问题，参考文档：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs-V5/faqs-arkweb-88-V5
     this.webView.getController().loadUrl(this.webView.getUrl())
   }
