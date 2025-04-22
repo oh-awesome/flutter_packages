@@ -164,7 +164,7 @@ export class WebViewPoint {
       },
 
       setY(setterArg: number): WebViewPointBuilder {
-        builder.x = setterArg;
+        builder.y = setterArg;
         return builder;
       },
       build(): WebViewPoint {
