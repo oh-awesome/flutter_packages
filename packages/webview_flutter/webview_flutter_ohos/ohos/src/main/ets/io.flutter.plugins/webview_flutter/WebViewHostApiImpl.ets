@@ -205,7 +205,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
   getScrollPosition(instanceId: number): WebViewPoint {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
     return WebViewPoint.Builder()
-      .setX(webView.getScrollY())
+      .setX(webView.getScrollX())
       .setY(webView.getScrollY())
       .build();
   }
