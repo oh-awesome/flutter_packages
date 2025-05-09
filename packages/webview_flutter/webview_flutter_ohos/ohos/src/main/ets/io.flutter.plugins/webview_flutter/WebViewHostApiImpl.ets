@@ -58,7 +58,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
   create(instanceId: number): void {
     let displayProxy: DisplayListenerProxy = new DisplayListenerProxy();
     displayProxy.onPreWebViewInitialization();
-    const webView: WebViewPlatformView = this.webViewProxy.createWebView();
+    const webView: WebViewPlatformView = this.webViewProxy.createWebView(this.binaryMessenger, this.instanceManager);
     displayProxy.onPostWebViewInitialization();
     this.instanceManager.addDartCreatedInstance(webView, instanceId);
   }
@@ -260,13 +260,6 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     return this.instanceManager;
   }
 
-
-  onScrollChangedImpl(left: number, top: number, oldLeft: number, oldTop: number) {
-    this.onScrollChangedImpl(left, top, oldLeft, oldTop);
-    this.api?.onScrollChanged(
-        this, left, top, oldLeft, oldTop, {reply: () => {} });
-  }
-
   setApi(api: WebViewFlutterApiImpl) {
     this.api = api;
   }
@@ -303,6 +296,13 @@ export class WebViewPlatformView extends PlatformView {
   private rotation: number = 0;
   
   private userAgentString: string = '';
+
+  private webViewFlutterApi: WebViewFlutterApiImpl;
+
+  constructor(binaryMessenger: BinaryMessenger, instanceManager: InstanceManager) {
+    super();
+    this.webViewFlutterApi = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
+  }
 
   onDownloadStart = (event: ESObject) => {
     if (this.downloadListener && this.downloadListener.onDownloadStart) {
@@ -409,6 +409,7 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onScroll = (event: ESObject) => {
+    this.webViewFlutterApi.onScrollChanged(this, event.xOffset, event.yOffset, this.scrollX, this.scrollY, {reply: () => {}})
     this.scrollX = event.xOffset;
     this.scrollY = event.yOffset;
   }
@@ -562,8 +563,8 @@ export class WebViewPlatformView extends PlatformView {
 }
 
 export class WebViewProxy {
-  createWebView(): WebViewPlatformView {
-    return new WebViewPlatformView();
+  createWebView(binaryMessenger:BinaryMessenger, instanceManager:InstanceManager): WebViewPlatformView {
+    return new WebViewPlatformView(binaryMessenger, instanceManager);
   }
 
   setWebContentsDebuggingEnabled(enabled: boolean): void {
