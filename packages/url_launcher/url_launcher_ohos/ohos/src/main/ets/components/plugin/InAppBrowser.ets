@@ -27,6 +27,11 @@ export struct InAppBrowser {
   private enableJavaScript: boolean = true;
   private enableDomStorage: boolean = true;
   private flage: boolean = false;
+
+  aboutToDisappear() {
+    emitter.off("closeWebView");
+  }
+
   aboutToAppear(){
     let params = router.getParams() as Map<string, ValueType>
     this.url = params['url'] as string;
@@ -36,7 +41,7 @@ export struct InAppBrowser {
     this.my_header_value=  params ['my_header_key'] as string;
     emitter.once("closeWebView", () => {
       console.info('closeWebView');
-      router.back({url:'pages/Index'})
+      router.back();
     });
   }
   build() {
