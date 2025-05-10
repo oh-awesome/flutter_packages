@@ -290,7 +290,7 @@ export class FileSelectorApiImpl {
     stream.readSync(buffer, {offset: 0, length: size});
     let byteArray = new Uint8Array(buffer);
     let response = new FileResponse(uri, type, name, size, byteArray);
-    fs.closeSync(file.fd);
+    stream.closeSync();
     return new Promise((resolve) => {
       resolve(response);
     })
@@ -307,7 +307,7 @@ export class FileSelectorApiImpl {
       stream.readSync(buffer, {offset: 0, length: size});
       let byteArray = new Uint8Array(buffer);
       let response = new FileResponse(uris[i], type, uris[i].substring(uris[i].lastIndexOf("/") + 1), size, byteArray);
-      fs.closeSync(file.fd);
+      stream.closeSync();
       files.push(response)
     }
 
