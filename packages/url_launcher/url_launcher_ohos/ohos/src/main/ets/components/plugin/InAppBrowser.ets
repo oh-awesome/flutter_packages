@@ -17,6 +17,10 @@ export struct InAppBrowser {
   private enableJavaScript: boolean = true;
   private enableDomStorage: boolean = true;
 
+  aboutToDisappear() {
+    emitter.off("closeWebView");
+  }
+
   aboutToAppear(){
     let params = router.getParams() as Map<string, ValueType>
     this.url = params['url'] as string;
