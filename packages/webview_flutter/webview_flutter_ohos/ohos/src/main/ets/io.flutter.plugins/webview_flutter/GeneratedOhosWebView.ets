@@ -1108,7 +1108,7 @@ export class WebViewFlutterApi {
   ) {
     const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         this.binaryMessenger,
-        "dev.flutter.pigeon.webview_flutter_android.WebViewFlutterApi.onScrollChanged",
+        "dev.flutter.pigeon.webview_flutter_ohos.WebViewFlutterApi.onScrollChanged",
         WebViewFlutterApi.getCodec());
     channel.send(
       [webViewInstanceIdArg, leftArg, topArg, oldLeftArg, oldTopArg],
