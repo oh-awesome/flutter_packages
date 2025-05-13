@@ -31,7 +31,7 @@ export class WebViewFlutterApiImpl {
   }
 
   onScrollChanged(
-    instance: WebViewHostApi,
+    instance: WebViewPlatformView,
     left: number,
     top: number,
     oldLeft: number,
