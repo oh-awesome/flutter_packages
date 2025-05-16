@@ -796,13 +796,18 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     });
   }
 
-  void onSetFocusModeButtonPressed(FocusMode mode) {
-    setFocusMode(mode).then((_) {
+  Future<void> onSetFocusModeButtonPressed(FocusMode mode) async {
+    try {
+      await setFocusMode(mode);
       if (mounted) {
         setState(() {});
+        showInSnackBar('Focus mode set to ${mode.toString().split('.').last}');
       }
-      showInSnackBar('Focus mode set to ${mode.toString().split('.').last}');
-    });
+    } catch (e) {
+      if (mounted) {
+        showInSnackBar('Failed to set focus mode: $e');
+      }
+    }
   }
 
   void onVideoRecordButtonPressed() {
