@@ -36,6 +36,7 @@ const String _overflowClassName = '${classNamePrefix}CodecOverflow';
 const String _forceInt = '${varNamePrefix}forceInt';
 ///Enum companion suffix
 const String _enumCompanionSuffix = 'Enum';
+const String _string_Param_Suffix = 'Str';
 
 /// Documentation comment spec.
 const DocumentCommentSpecification _docCommentSpec =
@@ -138,7 +139,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     const List<String> generatedEnumCompanionMessages = <String>[
       '''
  Generated enum Companion class from Pigeon that represents data sent 
-   in messages.Do not delete otherwise enum type data transfer will failed'''
+   in messages.Do not delete otherwise enum type data transfer will be failed'''
     ];
     indent.newln();
     addDocumentationComments(
@@ -146,8 +147,8 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         generatorComments:generatedEnumCompanionMessages);
     indent.write('export class ${anEnum.name}$_enumCompanionSuffix ');
     indent.addScoped('{', '}', () {
-      indent.writeln('index:number|null = null;');
-      indent.addScoped('constructor(index:number){', '}', () {
+      indent.writeln('index: string|null = null;');
+      indent.addScoped('\tconstructor(index: string){', '}', () {
         indent.writeln('this.index = index;');
       });
 
@@ -203,16 +204,16 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     final HostDatatype hostDatatype = getFieldHostDatatype(
         field, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
     if(field.type.isEnum){
-      indent.writeln('private ${field.name}?: ${hostDatatype.datatype}$_enumCompanionSuffix;');
+      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
       indent.newln();
       indent.writeScoped(
-          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}$_enumCompanionSuffix):void {',
+          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
           '}', () {
         indent.writeln('this.${field.name} = ${field.name};');
       });
       indent.newln();
       indent
-          .write('${_makeGetter(field)}(): ${hostDatatype.datatype}$_enumCompanionSuffix | undefined');
+          .write('${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
       indent.addScoped('{', '}', () {
         indent.writeln('return this.${field.name};');
       });
@@ -270,7 +271,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         final String type = _arkTSTypeForDartType(element.type);
         final String name = getSafeConstructorArgument(element.name);
         if(element.type.isEnum){
-          argSignature.add('$name?: $type$_enumCompanionSuffix');
+          argSignature.add('$name?: $type');
         }else{
           argSignature.add('$name?: $type');
         }
@@ -301,8 +302,8 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         final String fieldName = field.name;
         if(field.type.isEnum){
           indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
-            indent.writeln('arr.push(Object.values(${field.type.baseName})'
-                '.indexOf(this.$fieldName.index! as ${field.type.baseName}));');
+            indent.writeln('const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];');
+            indent.writeln('arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));');
           });
         }else{
           indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
@@ -333,8 +334,8 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         final String fieldVariable = field.name;
         final String setter = _makeSetter(field);
         if(field.type.isEnum){
-          indent
-              .writeln('$result.$setter(new ${field.type.baseName}$_enumCompanionSuffix(arr[$index]! as number));');
+          indent.writeln('const $fieldVariable$_string_Param_Suffix: string = arr[$index]! as string;');
+          indent.writeln('$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
         }else{
           indent.writeln('let $fieldVariable: Object = arr[$index];');
           indent
@@ -609,7 +610,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
                 if (method.returnType.isEnum) {
                   argExpression =
                       'new ${_arkTSTypeForDartType(arg.type)}$_enumCompanionSuffix'
-                      '${'(args[$index] as number)'}';
+                      '${'(args[$index] as string)'}';
                 }
                 methodArgument.add(argExpression);
               });
@@ -649,7 +650,8 @@ let $resultName: Result<$returnType> = new ResultImp();
                   indent.writeln('res.push(null);');
                 } else {
                   if(method.returnType.isEnum){
-                    indent.writeln('let output: $returnType$_enumCompanionSuffix = $call;');
+                    final String newCall = 'api!.${method.name}(args[0] as $returnType).toString()';
+                    indent.writeln('let output: $returnType$_enumCompanionSuffix = new $returnType$_enumCompanionSuffix($newCall);');
                   }else{
                     indent.writeln('let output: $returnType = $call;');
                   }
@@ -692,11 +694,7 @@ let $resultName: Result<$returnType> = new ResultImp();
           method.parameters.map((NamedType e) => e.name);
       argSignature
           .addAll(map2(argTypes, argNames, (String argType, String argName) {
-            if(method.returnType.isEnum){
-              return '$argName: $argType$_enumCompanionSuffix ';
-            }else{
-              return '$argName: $argType ';
-            }
+            return '$argName: $argType ';
       }));
     }
     if (method.isAsynchronous) {
@@ -711,13 +709,8 @@ let $resultName: Result<$returnType> = new ResultImp();
     } else {
       indent.newln();
     }
-    if (method.returnType.isEnum) {
-      indent.writeln('abstract ${method.name}(${argSignature.join(', ')}): '
-          '$returnType$_enumCompanionSuffix;');
-    } else {
-      indent.writeln(
+    indent.writeln(
           'abstract ${method.name}(${argSignature.join(', ')}): $returnType;');
-    }
   }
 
   void _writeResultInterface(Indent indent) {
@@ -909,7 +902,7 @@ getByte(n: number): number {
        String valueString ='';
        if(isEnum){
          valueString = customType.enumeration < maximumCodecFieldKey
-             ? '$nullCheck Object.values(${customType.name}).indexOf(value.index as ${customType.name})'
+             ? '$nullCheck${customType.name}[value.index as string]'
              : 'wrap.toList()';
        }else{
          valueString = customType.enumeration < maximumCodecFieldKey

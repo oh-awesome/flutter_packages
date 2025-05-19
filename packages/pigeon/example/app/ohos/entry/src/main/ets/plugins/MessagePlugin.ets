@@ -17,7 +17,7 @@ import {
   FlutterPlugin,
   FlutterPluginBinding
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
-import { DemoHostApi, IdentityEnum,FlutterError, Result, Person, Student } from './PigeonOhos';
+import { DemoHostApi, Identity,FlutterError, Result, Person, Student } from './PigeonOhos';
 
 
 class HostApiImp extends DemoHostApi {
@@ -90,7 +90,7 @@ class HostApiImp extends DemoHostApi {
     return data;
   }
 
-  sendEnum(data: IdentityEnum): IdentityEnum {
+  sendEnum(data: Identity): Identity {
     return data;
   }
 

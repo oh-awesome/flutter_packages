@@ -246,36 +246,18 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
       final String castCall = _makeGenericCastCall(field.type);
       final String nullableTag = field.type.isNullable ? '?' : '';
       if (field.type.typeArguments.isNotEmpty) {
-        if(field.type.isEnum){
-          indent.add(
-            '($resultAt as ${"int"}?)$castCallPrefix$castCall',
-          );
-        }else{
-          indent.add(
-            '($resultAt as $genericType?)$castCallPrefix$castCall',
-          );
-        }
+        indent.add(
+          '($resultAt as $genericType?)$castCallPrefix$castCall',
+        );
       } else {
         final String castCallForcePrefix = field.type.isNullable ? '' : '!';
-        String castString = '';
-        if (field.type.isEnum) {
-          castString = field.type.baseName == 'Object'
-              ? ''
-              : ' as ${'int'}$nullableTag';
-        } else {
-          castString = field.type.baseName == 'Object'
-              ? ''
-              : ' as $genericType$nullableTag';
-        }
-        if(field.type.isEnum){
-          indent.add(
-            '$genericType.values[$resultAt$castCallForcePrefix$castString]',
-          );
-        }else{
-          indent.add(
-            '$resultAt$castCallForcePrefix$castString',
-          );
-        }
+        final String castString = field.type.baseName == 'Object'
+            ? ''
+            : ' as $genericType$nullableTag';
+
+        indent.add(
+          '$resultAt$castCallForcePrefix$castString',
+        );
       }
     }
 

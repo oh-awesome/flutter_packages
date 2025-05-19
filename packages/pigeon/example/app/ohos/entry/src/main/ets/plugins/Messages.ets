@@ -45,14 +45,18 @@ function wrapError(error: Error): Array<Object> {
 }
 
 
+/* Generated enum from Pigeon that represents data sent in messages.*/
 export enum Code {
   ONE,
   TWO
 }
 
+/* Generated enum Companion class from Pigeon that represents data sent 
+   in messages.Do not delete otherwise enum type data transfer will be failed*/
 export class CodeEnum {
-  index: number | null = null;
-  constructor(index: number) {
+  index: string | null = null;
+
+  constructor(index: string) {
     this.index = index;
   }
 }
@@ -79,13 +83,13 @@ export class MessageData {
     return this.description;
   }
 
-  private code?: CodeEnum;
+  private code?: Code;
 
-  public setCode(code: CodeEnum): void {
+  public setCode(code: Code): void {
     this.code = code;
   }
 
-  getCode(): CodeEnum | undefined {
+  getCode(): Code | undefined {
     return this.code;
   }
 
@@ -99,7 +103,7 @@ export class MessageData {
     return this.data;
   }
 
-  constructor(name?: string, description?: string, code?: CodeEnum, data?: Map<string, string>) {
+  constructor(name?: string, description?: string, code?: Code, data?: Map<string, string>) {
     this.name = name;
     this.description = description;
     this.code = code;
@@ -115,7 +119,8 @@ export class MessageData {
       arr.push(this.description);
     }
     if (this.code !== undefined) {
-      arr.push(this.code);
+      const codeStr = Code[this.code as number];
+      arr.push(new CodeEnum(codeStr));
     }
     if (this.data !== undefined) {
       arr.push(this.data);
@@ -129,7 +134,8 @@ export class MessageData {
     pigeonResult.setName(name as string);
     let description: Object = arr[1];
     pigeonResult.setDescription(description as string);
-    pigeonResult.setCode(new CodeEnum(arr[2]! as number));
+    const codeStr: string = arr[2]! as string;
+    pigeonResult.setCode(Code[codeStr]);
     let data: Object = arr[3];
     pigeonResult.setData(data as Map<string, string>);
     return pigeonResult;
@@ -163,7 +169,10 @@ class PigeonCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer, value: ESObject): ESObject {
-    if (value instanceof MessageData) {
+    if (value instanceof CodeEnum) {
+      stream.writeUint8(this.getByte(129));
+      this.writeValue(stream, value == null ? null : Code[value.index as string]);
+    } else if (value instanceof MessageData) {
       stream.writeUint8(this.getByte(130));
       this.writeValue(stream, (value as MessageData).toList());
     } else {
@@ -186,40 +195,6 @@ export abstract class ExampleHostApi {
   abstract add(a: number, b: number): number;
 
   abstract sendMessage(message: MessageData, result: Result<boolean>): void;
-
-  abstract sendNull(data: Object): Object;
-
-  abstract sendTrue(data: boolean): boolean;
-
-  abstract sendFalse(data: boolean): boolean;
-
-  abstract sendInt(data: number): number;
-
-  abstract sendDouble(data: number): number;
-
-  abstract sendString(data: string): string;
-
-  abstract sendUint8List(data: number[]): number[];
-
-  abstract sendInt32List(data: number[]): number[];
-
-  abstract sendInt64List(data: number[]): number[];
-
-  abstract sendFloat64List(data: number[]): number[];
-
-  abstract sendList(data: Array<string>): Array<string>;
-
-  abstract sendMap(data: Map<string, string>): Map<string, string>;
-
-  abstract sendEnum(data: CodeEnum): CodeEnum;
-
-  abstract flutterInvokeSync(): string;
-
-  abstract flutterInvokeAsync(result: Result<string>): void;
-
-  abstract errorHandling(result: Result<string>): void;
-
-  abstract taskQueueTest(): string;
 
   /** The codec used by ExampleHostApi. */
   static getCodec(): MessageCodec<Object> {
@@ -300,416 +275,6 @@ export abstract class ExampleHostApi {
             let resultCallback: Result<boolean> = new ResultImp();
 
             api!.sendMessage(args[0] as MessageData, resultCallback);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-
-
-    //-----------------------------------------------test---------------------------------------------------------------
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendNull", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              console.log("testFlutter-sendNull " + " ets onMessage try");
-              let output: Object = api!.sendNull(args[0] as Object);
-              res.push(output);
-            } catch (error) {
-              console.log("testFlutter-sendNull " + " ets onMessage err:" + error.name + " " + error.message);
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            console.log("testFlutter-sendNull " + " ets reply");
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendTrue", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: boolean = api!.sendTrue(args[0] as boolean);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendFalse", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: boolean = api!.sendTrue(args[0] as boolean);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number = api!.sendInt(args[0] as number);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendDouble", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number = api!.sendDouble(args[0] as number);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendString", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: string = api!.sendString(args[0] as string);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendUint8List", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number[] = api!.sendUint8List(args[0] as number[]);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt32List", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number[] = api!.sendInt32List(args[0] as number[]);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendInt64List", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number[] = api!.sendInt64List(args[0] as number[]);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendFloat64List", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: number[] = api!.sendFloat64List(args[0] as number[]);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendList", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: Array<string> = api!.sendList(args[0] as Array<string>);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendMap", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: Map<string, string> = api!.sendMap(args[0] as Map<string, string>);
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.sendEnum", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let args: Array<Object> = message as Array<Object>;
-            let res: Array<Object> = [];
-            try {
-              let output: CodeEnum = api!.sendEnum(new CodeEnum(args[0] as number));
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.flutterInvokeSync", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let res: Array<Object> = [];
-            try {
-              let output: string = api!.flutterInvokeSync();
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.flutterInvokeAsync", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            class ResultImp implements Result<string> {
-              success(result: string): void {
-                let res: Array<Object> = [];
-                res.push(result);
-                reply.reply(res);
-              }
-
-              error(error: Error): void {
-                let wrappedError: Array<Object> = wrapError(error);
-                reply.reply(wrappedError);
-              }
-            }
-
-            let resultCallback: Result<string> = new ResultImp();
-
-            api!.flutterInvokeAsync(resultCallback);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.errorHandling", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            class ResultImp implements Result<string> {
-              success(result: string): void {
-                let res: Array<Object> = [];
-                res.push(result);
-                reply.reply(res);
-              }
-
-              error(error: Error): void {
-                let wrappedError: Array<Object> = wrapError(error);
-                reply.reply(wrappedError);
-              }
-            }
-
-            let resultCallback: Result<string> = new ResultImp();
-
-            api!.errorHandling(resultCallback);
-          }
-        });
-      } else {
-        channel.setMessageHandler(null);
-      }
-    }
-    {
-      ///let taskQueue: TaskQueue = binaryMessenger.makeBackgroundTaskQueue();
-      ///BasicMessageChannel构造中不需要taskQueue了
-      let channel: BasicMessageChannel<Object> =
-        new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_demo.MyHostApi.taskQueueTest", ExampleHostApi.getCodec());
-      if (api != null) {
-        channel.setMessageHandler({
-          onMessage(message: Object, reply: Reply<Object>) {
-            let res: Array<Object> = [];
-            try {
-              let output: string = api!.taskQueueTest();
-              res.push(output);
-            } catch (error) {
-              let wrappedError: Array<Object> = wrapError(error);
-              res = wrappedError;
-            }
-            reply.reply(res);
           }
         });
       } else {
