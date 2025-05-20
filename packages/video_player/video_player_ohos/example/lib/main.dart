@@ -222,7 +222,7 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
     _controller.addListener(() {
       setState(() {});
     });
-    _controller.initialize().whenComplete(() => _controller.play());
+    _controller.initialize();
   }
 
   @override
