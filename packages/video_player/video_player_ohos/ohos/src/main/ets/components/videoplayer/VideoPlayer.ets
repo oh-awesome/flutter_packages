@@ -40,6 +40,7 @@ const FORMAT_DASH: String = 'dash';
 const FORMAT_HLS: String = 'hls';
 const FORMAT_OTHER: String = 'other';
 const TAG = 'VideoPlayer'
+
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
   public playerModel: PlayerModel | null = null;
@@ -60,7 +61,9 @@ export class VideoPlayer {
   private fd: number | null = null;
   private headers: Record<string, string> | null;
 
-  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
+  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry,
+    url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean,
+    headers: Record<string, string> | null) {
     this.playerModel = playerModel;
     this.textureEntry = textureEntry;
     this.surfaceId = textureEntry.getSurfaceId().toString();
@@ -91,17 +94,21 @@ export class VideoPlayer {
       );
 
       await this.bindState();
-      if (this.iUrl != null) {
+      if (this.iUrl && this.iUrl.startsWith('http')) {
+        let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.iUrl, this.headers);
+        let playbackStrategy: media.PlaybackStrategy = {
+          preferredWidth: 1,
+          preferredHeight: 2,
+          preferredBufferDuration: 20,
+          preferredHdr: false,
+          showFirstFrameOnPrepare: true
+        };
+        // 设置媒体来源和播放策略
+        await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
+      } else if (this.iUrl != null) {
         this.avPlayer.url = this.getIUri();
       } else {
         this.avPlayer.fdSrc = this.url!;
-      }
-
-      if (this.headers != null) {
-        let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.iUrl, this.headers);
-        let playbackStrategy: media.PlaybackStrategy = {preferredWidth: 1, preferredHeight: 2, preferredBufferDuration: 20, preferredHdr: false};
-        // 设置媒体来源和播放策略
-        await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
       }
     }
   }
@@ -194,7 +201,7 @@ export class VideoPlayer {
       Log.e(TAG, "avPlayer Events.ERROR: " + JSON.stringify(err));
       // 播放直播视频时，设置 loop 会报错，而 loop 一定会设置(video_player.dart 中初始化之后会 _applyLooping)，所以屏蔽掉该报错
       // message: Unsupport Capability: The stream is live stream, not support loop
-      if(err.code == 801) {
+      if (err.code === 801) {
         return;
       }
       this.avPlayer?.reset();
