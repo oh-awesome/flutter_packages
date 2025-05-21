@@ -417,7 +417,8 @@ export class WebViewPlatformView extends PlatformView {
   onControllerAttached = () => {
     Log.d(TAG, "onControllerAttached");
     if (this.userAgentString) {
-      this.setCustomUserAgent(this.userAgentString)
+      this.setCustomUserAgent(this.userAgentString);
+      this.controller.refresh();
     }
     this.controllerAttached = true
   }
