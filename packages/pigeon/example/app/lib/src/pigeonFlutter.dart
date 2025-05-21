@@ -56,7 +56,7 @@ class Person {
     return Person(
       name: result[0]! as String,
       age: result[1]! as int,
-      identity: Identity.values[result[2]! as int],
+      identity: result[2]! as Identity,
     );
   }
 }

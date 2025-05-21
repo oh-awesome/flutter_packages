@@ -47,11 +47,11 @@ export enum Identity {
 }
 
 /* Generated enum Companion class from Pigeon that represents data sent 
-   in messages.Do not delete otherwise enum type data transfer will failed*/
+   in messages.Do not delete otherwise enum type data transfer will be failed*/
 export class IdentityEnum {
-  index: number | null = null;
+  index: string | null = null;
 
-  constructor(index: number) {
+  constructor(index: string) {
     this.index = index;
   }
 }
@@ -78,17 +78,17 @@ export class Person {
     return this.age;
   }
 
-  private identity?: IdentityEnum;
+  private identity?: Identity;
 
-  public setIdentity(identity: IdentityEnum): void {
+  public setIdentity(identity: Identity): void {
     this.identity = identity;
   }
 
-  getIdentity(): IdentityEnum | undefined {
+  getIdentity(): Identity | undefined {
     return this.identity;
   }
 
-  constructor(name?: string, age?: number, identity?: IdentityEnum) {
+  constructor(name?: string, age?: number, identity?: Identity) {
     this.name = name;
     this.age = age;
     this.identity = identity;
@@ -103,7 +103,8 @@ export class Person {
       arr.push(this.age);
     }
     if (this.identity !== undefined) {
-      arr.push(Object.values(Identity).indexOf(this.identity.index! as Identity));
+      const identityStr = Identity[this.identity as number];
+      arr.push(new IdentityEnum(identityStr));
     }
     return arr;
   }
@@ -114,7 +115,8 @@ export class Person {
     pigeonResult.setName(name as string);
     let age: Object = arr[1];
     pigeonResult.setAge(age as number);
-    pigeonResult.setIdentity(new IdentityEnum(arr[2]! as number));
+    const identityStr: string = arr[2]! as string;
+    pigeonResult.setIdentity(Identity[identityStr]);
     return pigeonResult;
   }
 }
@@ -198,7 +200,7 @@ class PigeonCodec extends StandardMessageCodec {
   writeValue(stream: ByteBuffer, value: ESObject): ESObject {
     if (value instanceof IdentityEnum) {
       stream.writeUint8(this.getByte(129));
-      this.writeValue(stream, value == null ? null : Object.values(Identity).indexOf(value.index as Identity));
+      this.writeValue(stream, value == null ? null : Identity[value.index as string]);
     } else if (value instanceof Person) {
       stream.writeUint8(this.getByte(130));
       this.writeValue(stream, (value as Person).toList());
@@ -567,7 +569,8 @@ export abstract class DemoHostApi {
     {
       let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNestedDatatype", DemoHostApi.getCodec());
+          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNestedDatatype",
+          DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage(message: Object, reply: Reply<Object>) {
@@ -597,7 +600,7 @@ export abstract class DemoHostApi {
             let args: Array<Object> = message as Array<Object>;
             let res: Array<Object> = [];
             try {
-              let output: IdentityEnum = api!.sendEnum(new IdentityEnum(args[0] as number));
+              let output: IdentityEnum = new IdentityEnum(api!.sendEnum(args[0] as Identity).toString());
               res.push(output);
             } catch (error) {
               let wrappedError: Array<Object> = wrapError(error);
@@ -613,7 +616,8 @@ export abstract class DemoHostApi {
     {
       let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeSync", DemoHostApi.getCodec());
+          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeSync",
+          DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage(message: Object, reply: Reply<Object>) {
@@ -635,7 +639,8 @@ export abstract class DemoHostApi {
     {
       let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel(
-          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeAsync", DemoHostApi.getCodec());
+          binaryMessenger, "dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeAsync",
+          DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage(message: Object, reply: Reply<Object>) {
