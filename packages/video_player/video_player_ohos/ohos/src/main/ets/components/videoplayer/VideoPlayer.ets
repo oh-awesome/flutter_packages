@@ -35,6 +35,8 @@ const OPERATE_ERROR: number = 801;
 const AVPLAYER_STATE_ERROR: number = 5400102;
 const AVPLAYER_IO_ERROR: number = 5400103;
 
+let event:HashMap<string, Object> = new HashMap<string, Object>();
+
 const TAG = 'VideoPlayer'
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
@@ -144,10 +146,16 @@ export class VideoPlayer {
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
+          event.set("event", "isPlayingStateUpdate");
+          event.set("isPlaying", true);
+          this.eventSink?.success(event);
           this.watchStatus();
           break;
         case AvplayerStatus.PAUSED:
           this.status = CommonConstants.STATUS_PAUSE;
+          event.set("event", "isPlayingStateUpdate");
+          event.set("isPlaying", false);
+          this.eventSink?.success(event);
           this.watchStatus();
           break;
         case AvplayerStatus.COMPLETED:
