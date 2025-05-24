@@ -885,26 +885,8 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public setDescriptionWhileRecording(result: MethodResult, properties: CameraProperties) {
-    if (!this.recordingVideo) {
-      result.error("setDescriptionWhileRecordingFailed", "Device was not recording", null);
-      return;
-    }
-
-    this.stopAndReleaseCamera();
-
-    this.cameraProperties = properties;
-    this.cameraFeatures =
-      CameraFeatures.init(
-        this.cameraFeatureFactory, this.cameraProperties, this.ability, this.dartMessenger, this.resolutionPreset);
-    this.cameraFeatures.setAutoFocus(
-      this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, true));
-
-    try {
-      this.open(this.imageFormatGroup);
-    } catch (e) {
-      result.error("setDescriptionWhileRecordingFailed", e.getMessage(), null);
-    }
-    result.success(null);
+    result.error("error", "Camera switching is not supported while recording.", null);
+    return;
   }
 
   dispose() {
