@@ -624,9 +624,34 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
   Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
     if (controller != null) {
-      return controller!
-          .setDescription(cameraDescription)
-          .catchError((error) => {showInSnackBar(error.toString())});
+      try {
+        await controller!
+            .setDescription(cameraDescription)
+            .catchError((error) => {showInSnackBar(error.toString())});
+        await Future.wait(<Future<Object?>>[
+          // The exposure mode is currently not supported on the web.
+          ...!kIsWeb
+              ? <Future<Object?>>[
+                  CameraPlatform.instance
+                      .getMinExposureOffset(controller!.cameraId)
+                      .then((double value) =>
+                          _minAvailableExposureOffset = value),
+                  CameraPlatform.instance
+                      .getMaxExposureOffset(controller!.cameraId)
+                      .then(
+                          (double value) => _maxAvailableExposureOffset = value)
+                ]
+              : <Future<Object?>>[],
+          CameraPlatform.instance
+              .getMaxZoomLevel(controller!.cameraId)
+              .then((double value) => _maxAvailableZoom = value),
+          CameraPlatform.instance
+              .getMinZoomLevel(controller!.cameraId)
+              .then((double value) => _minAvailableZoom = value),
+        ]);
+      } on CameraException catch (e) {
+        showInSnackBar(e.toString());
+      }
     } else {
       return _initializeCameraController(cameraDescription);
     }
