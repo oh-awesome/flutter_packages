@@ -455,22 +455,28 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<double> getMaxZoomLevel(int cameraId) async {
-    final int? maxZoomLevel = await _channel.invokeMethod<int>(
+    var maxZoomLevel = await _channel.invokeMethod(
       'getMaxZoomLevel',
       <String, dynamic>{'cameraId': cameraId},
     );
 
-    return maxZoomLevel!.toDouble();
+    if (maxZoomLevel is int) {
+      maxZoomLevel = maxZoomLevel.toDouble();
+    }
+    return maxZoomLevel!;
   }
 
   @override
   Future<double> getMinZoomLevel(int cameraId) async {
-    final int? minZoomLevel = await _channel.invokeMethod<int>(
+    var minZoomLevel = await _channel.invokeMethod(
       'getMinZoomLevel',
       <String, dynamic>{'cameraId': cameraId},
     );
 
-    return minZoomLevel!.toDouble();
+    if (minZoomLevel is int) {
+      minZoomLevel = minZoomLevel.toDouble();
+    }
+    return minZoomLevel!;
   }
 
   @override
