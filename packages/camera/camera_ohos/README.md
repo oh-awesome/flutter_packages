@@ -1,15 +1,15 @@
-# camera\_ohos
+# HarmonyOS端适配说明
 
-The OpenHarmony implementation of [`camera`][1].
+为保证录制稳定性，**本插件在HarmonyOS平台进行了如下修改**：
 
-## Usage
+​	**禁止在录制过程中切换前后摄像头**
 
-This package is [endorsed][2], which means you can simply use `camera`
-normally. This package will be automatically included in your app when you do,
-so you do not need to add it to your `pubspec.yaml`.
 
-However, if you `import` this package to use any of its APIs directly, you
-should add it to your `pubspec.yaml` as usual.
 
-[1]: https://pub.dev/packages/camera
-[2]: https://flutter.dev/docs/development/packages-and-plugins/developing-packages#endorsed-federated-plugin
+在录像状态下调用CameraController.setDescriptionWhileRecording()将无效，并返回错误提示：
+
+```
+Camera switching is not supported while recording.
+```
+
+此修改仅影响HarmonyOS端，**在Android/IOS平台保持原有行为**。请开发者在使用此插件开发时注意平台差异，避免在录制状态中调用切换摄像头逻辑，或使用平台判断进行适配。
