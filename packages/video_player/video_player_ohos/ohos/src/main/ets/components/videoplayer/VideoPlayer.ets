@@ -41,7 +41,7 @@ const FORMAT_HLS: String = 'hls';
 const FORMAT_OTHER: String = 'other';
 const TAG = 'VideoPlayer'
 
-let event:HashMap<string,Object> = new HashMap<string,Object>();
+let event:HashMap<string, Object> = new HashMap<string, Object>();
 
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
