@@ -41,6 +41,8 @@ const FORMAT_HLS: String = 'hls';
 const FORMAT_OTHER: String = 'other';
 const TAG = 'VideoPlayer'
 
+let event:HashMap<string, Object> = new HashMap<string, Object>();
+
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
   public playerModel: PlayerModel | null = null;
@@ -152,10 +154,16 @@ export class VideoPlayer {
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
+          event.set("event", "isPlayingStateUpdate");
+          event.set("isPlaying", true);
+          this.eventSink?.success(event);
           this.watchStatus();
           break;
         case AvplayerStatus.PAUSED:
           this.status = CommonConstants.STATUS_PAUSE;
+          event.set("event", "isPlayingStateUpdate");
+          event.set("isPlaying", false);
+          this.eventSink?.success(event);
           this.watchStatus();
           break;
         case AvplayerStatus.COMPLETED:
