@@ -624,6 +624,11 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
     await this.photoSession.start();
+    
+    if (!this.photoSession.getFlashMode()) {
+      this.photoSession.setFlashMode(camera.FlashMode.FLASH_MODE_AUTO)
+    }
+ 
     if (this.pausedPreview) {
       await this.previewOutput.stop();
     }
