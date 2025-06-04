@@ -28,6 +28,10 @@ dependencies:
   local_auth_darwin: ^1.4.0
   local_auth_platform_interface: ^1.0.1
   local_auth_windows: ^1.0.0
+  local_auth_ohos:
+    git:
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/local_auth/local_auth_ohos"
 
 dev_dependencies:
   flutter_test:
