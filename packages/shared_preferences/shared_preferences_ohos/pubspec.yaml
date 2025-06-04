@@ -1,7 +1,7 @@
 name: shared_preferences_ohos
 description: Ohos implementation of the shared_preferences plugin
-repository: https://gitee.com/openharmony-sig/flutter_packages/tree/master/packages/shared_preferences/shared_preferences_ohos
-issue_tracker: https://gitee.com/openharmony-sig/flutter_packages/issues
+repository: https://gitee.com/openharmony-tpc/flutter_packages/tree/master/packages/shared_preferences/shared_preferences_ohos
+issue_tracker: https://gitee.com/openharmony-tpc/flutter_packages/issues
 version: 2.2.0
 
 environment:

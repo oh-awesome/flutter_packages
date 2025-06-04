@@ -26,7 +26,7 @@ This repository mainly adds compatibility with the OpenHarmony platform.
 dev_dependencies:
    pigeon:
      git:
-       url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
        path: "packages/pigeons"
   ```
 2. Run `flutter pub get` in the project root directory;
@@ -45,7 +45,7 @@ Take path_provider as an example:
 dependencies:
    path_provider:
      git:
-       url: "https://gitee.com/openharmony-sig/flutter_packages.git"
+       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
        path: "packages/path_provider/path_provider"
 ```
 
@@ -55,7 +55,7 @@ dependencies:
 
 Example: Add the path_provider library dependency that supports the OpenHarmony platform to a Flutter-compatible OpenHarmony project;
 
-Reference examples: https://gitee.com/openharmony-sig/flutter_samples/tree/master/ohos/pictures_provider_demo.
+Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/master/ohos/pictures_provider_demo.
 
 ## FAQ
 
