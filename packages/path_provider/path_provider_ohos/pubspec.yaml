@@ -1,7 +1,7 @@
 name: path_provider_ohos
 description: Ohos implementation of the path_provider plugin.
-repository: https://gitee.com/openharmony-tpc/flutter_packages/tree/master/packages/path_provider/path_provider_ohos
-issue_tracker: https://gitee.com/openharmony-tpc/flutter_packages/issues
+repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/path_provider/path_provider_ohos
+issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 version: 2.2.1
 
 environment:
