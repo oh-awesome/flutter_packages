@@ -26,8 +26,9 @@ dependencies:
   webview_flutter_wkwebview: ^3.13.0
   webview_flutter_ohos:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/webview_flutter/webview_flutter_ohos"
+      ref : "br_webview_flutter-v4.8.0_ohos"
 
 dev_dependencies:
   build_runner: ^2.1.5
