@@ -24,7 +24,7 @@ dependencies:
     sdk: flutter
   path_provider:
     git:
-      url: https://gitcode.com/openharmony-sig/flutter_packages.git
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/path_provider/path_provider
       ref: br_path_provider-v2.1.4_ohos
 
@@ -40,7 +40,7 @@ dependencies:
 dependency_overrides:
   path_provider_ohos:
     git:
-      url: https://gitcode.com/openharmony-sig/flutter_packages.git
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/path_provider/path_provider_ohos
       ref: br_path_provider-v2.1.4_ohos
 
