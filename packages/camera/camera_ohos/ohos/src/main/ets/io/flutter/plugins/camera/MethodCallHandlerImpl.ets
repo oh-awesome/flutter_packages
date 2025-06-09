@@ -146,7 +146,8 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         break;
       }
       case 'startVideoRecording': {
-        this.camera!.startVideoRecording(result, this.imageStreamChannel);
+        let enableStream = call.argument('enableStream') as boolean;
+        this.camera!.startVideoRecording(result, enableStream ? this.imageStreamChannel : null);
         break;
       }
       case 'stopVideoRecording': {
