@@ -250,7 +250,7 @@ export abstract class DemoHostApi {
 
   abstract sendNestedDatatype(data: Person): Person;
 
-  abstract sendEnum(data: IdentityEnum): IdentityEnum;
+  abstract sendEnum(data: Identity): Identity;
 
   abstract flutterInvokeSync(): string;
 
