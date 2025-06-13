@@ -5,6 +5,7 @@
 // Copyright 2013 The Flutter Authors.
 
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
+import { Queue } from '@kit.ArkTS';
 
 export class InstanceManager {
   private MIN_HOST_CREATED_IDENTIFIER = 65536;
@@ -15,9 +16,15 @@ export class InstanceManager {
 
   private finalizationListener: FinalizationListener;
 
-  private identifiers: Map<ESObject, number> = new Map<ESObject, number>();
+  private identifiers: WeakMap<ESObject, number> = new WeakMap<ESObject, number>();
 
-  private Instances: Map<number, ESObject> = new Map<number, ESObject>();
+  private weakInstances: Map<number, WeakRef<ESObject>> = new Map<number, WeakRef<ESObject>>();
+
+  private strongInstances: Map<number, ESObject> = new Map<number, ESObject>();
+
+  private referenceQueue: Queue<WeakRef<ESObject>> = new Queue();
+
+  private weakReferencesToIdentifiers: Map<WeakRef<ESObject>, number> = new Map<WeakRef<ESObject>, number>();
 
   private firstIdentifier: number = 0;
 
@@ -44,27 +51,37 @@ export class InstanceManager {
 
   public remove(identifier: number): ESObject | null {
     this.logWarningIfFinalizationListenerHasStopped();
-
-    return this.Instances.delete(identifier) as ESObject | null;
+    return this.strongInstances.delete(identifier) as ESObject | null;
   }
 
-  getInstance(identifier: number): ESObject {
+  getInstance(identifier: number): ESObject | null {
     this.logWarningIfFinalizationListenerHasStopped();
-    return this.Instances.get(identifier);
+    return this.weakInstances.get(identifier)?.deref();
   }
 
   clear() {
-    this.Instances.clear();
-    this.identifiers.clear()
+    this.strongInstances.clear();
+    this.weakInstances.clear();
+    this.weakReferencesToIdentifiers.clear();
   }
 
   private releaseAllFinalizedInstances(): void {
     if (this.fHasFinalizationListenerStopped()) {
       return;
     }
-    // this.Instances.clear();
-    // this.identifiers.clear()
-    // this.finalizationListener.onFinalize(this.firstIdentifier)
+
+    let reference : WeakRef<ESObject> | null = null;
+    while ((reference = this.referenceQueue.getFirst()) != null) {
+      const identifier: number | undefined = this.weakReferencesToIdentifiers.get(reference);
+      this.weakReferencesToIdentifiers.delete(reference);
+      if (identifier != undefined) {
+        this.weakInstances.delete(identifier);
+        this.strongInstances.delete(identifier);
+        this.finalizationListener.onFinalize(identifier);
+      }
+      this.referenceQueue.pop();
+    }
+
     this.releaseTimer = setTimeout(() => {
       this.releaseAllFinalizedInstances()
     }, this.CLEAR_FINALIZED_WEAK_REFERENCES_INTERVAL)
@@ -82,21 +99,26 @@ export class InstanceManager {
     if (identifier < 0) {
       throw Error(`Identifier must be >= 0: ${identifier}`);
     }
-    if (this.Instances.has(identifier)) {
+    if (this.weakInstances.has(identifier)) {
       throw new Error(`Identifier has already been added: ${identifier}`);
     }
-    if (this.Instances.size === 0) {
+    if (this.strongInstances.size === 0) {
       this.firstIdentifier = identifier
     }
 
+    const weakReference: WeakRef<ESObject> = new WeakRef<ESObject>(instance);
+    this.referenceQueue.add(weakReference);
+    this.weakInstances.set(identifier, weakReference);
+    this.weakReferencesToIdentifiers.set(weakReference, identifier);
     this.identifiers.set(instance, identifier);
-    this.Instances.set(identifier, instance);
+    this.strongInstances.set(identifier, instance);
   }
 
   getIdentifier(instance: Object): number {
     this.logWarningIfFinalizationListenerHasStopped();
     const identifier: number = this.identifiers.get(instance) ?? -1;
     return identifier;
+
   }
 
   private logWarningIfFinalizationListenerHasStopped() {
