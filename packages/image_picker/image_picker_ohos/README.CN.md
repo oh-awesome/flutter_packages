@@ -83,7 +83,7 @@ flutter pub get
 
 ## 7. 开源协议
 
-本项目基于 [Apache License 2.0](../image_picker/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [Apache License 2.0](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/image_picker/image_picker/LICENSE) ，请自由地享受和参与开源。
 
 
 
