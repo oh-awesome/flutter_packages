@@ -17,6 +17,7 @@ Currently pigeon supports generating:
 * Kotlin and Java code for Android
 * Swift and Objective-C code for iOS and macOS
 * C++ code for Windows
+* ArkTS code for OpenHarmony
 
 ### Supported Datatypes
 
@@ -99,6 +100,13 @@ the threading model for handling HostApi methods can be selected with the
 1) Objc and Swift have special naming conventions that can be utilized with the
    `@ObjCSelector` and `@SwiftFunction` respectively. 
 
+### Flutter calling into OpenHarmony steps
+
+1) Add the generated ArkTS code to your `./ohos/entry/src/main/ets` directory
+   for compilation.
+1) Implement the generated ArkTS interface for handling the calls on ohos, set
+   it up as the handler for the messages.
+
 ### Flutter calling into iOS steps
 
 1) Add the generated Objective-C or Swift code to your Xcode project for compilation
@@ -138,3 +146,8 @@ denotes APIs that live in Flutter but are invoked from the host platform.
 
 File an issue in [flutter/flutter](https://github.com/flutter/flutter) with 
 "[pigeon]" at the start of the title.
+
+## OpenHarmony
+
+- [中文](README.OpenHarmony_CN.md)
+- [EN](README.OpenHarmony.md)
