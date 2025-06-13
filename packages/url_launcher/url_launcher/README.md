@@ -6,11 +6,9 @@
 
 A Flutter plugin for launching a URL.
 
-|             | Android | iOS   | Linux | macOS  | Web | Windows     |
-|-------------|---------|-------|-------|--------|-----|-------------|
-| **Support** | SDK 16+ | 11.0+ | Any   | 10.14+ | Any | Windows 10+ |
-## Postscript
-Ohos does not support jumping to the App Store at this time
+|             | Android | iOS   | Linux | macOS  | Web | Windows     | Ohos |
+|-------------|---------|-------|-------|--------|-----|-------------|------|
+| **Support** | SDK 16+ | 11.0+ | Any   | 10.14+ | Any | Windows 10+ | [API 12+](../url_launcher_ohos/README.md) |
 
 ## Usage
 
@@ -93,6 +91,11 @@ Example:
 See
 [the Android documentation](https://developer.android.com/training/package-visibility/use-cases)
 for examples of other queries.
+
+### [OpenHarmony](../url_launcher_ohos/README.md#1-installation-and-usage)
+
+- [中文](../url_launcher_ohos/README.CN.md)
+- [EN](../url_launcher_ohos/README.md)
 
 ## Supported URL schemes
 
@@ -219,3 +222,4 @@ in the default browser. The default behavior depends on the platform (see
 [`launchUrl`](https://pub.dev/documentation/url_launcher/latest/url_launcher/launchUrl.html)
 for details), but a specific mode can be used on supported platforms by
 passing a `LaunchMode`.
+
