@@ -92,7 +92,7 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 |-----------|----------|-------|----------|--------------------|
 | canLaunch(String url) | Future<bool>  | Returns `true` if this platform is able to launch [url].   | function  | yes               |
 | launch(String url, {required bool useSafariVC,required bool useWebView,required bool enableJavaScript,required bool enableDomStorage,required bool universalLinksOnly,required Map<String, String> headers,String? webOnlyWindowName,})    | Future<bool>  | Passes [url] to the underlying platform for handling. | function   | yes               |
-| launchUrl(String url, LaunchOptions options) | Future<bool>  |Passes [url] to the underlying platform for handling. | function  | yes               |
+| launchUrl(String url, [LaunchOptions](#LaunchOptions) options) | Future<bool>  |Passes [url] to the underlying platform for handling. | function  | yes               |
 | closeWebView() | Future<void>   |Closes the WebView, if one was opened earlier by [launch]. | function | yes               |
 
 
