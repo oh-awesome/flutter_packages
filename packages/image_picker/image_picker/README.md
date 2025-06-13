@@ -6,14 +6,19 @@
 A Flutter plugin for iOS and Android for picking images from the image library,
 and taking new pictures with the camera.
 
-|             | Android | iOS     | Linux | macOS  | Web                             | Windows     |
-|-------------|---------|---------|-------|--------|---------------------------------|-------------|
-| **Support** | SDK 21+ | iOS 11+ | Any   | 10.14+ | [See `image_picker_for_web`][1] | Windows 10+ |
+|             | Android | iOS     | ohos                                      | Linux | macOS  | Web                             | Windows     |
+| ----------- | ------- | ------- | ----------------------------------------- | ----- | ------ | ------------------------------- | ----------- |
+| **Support** | SDK 21+ | iOS 11+ | [API 12+](../image_picker_ohos/README.md) | Any   | 10.14+ | [See `image_picker_for_web`][1] | Windows 10+ |
 
 ## Installation
 
 First, add `image_picker` as a
 [dependency in your pubspec.yaml file](https://flutter.dev/docs/development/platform-integration/platform-channels).
+
+### OpenHarmony
+
+- [中文](../camera_ohos/README_CN.md)
+- [EN](../camera_ohos/README.md)
 
 ### iOS
 
@@ -28,8 +33,8 @@ Add the following keys to your _Info.plist_ file, located in
 `<project root>/ios/Runner/Info.plist`:
 
 * `NSPhotoLibraryUsageDescription` - describe why your app needs permission for
-the photo library. This is called _Privacy - Photo Library Usage Description_ in
-the visual editor.
+  the photo library. This is called _Privacy - Photo Library Usage Description_ in
+  the visual editor.
   * This permission will not be requested if you always pass `false` for
   `requestFullMetadata`, but App Store policy requires including the plist
   entry.
