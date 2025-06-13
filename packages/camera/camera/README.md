@@ -49,7 +49,7 @@ It's important to note that the `MediaRecorder` class is not working properly on
 
 ### OpenHarmony   
 
-- [中文](../camera_ohos/README_CN.md)
+- [中文](../camera_ohos/README.CN.md)
 - [EN](../camera_ohos/README.md)
 
 

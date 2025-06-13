@@ -37,7 +37,7 @@ Android Manifest file, located in `<project root>/android/app/src/main/AndroidMa
 
 ### OpenHarmony   
 
-- [中文](../video_player_ohos/README_CN.md)
+- [中文](../video_player_ohos/README.CN.md)
 - [EN](../video_player_ohos/README.md)
 
 
