@@ -8,9 +8,9 @@ the user.
 On supported devices, this includes authentication with biometrics such as
 fingerprint or facial recognition.
 
-|             | Android   | iOS   | Windows     |
-|-------------|-----------|-------|-------------|
-| **Support** | SDK 16+\* | 11.0+ | Windows 10+ |
+|             | Android   | iOS   | Windows     | Ohos                                    |
+| ----------- | --------- | ----- | ----------- | --------------------------------------- |
+| **Support** | SDK 16+\* | 11.0+ | Windows 10+ | [API 12+](../local_auth_ohos/README.md) |
 
 ## Usage
 
@@ -214,7 +214,7 @@ Note that `local_auth` requires the use of a `FragmentActivity` instead of an
 
     ```java
     import io.flutter.embedding.android.FlutterFragmentActivity;
-
+    
     public class MainActivity extends FlutterFragmentActivity {
         // ...
     }
@@ -224,7 +224,7 @@ Note that `local_auth` requires the use of a `FragmentActivity` instead of an
 
     ```kotlin
     import io.flutter.embedding.android.FlutterFragmentActivity
-
+    
     class MainActivity: FlutterFragmentActivity() {
         // ...
     }
@@ -287,6 +287,12 @@ the Android theme directly in `android/app/src/main/AndroidManifest.xml`:
 	</application>
 ...
 ```
+
+## OpenHarmony
+
+- [中文](../local_auth_ohos/README_CN.md)
+
+- [EN](../local_auth_ohos/README.md)
 
 ## Sticky Auth
 
