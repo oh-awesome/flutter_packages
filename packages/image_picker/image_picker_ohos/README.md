@@ -85,6 +85,6 @@ not
 
 ## 7. License
 
-This project is licensed under  [Apache License 2.0](../image_picker/LICENSE) .
+This project is licensed under  [Apache License 2.0](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/image_picker/image_picker/LICENSE) .
 
 > Template version: v0.0.1
