@@ -52,10 +52,10 @@ export struct InAppBrowser {
         .onRefreshAccessedHistory((event) => {
           if (event &&  !this.flage) {
             if (this.my_header_value != undefined) {
-              this.webviewController.loadUrl('https://www.cylog.org/headers/', [{ headerKey: "my_header_key", headerValue: this.my_header_value }]);
+              this.webviewController.loadUrl(this.url, [{ headerKey: "my_header_key", headerValue: this.my_header_value }]);
               this.flage = true;
             } else {
-              this.webviewController.loadUrl('https://www.cylog.org/headers/');
+              this.webviewController.loadUrl(this.url);
               this.flage = true;
             }
           }
