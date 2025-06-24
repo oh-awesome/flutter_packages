@@ -295,8 +295,10 @@ export class WebViewPlatformView extends PlatformView {
   private onDisposeCallback?: () => void;
 
   private rotation: number = 0;
-  
-  private userAgentString: string = '';
+
+  userAgentString: string = '';
+
+  isWebviewBinding: boolean = false;
 
   private webViewFlutterApi: WebViewFlutterApiImpl;
 
@@ -354,13 +356,13 @@ export class WebViewPlatformView extends PlatformView {
 
   onProgressChange = (event: ESObject) => {
     if (this.webChromeClient) {
-      this.webChromeClient.onProgressChanged(this, event.newProgress)
+      this.webChromeClient.onProgressChanged(this, event.newProgress);
     }
   }
 
   onGeolocationShow = (event: ESObject) => {
     if (this.webChromeClient) {
-      this.webChromeClient.onGeolocationPermissionsShowPrompt(event.origin, event.geolocation)
+      this.webChromeClient.onGeolocationPermissionsShowPrompt(event.origin, event.geolocation);
     }
   }
 
@@ -372,7 +374,7 @@ export class WebViewPlatformView extends PlatformView {
 
   onShowFileSelector = (event: ESObject) => {
     if (this.webChromeClient) {
-      return this.webChromeClient.onShowFileChooser(this, event.result, event.fileSelector)
+      return this.webChromeClient.onShowFileChooser(this, event.result, event.fileSelector);
     }
     return false;
   }
@@ -397,7 +399,7 @@ export class WebViewPlatformView extends PlatformView {
 
   onWindowNew = (event: ESObject) => {
     if (this.webChromeClient) {
-      this.webChromeClient.onCreateWindow(this, event.isAlert, event.isUserTrigger, event.handler)
+      this.webChromeClient.onCreateWindow(this, event.isAlert, event.isUserTrigger, event.handler);
     }
   }
 
@@ -413,13 +415,23 @@ export class WebViewPlatformView extends PlatformView {
     this.scrollY = event.yOffset;
   }
 
+  aboutToAppear() {
+    //   此处没有调用，说明只有controller，没有webview
+    this.isWebviewBinding = true;
+  }
+
   onControllerAttached = () => {
     Log.d(TAG, "onControllerAttached");
     if (this.userAgentString) {
       this.setCustomUserAgent(this.userAgentString);
       this.controller.refresh();
     }
-    this.controllerAttached = true
+    this.controllerAttached = true;
+  }
+
+  aboutToDisappear() {
+    // 解除绑定controller
+    this.isWebviewBinding = false;
   }
 
   setOnDisposeCallback(callback: () => void) {
@@ -465,7 +477,7 @@ export class WebViewPlatformView extends PlatformView {
     windowClass.setWindowSystemBarEnable(['status', 'navigation']);
     windowClass.setPreferredOrientation(this.rotation);
   }
-  
+
   getType(): string {
     return 'web';
   }
@@ -497,7 +509,7 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   getWebCookieManager(): web_webview.WebCookieManager {
-    return this.WebCookieManager
+    return this.WebCookieManager;
   }
 
   setDownloadListener(listener: DownloadListener) {
@@ -541,7 +553,7 @@ export class WebViewPlatformView extends PlatformView {
 
   async waitControllerAttached() {
     if (!this.controllerAttached) {
-      await this.checkControllerAttached()
+      await this.checkControllerAttached();
     }
   }
 
@@ -550,12 +562,12 @@ export class WebViewPlatformView extends PlatformView {
       try {
         let intervalId = setInterval(() => {
           if (this.controllerAttached) {
-            clearInterval(intervalId)
-            resolve()
+            clearInterval(intervalId);
+            resolve();
           }
         }, 20)
       } catch (err) {
-        reject()
+        reject();
       }
     })
   }
@@ -574,6 +586,7 @@ export class WebViewProxy {
 
 class WebSettingsImpl implements WebSettings {
   private webView: WebViewPlatformView;
+  private defaultUserAgent: string = '';
   params: DVModelParameters = new DVModelParameters;
   domStorageAccess: boolean = false;
   allowWindowOpenMethod : boolean = false;
@@ -640,7 +653,7 @@ class WebSettingsImpl implements WebSettings {
     await this.webView.waitControllerAttached();
     this.webView.setCustomUserAgent(userAgentString);
     // 解决webview无法返回首页的问题，参考文档：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs-V5/faqs-arkweb-88-V5
-    this.webView.getController().loadUrl(this.webView.getUrl())
+    this.webView.getController().loadUrl(this.webView.getUrl());
   }
 
   setMediaPlaybackRequiresUserGesture(require: boolean) {
@@ -696,9 +709,32 @@ class WebSettingsImpl implements WebSettings {
     this.textZoomRatioCallback && this.textZoomRatioCallback(textZoom);
   }
 
-   async getUserAgentString(): Promise<string> {
-    await this.webView.waitControllerAttached();
-    return this.webView.getController().getCustomUserAgent();
+  /**
+   * 正常从getCustomUserAgent获取userAgent，需要先绑定webview
+   * 如果没有绑定webview或者解绑，需要从缓存中获取，或者获取默认的useragent
+   * 获取默认的时候，需要先initializeWebEngine，整个APP仅需调用一次
+   *
+   * */
+
+  async getUserAgentString(): Promise<string> {
+    if (this.webView.userAgentString) {
+      return this.webView.userAgentString;
+    }
+
+    if (this.webView.isWebviewBinding) {
+      await this.webView.waitControllerAttached();
+      return this.webView.getController().getCustomUserAgent();
+    }
+
+    if (this.defaultUserAgent) {
+      //  整个app只需要一次initializeWebEngine。
+      return this.defaultUserAgent;
+    }
+
+    web_webview.WebviewController.initializeWebEngine();
+    this.defaultUserAgent = web_webview.WebviewController.getDefaultUserAgent();
+
+    return this.defaultUserAgent;
   }
 
   getTextZoom() : number{
