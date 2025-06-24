@@ -183,11 +183,23 @@ Future<void> main() async {
     await expectLater(buttonTapResizeCompleter.future, completes);
   });
 
-  testWidgets('set custom userAgent', (WidgetTester tester) async {
-    final Completer<void> pageFinished = Completer<void>();
+  testWidgets('No webview, get controller', (WidgetTester tester) async {
 
     final WebViewController controller = WebViewController();
+
+    final String? customUserAgent = await controller.getUserAgent();
+
+    expect(customUserAgent, startsWith('Mozilla'));
+
+  });
+
+  testWidgets('set custom userAgent', (WidgetTester tester) async {
+    final Completer<void> pageFinished = Completer<void>();
+    
+    final WebViewController controller = WebViewController();
+
     unawaited(controller.setJavaScriptMode(JavaScriptMode.unrestricted));
+
     unawaited(controller.setNavigationDelegate(NavigationDelegate(
       onPageFinished: (_) => pageFinished.complete(),
     )));
