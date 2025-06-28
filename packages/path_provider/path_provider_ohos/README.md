@@ -24,7 +24,7 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 dependencies:
   path_provider:
     git: 
-      url: git clone https://gitcode.com/ymcel/flutter_packages.git
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/path_provider/path_provider
 
 ...
