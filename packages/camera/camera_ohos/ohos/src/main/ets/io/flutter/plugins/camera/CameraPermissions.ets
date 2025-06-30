@@ -19,9 +19,9 @@ import { BusinessError } from '@ohos.base';
 
 type ResultCallback = (errCode: string | null, errDesc: string | null) => void;
 
-const cameraPermission: Array<Permissions> = ['ohos.permission.CAMERA'];
+const CameraPermission: Array<Permissions> = ['ohos.permission.CAMERA'];
 
-const audioPermission: Array<Permissions> = ['ohos.permission.CAMERA', 'ohos.permission.MICROPHONE'];
+export const AudioPermission: Array<Permissions> = ['ohos.permission.MICROPHONE'];
 
 async function checkAccessToken(permission: Permissions): Promise<abilityAccessCtrl.GrantStatus> {
   let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
@@ -60,25 +60,27 @@ export class CameraPermissions {
     enableAudio: boolean,
     callback: ResultCallback
   ) {
-    const hasCameraPermission: boolean = await checkPermissions(cameraPermission);
-    const hasAudioPermission: boolean = enableAudio && await checkPermissions(audioPermission);
+    const hasCameraPermission: boolean = await checkPermissions(CameraPermission);
+    const hasAudioPermission: boolean = await checkPermissions(AudioPermission);
 
-    if (!hasCameraPermission || !hasAudioPermission) {
+    if (!hasCameraPermission || (enableAudio && !hasAudioPermission)) {
       let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
 
-      // requestPermissionsFromUser会判断权限的授权状态来决定是否唤起弹窗
-      atManager.requestPermissionsFromUser(context, enableAudio ? audioPermission : cameraPermission)
+      atManager.requestPermissionsFromUser(context,
+        enableAudio ? [...CameraPermission, ...AudioPermission] : CameraPermission)
         .then((data: PermissionRequestResult) => {
-          let grantStatus: Array<number> = data.authResults;
-          let length: number = grantStatus.length;
-          for (let i = 0; i < length; i++) {
-            if (grantStatus[i] !== 0) {
-              // 用户拒绝授权，提示用户必须授权才能访问当前页面的功能，并引导用户到系统设置中打开相应的权限
-              callback('errCode', '未授权相机权限');
-              return;
+          const permissions = data.permissions;
+          const authResults = data.authResults;
+          for (let i = 0; i < permissions.length; i++) {
+            if (permissions[i] === 'ohos.permission.CAMERA' && authResults[i] !== 0) {
+              // 未授权相机权限
+              return callback('CameraAccessDenied', '');
+            }
+            if (permissions[i] === 'ohos.permission.MICROPHONE' && authResults[i] !== 0) {
+              // 未授权录音权限
+              return callback('AudioAccessDenied', '');
             }
           }
-          // 用户授权，可以继续访问目标操作
           callback(null, null);
         }).catch((err: BusinessError) => {
         console.error(`Failed to request permissions from user. Code is ${err.code}, message is ${err.message}`);
@@ -89,7 +91,9 @@ export class CameraPermissions {
       callback(null, null);
     }
   }
+
+  async checkPermissions(permission: Array<Permissions>): Promise<boolean> {
+    const hasPermission: boolean = await checkPermissions(permission);
+    return hasPermission;
+  }
 }
-
-
-
