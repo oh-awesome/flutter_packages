@@ -1,8 +1,17 @@
-// Copyright (c) 2024 Huawei Device Co., Ltd.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE_HW file.
-// Based on CameraPermissions.java originally written by
-// Copyright 2013 The Flutter Authors.
+/**
+ * Copyright (c) 2024 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import bundleManager from '@ohos.bundle.bundleManager';
 import abilityAccessCtrl, { PermissionRequestResult, Permissions } from '@ohos.abilityAccessCtrl';
@@ -10,12 +19,9 @@ import { BusinessError } from '@ohos.base';
 
 type ResultCallback = (errCode: string | null, errDesc: string | null) => void;
 
-const photoPermission: Array<Permissions> =
-  ['ohos.permission.CAMERA'];
+const CameraPermission: Array<Permissions> = ['ohos.permission.CAMERA'];
 
-const videoPermission: Array<Permissions> =
-  ['ohos.permission.CAMERA',
-    'ohos.permission.MICROPHONE'];
+export const AudioPermission: Array<Permissions> = ['ohos.permission.MICROPHONE'];
 
 async function checkAccessToken(permission: Permissions): Promise<abilityAccessCtrl.GrantStatus> {
   let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
@@ -54,25 +60,27 @@ export class CameraPermissions {
     enableAudio: boolean,
     callback: ResultCallback
   ) {
-    const hasCameraPermission: boolean = await checkPermissions(photoPermission);
-    const hasAudioPermission: boolean = enableAudio && await checkPermissions(videoPermission);
+    const hasCameraPermission: boolean = await checkPermissions(CameraPermission);
+    const hasAudioPermission: boolean = await checkPermissions(AudioPermission);
 
-    if (!hasCameraPermission || !hasAudioPermission) {
+    if (!hasCameraPermission || (enableAudio && !hasAudioPermission)) {
       let atManager: abilityAccessCtrl.AtManager = abilityAccessCtrl.createAtManager();
 
-      // requestPermissionsFromUser会判断权限的授权状态来决定是否唤起弹窗
-      atManager.requestPermissionsFromUser(context, enableAudio ? videoPermission : photoPermission)
+      atManager.requestPermissionsFromUser(context,
+        enableAudio ? [...CameraPermission, ...AudioPermission] : CameraPermission)
         .then((data: PermissionRequestResult) => {
-          let grantStatus: Array<number> = data.authResults;
-          let length: number = grantStatus.length;
-          for (let i = 0; i < length; i++) {
-            if (grantStatus[i] !== 0) {
-              // 用户拒绝授权，提示用户必须授权才能访问当前页面的功能，并引导用户到系统设置中打开相应的权限
-              callback('errCode', '未授权相机权限');
-              return;
+          const permissions = data.permissions;
+          const authResults = data.authResults;
+          for (let i = 0; i < permissions.length; i++) {
+            if (permissions[i] === 'ohos.permission.CAMERA' && authResults[i] !== 0) {
+              // 未授权相机权限
+              return callback('CameraAccessDenied', '');
+            }
+            if (permissions[i] === 'ohos.permission.MICROPHONE' && authResults[i] !== 0) {
+              // 未授权录音权限
+              return callback('AudioAccessDenied', '');
             }
           }
-          // 用户授权，可以继续访问目标操作
           callback(null, null);
         }).catch((err: BusinessError) => {
         console.error(`Failed to request permissions from user. Code is ${err.code}, message is ${err.message}`);
@@ -83,7 +91,9 @@ export class CameraPermissions {
       callback(null, null);
     }
   }
+
+  async checkPermissions(permission: Array<Permissions>): Promise<boolean> {
+    const hasPermission: boolean = await checkPermissions(permission);
+    return hasPermission;
+  }
 }
-
-
-
