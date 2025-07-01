@@ -56,6 +56,7 @@ import photoAccessHelper from '@ohos.file.photoAccessHelper';
 import { picker } from '@kit.CoreFileKit';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 import display from '@ohos.display';
+import { AudioPermission, CameraPermissions } from './CameraPermissions';
 
 const TAG = "Camera";
 
@@ -119,6 +120,7 @@ export class Camera implements CameraCaptureStateListener {
   private videoId: string | undefined = undefined;
   private takePictureResult: MethodResult | undefined;
   private takePictureName: string = '';
+  private permissions: CameraPermissions;
 
   constructor(
     ability: UIAbility,
@@ -127,7 +129,8 @@ export class Camera implements CameraCaptureStateListener {
     dartMessenger: DartMessenger,
     cameraProperties: CameraProperties,
     resolutionPreset: ResolutionPreset,
-    enableAudio: boolean
+    enableAudio: boolean,
+    permissions: CameraPermissions,
   ) {
     if (ability == null) {
       throw new Error('No Ability available!');
@@ -135,6 +138,7 @@ export class Camera implements CameraCaptureStateListener {
 
     this.ability = ability;
     this.enableAudio = enableAudio;
+    this.permissions = permissions;
     this.flutterTexture = flutterTexture;
     this.dartMessenger = dartMessenger;
     this.applicationContext = ability.context;
@@ -784,16 +788,9 @@ export class Camera implements CameraCaptureStateListener {
         this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
         let fd = this.captureFile.fd;
         let displayRotation = display.getDefaultDisplaySync().rotation;
-        let previewRotation: camera.ImageRotation | undefined = this.previewOutput?.getPreviewRotation(displayRotation);
-        // 当前录像配置
-        let aVRecorderConfig: media.AVRecorderConfig = {
-          audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
-          videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
-          profile: this.aVRecorderProfile,
-          url: `fd://${fd}`,
-          rotation: previewRotation,
-        };
-        await this.avRecorder.prepare(aVRecorderConfig).then(async () => {
+        let previewRotation = this.previewOutput!.getPreviewRotation(displayRotation);
+        const avRecorderConfig = await this.getAVRecorderConfig(fd, previewRotation);
+        await this.avRecorder.prepare(avRecorderConfig).then(async () => {
           this.videoId = await this.avRecorder?.getInputSurface();
         });
         this.cameraOutputCapability =
@@ -839,6 +836,31 @@ export class Camera implements CameraCaptureStateListener {
         Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
       }
     });
+  }
+
+  async getAVRecorderConfig(fd: number, rotation: camera.ImageRotation): Promise<media.AVRecorderConfig> {
+    let aVRecorderConfig: media.AVRecorderConfig | undefined = undefined;
+    if (this.enableAudio) {
+      const hasAudioPermission = await this.permissions.checkPermissions(AudioPermission);
+      if (hasAudioPermission) {
+        aVRecorderConfig = {
+          audioSourceType: media.AudioSourceType.AUDIO_SOURCE_TYPE_MIC,
+          videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
+          profile: this.aVRecorderProfile,
+          url: `fd://${fd}`,
+          rotation: rotation,
+        };
+      }
+    }
+    if (aVRecorderConfig == undefined) {
+      aVRecorderConfig = {
+        videoSourceType: media.VideoSourceType.VIDEO_SOURCE_TYPE_SURFACE_YUV,
+        profile: this.aVRecorderProfile,
+        url: `fd://${fd}`,
+        rotation: rotation,
+      };
+    }
+    return aVRecorderConfig;
   }
 
   async prepareRecording(result: MethodResult): Promise<void> {
