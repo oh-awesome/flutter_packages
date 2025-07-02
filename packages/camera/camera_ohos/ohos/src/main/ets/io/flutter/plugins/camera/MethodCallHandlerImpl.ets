@@ -415,7 +415,8 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         dartMessenger,
         cameraProperties,
         resolutionPreset,
-        enableAudio);
+        enableAudio,
+        this.cameraPermissions);
 
     const reply: HashMap<String, Object> = new HashMap();
     reply.set('cameraId', this.textureId);
