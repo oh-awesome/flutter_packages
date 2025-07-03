@@ -22,7 +22,7 @@ import { DownloadListener } from './DownloadListenerFlutterApiImpl'
 import { DisplayListenerProxy } from './DisplayListenerProxy'
 import { JavaScriptChannel } from './JavaScriptChannel'
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
-import { WebViewFlutterApiImpl } from './WebViewFlutterApiImpl.ets'
+import { WebViewFlutterApiImpl } from './WebViewFlutterApiImpl'
 import window from '@ohos.window'
 import display from '@ohos.display'
 
@@ -478,6 +478,10 @@ export class WebViewPlatformView extends PlatformView {
   dispose(): void {
     this.controller.stopAllMedia();
     this.onDisposeCallback && this.onDisposeCallback();
+    this.webChromeClient = null;
+    this.webViewClint = null;
+    this.webSettings = null;
+    this.dialogController = null;
   }
 
   getController(): web_webview.WebviewController {
