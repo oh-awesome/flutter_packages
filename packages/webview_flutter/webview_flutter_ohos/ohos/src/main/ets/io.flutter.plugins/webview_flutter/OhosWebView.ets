@@ -80,7 +80,7 @@ export struct OhosWebView {
             event.handler.setWebController(newWebViewController);
           })
           .onSslErrorEventReceive((event) => {
-            event.handler.handleConfirm();
+            event.handler.handleCancel();
           })
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
