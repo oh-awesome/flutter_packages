@@ -6,9 +6,9 @@
 
 A Flutter plugin for iOS, Android and Web allowing access to the device cameras.
 
-|                | Android | iOS       | Web                    |
-|----------------|---------|-----------|------------------------|
-| **Support**    | SDK 21+ | iOS 11.0+ | [See `camera_web `][1] |
+|             | Android | iOS       | Web                    | Ohos                                |
+| ----------- | ------- | --------- | ---------------------- | ----------------------------------- |
+| **Support** | SDK 21+ | iOS 11.0+ | [See `camera_web `][1] | [API 12+](../camera_ohos/README.md) |
 
 ## Features
 
@@ -46,6 +46,13 @@ minSdkVersion 21
 ```
 
 It's important to note that the `MediaRecorder` class is not working properly on emulators, as stated in the documentation: https://developer.android.com/reference/android/media/MediaRecorder. Specifically, when recording a video with sound enabled and trying to play it back, the duration won't be correct and you will only see the first frame.
+
+### OpenHarmony   
+
+- [中文](../camera_ohos/README.CN.md)
+- [EN](../camera_ohos/README.md)
+
+
 
 ### Web integration
 

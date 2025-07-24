@@ -1,7 +1,7 @@
 name: in_app_purchase_ohos
 description: An implementation for the Ohos platform of the Flutter `in_app_purchase` plugin. This uses the ohoa IAPKit APIs.
-repository: https://gitee.com/openharmony-sig/flutter_packages/tree/master/packages/in_app_purchase/in_app_purchase_ohos
-issue_tracker: https://gitee.com/openharmony-sig/flutter_packages/issues
+repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/in_app_purchase/in_app_purchase_ohos
+issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 version: 0.1.0
 
 environment:

@@ -5,9 +5,9 @@
 [![pub package](https://img.shields.io/pub/v/video_player.svg)](https://pub.dev/packages/video_player)
 
 A Flutter plugin for iOS, Android and Web for playing back video on a Widget surface.
-|             | Android | iOS   | Web   |
-|-------------|---------|-------|-------|
-| **Support** | SDK 16+ | 11.0+ | Any\* |
+|             | Android | iOS   | Web   | Ohos                                      |
+| ----------- | ------- | ----- | ----- | ----------------------------------------- |
+| **Support** | SDK 16+ | 11.0+ | Any\* | [API 12+](../video_player_ohos/README.md) |
 
 [Supported video formats](https://developer.huawei.com/consumer/cn/doc/harmonyos-references-V5/js-apis-media-V5#avplayer9)
 
@@ -34,6 +34,13 @@ Android Manifest file, located in `<project root>/android/app/src/main/AndroidMa
 ```xml
 <uses-permission android:name="android.permission.INTERNET"/>
 ```
+
+### OpenHarmony   
+
+- [中文](../video_player_ohos/README.CN.md)
+- [EN](../video_player_ohos/README.md)
+
+
 
 ### Web
 

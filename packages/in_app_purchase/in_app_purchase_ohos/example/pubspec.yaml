@@ -19,7 +19,7 @@ dependencies:
   in_app_purchase_platform_interface: ^1.0.0
   shared_preferences:
     git:
-      url: https://gitee.com/openharmony-sig/flutter_packages.git
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/shared_preferences/shared_preferences
 
 dev_dependencies:

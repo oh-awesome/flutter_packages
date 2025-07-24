@@ -75,7 +75,8 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
-  private previewOutput: camera.PreviewOutput | null = null;
+  private previewOutput: camera.PreviewOutput | null = null; // 第一路预览流
+  private previewOutput2: camera.PreviewOutput | null = null; // 第二路预览流
   private pausedPreview: boolean = false; // 暂停预览
   private captureTimeouts: CaptureTimeoutsWrapper;
   private captureProps: CameraCaptureProperties;
@@ -324,6 +325,7 @@ export class Camera implements CameraCaptureStateListener {
   public async pausePreview(result: MethodResult) {
     try {
       await this.previewOutput?.stop();
+      await this.previewOutput2?.stop();
     } catch (e) {
     }
     this.pausedPreview = true;
@@ -335,6 +337,7 @@ export class Camera implements CameraCaptureStateListener {
     try {
       if (this.pausedPreview) {
         await this.previewOutput?.start();
+        await this.previewOutput2?.start();
       }
     } catch (e) {
     }
@@ -490,7 +493,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel) {
+  startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
     this.prepareRecording(result);
 
     if (imageStreamChannel != null) {
@@ -615,6 +618,11 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
     await this.photoSession.start();
+    
+    if (!this.photoSession.getFlashMode()) {
+      this.photoSession.setFlashMode(camera.FlashMode.FLASH_MODE_AUTO)
+    }
+ 
     if (this.pausedPreview) {
       await this.previewOutput.stop();
     }
@@ -720,15 +728,28 @@ export class Camera implements CameraCaptureStateListener {
     this.previewOutput =
       this.cameraManager.createPreviewOutput(previewProfilesObj, this.flutterTexture.getSurfaceId().toString());
     let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
-    let previewOutput2: camera.PreviewOutput =
+    this.previewOutput2 =
       this.cameraManager.createPreviewOutput(previewProfilesObj2, imageReceiverSurfaceId);
+
+    let photoProfile = profiles.photoProfiles.find((profile: camera.Profile) => {
+      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
+    });
+    this.photoOutPut = this.cameraManager.createPhotoOutput(photoProfile);
+    this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
+      if (err) {
+        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
+        return;
+      }
+      this.mediaLibRequestBuffer(photoAsset);
+    });
 
     this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
     this.photoSession.beginConfig();
     await this.cameraInput?.open();
     this.photoSession.addInput(this.cameraInput);
     this.photoSession.addOutput(this.previewOutput);
-    this.photoSession.addOutput(previewOutput2);
+    this.photoSession.addOutput(this.previewOutput2);
+    this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
     await this.photoSession.start();
   }
@@ -786,6 +807,11 @@ export class Camera implements CameraCaptureStateListener {
         await this.cameraInput?.open();
         this.videoSession?.addInput(this.cameraInput);
         this.videoSession?.addOutput(this.previewOutput);
+        if (stream && this.imageStreamReader != null) {
+          let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
+          this.previewOutput2 = this.cameraManager.createPreviewOutput(previewProfile, surfaceId);
+          this.videoSession.addOutput(this.previewOutput2);
+        }
         this.videoSession?.addOutput(this.videoOutput);
         await this.videoSession?.commitConfig();
         await this.videoSession?.start();
@@ -885,26 +911,8 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public setDescriptionWhileRecording(result: MethodResult, properties: CameraProperties) {
-    if (!this.recordingVideo) {
-      result.error("setDescriptionWhileRecordingFailed", "Device was not recording", null);
-      return;
-    }
-
-    this.stopAndReleaseCamera();
-
-    this.cameraProperties = properties;
-    this.cameraFeatures =
-      CameraFeatures.init(
-        this.cameraFeatureFactory, this.cameraProperties, this.ability, this.dartMessenger, this.resolutionPreset);
-    this.cameraFeatures.setAutoFocus(
-      this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, true));
-
-    try {
-      this.open(this.imageFormatGroup);
-    } catch (e) {
-      result.error("setDescriptionWhileRecordingFailed", e.getMessage(), null);
-    }
-    result.success(null);
+    result.error("error", "Camera switching is not supported while recording.", null);
+    return;
   }
 
   dispose() {

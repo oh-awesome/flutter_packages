@@ -7,13 +7,18 @@ A Flutter plugin for finding commonly used locations on the filesystem.
 Supports Android, iOS, Linux, macOS and Windows.
 Not all methods are supported on all platforms.
 
-|             | Android | iOS   | Linux | macOS  | Windows     |
-|-------------|---------|-------|-------|--------|-------------|
-| **Support** | SDK 16+ | 11.0+ | Any   | 10.14+ | Windows 10+ |
+|             | Android | iOS   | Linux | macOS  | Windows     | ohos |
+|-------------|---------|-------|-------|--------|-------------|------|
+| **Support** | SDK 16+ | 11.0+ | Any   | 10.14+ | Windows 10+ |  [API 12+](../path_provider_ohos/README.md)  |
 
 ## Usage
 
 To use this plugin, add `path_provider` as a [dependency in your pubspec.yaml file](https://flutter.dev/docs/development/platform-integration/platform-channels).
+
+### OpenHarmony   
+
+- [中文](../path_provider_ohos/README_CN.md)
+- [EN](../path_provider_ohos/README.md)
 
 ## Example
 <?code-excerpt "readme_excerpts.dart (Example)"?>

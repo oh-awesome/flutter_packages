@@ -1,7 +1,7 @@
 name: local_auth_ohos
 description: Ohos implementation of the local_auth plugin.
-repository: https://gitee.com/openharmony-sig/flutter_packages/tree/master/packages/local_auth/local_auth_ohos
-issue_tracker: https://gitee.com/openharmony-sig/flutter_packages/issues
+repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/local_auth/local_auth_ohos
+issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 version: 1.0.0
 
 environment:

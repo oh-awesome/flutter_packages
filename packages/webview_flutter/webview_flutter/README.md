@@ -9,9 +9,11 @@ A Flutter plugin that provides a WebView widget.
 On iOS the WebView widget is backed by a [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview).
 On Android the WebView widget is backed by a [WebView](https://developer.android.com/reference/android/webkit/WebView).
 
-|             | Android        | iOS   |
-|-------------|----------------|-------|
-| **Support** | SDK 19+ or 20+ | 11.0+ |
+On Ohos the WebView widget is backed by a [WebView](https://developer.huawei.com/consumer/cn/doc/harmonyos-references/js-apis-webview).
+
+|             | Android        | iOS   | ohos                                         |
+| ----------- | -------------- | ----- | -------------------------------------------- |
+| **Support** | SDK 19+ or 20+ | 11.0+ | [API 12+](../webview_flutter_ohos/README.md) |
 
 ## Usage
 Add `webview_flutter` as a [dependency in your pubspec.yaml file](https://pub.dev/packages/webview_flutter/install).
@@ -87,10 +89,12 @@ app or package:
 
 * **Android**: [webview_flutter_android](https://pub.dev/packages/webview_flutter_android/install)
 * **iOS**: [webview_flutter_wkwebview](https://pub.dev/packages/webview_flutter_wkwebview/install)
+* **Ohos**: [webview_flutter_ohos](../webview_flutter_ohos/README.md#11-installation)
 
 Next, add the imports of the implementation packages to your app or package:
 
 <?code-excerpt "main.dart (platform_imports)"?>
+
 ```dart
 // Import for Android features.
 import 'package:webview_flutter_android/webview_flutter_android.dart';

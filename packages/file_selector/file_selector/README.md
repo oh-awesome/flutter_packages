@@ -6,9 +6,9 @@
 
 A Flutter plugin that manages files and interactions with file dialogs.
 
-|             | Android | iOS     | Linux | macOS  | Web | Windows     |
-|-------------|---------|---------|-------|--------|-----|-------------|
-| **Support** | SDK 19+ | iOS 11+ | Any   | 10.14+ | Any | Windows 10+ |
+|             | Android | iOS   | Linux | macOS  | Web | Windows     | Ohos |
+|-------------|---------|-------|-------|--------|-----|-------------|------|
+| **Support** | SDK 19+ | iOS 11+ | Any   | 10.14+ | Any | Windows 10+ | [API 12+](../file_selector_ohos/README.md)|
 
 ## Usage
 
@@ -100,25 +100,30 @@ Different platforms support different type group filter options. To avoid
 filters that cover all platforms you are targeting, or that you conditionally
 pass different `XTypeGroup`s based on `Platform`.
 
-|                          | Andoid | iOS | Linux | macOS  | Web | Windows     |
-|--------------------------|--------|-----|-------|--------|-----|-------------|
-| `extensions`             | ✔️      |     | ✔️     | ✔️      | ✔️   | ✔️           |
-| `mimeTypes`              | ✔️      |     | ✔️     | ✔️†     | ✔️   |             |
-| `uniformTypeIdentifiers` |        | ✔️   |       | ✔️      |     |             |
-| `webWildCards`           |        |     |       |        | ✔️   |             |
+|                          | Andoid | iOS | Linux | macOS  | Web | Windows     | ohos     |
+|--------------------------|--------|-----|-------|--------|-----|-------------|-------------|
+| `extensions`             | ✔️      |     | ✔️     | ✔️      | ✔️   | ✔️           | ✔️           |
+| `mimeTypes`              | ✔️      |     | ✔️     | ✔️†     | ✔️   |             | ✔️           |
+| `uniformTypeIdentifiers` |        | ✔️   |       | ✔️      |     |             | ✔️           |
+| `webWildCards`           |        |     |       |        | ✔️   |             | ✔️           |
 
 † `mimeTypes` are not supported on version of macOS earlier than 11 (Big Sur).
 
 ### Features supported by platform
 
-| Feature                | Description                        | Android | iOS      | Linux      | macOS    | Windows      | Web         |
-| ---------------------- |----------------------------------- |---------|--------- | ---------- | -------- | ------------ | ----------- |
-| Choose a single file   | Pick a file/image                  | ✔️       | ✔️       | ✔️        | ✔️       | ✔️          | ✔️          |
-| Choose multiple files  | Pick multiple files/images         | ✔️       | ✔️       | ✔️        | ✔️       | ✔️          | ✔️          |
-| Choose a save location | Pick a directory to save a file in | ❌       | ❌       | ✔️        | ✔️       | ✔️          | ❌          |
-| Choose a directory     | Pick a directory and get its path  | ✔️†       | ❌       | ✔️        | ✔️       | ✔️          | ❌          |
+| Feature                | Description                        | Android | iOS      | Linux      | macOS    | Windows      | Web         | ohos         |
+| ---------------------- |----------------------------------- |---------|--------- | ---------- | -------- | ------------ | ----------- | ----------- |
+| Choose a single file   | Pick a file/image                  | ✔️       | ✔️       | ✔️        | ✔️       | ✔️          | ✔️          | ✔️          |
+| Choose multiple files  | Pick multiple files/images         | ✔️       | ✔️       | ✔️        | ✔️       | ✔️          | ✔️          | ✔️          |
+| Choose a save location | Pick a directory to save a file in | ❌       | ❌       | ✔️        | ✔️       | ✔️          | ❌          | ❌           |
+| Choose a directory     | Pick a directory and get its path  | ✔️†       | ❌       | ✔️        | ✔️       | ✔️          | ❌          | ✔️          |
 
 † Choosing a directory is no supported on versions of Android before SDK 21 (Lollipop).
 
 [example]:./example
 [entitlement]: https://docs.flutter.dev/desktop#entitlements-and-the-app-sandbox
+
+## Ohos Documentation
+[中文](../file_selector_ohos/README%20_CN.md)  
+
+[EN](../file_selector_ohos/README.md)
