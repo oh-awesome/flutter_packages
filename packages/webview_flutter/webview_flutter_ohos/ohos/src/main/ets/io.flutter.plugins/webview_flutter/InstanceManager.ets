@@ -16,10 +16,14 @@ export class InstanceManager {
 
   private finalizationListener: FinalizationListener;
 
-  private identifiers: Map<WeakRef<ESObject>, number> = new Map<WeakRef<ESObject>, number>();
+  private identifiers: WeakMap<ESObject, number> = new WeakMap<ESObject, number>();
+
   private weakInstances: Map<number, WeakRef<ESObject>> = new Map<number, WeakRef<ESObject>>();
+
   private strongInstances: Map<number, ESObject> = new Map<number, ESObject>();
+
   private referenceQueue: Queue<WeakRef<ESObject>> = new Queue();
+
   private weakReferencesToIdentifiers: Map<WeakRef<ESObject>, number> = new Map<WeakRef<ESObject>, number>();
 
   private firstIdentifier: number = 0;
@@ -56,7 +60,6 @@ export class InstanceManager {
   }
 
   clear() {
-    this.identifiers.clear();
     this.strongInstances.clear();
     this.weakInstances.clear();
     this.weakReferencesToIdentifiers.clear();
@@ -105,15 +108,16 @@ export class InstanceManager {
 
     const weakReference: WeakRef<ESObject> = new WeakRef<ESObject>(instance);
     this.referenceQueue.add(weakReference);
-    this.identifiers.set(weakReference, identifier); 
     this.weakInstances.set(identifier, weakReference);
     this.weakReferencesToIdentifiers.set(weakReference, identifier);
+    this.identifiers.set(instance, identifier);
     this.strongInstances.set(identifier, instance);
   }
 
   getIdentifier(instance: Object): number {
     this.logWarningIfFinalizationListenerHasStopped();
-    return this.identifiers.get(instance as WeakRef<ESObject>) ?? -1;
+    const identifier: number = this.identifiers.get(instance) ?? -1;
+    return identifier;
 
   }
 
