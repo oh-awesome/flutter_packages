@@ -75,7 +75,6 @@ export class InstanceManager {
       const identifier: number | undefined = this.weakReferencesToIdentifiers.get(reference);
       this.weakReferencesToIdentifiers.delete(reference);
       if (identifier != undefined) {
-        this.weakInstances.delete(identifier);
         this.strongInstances.delete(identifier);
         this.finalizationListener.onFinalize(identifier);
       }
