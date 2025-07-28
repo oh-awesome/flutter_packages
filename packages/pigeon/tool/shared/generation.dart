@@ -306,8 +306,8 @@ Future<int> runPigeon({
       dartPackageName: dartPackageName,
     ),
     // ignore: invalid_use_of_visible_for_testing_member
-    // parseResults: injectOverflowTypes ? parseResults : null,
-    // mergeDefinitionFileOptions: mergeDefinitionFileOptions,
+    parseResults: injectOverflowTypes ? parseResults : null,
+    mergeDefinitionFileOptions: mergeDefinitionFileOptions,
   );
   includeVersionInGeneratedWarning = originalWarningSetting;
   return result;
