@@ -25,6 +25,8 @@ import 'package:pigeon/pigeon.dart';
   objcSourceOut: 'macos/Runner/messages.g.m',
   // Set this to a unique prefix for your plugin or application, per Objective-C naming conventions.
   objcOptions: ObjcOptions(prefix: 'PGN'),
+  arkTSOut: 'ohos/entry/src/main/ets/plugins/Messages.ets',
+  arkTSOptions: ArkTSOptions(),
   copyrightHeader: 'pigeons/copyright.txt',
   dartPackageName: 'pigeon_example_package',
 ))
@@ -38,7 +40,7 @@ class MessageData {
   String? name;
   String? description;
   Code code;
-  Map<String, String> data;
+  Map<String?, String?> data;
 }
 
 @HostApi()
