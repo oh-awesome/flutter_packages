@@ -67,8 +67,12 @@ class ArkTSOptions {
 /// Internal ArkTS options that extend InternalOptions.
 class InternalArkTSOptions extends InternalOptions {
   const InternalArkTSOptions({
+    required this.arkTSOut,
     this.copyrightHeader,
   });
+
+  /// Path to the ArkTS file that will be generated.
+  final String arkTSOut;
 
   final Iterable<String>? copyrightHeader;
 
@@ -76,9 +80,11 @@ class InternalArkTSOptions extends InternalOptions {
   static InternalArkTSOptions fromArkTSOptions(
     ArkTSOptions options, {
     required String arkTSOut,
+    Iterable<String>? copyrightHeader,
   }) {
     return InternalArkTSOptions(
-      copyrightHeader: options.copyrightHeader,
+      arkTSOut: arkTSOut,
+      copyrightHeader: options.copyrightHeader ?? copyrightHeader,
     );
   }
 }

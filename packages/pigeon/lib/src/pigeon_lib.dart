@@ -31,6 +31,7 @@ import 'objc/objc_generator.dart';
 import 'pigeon_lib_internal.dart';
 import 'swift/swift_generator.dart';
 import 'types/task_queue.dart';
+import 'arkts/arkts_generator.dart';
 
 export 'types/task_queue.dart' show TaskQueueType;
 
@@ -232,6 +233,8 @@ class PigeonOptions {
     this.objcOptions,
     this.javaOut,
     this.javaOptions,
+    this.arkTSOut,
+    this.arkTSOptions,
     this.swiftOut,
     this.swiftOptions,
     this.kotlinOut,
@@ -273,6 +276,12 @@ class PigeonOptions {
 
   /// Options that control how Java will be generated.
   final JavaOptions? javaOptions;
+
+    /// Path to the arkTS file that will be generated.
+  final String? arkTSOut;
+
+  /// Options that control how ArkTS will be generated.
+  final ArkTSOptions? arkTSOptions;
 
   /// Path to the swift file that will be generated.
   final String? swiftOut;
@@ -342,6 +351,10 @@ class PigeonOptions {
       swiftOptions: map.containsKey('swiftOptions')
           ? SwiftOptions.fromList(map['swiftOptions']! as Map<String, Object>)
           : null,
+      arkTSOut: map['arkTSOut'] as String?,
+      arkTSOptions: map.containsKey('arkTSOptions')
+          ? ArkTSOptions.fromMap(map['arkTSOptions']! as Map<String, Object>)
+          : null,
       kotlinOut: map['kotlinOut'] as String?,
       kotlinOptions: map.containsKey('kotlinOptions')
           ? KotlinOptions.fromMap(map['kotlinOptions']! as Map<String, Object>)
@@ -384,6 +397,8 @@ class PigeonOptions {
       if (swiftOptions != null) 'swiftOptions': swiftOptions!.toMap(),
       if (kotlinOut != null) 'kotlinOut': kotlinOut!,
       if (kotlinOptions != null) 'kotlinOptions': kotlinOptions!.toMap(),
+      if (arkTSOut != null) 'arkTSOut': arkTSOut!,
+      if (arkTSOptions != null) 'arkTSOptions': arkTSOptions!.toMap(),
       if (cppHeaderOut != null) 'cppHeaderOut': cppHeaderOut!,
       if (cppSourceOut != null) 'cppSourceOut': cppSourceOut!,
       if (cppOptions != null) 'cppOptions': cppOptions!.toMap(),
@@ -501,6 +516,7 @@ ${_argParser.usage}''';
         help: 'The package that generated Java code will be in.')
     ..addFlag('java_use_generated_annotation',
         help: 'Adds the java.annotation.Generated annotation to the output.')
+    ..addOption('arkts_out', help: 'Path to generated ArkTS file (.ets).')
     ..addOption(
       'swift_out',
       help: 'Path to generated Swift file (.swift).',
@@ -584,6 +600,8 @@ ${_argParser.usage}''';
         useGeneratedAnnotation:
             results['java_use_generated_annotation'] as bool?,
       ),
+      arkTSOut: results['arkts_out'] as String?,
+      arkTSOptions: const ArkTSOptions(),
       swiftOut: results['swift_out'] as String?,
       kotlinOut: results['kotlin_out'] as String?,
       kotlinOptions: KotlinOptions(
@@ -663,6 +681,7 @@ ${_argParser.usage}''';
           DartTestGeneratorAdapter(),
           ObjcGeneratorAdapter(),
           AstGeneratorAdapter(),
+          ArkTSGeneratorAdapter(),
         ];
     _executeConfigurePigeon(options);
 
