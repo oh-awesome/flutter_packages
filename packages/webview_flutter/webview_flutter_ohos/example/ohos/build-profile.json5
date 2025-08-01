@@ -1,19 +1,6 @@
 {
   "app": {
     "signingConfigs": [
-      {
-        "name": "default",
-        "type": "HarmonyOS",
-        "material": {
-          "certpath": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_z5QzZCxLoR7OQdb_jInQU_2raoNnz_2rpRqbZkAzBxk=.cer",
-          "keyAlias": "debugKey",
-          "keyPassword": "0000001BC80DC349E9D3EDDA248A9DB33EEAB916A66651047935BF633D72574413CB12D3E5AA4ADD2D3DF5",
-          "profile": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_z5QzZCxLoR7OQdb_jInQU_2raoNnz_2rpRqbZkAzBxk=.p7b",
-          "signAlg": "SHA256withECDSA",
-          "storeFile": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_z5QzZCxLoR7OQdb_jInQU_2raoNnz_2rpRqbZkAzBxk=.p12",
-          "storePassword": "0000001BEA72C61FE6D40E0E200B0232B58C53BB0D2546A4A95E7E2438E0326C8C334E03BE762CF956DBA2"
-        }
-      }
     ],
     "products": [
       {
