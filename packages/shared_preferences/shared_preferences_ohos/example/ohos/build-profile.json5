@@ -1,0 +1,49 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_o1TJ2-tGOElNjbIoI3yOFO-oaEtbSep45nfQjiSb-fc=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B087CFBF405FE515FE4AFD6E8FDA437D6230D8086FD6E091B33BC98595887C141C9FFD06D178D0F",
+          "profile": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_o1TJ2-tGOElNjbIoI3yOFO-oaEtbSep45nfQjiSb-fc=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "C:\\Users\\liwei\\.ohos\\config\\default_ohos_o1TJ2-tGOElNjbIoI3yOFO-oaEtbSep45nfQjiSb-fc=.p12",
+          "storePassword": "0000001B1A6AB71B13296DEECFB8E2B5F295FBD163C90C70021E324E1F0559BD5D778B48F083B3C68E1590"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS"
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
