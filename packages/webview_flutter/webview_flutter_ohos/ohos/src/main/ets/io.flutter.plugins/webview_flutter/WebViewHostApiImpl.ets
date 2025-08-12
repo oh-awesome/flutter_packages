@@ -730,10 +730,10 @@ class WebSettingsImpl implements WebSettings {
       //  整个app只需要一次initializeWebEngine。
       return this.defaultUserAgent;
     }
-
-    web_webview.WebviewController.initializeWebEngine();
-    this.defaultUserAgent = web_webview.WebviewController.getDefaultUserAgent();
-
+    if (typeof (web_webview.WebviewController as ESObject)?.getDefaultUserAgent === 'function') {
+      web_webview.WebviewController.initializeWebEngine();
+      this.defaultUserAgent = (web_webview.WebviewController as ESObject)?.getDefaultUserAgent();
+    }
     return this.defaultUserAgent;
   }
 
