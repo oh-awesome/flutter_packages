@@ -25,14 +25,14 @@ dependencies:
     sdk: flutter
   in_app_purchase_android: ^0.3.0
   in_app_purchase_ohos: 
-    git:
-      url: "https://gitee.com/openharmony-sig/flutter_packages.git"
-      path: "packages/in_app_purchase/in_app_purchase_ohos"
-  in_app_purchase_platform_interface: ^1.0.0
-  in_app_purchase_storekit: ^0.3.4
+      path: ../in_app_purchase_ohos/
+  in_app_purchase_platform_interface: ^1.4.0
+  in_app_purchase_storekit: ^0.4.0
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
   plugin_platform_interface: ^2.1.7
   test: ^1.16.0
