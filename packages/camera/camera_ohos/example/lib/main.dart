@@ -626,7 +626,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     if (controller != null) {
       try {
         await controller!
-            .setDescription(cameraDescription)
+            .setDescription(cameraDescription)	
             .catchError((error) => {showInSnackBar(error.toString())});
         await Future.wait(<Future<Object?>>[
           // The exposure mode is currently not supported on the web.
@@ -782,6 +782,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
   void onAudioModeButtonPressed() {
     enableAudio = !enableAudio;
+    if (mounted) {
+        setState(() {});
+      }
     if (controller != null) {
       onNewCameraSelected(controller!.description);
     }
