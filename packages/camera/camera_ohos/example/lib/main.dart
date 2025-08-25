@@ -783,6 +783,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
   void onAudioModeButtonPressed() {
     enableAudio = !enableAudio;
+    if (mounted) {
+        setState(() {});
+      }
     if (controller != null) {
       onNewCameraSelected(controller!.description);
     }
