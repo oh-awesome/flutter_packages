@@ -477,24 +477,26 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  stopVideoRecording(): string {
+  stopVideoRecording(result: Result<string>): void {
     try {
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           console.log('stopVideoRecording success:', value);
+          result.success(value as string || '');
         },
         error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
           console.error('stopVideoRecording error:', errorCode, errorMessage);
+          result.error(new Error(`${errorCode}: ${errorMessage}`));
         },
         notImplemented: () => {
           console.error('stopVideoRecording not implemented');
+          result.error(new Error('STOP_VIDEO_RECORDING_ERROR: Method not implemented'));
         }
       };
       this.camera!.stopVideoRecording(methodResult);
-      return 'video_stopped';
     } catch (error) {
       console.error('stopVideoRecording error:', error);
-      return '';
+      result.error(new Error('STOP_VIDEO_RECORDING_ERROR: Failed to stop video recording'));
     }
   }
 
