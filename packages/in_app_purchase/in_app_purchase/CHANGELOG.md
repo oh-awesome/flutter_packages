@@ -1,5 +1,9 @@
 ## 3.1.11
 
+* Updates flutter dependences.
+
+## 3.1.11
+
 * Updates documentation reference of `finishPurchase` to `completePurchase`.
 
 ## 3.1.10
