@@ -432,7 +432,7 @@ export abstract class CameraApi {
   *  Ends video recording on the camera with the given ID and returns the path
   *  to the resulting file.
   */
-  abstract stopVideoRecording(): string;
+  abstract stopVideoRecording(result: Result<string>): void;
   /* Pauses video recording on the camera with the given ID.*/
   abstract pauseVideoRecording(): void;
   /* Resumes previously paused video recording on the camera with the given ID.*/
@@ -689,16 +689,22 @@ export abstract class CameraApi {
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
-              let res: Array<Object> = [];
-              try {
-                let output: string = api!.stopVideoRecording();
-                res.push(output);
+
+              class ResultImp implements Result<string>{
+                success(result: string): void {
+                  let res: Array<Object> = [];
+                  res.push(result);
+                  reply.reply(res);
+                }
+
+                error(error: Error): void {
+                  let wrappedError: Array<Object> = wrapError(error);
+                  reply.reply(wrappedError);
+                }
               }
- catch (error) {
-                let wrappedError: Array<Object> = wrapError(error);
-                res = wrappedError;
-              }
-              reply.reply(res);
+              let resultCallback: Result<string> = new ResultImp();
+
+              api!.stopVideoRecording(resultCallback);
             } });
       } else {
         channel.setMessageHandler(null);
