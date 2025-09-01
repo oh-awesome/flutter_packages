@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -14,6 +14,8 @@ import 'package:pigeon/pigeon.dart';
     kotlinOptions: KotlinOptions(includeErrorClass: false),
     swiftOut: 'ios/Runner/EventChannelMessages.g.swift',
     swiftOptions: SwiftOptions(includeErrorClass: false),
+    arkTSOut: 'ohos/entry/src/main/ets/plugins/EventChannelMessages.ets',
+    arkTSOptions: ArkTSOptions(),
     copyrightHeader: 'pigeons/copyright.txt',
     dartPackageName: 'pigeon_example_package',
   ),
