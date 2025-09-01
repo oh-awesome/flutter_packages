@@ -922,7 +922,7 @@ getByte(n: number): number {
       InternalArkTSOptions generatorOptions, Root root, Indent indent,
       {required String dartPackageName}) {
     final List<EnumeratedType> enumeratedTypes =
-        getEnumeratedTypes(root).toList();
+        getEnumeratedTypes(root, excludeSealedClasses: true).toList();
     void writeEncodeLogic(EnumeratedType customType) {
       bool isEnum = customType.type == CustomTypes.customEnum;
       final String nullCheck = customType.type == CustomTypes.customEnum
@@ -1006,7 +1006,7 @@ getByte(n: number): number {
       );
     }
     indent.newln();
-    indent.write('class $_codecName extends StandardMessageCodec ');
+    indent.write('export class $_codecName extends StandardMessageCodec ');
     indent.addScoped('{', '}', () {
       indent.writeln(
           'static readonly INSTANCE: $_codecName  = new $_codecName();');

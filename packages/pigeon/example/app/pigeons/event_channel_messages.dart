@@ -17,6 +17,8 @@ import 'package:pigeon/pigeon.dart';
   swiftOptions: SwiftOptions(
     includeErrorClass: false,
   ),
+   arkTSOut: 'ohos/entry/src/main/ets/plugins/EventChannelMessages.ets',
+  arkTSOptions: ArkTSOptions(),
   copyrightHeader: 'pigeons/copyright.txt',
   dartPackageName: 'pigeon_example_package',
 ))

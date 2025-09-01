@@ -133,7 +133,7 @@ class _MyHomePageState extends State<MyHomePage> {
               _hostCallResult ?? 'Waiting for host language...',
             ),
             if (_hostCallResult == null) const CircularProgressIndicator(),
-            if (Platform.isAndroid || Platform.isIOS)
+            if (Platform.isAndroid || Platform.isIOS || Platform.isOhos)
               StreamBuilder<String>(
                 stream: getEventStream(),
                 builder:
