@@ -485,7 +485,7 @@ export abstract class CameraApi {
   * 
   *  This should be called only while video recording is active.
   */
-  abstract setDescriptionWhileRecording(description: string ): void;
+  abstract setDescriptionWhileRecording(description: string): Promise<void>;
   /** The codec used by CameraApi. */
   static getCodec(): MessageCodec<Object>{
     return CameraApiCodec.INSTANCE;
@@ -1148,20 +1148,25 @@ export abstract class CameraApi {
           new BasicMessageChannel(
               binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setDescriptionWhileRecording", CameraApi.getCodec());
       if (api != null) {
-        channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
-              let args: Array<Object> = message as Array<Object>;
-              let res: Array<Object> = [];
-              try {
-                api!.setDescriptionWhileRecording(args[0] as string);
-                res.push(null);
-              }
- catch (error) {
-                let wrappedError: Array<Object> = wrapError(error);
-                res = wrappedError;
-              }
-              reply.reply(res);
-            } });
+              channel.setMessageHandler({
+          async onMessage(message: Object, reply: Reply<Object>) {
+            let args: Array<Object> = message as Array<Object>;
+            let res: Array<Object> = [];
+            try {
+              await api!.setDescriptionWhileRecording(args[0] as string);
+              res.push(null);
+            } catch (error) {
+
+              let errorList: Array<Object> = new Array<Object>(3);
+              errorList[0] = "error";
+              errorList[1] = error.message.toString() ;
+              errorList[2] = null;
+              errorList[3] = null;
+              res = errorList;
+            }
+            reply.reply(res);
+          }
+        });
       } else {
         channel.setMessageHandler(null);
       }

@@ -224,25 +224,31 @@ export class CameraApiImpl extends CameraApi {
       result.error(new Error('FOCUS_POINT_ERROR: Failed to set focus point'));
     }
   }
-
-  setDescriptionWhileRecording(description: string): void {
-    try {
-      const methodResult: CameraMethodResult = {
-        success: (value: Any) => {
-          console.log('setDescriptionWhileRecording success');
-        },
-        error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
-          console.error(`setDescriptionWhileRecording error: ${errorCode}: ${errorMessage}`);
-        },
-        notImplemented: () => {
-          console.error('setDescriptionWhileRecording not implemented');
-        }
-      };
-      const cameraProperties: CameraProperties = new CameraPropertiesImpl(description, CameraUtils.getCameraManager(this.context));
-      this.camera?.setDescriptionWhileRecording(methodResult, cameraProperties);
-    } catch (error) {
-      console.error('DESCRIPTION_ERROR: Failed to set description while recording');
-    }
+  
+  async setDescriptionWhileRecording(description: string): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        const methodResult: CameraMethodResult = {
+          success: (value: Any) => {
+            console.log('setDescriptionWhileRecording success');
+            resolve();
+          },
+          error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
+            console.error(`setDescriptionWhileRecording error: ${errorCode}: ${errorMessage}`);
+            reject(new Error(`${errorMessage}`));
+          },
+          notImplemented: () => {
+            console.error('setDescriptionWhileRecording not implemented');
+            reject(new Error('setDescriptionWhileRecording not implemented'));
+          }
+        };
+        const cameraProperties: CameraProperties = new CameraPropertiesImpl(description, CameraUtils.getCameraManager(this.context));
+        this.camera?.setDescriptionWhileRecording(methodResult, cameraProperties);
+      } catch (error) {
+        console.error('DESCRIPTION_ERROR: Failed to set description while recording');
+        reject(error);
+      }
+    });
   }
   private methodChannel: MethodChannel;
   private binaryMessenger: BinaryMessenger;
