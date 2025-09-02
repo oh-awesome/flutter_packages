@@ -113,14 +113,13 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       case 'initialize':
         this.curStatus = STATUS.INITIALIZE_ING;
         if (this.camera != null) {
-          try {
-            this.camera.open(call.argument('imageFormatGroup'));
+          this.camera.open(call.argument('imageFormatGroup')).then(()=>{
             this.curStatus = STATUS.DEFAULT;
             result.success(null)
-          } catch (e) {
+          }).catch((e: BusinessError)=>{
             this.curStatus = STATUS.DEFAULT;
             this.handleException(e, result)
-          }
+          })
         } else {
           this.curStatus = STATUS.DEFAULT;
           result.error(

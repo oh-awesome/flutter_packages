@@ -389,40 +389,31 @@ export class CameraApiImpl extends CameraApi {
   // 在 dispose 方法中改进错误处理
   dispose(): void {
     try {
-
-      
       // 先停止相机
       if (this.camera) {
         try {
           this.camera.close();
-  
         } catch (closeError) {
-
+          console.error(`Failed to close camera: ${closeError}`);
         }
-        
-        // 等待一段时间确保资源释放
-        setTimeout(() => {
-          try {
-            this.camera?.dispose();
-            this.camera = null;
+        try {
+          this.camera?.dispose();
+          this.camera = null;
 
-          } catch (disposeError) {
-          
-          }
-        }, 200);
+        } catch (disposeError) {
+          console.error(`Failed to dispose camera: ${disposeError}`);
+        }
       }
-      
       // 释放纹理
       if (this.textureId > -1) {
         try {
           this.unregisterTexture(this.textureId);
-
         } catch (textureError) {
-     
+          console.error(`Failed to unregister texture: ${textureError}`);
         }
       }
     } catch (error) {
- 
+      console.error(`DISPOSE_ERROR: ${(error as Error).message}`);
     }
   }
 
