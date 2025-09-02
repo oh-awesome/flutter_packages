@@ -165,7 +165,6 @@ export class Camera implements CameraCaptureStateListener {
 
   public async open(imageFormatGroup: string | null): Promise<void> {
 
-    
     this.imageFormatGroup = imageFormatGroup;
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
 
@@ -197,49 +196,31 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
-
-    this.cameraInput.open()
-      .then(() => {
-        try {
-
-          this.startPreview();
-
-
-          if (!this.recordingVideo) {
-            this.sendCameraInitializedEvent(resolutionFeature);
-            // this.dartMessenger.sendCameraInitializedEvent(
-            //   resolutionFeature.getPreviewSize().width,
-            //   resolutionFeature.getPreviewSize().height,
-            //   ExposureMode.getValueForMode(this.cameraFeatures.getExposureLock().getValue()),
-            //   FocusMode.getValueForMode(this.cameraFeatures.getAutoFocus().getValue()),
-            //   this.cameraFeatures.getExposurePoint().checkIsSupported(),
-            //   this.cameraFeatures.getFocusPoint().checkIsSupported()
-            // )
-          }
-        } catch (e) {
-
-          this.sendCameraErrorEvent(e.message || '相机打开失败');
-          this.close();
-        }
-      }).catch((err: BusinessError) => {
+    try{
+      await this.cameraInput.open();
+      await this.startPreview();
+      if (!this.recordingVideo) {
+        this.sendCameraInitializedEvent(resolutionFeature);
+      }
+    }catch (err) {
       this.close();
       let errorDescription: string;
       switch (err.code) {
-        case camera.CameraErrorCode.INVALID_ARGUMENT:
-          errorDescription = "Can not use camera cause of conflict.";
-          break;
-        case camera.CameraErrorCode.DEVICE_DISABLED:
-          errorDescription = "Camera disabled cause of security reason.";
-          break;
-        case camera.CameraErrorCode.SERVICE_FATAL_ERROR:
-          errorDescription = "Camera service fatal error.";
-          break;
-        default:
-          errorDescription = "Unknown camera error";
+      case camera.CameraErrorCode.INVALID_ARGUMENT:
+      errorDescription = "Can not use camera cause of conflict.";
+      break;
+      case camera.CameraErrorCode.DEVICE_DISABLED:
+      errorDescription = "Camera disabled cause of security reason.";
+      break;
+      case camera.CameraErrorCode.SERVICE_FATAL_ERROR:
+      errorDescription = "Camera service fatal error.";
+      break;
+      default:
+      errorDescription = "Unknown camera error";
       }
       this.dartMessenger.sendCameraErrorEvent(errorDescription);
-    });
-
+      throw err as Error;
+    }
   }
 
   getDeviceOrientationManager(): DeviceOrientationManager {
