@@ -476,17 +476,21 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                 const String output = 'output';
 
                 indent.writeln(
-                    'let listReply: Object[] = channelReply as Object[] ;');
+                    'let listReply: ESObject[] = channelReply as ESObject[] ;');
                 indent.writeScoped('if (listReply.length > 1) {', '} ', () {
+                  indent
+                      .writeln('let arrFirst:string = listReply[0] as string;');
                   indent.writeln(
-                      'let arrFirst:$returnType = listReply[0] as string;');
-                  indent.writeln(
-                      'let arrSecond:$returnType = listReply[1] as string;');
-                  indent.writeln(
-                      'let arrThird:$returnType = listReply[2] as string;');
+                      'let arrSecond:string = listReply[1] as string;');
+                  indent
+                      .writeln('let arrThird:string = listReply[2] as string;');
                   String replyArr =
                       '\'FlutterError:{"code":\'+arrFirst+\',"name":\'+arrSecond+\',"message":\'+arrThird+\'}\';';
-                  indent.writeln('let replyArr:$returnType = $replyArr');
+                  if (func.returnType.isVoid) {
+                    indent.writeln('let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
+                  } else {
+                    indent.writeln('let replyArr:$returnType = $replyArr');
+                  }
                   indent.writeln('callback.reply(replyArr);');
                 }, addTrailingNewline: false);
 
@@ -521,9 +525,13 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                 });
               }, addTrailingNewline: false);
               indent.addScoped(' else {', '} ', () {
-                String connErr =
-                    'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}';
-                indent.writeln('let connErr:$returnType = \'$connErr\'');
+                if (func.returnType.isVoid) {
+                  String connErr = 'let connErr:ESObject = new FlutterError('+"'channel-error'" + ', "Unable to establish connection on channel: " + channelName + ".", "")';
+                  indent.writeln(connErr);
+                } else {
+                  String connErr = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}';
+                  indent.writeln('let connErr:$returnType = \'$connErr\'');
+                }
                 indent.writeln('callback.reply(connErr);');
               });
             });
