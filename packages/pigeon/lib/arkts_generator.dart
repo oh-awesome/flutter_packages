@@ -171,7 +171,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
       NamedType field) {
     final HostDatatype hostDatatype = getFieldHostDatatype(field, root.classes,
         root.enums, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-    indent.writeln('private ${field.name}: ${hostDatatype.datatype};');
+    indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
     indent.newln();
     indent.write('${_makeGetter(field)}(): ${hostDatatype.datatype} ');
     indent.addScoped('{', '}', () {
