@@ -173,7 +173,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         root.enums, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
     indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
     indent.newln();
-    indent.write('${_makeGetter(field)}(): ${hostDatatype.datatype} ');
+    indent.write('${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined ');
     indent.addScoped('{', '}', () {
       indent.writeln('return this.${field.name};');
     });
@@ -241,7 +241,10 @@ if (this.$fieldName instanceof Array) {
       arr.push(this.$fieldName.toList());
     }''');
         } else {
-          indent.writeln('arr.push(this.$fieldName);');
+          indent.writeln('''
+if (this.$fieldName !==undefined) {
+      arr.push(this.$fieldName);
+    }''');
         }
       }
       indent.writeln('return arr;');
