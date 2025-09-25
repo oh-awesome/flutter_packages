@@ -1,5 +1,5 @@
 name: file_selector_ohos
-description: Android implementation of the file_selector package.
+description: ohos implementation of the file_selector package.
 repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/file_selector/file_selector_ohos
 issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 version: 0.5.0+2
