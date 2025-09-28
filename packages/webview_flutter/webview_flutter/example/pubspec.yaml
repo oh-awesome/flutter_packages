@@ -23,6 +23,11 @@ dependencies:
     path: ../../webview_flutter_wkwebview
   webview_flutter_ohos:
       path: ../../webview_flutter_ohos
+  path_provider_ohos:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      ref: br_path_provider-v2.1.5_ohos
+      path: packages/path_provider/path_provider_ohos
 
 dev_dependencies:
   build_runner: ^2.1.5
