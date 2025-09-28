@@ -19,6 +19,8 @@ dependencies:
     path: ../
   webview_flutter_android: ^4.7.0
   webview_flutter_wkwebview: ^3.22.0
+  webview_flutter_ohos:
+      path: ../../webview_flutter_ohos
 
 dev_dependencies:
   build_runner: ^2.1.5
