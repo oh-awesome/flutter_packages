@@ -31,6 +31,12 @@ const enum STATUS {
   INITIALIZE_ING,
 }
 
+enum CAMERA {
+  Back = 'back',
+  Front = 'front',
+  External = 'external',
+}
+
 // 定义参数对象接口
 interface InitializeParams {
   imageFormatGroup: PlatformImageFormatGroup;
@@ -354,7 +360,15 @@ export class CameraApiImpl extends CameraApi {
       const cameras = CameraUtils.getAvailableCameras(this.context);
       return cameras.map(cameraMap => {
         const name = cameraMap.get('name') as string || '';
-        const lensDirection = cameraMap.get('lensDirection') as PlatformCameraLensDirection || PlatformCameraLensDirection.back;
+        const lensFacing = cameraMap.get('lensFacing')
+        let lensDirection:PlatformCameraLensDirection = PlatformCameraLensDirection.back
+        if (lensFacing === CAMERA.Back) {
+          lensDirection = PlatformCameraLensDirection.back;
+        } else if (lensFacing === CAMERA.Front) {
+          lensDirection = PlatformCameraLensDirection.front;
+        } else if (lensFacing === CAMERA.External) {
+          lensDirection = PlatformCameraLensDirection.external;
+        }
         const sensorOrientation = cameraMap.get('sensorOrientation') as number || 0;
         
         return new PlatformCameraDescription(name, lensDirection, sensorOrientation);
