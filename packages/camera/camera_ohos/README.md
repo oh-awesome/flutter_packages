@@ -8,7 +8,7 @@
 
 
 
-This project is based on  [camera@0.10.5+4](https://pub.dev/packages/camera/versions/0.10.5+4)
+This project is based on  [camera@0.11.1](https://pub.dev/packages/camera/versions/0.11.1)
 
 ## 1. Installation and Usage
 
@@ -26,6 +26,7 @@ dependencies:
     git: 
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/camera/camera_ohos
+      ref: br_camera-v0.11.1_ohos
 ```
 
 Execute Command
@@ -46,7 +47,7 @@ For use cases [ohos/example](./example)
 
 This document is verified based on the following versions:
 
-1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
+1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
 
 ### 2.2 **Permission Requirements**
 
@@ -260,7 +261,7 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 
 ## 7. **License**
 
-This project is licensed under [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/camera/camera_ohos/LICENSE).
+This project is licensed under [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_camera-v0.11.1_ohos/packages/camera/camera_ohos/LICENSE).
 
 
 
