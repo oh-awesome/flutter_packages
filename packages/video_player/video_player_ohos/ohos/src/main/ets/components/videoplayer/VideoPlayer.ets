@@ -62,6 +62,8 @@ export class VideoPlayer {
   private interruptMode: audio.InterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
   private fd: number | null = null;
   private headers: Record<string, string> | null;
+  private playTime: number = 0;
+  private bufferTimeTemp: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry,
     url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean,
@@ -199,6 +201,7 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
       this.initProgress(time);
+      this.playTime = time;
     });
 
     this.avPlayer.on(Events.BUFFER_UPDATE, (infoType: media.BufferingInfoType, value: number) => {
@@ -583,12 +586,22 @@ export class VideoPlayer {
     } else if (infoType == media.BufferingInfoType.BUFFERING_END) {
       event.set("event", "bufferingEnd");
     } else if (infoType == media.BufferingInfoType.CACHED_DURATION) {
-      event.set("event", "cachedDuration");
-    } else {
       event.set("event", "bufferingUpdate");
+      let bufferedDuration = this.playTime + bufferingPosition;
+      if (bufferedDuration > this.bufferTimeTemp) {
+        this.bufferTimeTemp = bufferedDuration;
+      }
+      if (this.duration !== 0 && this.bufferTimeTemp > this.duration) {
+        this.bufferTimeTemp = this.duration;
+      }
       let range: ArrayList<number> = new ArrayList<number>();
-      range.add(bufferingPosition);
-      event.set("values", range);
+      range.add(0);
+      range.add(this.bufferTimeTemp);
+      let valuesList: ArrayList<ArrayList<number>> = new ArrayList<ArrayList<number>>();
+      valuesList.add(range);
+      event.set("values", valuesList);
+    } else {
+      event.set("event", "unknown");
     }
     this.eventSink?.success(event);
   }
