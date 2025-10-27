@@ -605,11 +605,11 @@ export class Camera implements CameraCaptureStateListener {
 
     this.cameraFeatures.setAutoFocus(this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, false));
     try {
-      // 仅在started和paused状态下调用stop为合理状态切换
-      if (this.avRecorder != undefined && (this.avRecorder.state === 'started' || this.avRecorder.state === 'paused')) {
+      // 在started和paused，prepared状态下调用stop为合理状态切换
+      if (this.avRecorder && (this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared')) {
         // 停止录像
-        await this.avRecorder?.stop();
-        this.avRecorder?.release().then(() => {
+        await this.avRecorder.stop();
+        this.avRecorder.release().then(() => {
           this.recordingVideo = false;
           // 停止录像输出流
           this.videoOutput?.stop();
@@ -623,6 +623,7 @@ export class Camera implements CameraCaptureStateListener {
       }
     } catch (e) {
       Log.d(TAG, "videoSession stop error")
+      result.error("Camera", "stopVideoRecordingFailed", e);
     }
 
   }
