@@ -59,6 +59,8 @@ export class VideoPlayer {
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
+  private isSeeking: boolean = false;
+  private seekPosition: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -190,6 +192,7 @@ export class VideoPlayer {
     });
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
+      this.isSeeking = false;
       this.initProgress(time);
       this.playTime = time;
     });
@@ -244,10 +247,15 @@ export class VideoPlayer {
   seekTo(position: number) {
     if (this.avPlayer !== null) {
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
+      this.isSeeking = true;
+      this.seekPosition = position;
     }
   }
 
   getPosition(): number {
+    if (this.isSeeking) {
+      return this.seekPosition;
+    }
     if (this.avPlayer !== null) {
       return this.avPlayer.currentTime;
     } else {
