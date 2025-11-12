@@ -57,6 +57,8 @@ import { picker } from '@kit.CoreFileKit';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 import display from '@ohos.display';
 import { AudioPermission, CameraPermissions } from './CameraPermissions';
+import { Decimal } from '@kit.ArkTS';
+import { sensor } from '@kit.SensorServiceKit';
 
 const TAG = "Camera";
 
@@ -121,6 +123,7 @@ export class Camera implements CameraCaptureStateListener {
   private takePictureResult: MethodResult | undefined;
   private takePictureName: string = '';
   private permissions: CameraPermissions;
+  private photoRotation: camera.ImageRotation | undefined;
 
   constructor(
     ability: UIAbility,
@@ -471,9 +474,12 @@ export class Camera implements CameraCaptureStateListener {
       longitude: 0,
       altitude: 0,
     };
+    let deviceDegree: number = await this.getDeviceDegree();
+    this.photoRotation = this.photoOutPut?.getPhotoRotation(deviceDegree);
+
     let settings: camera.PhotoCaptureSetting = {
       quality: camera.QualityLevel.QUALITY_LEVEL_HIGH,
-      rotation: camera.ImageRotation.ROTATION_0,
+      rotation: this.photoRotation,
       location: captureLocation,
       mirror: false,
     };
@@ -490,6 +496,34 @@ export class Camera implements CameraCaptureStateListener {
         return;
       }
       // 拍照成功
+    });
+  }
+
+  getDeviceDegree(): Promise<number> {
+    return new Promise<number>((resolve) => {
+      try {
+        sensor.getSingleSensor(sensor.SensorId.GRAVITY).then((data: sensor.Sensor) => {
+          sensor.once(sensor.SensorId.GRAVITY, (data: sensor.GravityResponse) => {
+            let x: number = data.x;
+            let y: number = data.y;
+            let z: number = data.z;
+            let deviceDegree: number;
+            if ((x * x + y * y) * 3 < z * z) {
+              deviceDegree = -1;
+            } else {
+              let sd: Decimal = Decimal.atan2(y, -x);
+              let sc: Decimal = Decimal.round(Number(sd) / 3.141592653589 * 180)
+              deviceDegree = 90 - Number(sc);
+              deviceDegree = deviceDegree >= 0 ? deviceDegree% 360 : deviceDegree% 360 + 360;
+            }
+            resolve(deviceDegree);
+          });
+        });
+      } catch (error) {
+        let err = error as BusinessError;
+        Log.e(TAG, "Failed to register gravity sensor: " + err.message);
+        resolve(-1); // 异常时返回默认值
+      }
     });
   }
 
@@ -604,17 +638,19 @@ export class Camera implements CameraCaptureStateListener {
   async startPreviewWithPhoto() {
     this.cameraOutputCapability =
       CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
-    let captureSize: camera.Size = this.cameraFeatures.getResolution().getCaptureSize();
-
-    let previewProfile = this.cameraOutputCapability.previewProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
-    });
-    this.previewOutput =
-      this.cameraManager.createPreviewOutput(previewProfile, this.flutterTexture.getSurfaceId().toString());
-    let photoProfile = this.cameraOutputCapability.photoProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
-    });
-    this.photoOutPut = this.cameraManager.createPhotoOutput(photoProfile);
+    let previewProfileIndex = this.cameraFeatures
+                                  .getResolution()
+                                  .getPreviewProfileIndex(this.cameraOutputCapability.previewProfiles);
+    let previewSize: camera.Size = this.cameraOutputCapability.previewProfiles[previewProfileIndex].size;
+    this.cameraFeatures.getResolution().setPreviewSize(previewSize);
+    this.previewOutput = this.cameraManager.createPreviewOutput(
+      this.cameraOutputCapability.previewProfiles[previewProfileIndex],
+      this.flutterTexture.getSurfaceId().toString());
+    let photoProfileIndex = this.cameraFeatures
+                                .getResolution()
+                                .getPhotoProfileIndex(this.cameraOutputCapability.photoProfiles);
+    this.photoOutPut = this.cameraManager.createPhotoOutput(
+      this.cameraOutputCapability.photoProfiles[photoProfileIndex]);
 
     this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
       if (err) {
@@ -631,11 +667,11 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
     await this.photoSession.start();
-    
+
     if (!this.photoSession.getFlashMode()) {
       this.photoSession.setFlashMode(camera.FlashMode.FLASH_MODE_AUTO)
     }
- 
+
     if (this.pausedPreview) {
       await this.previewOutput.stop();
     }
