@@ -486,7 +486,7 @@ class CameraController extends ValueNotifier<CameraValue> {
   // TODO(bmparr): Add settings for resolution and fps.
   Future<void> startImageStream(onLatestImageAvailable onAvailable) async {
     assert(defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS);
+        defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.ohos);
     _throwIfNotInitialized('startImageStream');
     if (value.isRecordingVideo) {
       throw CameraException(
@@ -522,7 +522,7 @@ class CameraController extends ValueNotifier<CameraValue> {
   /// platforms won't be supported in current setup).
   Future<void> stopImageStream() async {
     assert(defaultTargetPlatform == TargetPlatform.android ||
-        defaultTargetPlatform == TargetPlatform.iOS);
+        defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.ohos);
     _throwIfNotInitialized('stopImageStream');
     if (!value.isStreamingImages) {
       throw CameraException(
