@@ -78,6 +78,14 @@ class ImageFormat {
 // Only used by the deprecated codepath that's kept to avoid breaking changes.
 // Never called by the plugin itself.
 ImageFormatGroup _asImageFormatGroup(dynamic rawFormat) {
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    switch (rawFormat) {
+      // android.graphics.ImageFormat.JPEG
+      case 256: // 256表示Android平台上的JPEG图像格式常量
+        return ImageFormatGroup.jpeg;
+    }
+  }
+
   if (defaultTargetPlatform == TargetPlatform.android) {
     switch (rawFormat) {
       // android.graphics.ImageFormat.YUV_420_888

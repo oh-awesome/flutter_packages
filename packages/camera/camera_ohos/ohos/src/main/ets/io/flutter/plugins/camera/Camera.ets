@@ -158,7 +158,6 @@ export class Camera implements CameraCaptureStateListener {
     this.phAccessHelper = photoAccessHelper.getPhotoAccessHelper(getContext(this));
   }
 
-
   public onConverged(): void {
   }
 
