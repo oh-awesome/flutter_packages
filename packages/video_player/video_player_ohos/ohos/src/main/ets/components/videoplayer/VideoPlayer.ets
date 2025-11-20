@@ -34,6 +34,7 @@ import { QueuingEventSink } from './QueuingEventSink';
 import { ArrayList, HashMap } from '@kit.ArkTS';
 import { audio } from '@kit.AudioKit';
 import fs from '@ohos.file.fs';
+import deviceInfo from '@ohos.deviceInfo';
 
 const FORMAT_SS: String = 'ss';
 const FORMAT_DASH: String = 'dash';
@@ -105,8 +106,10 @@ export class VideoPlayer {
           preferredHeight: 2,
           preferredBufferDuration: 20,
           preferredHdr: false,
-          showFirstFrameOnPrepare: true
         };
+        if (deviceInfo.sdkApiVersion >= 17) {
+          (playbackStrategy as ESObject).showFirstFrameOnPrepare = true;
+        }
         // 设置媒体来源和播放策略
         await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
       } else if (this.iUrl != null) {
