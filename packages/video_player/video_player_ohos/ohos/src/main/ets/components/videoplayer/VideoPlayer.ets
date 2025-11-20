@@ -25,6 +25,7 @@ import { QueuingEventSink } from './QueuingEventSink';
 import { ArrayList, HashMap } from '@kit.ArkTS';
 import { audio } from '@kit.AudioKit';
 import fs from '@ohos.file.fs';
+import deviceInfo from '@ohos.deviceInfo';
 
 const FORMAT_SS: String = 'ss';
 const FORMAT_DASH: String = 'dash';
@@ -104,7 +105,10 @@ export class VideoPlayer {
       } else {
         let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
         /// 网络直播视频必须设置之后才能正常缓存
-        let playbackStrategy: media.PlaybackStrategy = {showFirstFrameOnPrepare:true};
+        let playbackStrategy:media.PlaybackStrategy | undefined = undefined;
+        if (deviceInfo.sdkApiVersion >= 17) {
+          playbackStrategy = { showFirstFrameOnPrepare:true } as media.PlaybackStrategy;
+        }
         // 设置媒体来源和播放策略
         await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
       }
