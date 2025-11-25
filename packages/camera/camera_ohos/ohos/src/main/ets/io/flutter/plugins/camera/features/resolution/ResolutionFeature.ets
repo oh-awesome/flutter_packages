@@ -9,6 +9,26 @@ import { CameraFeature } from '../CameraFeature';
 import { ResolutionPreset } from './ResolutionPreset';
 import { CameraProperties } from '../../CameraProperties';
 
+export class VideoSessionProfile {
+  private previewProfile: camera.Profile | undefined = undefined;
+  private captureProfile: camera.VideoProfile | undefined = undefined;
+
+  public setPreviewProfile(profile: camera.Profile): void {
+    this.previewProfile = profile;
+  }
+
+  public getPreviewProfile(): camera.Profile | undefined {
+    return this.previewProfile;
+  }
+
+  public setCaptureProfile(profile: camera.VideoProfile): void {
+    this.captureProfile = profile;
+  }
+
+  public getCaptureProfile(): camera.VideoProfile | undefined {
+    return this.captureProfile;
+  }
+}
 
 export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
   private captureSize: camera.Size = { width: 1920, height: 1080 } as camera.Size;
@@ -90,19 +110,129 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
 
     let presetSize: camera.Size | undefined = ResolutionFeature.PRESET_SIZE_MAP.get(preset);
     index = profiles.findIndex(profile => {
-      profile.size.width === presetSize!.width && profile.size.height === presetSize!.height
+      return profile.size.width === presetSize!.width && profile.size.height === presetSize!.height
     });
     if (index >= 0) { return index; }
 
     index = 0;
     tempWidth = 0;
+    let minDiff = Number.MAX_VALUE;
     for (let i = 0; i < profiles.length; i++) {
-      if (Math.abs(presetSize!.width - profiles[i].size.width) < Math.abs(presetSize!.width - tempWidth)) {
-        tempWidth = profiles[i].size.width;
+      const widthDiff = presetSize!.width - profiles[i].size.width;
+      const heightDiff = presetSize!.height - profiles[i].size.height;
+      const diff = widthDiff * widthDiff + heightDiff * heightDiff;
+
+      if (diff < minDiff) {
+        minDiff = diff;
         index = i;
       }
     }
     return index;
+  }
+
+  public getVideoSessionProfile(
+    previewProfilesArray: Array<camera.Profile>,
+    videoProfilesArray: Array<camera.VideoProfile>): VideoSessionProfile {
+
+    // Collect all preview configuration ratios.
+    const previewAspectRatios: Set<string> = new Set();
+    previewProfilesArray.forEach((profile: camera.Profile) => {
+      const aspectRatio = this.simplifyAspectRatio(profile.size.width, profile.size.height);
+      previewAspectRatios.add(aspectRatio);
+    });
+
+    const presetSize: camera.Size | undefined = ResolutionFeature.PRESET_SIZE_MAP.get(this.currentSetting);
+
+    let bestVideoProfile: camera.VideoProfile | undefined = undefined;
+    let bestPreviewProfile: camera.Profile | undefined = undefined;
+    let minDifference = Number.MAX_VALUE;
+
+    // Iterate through all recording profiles to retrieve the optimal recording resolution.
+    for (let i = 0; i < videoProfilesArray.length; i++) {
+      const videoProfile = videoProfilesArray[i];
+      const videoAspectRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
+
+      // Check if the video ratio exists in the preview configuration.
+      if (!previewAspectRatios.has(videoAspectRatio)) {
+        continue;
+      }
+
+      // Check if it exactly matches the preset resolution.
+      if (presetSize &&
+        videoProfile.size.width === presetSize.width &&
+        videoProfile.size.height === presetSize.height) {
+        bestVideoProfile = videoProfile;
+        break;
+      }
+
+      const difference = presetSize ? this.calculateDifference(videoProfile, presetSize) : 0;
+      if (difference < minDifference) {
+        minDifference = difference;
+        bestVideoProfile = videoProfile;
+      }
+    }
+    bestPreviewProfile = this.findMatchingPreviewProfile(previewProfilesArray, bestVideoProfile!);
+
+    // If it does not match, set it to the default value.
+    if (!bestVideoProfile || !bestPreviewProfile) {
+      bestVideoProfile = videoProfilesArray.find(profile =>
+        profile.size.width === 1920 &&
+        profile.size.height === 1080 &&
+        profile.format === camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+      );
+      bestPreviewProfile = previewProfilesArray.find(profile =>
+        profile.size.width === 1920 &&
+        profile.size.height === 1080 &&
+        profile.format === camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+      );
+    }
+
+    const videoSessionProfile: VideoSessionProfile = new VideoSessionProfile();
+    videoSessionProfile.setPreviewProfile(bestPreviewProfile!);
+    videoSessionProfile.setCaptureProfile(bestVideoProfile!);
+    return videoSessionProfile;
+  }
+
+  private findMatchingPreviewProfile(
+    previewProfiles: Array<camera.Profile>,
+    videoProfile: camera.VideoProfile): camera.Profile | undefined {
+
+    const targetRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
+    const targetWidth = videoProfile.size.width;
+    let closestPreview: camera.Profile | undefined = undefined;
+    let minWidthDiff = Number.MAX_VALUE;
+
+    for (const profile of previewProfiles) {
+      const ratio = this.simplifyAspectRatio(profile.size.width, profile.size.height);
+      if (ratio === targetRatio) {
+        const widthDiff = Math.abs(profile.size.width - targetWidth);
+        if (widthDiff === 0) {
+          closestPreview = profile;
+          break;
+        }
+        if (widthDiff < minWidthDiff) {
+          minWidthDiff = widthDiff;
+          closestPreview = profile;
+        }
+      }
+    }
+    return closestPreview;
+  }
+
+  private simplifyAspectRatio(width: number, height: number): string {
+    const gcd = (a: number, b: number): number => {
+      return b === 0 ? a : gcd(b, a % b);
+    };
+    const divisor = gcd(width, height);
+    const simplifiedWidth = width / divisor;
+    const simplifiedHeight = height / divisor;
+    return `${simplifiedWidth}:${simplifiedHeight}`;
+  }
+
+  private calculateDifference(profile: camera.VideoProfile, presetSize: camera.Size): number {
+    const widthDiff = profile.size.width - presetSize.width;
+    const heightDiff = profile.size.height - presetSize.height;
+    return widthDiff * widthDiff + heightDiff * heightDiff;
   }
 
   public getDebugName(): string {

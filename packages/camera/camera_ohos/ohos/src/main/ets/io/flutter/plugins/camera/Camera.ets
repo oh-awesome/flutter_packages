@@ -22,7 +22,7 @@ import { CameraCaptureCallback, CameraCaptureStateListener } from './CameraCaptu
 import { CameraFeatures } from './features/CameraFeatures';
 import { CaptureTimeoutsWrapper } from './types/CaptureTimeoutsWrapper';
 import { CameraCaptureProperties } from './types/CameraCaptureProperties';
-import { ResolutionFeature } from './features/resolution/ResolutionFeature';
+import { ResolutionFeature, VideoSessionProfile } from './features/resolution/ResolutionFeature';
 import { CameraUtils } from './CameraUtils';
 import { VideoRenderer } from './VideoRenderer';
 import { ImageStreamReader } from './media/ImageStreamReader';
@@ -596,18 +596,20 @@ export class Camera implements CameraCaptureStateListener {
     this.cameraOutputCapability =
       CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
         this.cameraManager);
-    let previewProfile = this.cameraOutputCapability?.previewProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === this.aVRecorderProfile.videoFrameWidth &&
-        profile.size.height === this.aVRecorderProfile.videoFrameHeight;
-    });
-    this.previewOutput = this.cameraManager.createPreviewOutput(previewProfile, this.flutterTexture.getSurfaceId()
-      .toString());
-    let videoProfilesArray: Array<camera.VideoProfile> = this.cameraOutputCapability?.videoProfiles;
-    let videoProfile: undefined | camera.VideoProfile = videoProfilesArray.find((profile: camera.VideoProfile) => {
-      return profile.size.width === this.aVRecorderProfile.videoFrameWidth &&
-        profile.size.height === this.aVRecorderProfile.videoFrameHeight;
-    })
-    this.videoOutput = this.cameraManager.createVideoOutput(videoProfile, this.videoId);
+    let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
+                                                       .getResolution()
+                                                       .getVideoSessionProfile(
+                                                         this.cameraOutputCapability.previewProfiles,
+                                                         this.cameraOutputCapability.videoProfiles);
+
+    let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
+    this.cameraFeatures.getResolution().setPreviewSize(previewSize);
+    this.previewOutput = this.cameraManager.createPreviewOutput(
+      videoSessionProfile.getPreviewProfile(),
+      this.flutterTexture.getSurfaceId().toString());
+    this.videoOutput = this.cameraManager.createVideoOutput(
+      videoSessionProfile.getCaptureProfile(),
+      this.videoId);
     this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
     this.videoSession?.beginConfig();
     this.videoSession?.addInput(this.cameraInput);
@@ -756,25 +758,20 @@ export class Camera implements CameraCaptureStateListener {
 
     let profiles =
       CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
-    let previewProfiles: Array<camera.Profile> = profiles.previewProfiles;
-    let captureSize: camera.Size = this.cameraFeatures.getResolution().getCaptureSize();
-    let previewProfilesObj = previewProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
-    });
-    let previewProfilesObj2 = previewProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
-    });
-
-    this.previewOutput =
-      this.cameraManager.createPreviewOutput(previewProfilesObj, this.flutterTexture.getSurfaceId().toString());
+    let previewProfileIndex = this.cameraFeatures
+                                  .getResolution()
+                                  .getPreviewProfileIndex(profiles.previewProfiles);
+    this.previewOutput = this.cameraManager.createPreviewOutput(
+      profiles.previewProfiles[previewProfileIndex],
+      this.flutterTexture.getSurfaceId().toString());
+    let photoProfileIndex = this.cameraFeatures
+                                .getResolution()
+                                .getPhotoProfileIndex(profiles.photoProfiles);
+    this.photoOutPut = this.cameraManager.createPhotoOutput(
+      profiles.photoProfiles[photoProfileIndex]);
     let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
     this.previewOutput2 =
-      this.cameraManager.createPreviewOutput(previewProfilesObj2, imageReceiverSurfaceId);
-
-    let photoProfile = profiles.photoProfiles.find((profile: camera.Profile) => {
-      return profile.size.width === captureSize.width && profile.size.height === captureSize.height;
-    });
-    this.photoOutPut = this.cameraManager.createPhotoOutput(photoProfile);
+      this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
     this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
       if (err) {
         this.takePictureResult?.error(err.code.toString(), err.message, err.data);
@@ -823,18 +820,19 @@ export class Camera implements CameraCaptureStateListener {
         this.cameraOutputCapability =
           CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
             this.cameraManager);
-        let previewProfile = this.cameraOutputCapability?.previewProfiles.find((profile: camera.Profile) => {
-          return profile.size.width === this.aVRecorderProfile.videoFrameWidth &&
-            profile.size.height === this.aVRecorderProfile.videoFrameHeight;
-        });
-        this.previewOutput = this.cameraManager.createPreviewOutput(previewProfile, this.flutterTexture.getSurfaceId()
-          .toString());
-        let videoProfilesArray: Array<camera.VideoProfile> = this.cameraOutputCapability?.videoProfiles;
-        let videoProfile: undefined | camera.VideoProfile = videoProfilesArray.find((profile: camera.VideoProfile) => {
-          return profile.size.width === this.aVRecorderProfile.videoFrameWidth &&
-            profile.size.height === this.aVRecorderProfile.videoFrameHeight;
-        })
-        this.videoOutput = this.cameraManager.createVideoOutput(videoProfile, this.videoId);
+        let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
+                                                           .getResolution()
+                                                           .getVideoSessionProfile(
+                                                             this.cameraOutputCapability.previewProfiles,
+                                                             this.cameraOutputCapability.videoProfiles);
+        let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
+        this.cameraFeatures.getResolution().setPreviewSize(previewSize);
+        this.previewOutput = this.cameraManager.createPreviewOutput(
+          videoSessionProfile.getPreviewProfile(),
+          this.flutterTexture.getSurfaceId().toString());
+        this.videoOutput = this.cameraManager.createVideoOutput(
+          videoSessionProfile.getCaptureProfile(),
+          this.videoId);
         this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
         this.videoSession?.beginConfig();
         await this.cameraInput?.open();
@@ -842,7 +840,7 @@ export class Camera implements CameraCaptureStateListener {
         this.videoSession?.addOutput(this.previewOutput);
         if (stream && this.imageStreamReader != null) {
           let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
-          this.previewOutput2 = this.cameraManager.createPreviewOutput(previewProfile, surfaceId);
+          this.previewOutput2 = this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
           this.videoSession.addOutput(this.previewOutput2);
         }
         this.videoSession?.addOutput(this.videoOutput);
