@@ -722,7 +722,7 @@ export class CameraApiImpl extends CameraApi {
 
   private instantiateCamera(call: CallArgument, result: Result<number>): void {
     let cameraName: string = call.argument('cameraName') as string;
-    let preset: string = call.argument('resolutionPreset') as string;
+    const resolutionPreset: ResolutionPreset = call.argument('resolutionPreset') as ResolutionPreset;
     let enableAudio: boolean = call.argument('enableAudio') as boolean;
 
     // 在 instantiateCamera 方法中
@@ -730,7 +730,6 @@ export class CameraApiImpl extends CameraApi {
       new DartMessenger(this.binaryMessenger, this.textureId);
     const cameraProperties: CameraProperties =
       new CameraPropertiesImpl(cameraName, CameraUtils.getCameraManager(this.context));
-    const resolutionPreset: ResolutionPreset = ResolutionPreset_valueOf(preset);
 
     this.camera =
       new Camera(
