@@ -17,6 +17,9 @@ import camera from '@ohos.multimedia.camera';
 import { CameraFeature } from '../CameraFeature';
 import { ResolutionPreset } from './ResolutionPreset';
 import { CameraProperties } from '../../CameraProperties';
+import { Log } from '@ohos/flutter_ohos';
+
+const TAG = "ResolutionFeature";
 
 export class VideoSessionProfile {
   private previewProfile: camera.Profile | undefined = undefined;
@@ -127,10 +130,7 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     tempWidth = 0;
     let minDiff = Number.MAX_VALUE;
     for (let i = 0; i < profiles.length; i++) {
-      const widthDiff = presetSize!.width - profiles[i].size.width;
-      const heightDiff = presetSize!.height - profiles[i].size.height;
-      const diff = widthDiff * widthDiff + heightDiff * heightDiff;
-
+      const diff = this.calculateProfileDifference(profiles[i], presetSize!);
       if (diff < minDiff) {
         minDiff = diff;
         index = i;
@@ -142,60 +142,75 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
   public getVideoSessionProfile(
     previewProfilesArray: Array<camera.Profile>,
     videoProfilesArray: Array<camera.VideoProfile>): VideoSessionProfile {
-
-    // Collect all preview configuration ratios.
-    const previewAspectRatios: Set<string> = new Set();
-    previewProfilesArray.forEach((profile: camera.Profile) => {
-      const aspectRatio = this.simplifyAspectRatio(profile.size.width, profile.size.height);
-      previewAspectRatios.add(aspectRatio);
-    });
-
-    const presetSize: camera.Size | undefined = ResolutionFeature.PRESET_SIZE_MAP.get(this.currentSetting);
-
     let bestVideoProfile: camera.VideoProfile | undefined = undefined;
     let bestPreviewProfile: camera.Profile | undefined = undefined;
-    let minDifference = Number.MAX_VALUE;
 
-    // Iterate through all recording profiles to retrieve the optimal recording resolution.
-    for (let i = 0; i < videoProfilesArray.length; i++) {
-      const videoProfile = videoProfilesArray[i];
-      const videoAspectRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
+    if (this.currentSetting === ResolutionPreset.max) {
+      for (const videoProfile of videoProfilesArray.sort((a, b) =>
+      (b.size.width * b.size.height) - (a.size.width * a.size.height))) {
 
-      // Check if the video ratio exists in the preview configuration.
-      if (!previewAspectRatios.has(videoAspectRatio)) {
-        continue;
+        const videoRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
+        const matchingPreviews = previewProfilesArray.filter(p =>
+        this.simplifyAspectRatio(p.size.width, p.size.height) === videoRatio);
+
+        if (matchingPreviews.length > 0) {
+          bestVideoProfile = videoProfile;
+          bestPreviewProfile = matchingPreviews.sort((a, b) =>
+          (b.size.width * b.size.height) - (a.size.width * a.size.height))[0];
+          break;
+        }
       }
+    } else {
+      // Collect all preview configuration ratios.
+      const previewAspectRatios: Set<string> = new Set();
+      previewProfilesArray.forEach((profile: camera.Profile) => {
+        const aspectRatio = this.simplifyAspectRatio(profile.size.width, profile.size.height);
+        previewAspectRatios.add(aspectRatio);
+      });
+      const presetSize: camera.Size | undefined = ResolutionFeature.PRESET_SIZE_MAP.get(this.currentSetting);
+      let minDifference = Number.MAX_VALUE;
 
-      // Check if it exactly matches the preset resolution.
-      if (presetSize &&
-        videoProfile.size.width === presetSize.width &&
-        videoProfile.size.height === presetSize.height) {
-        bestVideoProfile = videoProfile;
-        break;
-      }
+      // Iterate through all recording profiles to retrieve the optimal recording resolution.
+      for (let i = 0; i < videoProfilesArray.length; i++) {
+        const videoProfile = videoProfilesArray[i];
+        const videoAspectRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
 
-      const difference = presetSize ? this.calculateDifference(videoProfile, presetSize) : 0;
-      if (difference < minDifference) {
-        minDifference = difference;
-        bestVideoProfile = videoProfile;
+        // Check if the video ratio exists in the preview configuration.
+        if (!previewAspectRatios.has(videoAspectRatio)) {
+          continue;
+        }
+
+        // Check if it exactly matches the preset resolution.
+        if (presetSize &&
+          videoProfile.size.width === presetSize.width &&
+          videoProfile.size.height === presetSize.height) {
+          bestVideoProfile = videoProfile;
+          break;
+        }
+        const difference = presetSize ? this.calculateVideoProfileDifference(videoProfile, presetSize) : 0;
+        if (difference < minDifference) {
+          minDifference = difference;
+          bestVideoProfile = videoProfile;
+        }
       }
+      bestPreviewProfile = this.findMatchingPreviewProfile(previewProfilesArray, bestVideoProfile!);
     }
-    bestPreviewProfile = this.findMatchingPreviewProfile(previewProfilesArray, bestVideoProfile!);
 
     // If it does not match, set it to the default value.
     if (!bestVideoProfile || !bestPreviewProfile) {
       bestVideoProfile = videoProfilesArray.find(profile =>
-      profile.size.width === 1920 &&
-        profile.size.height === 1080 &&
-        profile.format === camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+        profile.size.width === 1920 &&
+        profile.size.height === 1080
       );
       bestPreviewProfile = previewProfilesArray.find(profile =>
       profile.size.width === 1920 &&
         profile.size.height === 1080 &&
-        profile.format === camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+        profile.format === bestVideoProfile!.format
       );
     }
 
+    Log.i(TAG, "bestPreviewProfileSize data: " + bestPreviewProfile!.size.width + " " + bestPreviewProfile!.size.height);
+    Log.i(TAG, "bestVideoProfileSize data: " + bestVideoProfile!.size.width + " " + bestVideoProfile!.size.height);
     const videoSessionProfile: VideoSessionProfile = new VideoSessionProfile();
     videoSessionProfile.setPreviewProfile(bestPreviewProfile!);
     videoSessionProfile.setCaptureProfile(bestVideoProfile!);
@@ -238,7 +253,13 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     return `${simplifiedWidth}:${simplifiedHeight}`;
   }
 
-  private calculateDifference(profile: camera.VideoProfile, presetSize: camera.Size): number {
+  private calculateProfileDifference(preview: camera.Profile, presetSize: camera.Size): number {
+    const widthDiff = preview.size.width - presetSize.width;
+    const heightDiff = preview.size.height - presetSize.height;
+    return widthDiff * widthDiff + heightDiff * heightDiff;
+  }
+
+  private calculateVideoProfileDifference(profile: camera.VideoProfile, presetSize: camera.Size): number {
     const widthDiff = profile.size.width - presetSize.width;
     const heightDiff = profile.size.height - presetSize.height;
     return widthDiff * widthDiff + heightDiff * heightDiff;
