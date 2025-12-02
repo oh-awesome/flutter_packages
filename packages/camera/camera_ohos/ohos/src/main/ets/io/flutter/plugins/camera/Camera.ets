@@ -965,10 +965,7 @@ export class Camera implements CameraCaptureStateListener {
         let fd = this.captureFile.fd;
         let displayRotation = display.getDefaultDisplaySync().rotation;
         let previewRotation = this.previewOutput!.getPreviewRotation(displayRotation);
-        const avRecorderConfig = await this.getAVRecorderConfig(fd, previewRotation);
-        await this.avRecorder.prepare(avRecorderConfig).then(async () => {
-          this.videoId = await this.avRecorder?.getInputSurface();
-        });
+
         this.cameraOutputCapability =
           CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
             this.cameraManager);
@@ -977,6 +974,13 @@ export class Camera implements CameraCaptureStateListener {
                                                            .getVideoSessionProfile(
                                                              this.cameraOutputCapability.previewProfiles,
                                                              this.cameraOutputCapability.videoProfiles);
+
+        this.aVRecorderProfile.videoFrameWidth = videoSessionProfile.getCaptureProfile()?.size.width;
+        this.aVRecorderProfile.videoFrameHeight = videoSessionProfile.getCaptureProfile()?.size.height;
+        const avRecorderConfig = await this.getAVRecorderConfig(fd, previewRotation);
+        await this.avRecorder.prepare(avRecorderConfig).then(async () => {
+          this.videoId = await this.avRecorder?.getInputSurface();
+        });
 
         let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
         this.cameraFeatures.getResolution().setPreviewSize(previewSize);
