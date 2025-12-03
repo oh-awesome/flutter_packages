@@ -41,20 +41,32 @@ export default class FileUtils {
       }
 
       const inputFilePath = uri.substring(uri.lastIndexOf("/") + 1);
-      const inputFilePathSplits = inputFilePath.split(".");
+      let inputFilePathSplits = inputFilePath.split(".");
       Log.i(TAG, "getPathFromUri inputFilePath: " + inputFilePath);
-      const outputFileName = inputFilePathSplits[0];
-      let extension: string;
-      if (inputFilePathSplits.length == 2) {
-        extension = "." + inputFilePathSplits[1];
-      } else {
+      let outputFileName: string = "";
+      let extension: string = "";
+      if (inputFilePathSplits.length === 1) {
+        outputFileName = inputFilePathSplits[0];
+        extension = "jpg";
+      } else if (inputFilePathSplits.length === 2) {
+        outputFileName = inputFilePathSplits[0];
+        extension = inputFilePathSplits[1];
+      } else if (inputFilePathSplits.length > 2) {
+        extension = inputFilePathSplits.pop() || "";
+        outputFileName = inputFilePathSplits.join(".");
+      }
+      if(!outputFileName){
+        outputFileName = "image_picker";
+      }
+      if(!extension){
         if (defExtension) {
           extension = defExtension;
         } else {
-          extension = ".jpg";
+          extension = "jpg";
         }
       }
-      const outputFilePath = targetDirectoryPath + "/" + outputFileName + extension;
+
+      const outputFilePath = targetDirectoryPath + "/" + outputFileName + "." + extension;
       const outputFile = fs.openSync(outputFilePath, fs.OpenMode.CREATE);
       try {
         Log.i(TAG, "copyFileSync inputFile fd:" + inputFile.fd + " outputFile fd:" + outputFile.fd);
