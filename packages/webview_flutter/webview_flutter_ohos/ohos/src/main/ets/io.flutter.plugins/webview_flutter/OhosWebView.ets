@@ -107,7 +107,7 @@ export function WebBuilder(params: Params) {
     params: params,
     webView: params.platformView as WebViewPlatformView,
     controller: (params.platformView as WebViewPlatformView).getController()
-  })
+  }).backgroundColor(Color.Transparent)
 }
 
 @CustomDialog
