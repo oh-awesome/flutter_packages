@@ -55,6 +55,7 @@ export struct OhosWebView {
           .zoomAccess(this.webView.getWebSettings().getSupportZoom())
           .overviewModeAccess(this.webView.getWebSettings().getLoadWithOverviewMode())
           .wideViewModeAccess(this.webView.getWebSettings().getUseWideViewPort())
+          .metaViewport(this.webView.getWebSettings().getUseWideViewPort())
           .fileAccess(this.webView.getWebSettings().getAllowFileAccess())
           .textZoomRatio(this.textZoomRatio)
           .onScroll(this.webView.onScroll)
