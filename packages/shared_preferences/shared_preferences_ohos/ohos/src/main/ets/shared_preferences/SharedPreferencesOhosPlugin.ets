@@ -123,7 +123,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
             let wrapped = new Array<Object>();
             let args = msg as Array<Object>;
             let keyArg = args[0] as string;
-            let valueArg = args[1] as number;
+            let valueArg = BigInt(args[1] as bigint);
             api.setInt(keyArg, valueArg).then(() => {
               wrapped.push(true);
               reply.reply(wrapped)
@@ -267,10 +267,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     return this.put(key, value);
   }
 
-  setInt(key: string, value: number): Promise<void> {
-    if(typeof value == "bigint") {
-      return this.put(key, Number(value));
-    }
+  setInt(key: string, value: bigint): Promise<void> {
     return this.put(key, value);
   }
 
@@ -405,6 +402,9 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
         let t: ESObject = JSON.parse(strList);
         return t;
       }
+    }
+    if (typeof value === "bigint") {
+      return BigInt(value);
     }
     return value;
   }
