@@ -108,16 +108,14 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     }
   }
 
-  async getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null> {
+  async getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<bigint | null> {
     try {
       if (this.plugin.preferences == null) {
         return null;
       }
-      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
-      if (typeof value === 'number') {
-        return value;
-      } else if (typeof value === 'bigint') {
-        return Number(value);
+      const value = await this.plugin.preferences.get(key, BigInt(0)) as ExtendedPreferenceValue;
+      if (typeof value ==='bigint' || typeof value === 'number'){
+        return BigInt(value);
       }
       return null;
     } catch (err) {
@@ -228,7 +226,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     return this.plugin.setString(key, value);
   }
 
-  async setInt(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void> {
+  async setInt(key: string, value: bigint, options: SharedPreferencesPigeonOptions): Promise<void> {
     return this.plugin.setInt(key, value);
   }
 
@@ -333,7 +331,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
         onMessage(message: Object, reply: Reply<Object>): void {
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
-          const valueArg = args[1] as number;
+          const valueArg = BigInt(args[1] as bigint);
           let wrapped: Array<Object> = [];
           
           api.setInt(keyArg, valueArg).then(() => {
@@ -521,10 +519,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     return this.put(key, value);
   }
 
-  async setInt(key: string, value: number): Promise<void> {
-    if (typeof value == "bigint") {
-      return this.put(key, Number(value));
-    }
+  async setInt(key: string, value: bigint): Promise<void> {
     return this.put(key, value);
   }
 
@@ -596,7 +591,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       }
     }
     if (typeof value === 'bigint') {
-      return Number(value);
+      return BigInt(value);
     }
     if (typeof value === 'object' && value !== null) {
       return value;

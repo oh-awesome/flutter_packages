@@ -74,9 +74,9 @@ export class StringListResult {
 // Custom codec for handling the async API types
 class PigeonCodec extends StandardMessageCodec {
   writeValue(stream: ESObject, value: ESObject): ESObject {
-    if (typeof value === 'number' && Number.isInteger(value)) {
-      stream.writeUint8(3);
-      stream.writeInt32(value, true);
+    if (typeof value === 'bigint') {
+      stream.writeUint8(4);
+      stream.writeInt64(value, true);
     } else if (typeof value === 'number') {
       stream.writeUint8(6);
       this.writeAlignment(stream, 8);
@@ -120,14 +120,14 @@ class PigeonCodec extends StandardMessageCodec {
 export interface SharedPreferencesAsyncApi {
   setBool(key: string, value: boolean, options: SharedPreferencesPigeonOptions): Promise<void>;
   setString(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void>;
-  setInt(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void>;
+  setInt(key: string, value: bigint, options: SharedPreferencesPigeonOptions): Promise<void>;
   setDouble(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void>;
   setEncodedStringList(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void>;
   setDeprecatedStringList(key: string, value: Array<string>, options: SharedPreferencesPigeonOptions): Promise<void>;
   getString(key: string, options: SharedPreferencesPigeonOptions): Promise<string | null>;
   getBool(key: string, options: SharedPreferencesPigeonOptions): Promise<boolean | null>;
   getDouble(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null>;
-  getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null>;
+  getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<bigint | null>;
   getPlatformEncodedStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<Array<string> | null>;
   getStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<StringListResult | null>;
   clear(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<void>;
@@ -201,7 +201,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const valueArg = args[1] as number;
+          const valueArg = BigInt(args[1] as bigint);
           const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
 
           api.setInt(keyArg, valueArg, optionsArg).then(() => {
