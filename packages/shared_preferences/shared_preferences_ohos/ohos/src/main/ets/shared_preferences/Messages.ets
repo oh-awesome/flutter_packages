@@ -56,7 +56,7 @@ export interface SharedPreferencesApi {
   setString(key: string, value: string): Promise<void>;
 
   /** Adds property to shared preferences data set of type int. */
-  setInt(key: string, value: number): Promise<void>;
+  setInt(key: string, value: bigint): Promise<void>;
 
   /** Adds property to shared preferences data set of type double. */
   setDouble(key: string, value: number): Promise<void>;
