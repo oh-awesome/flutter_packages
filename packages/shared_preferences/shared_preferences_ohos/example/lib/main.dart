@@ -18,6 +18,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+import 'package:shared_preferences_platform_interface/types.dart';
 
 void main() {
   runApp(const MyApp());
@@ -43,32 +44,87 @@ class SharedPreferencesDemo extends StatefulWidget {
 }
 
 class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
-  final SharedPreferencesStorePlatform _prefs =
-      SharedPreferencesOhos();
+  // Use the implementation provided in this package.
+  final SharedPreferencesOhos _prefs = SharedPreferencesOhos();
   late Future<int> _counter;
 
-  // Includes the prefix because this is using the platform interface directly,
-  // but the prefix (which the native code assumes is present) is added by the
-  // app-facing package.
-  static const String _prefKey = 'flutter.counter';
+  // Store the latest test data to display in the UI.
+  Map<String, Object> _testResults = <String, Object>{};
+
+  static const String _counterKey = 'flutter.counter';
 
   Future<void> _incrementCounter() async {
     final Map<String, Object> values = await _prefs.getAll();
-    final int counter = ((values[_prefKey] as int?) ?? 0) + 1;
+    final int counter = ((values[_counterKey] as int?) ?? 0) + 10000000000000000;
 
     setState(() {
-      _counter = _prefs.setValue('Int', _prefKey, counter).then((bool success) {
+      _counter = _prefs.setValue('Int', _counterKey, counter).then((bool success) {
         return counter;
       });
     });
+  }
+
+  // Run the test storage and return all preferences. Also update UI state.
+  Future<Map<String, Object>> _testGetAll() async {
+    try {
+      // Store test data with different types
+      await _prefs.setValue('Int', 'test_int64', 9223372036854775807);
+      await _prefs.setValue('Int', 'test_uint32', 2147483648);
+      await _prefs.setValue('Int', 'test_int32', 4294967296);
+      await _prefs.setValue('Double', 'test_double', 100.1);
+      await _prefs.setValue('Double', 'test_double_is_int', 100.0);
+      await _prefs.setValue('String', 'test_string', 'Hello OHOS');
+      await _prefs.setValue('Bool', 'test_bool', true);
+
+      final Map<String, Object> allData = await _prefs.getAllWithParameters(
+        GetAllParameters(filter: PreferencesFilter(prefix: '')),
+      );
+
+      // Build display text
+      StringBuffer displayText = StringBuffer();
+      displayText.writeln('SharedPreferences Test Data');
+      // Add Set Data section
+      displayText.writeln('setInt key: test_int64, value: 9223372036854775807');
+      displayText.writeln('setInt key: test_uint32, value: 2147483648');
+      displayText.writeln('setInt key: test_int32, value: 4294967296');
+      displayText.writeln('setDouble key: test_double, value: 100.1');
+      displayText.writeln('setDouble key: test_double_is_int, value: 100.0');
+      displayText.writeln('setString key: test_string, value: Hello OHOS');
+      displayText.writeln('setBool key: test_bool, value: true');
+      displayText.writeln('*' * 50);
+      displayText.writeln('getAll:');
+
+      // Add Get Data section
+      allData.forEach((key, value) {
+        displayText.writeln('key: $key, value: $value');
+      });
+      displayText.writeln('*' * 50);
+
+      setState(() {
+        _testResults = {'result': displayText.toString()};
+      });
+
+      return allData;
+    } catch (e) {
+      setState(() {
+        _testResults = <String, Object>{'error': '$e'};
+      });
+      return <String, Object>{};
+    }
+  }
+
+  // Called when FAB is pressed — run the test and show results.
+  Future<void> _showTestData() async {
+    await _testGetAll();
   }
 
   @override
   void initState() {
     super.initState();
     _counter = _prefs.getAll().then((Map<String, Object> values) {
-      return (values[_prefKey] as int?) ?? 0;
+      return (values[_counterKey] as int?) ?? 0;
     });
+    _testGetAll();
   }
 
   @override
@@ -77,8 +133,11 @@ class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
       appBar: AppBar(
         title: const Text('SharedPreferences Demo'),
       ),
-      body: Center(
-          child: FutureBuilder<int>(
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: <Widget>[
+            FutureBuilder<int>(
               future: _counter,
               builder: (BuildContext context, AsyncSnapshot<int> snapshot) {
                 switch (snapshot.connectionState) {
@@ -89,18 +148,50 @@ class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
                   case ConnectionState.done:
                     if (snapshot.hasError) {
                       return Text('Error: ${snapshot.error}');
-                    } else {
+                    } else if (snapshot.hasData) {
                       return Text(
-                        'Button tapped ${snapshot.data} time${snapshot.data == 1 ? '' : 's'}.\n\n'
-                            'This should persist across restarts.',
+                        'Button tapped ${snapshot.data} time${snapshot.data == 1 ? '' : 's'}. This should persist across restarts.',
                       );
+                    } else {
+                      return const Text('platform return empty.');
                     }
                 }
-              })),
+              },
+            ),
+            const SizedBox(height: 16),
+            Expanded(
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: _buildTestResults(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
         tooltip: 'Increment',
         child: const Icon(Icons.add),
+      ),
+    );
+  }
+
+  Widget _buildTestResults() {
+    if (_testResults.isEmpty) {
+      return const Center(child: Text('No test data. Loading...'));
+    }
+
+    final String result = _testResults['result']?.toString() ?? 'No data';
+
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Text(
+          result,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+        ),
       ),
     );
   }
