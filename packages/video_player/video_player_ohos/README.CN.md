@@ -98,7 +98,7 @@ flutter pub get
 | play(int textureId)                           | Future<void>                      | 开始视频播放                                            | function | yes          |
 | pause(int textureId)                          | Future<void>                      | 停止视频播放                                            | function | yes          |
 | setVolume(int textureId, double volume)       | Future<void>                      | 设置音量，取值范围为0.0到1.0                            | function | yes          |
-| setPlaybackSpeed(int textureId, double speed) | Future<void>                      | 设置播放速度                                            | function | yes          |
+| setPlaybackSpeed(int textureId, double speed) | Future<void>                      | 设置播放速度。OHOS 平台当前仅支持以下倍速：0.125×、0.25×、0.5×、0.75×、1.0×、1.25×、1.5×、1.75×、2.0×、3.0×                                            | function | yes          |
 | seekTo(int textureId, Duration position)      | Future<void>                      | Sets the video position to a [Duration] from the start. | function | yes          |
 | getPosition(int textureId)                    | Future<[Duration](#Duration)>     | Gets the video position as [Duration] from the start.   | function | yes          |
 | videoEventsFor(int textureId)                 | Stream<[VideoEvent](#VideoEvent)> | 返回一个[[VideoEventType](#VideoEventType)]类型的事件流 | Stream   | yes          |

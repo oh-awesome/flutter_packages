@@ -28,6 +28,32 @@ import { image } from '@kit.ImageKit';
 const TAG: string = "VideoPlayerApiImpl";
 const BLACK_COLOR = 0xFF000000;
 
+function mapPlaybackSpeed(speed: number): media.PlaybackSpeed | null {
+  if (speed === 0.75) {
+    return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
+  } else if (speed === 1.0) {
+    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+  } else if (speed === 1.25) {
+    return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
+  } else if (speed === 1.75) {
+    return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
+  } else if (speed === 2.0) {
+    return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
+  } else if (speed === 0.5) {
+    return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
+  } else if (speed === 1.5) {
+    return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
+  } else if (speed === 3.0) {
+    return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
+  } else if (speed === 0.25) {
+    return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
+  } else if (speed === 0.125) {
+    return media.PlaybackSpeed.SPEED_FORWARD_0_125_X;
+  } else {
+    return null;
+  }
+}
+
 export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   private videoPlayers: HashMap<number, VideoPlayer> = new HashMap<number, VideoPlayer>();
   private nextPlayerId: number = 1;
@@ -199,16 +225,22 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     }
   }
 
-  setPlaybackSpeed(playerId: number, speed: number) {
-    const videoPlayer = this.videoPlayers.get(playerId);
-    Log.d(TAG, "setPlaybackSpeed, id=" + playerId + ", videoPlayer=" + videoPlayer);
-   if (videoPlayer) {
+setPlaybackSpeed(playerId: number, speed: number) {
+  const videoPlayer = this.videoPlayers.get(playerId);
+  Log.d(TAG, "setPlaybackSpeed, id=" + playerId + ", videoPlayer=" + videoPlayer);
+  if (videoPlayer) {
+    const enumSpeed = mapPlaybackSpeed(speed);
+    if (enumSpeed === null) {
+      Log.w(TAG, `Unsupported playback speed, id=${playerId}, Speed=${speed}`);
       videoPlayer.setSpeed(speed);
-      Log.d(TAG, `Set up the player: ${playerId} speed: ${speed}`);
-    } else {
-      Log.w(TAG, `The player does not exist: ${playerId}`);
+      return;
     }
+    videoPlayer.setSpeed(enumSpeed);
+    Log.d(TAG, `Set up the player: ${playerId} speed: ${speed}`);
+  } else {
+    Log.w(TAG, `The player does not exist: ${playerId}`);
   }
+}
 
   play(playerId: number) {
     const videoPlayer = this.videoPlayers.get(playerId);
