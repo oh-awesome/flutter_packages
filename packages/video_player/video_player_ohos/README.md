@@ -99,7 +99,7 @@ Open `entry/src/main/resources/base/element/string.json` and add the following i
 | play(int textureId)                           | Future<void>                      | Starts the video playback.                                   | function | yes          |
 | pause(int textureId)                          | Future<void>                      | Stops the video playback.                                    | function | yes          |
 | setVolume(int textureId, double volume)       | Future<void>                      | Sets the volume to a range between 0.0 and 1.0.              | function | yes          |
-| setPlaybackSpeed(int textureId, double speed) | Future<void>                      | Sets the playback speed to a [speed] value indicating the playback rate. | function | yes          |
+| setPlaybackSpeed(int textureId, double speed) | Future<void>                      | Sets the playback speed to a [speed] value indicating the playback rate.On OHOS, the supported speeds are 0.125×、0.25×、0.5×、0.75×、1.0×、1.25×、1.5×、1.75×、2.0×、3.0× . | function | yes          |
 | seekTo(int textureId, Duration position)      | Future<void>                      | Sets the video position to a [Duration] from the start.      | function | yes          |
 | getPosition(int textureId)                    | Future<[Duration](#Duration)>     | Gets the video position as [Duration] from the start.        | function | yes          |
 | videoEventsFor(int textureId)                 | Stream<[VideoEvent](#VideoEvent)> | Returns a Stream of [VideoEventType]s.                       | Stream   | yes          |
