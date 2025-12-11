@@ -225,20 +225,20 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     }
   }
 
-setPlaybackSpeed(playerId: number, speed: number) {
-  const videoPlayer = this.videoPlayers.get(playerId);
-  Log.d(TAG, "setPlaybackSpeed, id=" + playerId + ", videoPlayer=" + videoPlayer);
-  if (videoPlayer) {
-    const enumSpeed = mapPlaybackSpeed(speed);
-    if (enumSpeed === null) {
-      Log.w(TAG, `Unsupported playback speed, id=${playerId}, Speed=${speed}`);
-      videoPlayer.setSpeed(speed);
-      return;
-    }
-    videoPlayer.setSpeed(enumSpeed);
-    Log.d(TAG, `Set up the player: ${playerId} speed: ${speed}`);
-  } else {
-    Log.w(TAG, `The player does not exist: ${playerId}`);
+  setPlaybackSpeed(playerId: number, speed: number) {
+    const videoPlayer = this.videoPlayers.get(playerId);
+    Log.d(TAG, "setPlaybackSpeed, id=" + playerId + ", videoPlayer=" + videoPlayer);
+    if (videoPlayer) {
+      const enumSpeed = mapPlaybackSpeed(speed);
+      if (enumSpeed === null) {
+        Log.w(TAG, `Unsupported playback speed, id=${playerId}, Speed=${speed}`);
+        videoPlayer.setSpeed(speed);
+        return;
+      }
+      videoPlayer.setSpeed(enumSpeed);
+      Log.d(TAG, `Set up the player: ${playerId} speed: ${speed}`);
+    } else {
+      Log.w(TAG, `The player does not exist: ${playerId}`);
   }
 }
 
