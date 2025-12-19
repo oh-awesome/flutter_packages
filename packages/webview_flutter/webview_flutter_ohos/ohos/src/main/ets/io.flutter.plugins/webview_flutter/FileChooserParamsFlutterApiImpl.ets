@@ -44,7 +44,7 @@ export class FileChooserParamsFlutterApiImpl extends FileChooserParamsFlutterApi
         instance.isCapture(),
         instance.getAcceptType(),
         this.toFileChooserEnumData(instance.getMode()),
-        //instance.getFilenameHint(),
+        instance.getTitle(),
         callback
       );
     }
