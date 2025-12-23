@@ -782,7 +782,8 @@ export class Camera implements CameraCaptureStateListener {
       
 
       await this.photoSession.commitConfig();
-
+      const NowZoom:number = this.getCurSession().getZoomRatio();
+      this.getCurSession().setZoomRatio(NowZoom);
       await this.photoSession.start();
       
       // 设置闪光灯模式
@@ -1003,6 +1004,8 @@ export class Camera implements CameraCaptureStateListener {
         this.videoSession?.addOutput(this.videoOutput);
         await this.videoSession?.commitConfig();
         await this.videoSession?.start();
+        const NowZoom:number = this.getCurSession().getZoomRatio();
+        this.getCurSession().setZoomRatio(NowZoom);
         await this.videoOutput.start();
         try {
           if (this.pausedPreview) {
