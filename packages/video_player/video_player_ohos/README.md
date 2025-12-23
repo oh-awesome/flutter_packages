@@ -125,7 +125,7 @@ Open `entry/src/main/resources/base/element/string.json` and add the following i
 | DataSourceType.asset      | The video was included in the app's asset files.     | enum | yes          |
 | DataSourceType.network    | The video was downloaded from the internet.          | enum | yes          |
 | DataSourceType.file       | The video was loaded off of the local filesystem.    | enum | yes          |
-| DataSourceType.contentUri | The video is available via contentUri. Android only. | enum |              |
+| DataSourceType.contentUri | The video is available via contentUri. Android only. | enum | yes          |
 
 ### VideoFormat
 
