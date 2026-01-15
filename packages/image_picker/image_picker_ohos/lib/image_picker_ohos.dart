@@ -138,6 +138,8 @@ class ImagePickerOhos extends ImagePickerPlatform {
     return path != null ? PickedFile(path) : null;
   }
 
+
+
   Future<String?> _getVideoPath({
     required ImageSource source,
     CameraDevice preferredCameraDevice = CameraDevice.rear,
@@ -248,6 +250,27 @@ class ImagePickerOhos extends ImagePickerPlatform {
       preferredCameraDevice: preferredCameraDevice,
     );
     return path != null ? XFile(path) : null;
+  }
+
+  @override
+  Future<List<XFile>> getMultiVideoWithOptions({
+    MultiVideoPickerOptions options = const MultiVideoPickerOptions(),
+  }) async {
+    final List<String?> paths = await _hostApi.pickVideos(
+      SourceSpecification(type: SourceType.gallery),
+      VideoSelectionOptions(maxDurationSeconds: options.maxDuration?.inSeconds),
+      GeneralOptions(
+        allowMultiple: true,
+        usePhotoPicker: useOhosPhotoPicker,
+        limit: options.limit,
+      ),
+    );
+
+    if (paths.isEmpty) {
+      return <XFile>[];
+    }
+
+    return paths.map((dynamic path) => XFile(path as String)).toList();
   }
 
   MediaSelectionOptions _mediaOptionsToMediaSelectionOptions(
