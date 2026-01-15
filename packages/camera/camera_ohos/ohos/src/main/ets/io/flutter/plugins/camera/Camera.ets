@@ -198,6 +198,12 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
+    // Fixed the issue where the camera could not be turned on 
+    // when switching cameras after the 3.35 adaptation
+    if (this.cameraInput) {
+      await this.cameraInput.close();
+    }
+
     this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
     try{
       await this.cameraInput.open();

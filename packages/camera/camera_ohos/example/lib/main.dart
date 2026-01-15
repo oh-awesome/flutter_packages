@@ -602,7 +602,11 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       }
     }
 
-    return Row(children: toggles);
+    return RadioGroup<CameraDescription>(
+ 	       groupValue: controller?.description,
+ 	       onChanged: onChanged,
+ 	       child: Row(children: toggles)
+ 	     );
   }
 
   String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
