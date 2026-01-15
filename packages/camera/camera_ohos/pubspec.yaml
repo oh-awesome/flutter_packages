@@ -1,0 +1,41 @@
+name: camera_ohos
+description: Ohos implementation of the camera plugin.
+repository: https://github.com/flutter/packages/tree/main/packages/camera/camera_Ohos
+issue_tracker: https://github.com/flutter/flutter/issues?q=is%3Aissue+is%3Aopen+label%3A%22p%3A+camera%22
+
+version: 0.10.10+3
+
+environment:
+  sdk: ^3.6.0
+  flutter: ">=3.27.0"
+
+flutter:
+  plugin:
+    implements: camera
+    platforms:
+      ohos:
+        package: io.flutter.plugins.camera
+        pluginClass: CameraPlugin
+        dartPluginClass: OhosCamera
+
+dependencies:
+  camera_platform_interface: ^2.9.0
+  flutter:
+    sdk: flutter
+  flutter_plugin_android_lifecycle: ^2.0.2
+  stream_transform: ^2.0.0
+  pigeon:
+    git:
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      path: "packages/pigeon"
+
+dev_dependencies:
+  async: ^2.5.0
+  build_runner: ^2.4.11
+  flutter_test:
+    sdk: flutter
+  leak_tracker_flutter_testing: any
+  mockito: ^5.4.4
+
+topics:
+  - camera

@@ -1,12 +1,14 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:math' as math;
 
-import '../camera.dart';
+import 'camera_controller.dart';
 
 /// A widget showing a live camera preview.
 class CameraPreview extends StatelessWidget {
@@ -25,10 +27,13 @@ class CameraPreview extends StatelessWidget {
         ? ValueListenableBuilder<CameraValue>(
             valueListenable: controller,
             builder: (BuildContext context, Object? value, Widget? child) {
+              final double cameraAspectRatio =
+                  controller.value.previewSize!.width /
+                      controller.value.previewSize!.height;
               return AspectRatio(
                 aspectRatio: _isLandscape()
-                    ? controller.value.aspectRatio
-                    : (1 / controller.value.aspectRatio),
+                    ? cameraAspectRatio
+                    : (1 / cameraAspectRatio),
                 child: Stack(
                   fit: StackFit.expand,
                   children: <Widget>[
@@ -44,19 +49,20 @@ class CameraPreview extends StatelessWidget {
   }
 
   Widget _wrapInRotatedBox({required Widget child}) {
-    if (kIsWeb ||
-        (defaultTargetPlatform != TargetPlatform.android &&
-            defaultTargetPlatform != TargetPlatform.ohos)) {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.ohos) {
       return child;
     }
 
-    return RotatedBox(quarterTurns: _getQuarterTurns(), child: child);
+    return RotatedBox(
+      quarterTurns: _getQuarterTurns(),
+      child: child,
+    );
   }
 
   bool _isLandscape() {
     return <DeviceOrientation>[
       DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
+      DeviceOrientation.landscapeRight
     ].contains(_getApplicableOrientation());
   }
 
@@ -74,7 +80,7 @@ class CameraPreview extends StatelessWidget {
     return controller.value.isRecordingVideo
         ? controller.value.recordingOrientation!
         : (controller.value.previewPauseOrientation ??
-              controller.value.lockedCaptureOrientation ??
-              controller.value.deviceOrientation);
+            controller.value.lockedCaptureOrientation ??
+            controller.value.deviceOrientation);
   }
 }
