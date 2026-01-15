@@ -2,11 +2,11 @@ name: shared_preferences_ohos
 description: Ohos implementation of the shared_preferences plugin
 repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/shared_preferences/shared_preferences_ohos
 issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
-version: 2.5.3
+version: 2.5.4
 
 environment:
-  sdk: ^3.6.0
-  flutter: ">=3.27.0"
+  sdk: ^3.9.0
+  flutter: ">=3.35.0"
 
 flutter:
   plugin:

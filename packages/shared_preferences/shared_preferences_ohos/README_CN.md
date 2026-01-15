@@ -3,7 +3,7 @@
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-本项目基于 [shared_preferences@2.5.3](https://pub.dev/packages/shared_preferences/versions/2.5.3) 开发。
+本项目基于 [shared_preferences@2.5.4](https://pub.dev/packages/shared_preferences/versions/2.5.4) 开发。
 
 ## 1. 安装与使用
 
@@ -21,7 +21,7 @@ dependencies:
     git:
       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences"
-      ref: "br_shared_preferences-v2.5.3_ohos"
+      ref: "br_shared_preferences-v2.5.4_ohos"
 ```
 
 执行命令
@@ -42,7 +42,7 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+1. Flutter: 3.35.7; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
 
 ## 3. 属性
 
@@ -99,6 +99,6 @@ flutter pub get
 
 ## 7. 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.3_ohos/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.4_ohos/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
 
 > 模板版本: v0.0.1
