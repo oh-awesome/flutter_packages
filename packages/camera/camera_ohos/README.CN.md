@@ -6,7 +6,7 @@
 
 
 
-本项目基于 [camera@0.11.1](https://pub.dev/packages/camera/versions/0.11.1) 开发。
+本项目基于 [camera@0.11.3](https://pub.dev/packages/camera/versions/0.11.3) 开发。
 
 ## 1. 安装与使用
 
@@ -24,7 +24,7 @@ dependencies:
     git: 
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/camera/camera_ohos
-      ref: br_camera-v0.11.1_ohos
+      ref: br_camera-v0.11.3_ohos
 ```
 
 执行命令
@@ -45,7 +45,7 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+1. Flutter: oh-3.35.7-dev; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
 
 ### 2.2 权限要求
 
@@ -255,7 +255,7 @@ flutter pub get
 
 ## 7. 开源协议
 
-本项目基于 [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_camera-v0.11.1_ohos/packages/camera/camera_ohos/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_camera-v0.11.3_ohos/packages/camera/camera_ohos/LICENSE) ，请自由地享受和参与开源。
 
 
 
