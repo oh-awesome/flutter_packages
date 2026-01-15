@@ -117,7 +117,8 @@ export default class ImagePickerPlugin implements FlutterPlugin, AbilityAware {
 
     this.setCameraDevice(delegate, source);
     if (generalOptions.getAllowMultiple()) {
-      result.error(new FlutterError("no_ability", "image_pickerplugin requires a foreground ability", null));
+      let limit = generalOptions.getLimitfromOption(generalOptions);
+      delegate.chooseMultiVideoFromGallery(options, generalOptions.getUsePhotoPicker(), limit, result);
     } else {
       switch (source.getType()) {
         case SourceType.GALLERY: {

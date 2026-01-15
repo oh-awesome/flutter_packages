@@ -95,6 +95,7 @@ class _MyHomePageState extends State<MyHomePage> {
     ImageSource source, {
     required BuildContext context,
     bool isMultiImage = false,
+    bool isMultiVideo = false,
     bool isMedia = false,
   }) async {
     if (_controller != null) {
@@ -102,12 +103,21 @@ class _MyHomePageState extends State<MyHomePage> {
     }
     if (context.mounted) {
       if (_isVideo) {
-        final XFile? file = await _picker.getVideo(
-            source: source, maxDuration: const Duration(seconds: 10));
-        if (file != null && context.mounted) {
-          _showPickedSnackBar(context, <XFile>[file]);
+        if (isMultiVideo) {
+          final List<XFile> files = await _picker.getMultiVideoWithOptions();
+          if (files.isNotEmpty && context.mounted) {
+            _showPickedSnackBar(context, files);
+            // Just play the first file, to keep the example simple.
+            await _playVideo(files.first);
+          }
+        } else {
+          final XFile? file = await _picker.getVideo(
+              source: source, maxDuration: const Duration(seconds: 10));
+          if (file != null && context.mounted) {
+            _showPickedSnackBar(context, <XFile>[file]);
+          }
+          await _playVideo(file);
         }
-        await _playVideo(file);
       } else if (isMultiImage) {
         await _displayPickImageDialog(context, true, (double? maxWidth,
             double? maxHeight, int? quality, int? limit) async {
@@ -230,9 +240,8 @@ class _MyHomePageState extends State<MyHomePage> {
       );
     }
     return Padding(
-      padding: const EdgeInsets.all(10.0),
-      child: AspectRatioVideo(_controller)
-    );
+        padding: const EdgeInsets.all(10.0),
+        child: AspectRatioVideo(_controller));
   }
 
   Widget _previewImages() {
@@ -287,7 +296,8 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildInlineVideoPlayer(int index) {
-    final VideoPlayerController controller = VideoPlayerController.file(File(_mediaFileList![index].path));
+    final VideoPlayerController controller =
+        VideoPlayerController.file(File(_mediaFileList![index].path));
     const double volume = 1.0;
     controller.setVolume(volume);
     controller.initialize();
@@ -335,7 +345,9 @@ class _MyHomePageState extends State<MyHomePage> {
         title: Text(widget.title!),
       ),
       body: Center(
-        child: !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.ohos)
+        child: !kIsWeb &&
+                (defaultTargetPlatform == TargetPlatform.android ||
+                    defaultTargetPlatform == TargetPlatform.ohos)
             ? FutureBuilder<void>(
                 future: retrieveLostData(),
                 builder: (BuildContext context, AsyncSnapshot<void> snapshot) {
@@ -452,6 +464,19 @@ class _MyHomePageState extends State<MyHomePage> {
               },
               heroTag: 'video0',
               tooltip: 'Pick Video from gallery',
+              child: const Icon(Icons.video_library),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: FloatingActionButton(
+              backgroundColor: Colors.red,
+              onPressed: () {
+                _isVideo = true;
+                _onImageButtonPressed(ImageSource.gallery, context: context, isMultiVideo: true);
+              },
+              heroTag: 'multiVideo',
+              tooltip: 'Pick multiple videos',
               child: const Icon(Icons.video_library),
             ),
           ),

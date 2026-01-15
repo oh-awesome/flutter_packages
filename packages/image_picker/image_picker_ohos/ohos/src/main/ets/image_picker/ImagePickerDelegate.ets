@@ -211,6 +211,16 @@ export default class ImagePickerDelegate {
     this.chooseMedia(1, 'handleChooseVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
   }
 
+  // 选择多个视频
+  chooseMultiVideoFromGallery(options: VideoSelectionOptions, usePhotoPicker: boolean, limit: number, result: Result<ArrayList<string>>): void {
+    if (!this.setPendingOptionsAndResult(null, options, result)) {
+      this.finishWithAlreadyActiveError(result);
+      return;
+    }
+
+    this.chooseMedia(limit, 'handleChooseMultiVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
+  }
+
   handleChooseVideoResult(code: number, uris: Array<string>): void {
     if (code == 0) {
       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
