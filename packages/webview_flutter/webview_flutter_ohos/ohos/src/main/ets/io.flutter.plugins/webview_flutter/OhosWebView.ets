@@ -9,7 +9,7 @@ import { Any } from '@ohos/flutter_ohos';
 
 @Component
 export struct OhosWebView {
-  @Prop params: Params;
+  @ObjectLink params: Params;
   webView: WebViewPlatformView = this.params.platformView as WebViewPlatformView;
   controller: web_webview.WebviewController = this.webView.getController();
 
