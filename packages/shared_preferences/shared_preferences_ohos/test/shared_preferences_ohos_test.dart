@@ -2,10 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:convert';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
 import 'package:shared_preferences_ohos/src/messages.g.dart';
+import 'package:shared_preferences_ohos/src/strings.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
 
@@ -259,20 +262,31 @@ class _FakeSharedPreferencesApi implements SharedPreferencesApi {
   final Map<String, Object> items = <String, Object>{};
 
   @override
-  Future<Map<String?, Object?>> getAll(
-    String prefix,
-    List<String?>? allowList,
-  ) async {
+  Future<Map<String, Object>> getAll(
+      String prefix,
+      List<String?>? allowList,
+      ) async {
     Set<String?>? allowSet;
     if (allowList != null) {
       allowSet = Set<String>.from(allowList);
     }
-    return <String?, Object?>{
+    final Map<String, Object> filteredItems = <String, Object>{
       for (final String key in items.keys)
         if (key.startsWith(prefix) &&
             (allowSet == null || allowSet.contains(key)))
-          key: items[key]
+          key: items[key]!
     };
+    filteredItems.forEach((String? key, Object? value) {
+      if (value.runtimeType == String &&
+          (value! as String).startsWith(jsonListPrefix)) {
+        filteredItems[key!] =
+            (jsonDecode((value as String).substring(jsonListPrefix.length))
+            as List<dynamic>)
+                .cast<String>()
+                .toList();
+      }
+    });
+    return filteredItems;
   }
 
   @override
@@ -317,8 +331,22 @@ class _FakeSharedPreferencesApi implements SharedPreferencesApi {
   }
 
   @override
-  Future<bool> setStringList(String key, List<String?> value) async {
+  Future<bool> setEncodedStringList(String key, String value) async {
     items[key] = value;
     return true;
   }
+
+  @override
+  Future<bool> setDeprecatedStringList(String key, List<String> value) async {
+    items[key] = value;
+    return true;
+  }
+
+  @override
+  // ignore: non_constant_identifier_names
+  BinaryMessenger? get pigeonVar_binaryMessenger => throw UnimplementedError();
+
+  @override
+  // ignore: non_constant_identifier_names
+  String get pigeonVar_messageChannelSuffix => throw UnimplementedError();
 }
