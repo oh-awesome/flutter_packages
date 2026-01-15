@@ -108,6 +108,10 @@ export class GeneralOptions {
     return this.usePhotoPicker;
   }
 
+  getLimitfromOption(generalOptions: GeneralOptions): number {
+    return generalOptions.getLimit();
+  }
+
   setUsePhotoPicker(setterArg: boolean): void {
     if (setterArg == null) {
       throw new Error("Nonnull field \"usePhotoPicker\" is null.");
