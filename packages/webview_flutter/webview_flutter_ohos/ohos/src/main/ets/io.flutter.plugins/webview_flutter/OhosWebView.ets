@@ -14,10 +14,14 @@
 */
 
 import web_webview from '@ohos.web.webview'
-import { Params } from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView';
+import  PlatformView from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView';
 import { WebViewPlatformView } from './WebViewHostApiImpl';
 import { Any } from '@ohos/flutter_ohos';
-
+@Observed
+export declare class Params {
+  direction: Direction
+  platformView: PlatformView
+}
 @Component
 export struct OhosWebView {
   @ObjectLink params: Params;
