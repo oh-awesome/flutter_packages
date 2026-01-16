@@ -218,7 +218,7 @@ export default class ImagePickerDelegate {
       return;
     }
 
-    this.chooseMedia(limit, 'handleChooseMultiVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
+    this.chooseMedia(limit, 'handleChooseVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
   }
 
   handleChooseVideoResult(code: number, uris: Array<string>): void {
