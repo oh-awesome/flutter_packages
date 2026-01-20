@@ -115,6 +115,7 @@ export class Camera implements CameraCaptureStateListener {
   private takePictureName: string = '';
   private permissions: CameraPermissions;
   private photoRotation: camera.ImageRotation | undefined;
+  private nowZoom: number = 1;
 
   constructor(
     ability: UIAbility,
@@ -311,7 +312,8 @@ export class Camera implements CameraCaptureStateListener {
         "Zoom level out of bounds (zoom level should be between " + minZoom + " and " + maxZoom + ").", null);
       return;
     }
-
+    
+    this.nowZoom = zoom;
     zoomLevel.setValue(zoom);
     try {
       this.getCurSession().setZoomRatio(zoom);
@@ -659,8 +661,7 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addOutput(this.previewOutput);
     this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
-    const NowZoom:number = this.getCurSession().getZoomRatio();
-    this.getCurSession().setZoomRatio(NowZoom);
+    this.getCurSession().setZoomRatio(this.nowZoom);
     await this.photoSession.start();
     
     if (!this.photoSession.getFlashMode()) {
@@ -852,9 +853,8 @@ export class Camera implements CameraCaptureStateListener {
         }
         this.videoSession?.addOutput(this.videoOutput);
         await this.videoSession?.commitConfig();
+        this.getCurSession().setZoomRatio(this.nowZoom);
         await this.videoSession?.start();
-        const NowZoom:number = this.getCurSession().getZoomRatio();
-        this.getCurSession().setZoomRatio(NowZoom);
         await this.videoOutput.start();
         try {
           if (this.pausedPreview) {
