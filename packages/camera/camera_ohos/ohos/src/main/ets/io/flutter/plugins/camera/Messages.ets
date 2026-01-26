@@ -285,15 +285,15 @@ export class PlatformPoint {
 
   toList(): Object[] {
     let arr: Object[] = new Array();
-    arr.push(Math.round(this.x));
-    arr.push(Math.round(this.y));
+    arr.push(this.x);
+    arr.push(this.y);
     return arr;
   }
 
   static fromList(arr: Object[]): PlatformPoint {
     let instance: PlatformPoint = new PlatformPoint(
-      Math.round(arr[0] as number),
-      Math.round(arr[1] as number)
+      arr[0] as number,
+      arr[1] as number
     );
     return instance;
   }
