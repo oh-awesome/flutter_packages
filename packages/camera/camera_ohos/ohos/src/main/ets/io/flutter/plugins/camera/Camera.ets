@@ -539,7 +539,11 @@ export class Camera implements CameraCaptureStateListener {
 
   async lockAutoFocus(): Promise<void> {
     if (this.photoSession == null) {
-      console.error(TAG, "[unlockAutoFocus] captureSession null, returning");
+      const errMsg = "[unlockAutoFocus] captureSession null, returning";
+      console.error(TAG, errMsg);
+      // reset status and callback error
+      this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
+      this.takePictureResult?.error("captureSession null", errMsg, -1);
       return;
     }
 
