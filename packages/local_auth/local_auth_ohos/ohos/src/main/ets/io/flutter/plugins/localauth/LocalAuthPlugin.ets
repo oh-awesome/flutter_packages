@@ -24,6 +24,7 @@ import userAuth from '@ohos.userIAM.userAuth';
 import { AuthenticationHelper } from './AuthenticationHelper';
 import screenLock from '@ohos.screenLock';
 import { BusinessError } from '@ohos.base';
+import { OhosAuthErrorCode } from './OhosAuthErrorCode';
 
 const TAG = "LocalAuthPlugin";
 const CHANNEL_NAME = "plugins.flutter.io/local_auth_ohos";
@@ -186,19 +187,19 @@ export default class LocalAuthPlugin implements FlutterPlugin, AbilityAware, Met
    */
   async authenticate(call: MethodCall, result: MethodResult): Promise<void> {
     if (authInProgress) {
-      result.error("auth_in_progress", "Authentication in progress", null);
+      result.error(OhosAuthErrorCode.AUTH_IN_PROGRESS, "Authentication in progress", null);
       return;
     }
 
     if (this.abilityPluginBinding?.getAbility() == null) {
-      result.error("no_ability", "local_auth plugin requires a foreground ability", null);
+      result.error(OhosAuthErrorCode.NO_ABILITY, "local_auth plugin requires a foreground ability", null);
       return;
     }
 
     let isDeviceSupported: boolean = await this.checkDeviceSupported();
     if (!isDeviceSupported) {
       authInProgress = false;
-      result.error("NotAvailable", "Required security features not enabled", null);
+      result.error(OhosAuthErrorCode.NOT_AVAILABLE, "Required security features not enabled", null);
       return;
     }
     authInProgress = true;
@@ -254,31 +255,33 @@ export class AuthCallback implements userAuth.IAuthCallback {
         this.result.success(false);
         break;
       case userAuth.UserAuthResultCode.GENERAL_ERROR:
-        this.result.error(result.result.toLocaleString(), "General error occured.", null);
+        this.result.error(OhosAuthErrorCode.GENERAL_ERROR, "General error occurred.", null);
         break;
       case userAuth.UserAuthResultCode.TIMEOUT:
-        this.result.error(result.result.toLocaleString(), "This operation is time out.", null);
+        this.result.error(OhosAuthErrorCode.TIMEOUT, "This operation is time out.", null);
         break;
       case userAuth.UserAuthResultCode.TYPE_NOT_SUPPORT:
-        this.result.error(result.result.toLocaleString(), "Security credentials not available.", null);
+        this.result.error(OhosAuthErrorCode.TYPE_NOT_SUPPORT, "Security credentials not available.", null);
         break;
       case userAuth.UserAuthResultCode.TRUST_LEVEL_NOT_SUPPORT:
-        this.result.error(result.result.toLocaleString(), "Unsupported authentication level.", null);
+        this.result.error(OhosAuthErrorCode.TRUST_LEVEL_NOT_SUPPORT, "Unsupported authentication level.", null);
         break;
       case userAuth.UserAuthResultCode.BUSY:
-        this.result.error(result.result.toLocaleString(), "The device is busy.", null);
+        this.result.error(OhosAuthErrorCode.BUSY, "The device is busy.", null);
         break;
       case userAuth.UserAuthResultCode.LOCKED:
-        this.result.error(result.result.toLocaleString(), "The operation was canceled because the API is locked out" +
+        this.result.error(OhosAuthErrorCode.LOCKED, "The operation was canceled because the API is locked out" +
           " due to too many attempts. This occurs after 5 failed attempts, and lasts for 60 seconds.", null);
         break;
       case userAuth.UserAuthResultCode.NOT_ENROLLED:
-        this.result.error(result.result.toLocaleString(), "No Biometrics enrolled on this device.", null);
+        this.result.error(OhosAuthErrorCode.NOT_ENROLLED, "No Biometrics enrolled on this device.", null);
         break;
       case userAuth.UserAuthResultCode.CANCELED_FROM_WIDGET:
-        this.result.error(result.result.toLocaleString(), "The operation was cancelled by the user from the widget.", null);
+        this.result.error(OhosAuthErrorCode.CANCELED_FROM_WIDGET, "The operation was cancelled by the user from the widget.", null);
         break;
       case userAuth.UserAuthResultCode.CANCELED:
+        this.result.error(OhosAuthErrorCode.CANCELED, "The operation was cancelled by the user.", null);
+        break;
       default:
         this.result.success(false);
     }

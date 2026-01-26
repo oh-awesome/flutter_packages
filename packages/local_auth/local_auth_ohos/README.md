@@ -3,7 +3,7 @@
 </p>
 
 
-This project is developed based on [local_auth@2.3.0](https://pub.dev/packages/local_auth/versions/2.3.0).
+This project is developed based on [local_auth@3.0.0](https://pub.dev/packages/local_auth/versions/3.0.0).
 
 ## 1. Installation and Usage
 
