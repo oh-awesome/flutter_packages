@@ -18,8 +18,8 @@ import { CameraFeature } from '../CameraFeature';
 import { FlashMode } from './FlashMode';
 import camera from '@ohos.multimedia.camera';
 
-export class FlashFeature extends CameraFeature<FlashMode> {
-  private currentSetting: FlashMode = camera.FlashMode.FLASH_MODE_AUTO;
+export class FlashFeature extends CameraFeature<camera.FlashMode> {
+  private currentSetting: camera.FlashMode = camera.FlashMode.FLASH_MODE_AUTO;
 
   constructor(cameraProperties: CameraProperties) {
     super(cameraProperties)
@@ -29,11 +29,11 @@ export class FlashFeature extends CameraFeature<FlashMode> {
     return "FlashFeature";
   }
 
-  public getValue(): FlashMode {
+  public getValue(): camera.FlashMode {
     return this.currentSetting;
   }
 
-  public setValue(value: FlashMode): void {
+  public setValue(value: camera.FlashMode): void {
     this.currentSetting = value;
   }
 
