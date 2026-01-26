@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
 
 import 'types/auth_messages_ohos.dart';
+import 'types/ohos_auth_error_code.dart';
 
 export 'package:local_auth_ohos/types/auth_messages_ohos.dart';
 export 'package:local_auth_platform_interface/types/auth_messages.dart';
@@ -31,7 +32,6 @@ class LocalAuthOhos extends LocalAuthPlatform {
     assert(localizedReason.isNotEmpty);
     final Map<String, Object> args = <String, Object>{
       'localizedReason': localizedReason,
-      'useErrorDialogs': options.useErrorDialogs,
       'stickyAuth': options.stickyAuth,
       'sensitiveTransaction': options.sensitiveTransaction,
       'biometricOnly': options.biometricOnly,
@@ -42,7 +42,12 @@ class LocalAuthOhos extends LocalAuthPlatform {
         args.addAll(messages.args);
       }
     }
-    return (await _channel.invokeMethod<bool>('authenticate', args)) ?? false;
+
+    try {
+      return (await _channel.invokeMethod<bool>('authenticate', args)) ?? false;
+    } on PlatformException catch (e) {
+      throw _mapPlatformExceptionToLocalAuthException(e);
+    }
   }
 
   @override
@@ -78,4 +83,48 @@ class LocalAuthOhos extends LocalAuthPlatform {
   @override
   Future<bool> stopAuthentication() async =>
       await _channel.invokeMethod<bool>('stopAuthentication') ?? false;
+
+  /// Maps OHOS error codes to LocalAuthException
+  LocalAuthException _mapPlatformExceptionToLocalAuthException(PlatformException e) {
+    switch (e.code) {
+      case OhosAuthErrorCode.canceled:
+        return const LocalAuthException(code: LocalAuthExceptionCode.userCanceled);
+      case OhosAuthErrorCode.timeout:
+        return const LocalAuthException(code: LocalAuthExceptionCode.timeout);
+      case OhosAuthErrorCode.generalError:
+        return LocalAuthException(
+          code: LocalAuthExceptionCode.unknownError,
+          description: e.message,
+        );
+      case OhosAuthErrorCode.typeNotSupport:
+        return const LocalAuthException(code: LocalAuthExceptionCode.noBiometricHardware);
+      case OhosAuthErrorCode.trustLevelNotSupport:
+        return const LocalAuthException(code: LocalAuthExceptionCode.noBiometricHardware);
+      case OhosAuthErrorCode.busy:
+        return const LocalAuthException(code: LocalAuthExceptionCode.authInProgress);
+      case OhosAuthErrorCode.locked:
+        return const LocalAuthException(code: LocalAuthExceptionCode.temporaryLockout);
+      case OhosAuthErrorCode.notEnrolled:
+        return const LocalAuthException(code: LocalAuthExceptionCode.noBiometricsEnrolled);
+      case OhosAuthErrorCode.canceledFromWidget:
+        return const LocalAuthException(code: LocalAuthExceptionCode.userCanceled);
+      case OhosAuthErrorCode.authInProgress:
+        return const LocalAuthException(code: LocalAuthExceptionCode.authInProgress);
+      case OhosAuthErrorCode.noAbility:
+        return const LocalAuthException(
+          code: LocalAuthExceptionCode.uiUnavailable,
+          description: 'No Ability available',
+        );
+      case OhosAuthErrorCode.notAvailable:
+        return const LocalAuthException(
+          code: LocalAuthExceptionCode.noBiometricHardware,
+          description: 'Required security features not enabled',
+        );
+      default:
+        return LocalAuthException(
+          code: LocalAuthExceptionCode.unknownError,
+          description: e.message ?? 'Unknown error: ${e.code}',
+        );
+    }
+  }
 }

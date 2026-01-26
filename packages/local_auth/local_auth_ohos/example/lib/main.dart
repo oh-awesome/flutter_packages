@@ -44,7 +44,14 @@ class _MyAppState extends State<MyApp> {
     try {
       deviceSupportsBiometrics =
           await LocalAuthPlatform.instance.deviceSupportsBiometrics();
-    } on PlatformException catch (e) {
+    } on LocalAuthException catch (e) {
+      deviceSupportsBiometrics = false;
+      print('LocalAuthException caught:');
+      print('  Code: ${e.code}');
+      print('  Description: ${e.description}');
+      return;
+    }
+     on PlatformException catch (e) {
       deviceSupportsBiometrics = false;
       print(e);
     }
@@ -62,7 +69,14 @@ class _MyAppState extends State<MyApp> {
     try {
       availableBiometrics =
           await LocalAuthPlatform.instance.getEnrolledBiometrics();
-    } on PlatformException catch (e) {
+    }on LocalAuthException catch (e) {
+      availableBiometrics = <BiometricType>[];
+      print('LocalAuthException caught:');
+      print('  Code: ${e.code}');
+      print('  Description: ${e.description}');
+      return; 
+    }
+     on PlatformException catch (e) {
       availableBiometrics = <BiometricType>[];
       print(e);
     }
@@ -92,7 +106,17 @@ class _MyAppState extends State<MyApp> {
       setState(() {
         _isAuthenticating = false;
       });
-    } on PlatformException catch (e) {
+    } on LocalAuthException catch (e) {
+      print('LocalAuthException caught:');
+      print('  Code: ${e.code}');
+      print('  Description: ${e.description}');
+      setState(() {
+        _isAuthenticating = false;
+        _authorized = 'LocalAuthException\nCode: ${e.code}\nDescription: ${e.description ?? "No description"}';
+      });
+      return;
+    }
+     on PlatformException catch (e) {
       print(e);
       setState(() {
         _isAuthenticating = false;
@@ -128,7 +152,17 @@ class _MyAppState extends State<MyApp> {
         _isAuthenticating = false;
         _authorized = 'Authenticating';
       });
-    } on PlatformException catch (e) {
+    } on LocalAuthException catch (e) {
+      print('LocalAuthException caught:');
+      print('  Code: ${e.code}');
+      print('  Description: ${e.description}');
+      setState(() {
+        _isAuthenticating = false;
+        _authorized = 'LocalAuthException\nCode: ${e.code}\nDescription: ${e.description ?? "No description"}';
+      });
+      return;
+    }
+     on PlatformException catch (e) {
       print(e);
       setState(() {
         _isAuthenticating = false;

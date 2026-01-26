@@ -1,3 +1,8 @@
+## 2.0.0
+
+* Switches to `LocalAuthException` for error reporting.
+* Removes support for `useErrorDialogs`.
+
 ## NEXT
 
 * Updates compileSdkVersion to 33.
