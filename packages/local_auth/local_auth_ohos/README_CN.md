@@ -3,7 +3,7 @@
 </p>
 
 
-本项目基于 [local_auth@2.3.0](https://pub.dev/packages/local_auth/versions/2.3.0) 开发。
+本项目基于 [local_auth@3.0.0](https://pub.dev/packages/local_auth/versions/3.0.0) 开发。
 
 ## 1. 安装与使用
 

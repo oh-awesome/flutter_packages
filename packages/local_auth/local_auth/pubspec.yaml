@@ -33,7 +33,7 @@ dependencies:
     git:
       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/local_auth/local_auth_ohos"
-      ref: "br_local_auth-v2.3.0_ohos"
+      ref: "br_local_auth-v3.0.0_ohos"
 
 dev_dependencies:
   flutter_test:
