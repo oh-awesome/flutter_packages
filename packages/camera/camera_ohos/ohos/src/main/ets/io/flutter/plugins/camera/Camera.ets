@@ -245,8 +245,12 @@ export class Camera implements CameraCaptureStateListener {
     const focusPointFeature: FocusPointFeature = this.cameraFeatures.getFocusPoint();
     focusPointFeature.setValue(point);
 
+    //Reference: https://developer.huawei.com/consumer/cn/doc/harmonyos-references/arkts-apis-camera-focus#setfocuspoint11
+    //The application's preview interface layout is based on the vertical direction when the device's charging port is at the bottom. The layout's width and height are {w, h}, and the touch point is {x, y}. Therefore, the converted coordinates are {y/h, 1-x/w}.
+    //Here, the coordinates passed to Dart are based on the vertical direction. x and y have already been calculated, and the range is [0,1].
+    
     const focusPoint: camera.Point | null
-      = (point.x == null || point.y == null) ? null : { x: point.x, y: point.y };
+      = (point.x == null || point.y == null) ? null : { x: point.y, y: 1-point.x };
     try {
       this.getCurSession().setFocusPoint(focusPoint);
       result.success(null);
