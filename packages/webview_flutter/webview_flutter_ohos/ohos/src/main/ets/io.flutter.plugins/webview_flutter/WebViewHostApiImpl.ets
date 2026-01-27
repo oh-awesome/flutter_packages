@@ -28,6 +28,14 @@ import display from '@ohos.display'
 
 const TAG: string = "WebViewHostApiImpl";
 
+export declare class PlatformViewVisibleAreaEventOptions {
+  enable: boolean // Enable variable area monitoring
+  ratios: Array<number> // Ratio thresholds for visible area changes, e.g., [0.0, 1.0] means 0% to 100% visible
+  expectedUpdateInterval: number // Expected interval for visible area updates in milliseconds
+  onInactiveThreshold: number // Texture continuous production pause operation visible area threshold
+  onActiveThreshold: number // Texture continuous production activation operation visible area threshold
+}
+
 export class WebViewHostApiImpl extends WebViewHostApi {
   private instanceManager: InstanceManager;
 
@@ -299,6 +307,16 @@ export class WebViewPlatformView extends PlatformView {
 
   private webViewFlutterApi: WebViewFlutterApiImpl;
 
+  private visibleAreaEventEnable: boolean = true;
+
+  private visibleAreaEventRatios: Array<number> = [0, 0.1, 0.2, 0.5, 0.8, 1];
+
+  private visibleAreaEventExpectedUpdateInterval: number = 1;
+
+  private visibleAreaEventInactiveThreshold: number = 0.0;
+
+  private visibleAreaEventActiveThreshold: number = 0.1;
+
   constructor(binaryMessenger: BinaryMessenger, instanceManager: InstanceManager) {
     super();
     this.webViewFlutterApi = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
@@ -484,6 +502,24 @@ export class WebViewPlatformView extends PlatformView {
   dispose(): void {
     this.controller.stopAllMedia();
     this.onDisposeCallback && this.onDisposeCallback();
+  }
+
+  getPlatformViewVisibleAreaEventOptions(): PlatformViewVisibleAreaEventOptions {
+    return {
+      enable: this.visibleAreaEventEnable,
+      ratios: this.visibleAreaEventRatios,
+      expectedUpdateInterval: this.visibleAreaEventExpectedUpdateInterval,
+      onInactiveThreshold : this.visibleAreaEventInactiveThreshold,
+      onActiveThreshold : this.visibleAreaEventActiveThreshold
+    } as PlatformViewVisibleAreaEventOptions;
+  }
+
+  onInactive(): void {
+    this.controller.onInactive();
+  }
+
+  onActive(): void {
+    this.controller.onActive();
   }
 
   getController(): web_webview.WebviewController {
