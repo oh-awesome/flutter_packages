@@ -15,6 +15,7 @@ import 'package:collection/collection.dart' as collection;
 import 'package:path/path.dart' as path;
 import 'package:pub_semver/pub_semver.dart';
 
+import 'arkts/arkts_generator.dart';
 import 'ast.dart';
 import 'ast_generator.dart';
 import 'cpp/cpp_generator.dart';
@@ -39,6 +40,7 @@ class InternalPigeonOptions {
     required this.cppOptions,
     required this.gobjectOptions,
     required this.dartOptions,
+    this.arkTSOptions,
     this.copyrightHeader,
     this.astOut,
     this.debugGenerators,
@@ -105,6 +107,13 @@ class InternalPigeonOptions {
               testOut: options.dartTestOut,
               copyrightHeader: copyrightHeader,
             ),
+      arkTSOptions = options.arkTSOut == null
+          ? null
+          : InternalArkTSOptions.fromArkTSOptions(
+              options.arkTSOptions ?? const ArkTSOptions(),
+              arkTSOut: options.arkTSOut!,
+              copyrightHeader: copyrightHeader,
+            ),
       copyrightHeader = options.copyrightHeader != null
           ? _lineReader(path.posix.join(options.basePath ?? '', options.copyrightHeader))
           : null,
@@ -145,6 +154,9 @@ class InternalPigeonOptions {
 
   /// Options that control how GObject source will be generated.
   final InternalGObjectOptions? gobjectOptions;
+
+  /// Options that control how ArkTS will be generated.
+  final InternalArkTSOptions? arkTSOptions;
 
   /// Path to a copyright header that will get prepended to generated code.
   final Iterable<String>? copyrightHeader;
@@ -526,6 +538,36 @@ class GObjectGeneratorAdapter implements GeneratorAdapter {
 
     return errors;
   }
+}
+
+/// A [GeneratorAdapter] that generates ArkTS source code.
+class ArkTSGeneratorAdapter implements GeneratorAdapter {
+  /// Constructor for [ArkTSGeneratorAdapter].
+  const ArkTSGeneratorAdapter();
+
+  @override
+  List<FileType> get fileTypeList => const <FileType>[FileType.na];
+
+  @override
+  void generate(StringSink sink, InternalPigeonOptions options, Root root, FileType fileType) {
+    if (options.arkTSOptions == null) {
+      return;
+    }
+    const generator = ArkTSGenerator();
+    generator.generate(
+      options.arkTSOptions!,
+      root,
+      sink,
+      dartPackageName: options.dartPackageName,
+    );
+  }
+
+  @override
+  IOSink? shouldGenerate(InternalPigeonOptions options, FileType _) =>
+      _openSink(options.arkTSOptions?.arkTSOut, basePath: options.basePath ?? '');
+
+  @override
+  List<Error> validate(InternalPigeonOptions options, Root root) => <Error>[];
 }
 
 /// A [GeneratorAdapter] that generates Kotlin source code.
