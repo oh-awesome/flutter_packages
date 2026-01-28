@@ -3,7 +3,7 @@
   <h1 align="center"> <code>pigeon</code> </h1>
 </p>
 
-This project is based on [pigeon@25.5.0](https://pub.dev/packages/pigeon/versions/25.5.0) 
+This project is based on [pigeon@26.1.5](https://pub.dev/packages/pigeon/versions/26.1.5) 
 
 ## 1. Installation and Usage
 
@@ -22,7 +22,7 @@ dependencies:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/pigeon"
-      ref: "br_pigeon-v25.3.2_ohos"
+      ref: "br_pigeon-v26.1.5_ohos"
 
 ```
 
@@ -44,7 +44,7 @@ For use cases [example](./example)
 
 This document is verified based on the following versions:
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+1. Flutter version 3.35.8-ohos-0.0.1-canary1; SDK: 6.0.0.47 (API Version 20 Release); IDE: DevEco Studio: 6.0.0.858; ROM: 6.0.0.125 SP8;
 
 ## 3. API
 
