@@ -16,9 +16,12 @@ dependencies:
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
-  in_app_purchase_android: ^0.4.0
+  in_app_purchase_android: ^0.3.0
   in_app_purchase_storekit: ^0.4.0
-  shared_preferences: ^2.0.0
+  shared_preferences:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/shared_preferences/shared_preferences
 
 dev_dependencies:
   flutter_test:
