@@ -7,7 +7,7 @@
 
 
 
-本项目基于 [video_player@2.7.1 ](https://pub.dev/packages/video_player/versions/2.7.1)开发。
+本项目基于 [video_player@2.10.1 ](https://pub.dev/packages/video_player/versions/2.10.1)开发。
 
 ## 1. 安装与使用
 
