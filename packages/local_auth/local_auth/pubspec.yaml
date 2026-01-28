@@ -19,6 +19,8 @@ flutter:
         default_package: local_auth_darwin
       windows:
         default_package: local_auth_windows
+      ohos:
+        default_package: local_auth_ohos
 
 dependencies:
   flutter:
@@ -27,6 +29,11 @@ dependencies:
   local_auth_darwin: ^2.0.0
   local_auth_platform_interface: ^1.1.0
   local_auth_windows: ^2.0.0
+  local_auth_ohos:
+    git:
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/local_auth/local_auth_ohos"
+      ref: "br_local_auth-v3.0.0_ohos"
 
 dev_dependencies:
   flutter_test:
