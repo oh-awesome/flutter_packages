@@ -72,24 +72,24 @@ class AllTypes {
   // Lists
   // ignore: strict_raw_type, always_specify_types
   List list;
-  List<String> stringList;
-  List<int> intList;
-  List<double> doubleList;
-  List<bool> boolList;
-  List<AnEnum> enumList;
-  List<Object> objectList;
-  List<List<Object?>> listList;
-  List<Map<Object?, Object?>> mapList;
+  List<String?> stringList;
+  List<int?> intList;
+  List<double?> doubleList;
+  List<bool?> boolList;
+  List<Object?> enumList;
+  List<Object?> objectList;
+  List<List<Object?>?> listList;
+  List<Map<Object?, Object?>?> mapList;
 
   // Maps
   // ignore: strict_raw_type, always_specify_types
   Map map;
-  Map<String, String> stringMap;
-  Map<int, int> intMap;
-  Map<AnEnum, AnEnum> enumMap;
-  Map<Object, Object> objectMap;
-  Map<int, List<Object?>> listMap;
-  Map<int, Map<Object?, Object?>> mapMap;
+  Map<String?, String?> stringMap;
+  Map<int?, int?> intMap;
+  Map<Object?, Object?> enumMap;
+  Map<Object?, Object?> objectMap;
+  Map<int?, List<Object?>?> listMap;
+  Map<int?, Map<Object?, Object?>?> mapMap;
 }
 
 /// A class containing all supported nullable types.
@@ -156,7 +156,7 @@ class AllNullableTypes {
   List<int?>? intList;
   List<double?>? doubleList;
   List<bool?>? boolList;
-  List<AnEnum?>? enumList;
+  List<Object?>? enumList;
   List<Object?>? objectList;
   List<List<Object?>?>? listList;
   List<Map<Object?, Object?>?>? mapList;
@@ -167,7 +167,7 @@ class AllNullableTypes {
   Map? map;
   Map<String?, String?>? stringMap;
   Map<int?, int?>? intMap;
-  Map<AnEnum?, AnEnum?>? enumMap;
+  Map<Object?, Object?>? enumMap;
   Map<Object?, Object?>? objectMap;
   Map<int?, List<Object?>?>? listMap;
   Map<int?, Map<Object?, Object?>?>? mapMap;
@@ -235,7 +235,7 @@ class AllNullableTypesWithoutRecursion {
   List<int?>? intList;
   List<double?>? doubleList;
   List<bool?>? boolList;
-  List<AnEnum?>? enumList;
+  List<Object?>? enumList;
   List<Object?>? objectList;
   List<List<Object?>?>? listList;
   List<Map<Object?, Object?>?>? mapList;
@@ -245,7 +245,7 @@ class AllNullableTypesWithoutRecursion {
   Map? map;
   Map<String?, String?>? stringMap;
   Map<int?, int?>? intMap;
-  Map<AnEnum?, AnEnum?>? enumMap;
+  Map<Object?, Object?>? enumMap;
   Map<Object?, Object?>? objectMap;
   Map<int?, List<Object?>?>? listMap;
   Map<int?, Map<Object?, Object?>?>? mapMap;
