@@ -43,7 +43,7 @@ Starting with version **0.8.1** the Android implementation support to pick
 
 No configuration required - the plugin should work out of the box. It is however
 highly recommended to prepare for Android killing the application when low on memory. How to prepare for this is discussed in the
-[Handling MainActivity destruction on Android](#handling-mainactivity-destruction)
+[Handling MainActivity destruction on Android](#handling-mainactivity-destruction-on-android)
 section.
 
 It is no longer required to add `android:requestLegacyExternalStorage="true"` as
