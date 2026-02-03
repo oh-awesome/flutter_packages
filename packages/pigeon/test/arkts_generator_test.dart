@@ -148,7 +148,7 @@ void main() {
     expect(code, contains('abstract doSomething(: Input ): Output;'));
     expect(code, contains('static setup(binaryMessenger: BinaryMessenger, api: Api | null): void'));
     expect(code, contains('channel.setMessageHandler(null)'));
-    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
+    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
   });
 
   test('gen one flutter api', () {
@@ -916,7 +916,7 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
+    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
     expect(code, contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'));
     expect(code, contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'));
     expect(code, contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'));
