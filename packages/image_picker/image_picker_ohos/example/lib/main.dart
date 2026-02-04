@@ -23,7 +23,7 @@ void appMain() {
 }
 
 void main() {
-  // Set to use Android Photo Picker.
+  // Set to use ohos Photo Picker.
   // #docregion photo-picker-example
   final ImagePickerPlatform imagePickerImplementation =
       ImagePickerPlatform.instance;
@@ -69,7 +69,7 @@ class _MyHomePageState extends State<MyHomePage> {
   VideoPlayerController? _toBeDisposed;
   String? _retrieveDataError;
 
-  final ImagePickerPlatform _picker = new ImagePickerOhos();
+  final ImagePickerPlatform _picker = ImagePickerPlatform.instance;
   final TextEditingController maxWidthController = TextEditingController();
   final TextEditingController maxHeightController = TextEditingController();
   final TextEditingController qualityController = TextEditingController();

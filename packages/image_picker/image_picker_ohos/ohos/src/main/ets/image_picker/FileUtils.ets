@@ -8,6 +8,7 @@ import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import util from '@ohos.util';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
+import { systemDateTime } from '@kit.BasicServicesKit';
 
 const TAG = "FileUtils";
 
@@ -66,7 +67,8 @@ export default class FileUtils {
         }
       }
 
-      const outputFilePath = targetDirectoryPath + "/" + outputFileName + "." + extension;
+      let timeStamp: string = systemDateTime.getTime().toString();
+      const outputFilePath = targetDirectoryPath + "/" + outputFileName + timeStamp + "." + extension;
       const outputFile = fs.openSync(outputFilePath, fs.OpenMode.CREATE);
       try {
         Log.i(TAG, "copyFileSync inputFile fd:" + inputFile.fd + " outputFile fd:" + outputFile.fd);
