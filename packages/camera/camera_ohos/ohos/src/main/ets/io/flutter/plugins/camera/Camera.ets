@@ -376,7 +376,7 @@ export class Camera implements CameraCaptureStateListener {
   // 设置曝光模式。
   // 进行设置之前，需要先检查设备是否支持指定的曝光模式，可使用方法isExposureModeSupported。
   setExposureMode(result: MethodResult, newMode: camera.ExposureMode) {
-    if (!CameraUtils.isExposureModeSupported(this.photoSession!, newMode)) {
+    if (!CameraUtils.isExposureModeSupported(this.getCurSession(), newMode)) {
       result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
       return;
     }
