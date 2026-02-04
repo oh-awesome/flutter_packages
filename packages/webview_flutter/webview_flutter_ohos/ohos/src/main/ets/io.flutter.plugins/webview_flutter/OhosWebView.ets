@@ -6,7 +6,7 @@ import web_webview from '@ohos.web.webview'
 import PlatformView from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView';
 import { WebViewPlatformView } from './WebViewHostApiImpl';
 import { Any } from '@ohos/flutter_ohos';
-
+import { commonEventManager } from '@kit.BasicServicesKit';
 @Observed
 export declare class Params {
   direction: Direction
@@ -18,9 +18,11 @@ export struct OhosWebView {
   @ObjectLink params: Params;
   webView: WebViewPlatformView = this.params.platformView as WebViewPlatformView;
   controller: web_webview.WebviewController = this.webView.getController();
+  lastExecTime = 0;
 
   @State textZoomRatio: number = this.webView.getWebSettings().getTextZoom();
   @State disposed: boolean = false;
+  private subscriber: commonEventManager.CommonEventSubscriber | null = null;
 
   aboutToAppear() {
     this.webView.getWebSettings().onTextZoomChanged((ratio: number) => {
@@ -29,6 +31,30 @@ export struct OhosWebView {
     this.webView.setOnDisposeCallback(() => {
       this.disposed = true;
     });
+
+    commonEventManager.createSubscriber(
+      { events: ["usual.event.CLICK_STATUSBAR"] }, (err, subscriber) => {
+      this.subscriber = subscriber
+      if(subscriber !== null) {
+        commonEventManager.subscribe(subscriber, (err, data) => {
+          this.throttle(() => {
+            this.controller?.scrollTo(0, 0, 1000);
+          }, 1000)
+        })
+      }
+    });
+  }
+
+  throttle(func: Function, delay: number) {
+    const currentTime = Date.now();
+    if (currentTime - this.lastExecTime >= delay) {
+      func();
+      this.lastExecTime = currentTime;
+    }
+  }
+
+  aboutToDisappear() {
+    commonEventManager.unsubscribe(this.subscriber);
   }
 
   build() {
