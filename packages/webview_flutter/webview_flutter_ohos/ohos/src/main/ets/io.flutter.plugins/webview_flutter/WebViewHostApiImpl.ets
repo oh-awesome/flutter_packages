@@ -136,8 +136,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     }
   }
 
-  getUrl(instanceId: number): string {
+  async getUrl(instanceId: number): Promise<string> {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
+    await webView.waitControllerAttached();
     return webView.getController().getUrl();
   }
 
