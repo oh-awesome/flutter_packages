@@ -251,7 +251,7 @@ export abstract class WebViewHostApi {
     data: Uint8Array
   ): void;
 
-  abstract getUrl(instanceId: number): string;
+  abstract getUrl(instanceId: number): Promise<string>;
 
   abstract canGoBack(instanceId: number): boolean;
 
@@ -466,13 +466,14 @@ export abstract class WebViewHostApi {
       if (api != null) {
         channel.setMessageHandler(
           {
-            onMessage: (message: ESObject, reply: Reply<ESObject>) => {
+            onMessage: async (message: ESObject, reply: Reply<ESObject>) => {
               let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
               const args: Array<ESObject> = message;
               const instanceIdArg: number = args[0];
               try {
-                const output: string = api.getUrl(instanceIdArg);
-                wrapped.insert(output, 0);
+                await api.getUrl(instanceIdArg).then(output => {
+                  wrapped.insert(output, 0);
+                });
               } catch (err) {
                 const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
                 wrapped = wrappedError;
