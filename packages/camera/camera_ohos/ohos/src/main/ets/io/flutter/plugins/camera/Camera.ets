@@ -452,6 +452,25 @@ export class Camera implements CameraCaptureStateListener {
     return this.cameraFeatures.getExposureOffset().getExposureOffsetStepSize(this.getCurSession());
   }
 
+  private async applyFlashMode(session: camera.PhotoSession | camera.VideoSession): Promise<void> {
+    const hasFlash: boolean = session.hasFlash();
+    if (!hasFlash) {
+      Log.w(TAG, "Device does not support flash, skipping flash mode application");
+      return;
+    }
+
+    try {
+      const flashMode: camera.FlashMode = this.cameraFeatures.getFlash().getValue();
+      if (session.isFlashModeSupported(flashMode)) {
+        await session.setFlashMode(flashMode);
+      } else {
+        Log.w(TAG, "Flash mode " + flashMode + " is not supported by the current session, skipping flash mode application");
+      }
+    } catch (error) {
+      Log.e(TAG, "applyFlashMode error: " + error.message);
+    }
+  }
+
   async takePicture(result: MethodResult) {
     if (this.cameraCaptureCallback.getCameraState() != CameraState.STATE_PREVIEW) {
       result.error("captureAlreadyActive", "Picture is currently already being captured", null);
@@ -636,13 +655,7 @@ export class Camera implements CameraCaptureStateListener {
     await this.videoSession?.commitConfig();
     await this.videoSession?.start();
 
-    const hasFlash: boolean = this.videoSession.hasFlash();
-    if (hasFlash) {
-      const flashMode: camera.FlashMode = this.cameraFeatures.getFlash().getValue();
-      if (flashMode !== null && flashMode !== undefined) {
-        await this.videoSession.setFlashMode(flashMode);
-      }
-    }
+    await this.applyFlashMode(this.videoSession!);
 
     if (this.pausedPreview) {
       this.previewOutput.stop();
@@ -689,12 +702,7 @@ export class Camera implements CameraCaptureStateListener {
     this.getCurSession().setZoomRatio(this.nowZoom);
     await this.photoSession.start();
 
-    const flashMode:camera.FlashMode = this.cameraFeatures.getFlash().getValue();
-    if( flashMode !== null && flashMode !== undefined ) {
-      await this.photoSession.setFlashMode(flashMode);
-    } else if (!this.photoSession.getFlashMode()) {
-      this.photoSession.setFlashMode(camera.FlashMode.FLASH_MODE_AUTO)
-    }
+    await this.applyFlashMode(this.photoSession);
 
     if (this.pausedPreview) {
       await this.previewOutput.stop();
@@ -885,13 +893,7 @@ export class Camera implements CameraCaptureStateListener {
         this.getCurSession().setZoomRatio(this.nowZoom);
         await this.videoSession?.start();
 
-        const hasFlash: boolean = this.videoSession.hasFlash();
-        if (hasFlash) {
-          const flashMode: camera.FlashMode = this.cameraFeatures.getFlash().getValue();
-          if (flashMode !== null && flashMode !== undefined) {
-            await this.videoSession.setFlashMode(flashMode);
-          }
-        }
+        await this.applyFlashMode(this.videoSession!);
         
         await this.videoOutput.start();
         try {
