@@ -109,7 +109,7 @@ export class Camera implements CameraCaptureStateListener {
     videoFrameRate: 30 // 视频帧率
   };
   private phAccessHelper: photoAccessHelper.PhotoAccessHelper;
-  private videoPath: string | undefined = undefined;
+  private videoPath: string | null = null;
   private videoId: string | undefined = undefined;
   private takePictureResult: MethodResult | undefined;
   private takePictureName: string = '';
@@ -581,34 +581,40 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async stopVideoRecording(result: MethodResult) {
-
-    if (!this.recordingVideo) {
+    if (!this.recordingVideo || !this.avRecorder) {
       result.success(null);
       return;
     }
-
     this.cameraFeatures.setAutoFocus(this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, false));
+    this.recordingVideo = false;
+    const isPrepared =
+      this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared';
     try {
-      // 仅在started和paused状态下调用stop为合理状态切换
-      if (this.avRecorder != undefined && (this.avRecorder.state === 'started' || this.avRecorder.state === 'paused')) {
-        // 停止录像
-        await this.avRecorder?.stop();
-        this.avRecorder?.release().then(() => {
-          this.recordingVideo = false;
-          // 停止录像输出流
-          this.videoOutput?.stop();
-          this.videoPath = this.captureFile?.path;
-          fs.close(this.captureFile);
-          result.success(this.videoPath);
-          this.captureFile = null;
-          this.isVideoMode = false;
-          this.open(this.imageFormatGroup);
-        });
+      if (isPrepared) {
+        await this.avRecorder.stop();
+      }
+      await this.avRecorder.release();
+      // 停止录像输出流
+      this.videoOutput?.stop();
+      if (isPrepared) {
+        this.videoPath = this.captureFile?.path ?? null;
+      } else {
+        this.videoPath = null;
       }
     } catch (e) {
-      Log.d(TAG, "videoSession stop error")
+      this.videoPath = null;
+      Log.d(TAG, "videoSession stop error" + e.toString());
+    } finally {
+      try {
+        fs.close(this.captureFile);
+        this.captureFile = null;
+        this.isVideoMode = false;
+        this.open(this.imageFormatGroup);
+      } catch (e) {
+        Log.d(TAG, "close file or openPreview error" + e.toString());
+      }
     }
-
+    result.success(this.videoPath);
   }
 
   startPreview() {
