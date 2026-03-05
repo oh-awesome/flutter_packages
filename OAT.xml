@@ -70,6 +70,7 @@
                 <policyitem type="license" name="BSD 3-Clause License" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="license" name="BSD-2-Clause" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="license" name="BSD 2-Clause License" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
+                <policyitem type="license" name="BSD-style" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="license" name="BSDStyleLicense" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="compatibility" name="BSD-3-Clause" path=".*" desc="不影响兼容性"/>
                 <policyitem type="compatibility" name="BSD-2-Clause" path=".*" desc="不影响兼容性"/>
