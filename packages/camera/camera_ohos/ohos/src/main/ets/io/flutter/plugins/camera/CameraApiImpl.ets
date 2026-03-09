@@ -493,7 +493,7 @@ export class CameraApiImpl extends CameraApi {
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           console.log('stopVideoRecording success:', value);
-          result.success(value as string || '');
+          result.success(value);
         },
         error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
           console.error('stopVideoRecording error:', errorCode, errorMessage);
