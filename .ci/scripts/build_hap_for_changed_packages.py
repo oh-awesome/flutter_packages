@@ -85,8 +85,12 @@ def build_hap_for_package(package_info: Tuple[str, str], script_dir: Path) -> bo
             cwd=str(work_dir),
             env=os.environ.copy(),
             capture_output=False,
-            text=True
+            text=True,
+            check=False
         )
+
+        # Flush stdout to ensure logs are captured
+        sys.stdout.flush()
 
         if result.returncode == 0:
             Logger.info(f'✓ {pkg_name} HAP build succeeded')
