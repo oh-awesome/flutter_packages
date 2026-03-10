@@ -10,18 +10,18 @@ class Logger:
 
     @staticmethod
     def info(message: str):
-        print(f"[INFO] {message}")
+        print(f"[INFO] {message}", flush=True)
 
     @staticmethod
     def warn(message: str):
-        print(f"[WARN] {message}")
+        print(f"[WARN] {message}", flush=True)
 
     @staticmethod
     def error(message: str):
-        print(f"[ERROR] {message}", file=sys.stderr)
+        print(f"[ERROR] {message}", flush=True)
 
     @staticmethod
     def step(message: str):
-        print(f"\n{'=' * 40}")
-        print(message)
-        print(f"{'=' * 40}\n")
+        print(f"\n{'=' * 40}", flush=True)
+        print(message, flush=True)
+        print(f"{'=' * 40}\n", flush=True)
