@@ -15,7 +15,7 @@ export class InstanceManager {
 
   private finalizationListener: FinalizationListener;
 
-  private identifiers: Map<ESObject, number> = new Map<ESObject, number>();
+  private identifiers: WeakMap<ESObject, number> = new WeakMap<ESObject, number>();
 
   private Instances: Map<number, ESObject> = new Map<number, ESObject>();
 
@@ -55,7 +55,7 @@ export class InstanceManager {
 
   clear() {
     this.Instances.clear();
-    this.identifiers.clear()
+    this.identifiers = new WeakMap<ESObject, number>();
   }
 
   private releaseAllFinalizedInstances(): void {
