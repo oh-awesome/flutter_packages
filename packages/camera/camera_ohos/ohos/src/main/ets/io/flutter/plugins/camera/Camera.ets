@@ -577,8 +577,16 @@ export class Camera implements CameraCaptureStateListener {
       longitude: 0,
       altitude: 0,
     };
-    let deviceDegree: number = await this.getDeviceDegree();
-    this.photoRotation = this.photoOutPut?.getPhotoRotation(deviceDegree);
+    const sensorOrientationFeature = this.cameraFeatures.getSensorOrientation();
+    const lockedOrientation = sensorOrientationFeature.getLockedCaptureOrientation();
+    if (lockedOrientation !== null) {
+      const deviceOrientationManager = sensorOrientationFeature.getDeviceOrientationManager();
+      const rotationDegree = deviceOrientationManager.getPhotoOrientation(lockedOrientation) as number;
+      this.photoRotation = this.photoOutPut?.getPhotoRotation(rotationDegree);
+    } else {
+      const deviceDegree: number = await this.getDeviceDegree();
+      this.photoRotation = this.photoOutPut?.getPhotoRotation(deviceDegree);
+    }
 
     let settings: camera.PhotoCaptureSetting = {
       quality: camera.QualityLevel.QUALITY_LEVEL_HIGH,
