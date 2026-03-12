@@ -14,18 +14,66 @@ Before using the plugins from this repository, please ensure that you have compl
 
   Visit the  [flutter_samples](https://gitcode.com/openharmony-tpc/flutter_samples) repository to find integration demo examples.
 
-## How to reference these libraries
+## Dependency Reference
+
+Third-party libraries adapted for OpenHarmony should be imported via Git repository. In addition to the required `url` field, commonly used parameters are as follows:
+
+- `path`: The actual path to the library within the repository; otherwise, `pubspec.yaml` may not be found.
+- `ref` (optional): Specifies the version to fetch, which can be a **branch name**, **tag**, or **commit ID**. If omitted, the repository's default branch will be used.
+
+
+
+**Reference by Branch:**
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: pigeon-v21.2.0 # Branch name
+```
+
+**Reference by Tag**：
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: gitee/pigeon-v11.0.1	# Release tag
+```
+
+**Reference by Commit ID (Recommended for precise version locking)：**
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: f5a64d90e140a378ffc18962590f57c8d81bff9c	# commit ID
+```
+
+> **Tip**: Using a **commit ID** precisely pins a specific commit, making it immune to subsequent branch or tag changes—ideal for production dependencies requiring high stability. Tags are suitable for semantic versioning, while branches are appropriate for tracking active development branches.
+
+
+
+## Usage Examples
 
 ### 1. Use of tool library pigeon
 
 1. Introduce the pigeon library and add new configuration to dev_dependencies in pubspec.yaml:
-  ```
-dev_dependencies:
-   pigeon:
-     git:
-       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-       path: "packages/pigeons"
-  ```
+
+    ```yaml
+    dependencies:
+      pigeon:
+        git:
+          url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+          path: packages/pigeon
+    ```
+    
 2. Run `flutter pub get` in the project root directory;
 
 3. Run `flutter pub run pigeon in the project root directory --input <dart communication model file path> --arkts_out <arkts platform method code output file path, example./ohos/entry/src/main/ets/xxx.ets> `
@@ -38,14 +86,15 @@ The template code for communication between Flutter and the OpenHarmony platform
 
 Take path_provider as an example:
 1. In the referenced project, add new dependencies configuration in pubspec.yaml:
-```
-dependencies:
-   path_provider:
-     git:
-       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-       path: "packages/path_provider/path_provider"
-```
 
+   ```yaml
+   dependencies:
+     path_provider:
+       git:
+         url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+         path: packages/path_provider/path_provider
+   ```
+   
 2. Run `flutter pub get` in the project root directory; (ohos/entry/oh-package.json5 will automatically add related plug-in har dependencies)
 
 3. Call the path_provider related API in the business code, and it will run normally on the OpenHarmony platform.

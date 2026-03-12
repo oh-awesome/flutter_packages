@@ -22,17 +22,61 @@
 
 ## 引用方式
 
+适配了OpenHarmony的三方库需通过Git仓库引入。除必填的 `url` 外，常用参数如下：
+
+- `path` : 库在仓库中的实际路径，否则可能找不到 `pubspec.yaml`。
+- `ref`（可选） : 指定要拉取的版本，可以是 **分支名**、**标签（tag）** 或 **commit id**，不写则使用仓库默认分支。
+
+
+
+**按分支引用（branch）:**
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: pigeon-v21.2.0 # 分支名
+```
+
+**按标签引用（tag)：**
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: gitee/pigeon-v11.0.1	# 发布标签
+```
+
+**按 commit id 引用（推荐用于精确锁定版本）：**
+
+```yaml
+dev_dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/pigeon
+      ref: f5a64d90e140a378ffc18962590f57c8d81bff9c	# commit ID
+```
+
+> **提示**：使用 **commit id** 可精确锁定某次提交，不受后续分支或标签变更影响，适合对稳定性要求高的生产依赖；标签适合语义化版本；分支适合跟踪开发中的适配分支。
+
+## 使用示例
+
 ### 一、工具库pigeon使用
 
 1. 引入pigeon库，在pubspec.yaml中dev_dependencies新增配置：
 
-    ```
-    dev_dependencies:
-      pigeon:
-        git:
-          url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-          path: "packages/pigeon"
-    ```
+   ```yaml
+   dev_dependencies:
+     pigeon:
+       git:
+         url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+         path: packages/pigeon
+   ```
 
 2. 项目根目录运行 `flutter pub get`。
 
@@ -46,14 +90,14 @@
 
 1. 在引用的项目中，pubspec.yaml中dependencies新增配置：
 
-    ```
+    ```yaml
     dependencies:
       path_provider:
         git:
-          url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-          path: "packages/path_provider/path_provider"
+          url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+          path: packages/path_provider/path_provider
     ```
-
+    
 2. 项目根目录运行 `flutter pub get`，ohos/entry/oh-package.json5会自动添加相关插件har依赖。
 
 3. 在业务代码中调用path_provider相关api，它会在OpenHarmony平台正常运行。
@@ -107,9 +151,9 @@
 | 38   | [webview_flutter_platform_interface](https://pub.dev/packages/webview_flutter_platform_interface) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | webview_flutter_platform_interface                           | 未适配 |      |
 | 39   | [xdg_directories](https://pub.dev/packages/xdg_directories)  | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | xdg_directories                                              | 未适配 |      |
 
-## OpenHarmony平台已兼容三方库
+## OpenHarmony平台已适配三方库
 
-[查看](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
+[OpenHarmony平台已适配三方库列表](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
 
 ## FAQ
 
@@ -120,3 +164,7 @@
     ``` 
       git config --global core.longpaths true
     ```
+
+## 问题交流
+
+- 问题反馈：欢迎在[Flutter框架仓库](https://gitcode.com/openharmony-tpc/flutter_flutter)以及各个Flutter三方库提交issues
