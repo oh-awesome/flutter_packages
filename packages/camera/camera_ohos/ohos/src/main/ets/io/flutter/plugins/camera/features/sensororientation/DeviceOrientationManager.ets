@@ -54,6 +54,7 @@ export class DeviceOrientationManager {
   }
 
   public start() {
+    this.handleUIOrientationChange();
     let callback: Callback<number> = (data: number) => {
       this.handleUIOrientationChange();
     };
