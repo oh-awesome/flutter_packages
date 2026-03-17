@@ -856,9 +856,9 @@ export class Camera implements CameraCaptureStateListener {
         this.avRecorder = recorder;
         let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
         this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-        let fd = this.captureFile.fd;
-        let displayRotation = display.getDefaultDisplaySync().rotation;
-        let previewRotation = this.previewOutput!.getPreviewRotation(displayRotation);
+        let fd = this.captureFile.fd;        
+        let displayRotation = display.getDefaultDisplaySync().rotation * camera.ImageRotation.ROTATION_90;
+        let previewRotation =  this.previewOutput!.getPreviewRotation(displayRotation);
 
         this.cameraOutputCapability =
           CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
