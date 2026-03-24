@@ -355,7 +355,7 @@ export class WebViewPlatformView extends PlatformView {
 
   onHttpErrorReceive = (event: ESObject) => {
     if (this.webViewClint) {
-      this.webViewClint.onReceivedHttpError(this, event.request, event.error);
+      this.webViewClint.onReceivedHttpError(this, event.request, event.response);
     }
   }
 
