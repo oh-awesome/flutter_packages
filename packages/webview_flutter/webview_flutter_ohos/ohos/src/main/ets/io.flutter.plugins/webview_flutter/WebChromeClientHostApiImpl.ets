@@ -261,8 +261,8 @@ class WebChromeClientImpl implements WebChromeClient {
 }
 
 class newWindowWebViewClient implements WebViewClient {
-  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, error: WebResourceError): void {
-    throw new Error('Method not implemented.');
+  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, response: WebResourceResponse): void {
+    Log.i(TAG, "onReceivedHttpError");
   }
   onPageStarted(view: WebViewPlatformView, url: string) {
     Log.i(TAG, "onPageStarted");
