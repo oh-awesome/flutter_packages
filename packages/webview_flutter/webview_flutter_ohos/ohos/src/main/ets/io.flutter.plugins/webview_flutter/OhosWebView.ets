@@ -38,7 +38,9 @@ export struct OhosWebView {
       if(subscriber !== null) {
         commonEventManager.subscribe(subscriber, (err, data) => {
           this.throttle(() => {
-            this.controller?.scrollTo(0, 0, 1000);
+            this.webView.waitControllerAttached().then(() => {
+              this.controller?.scrollTo(0, 0, 1000);
+            });
           }, 1000)
         })
       }
