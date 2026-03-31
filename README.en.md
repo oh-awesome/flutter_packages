@@ -1,6 +1,14 @@
-## Warehouse introduction
+# Flutter Packages
+
+## Introduction
 
 This repository is an extension of the Flutter community’s official plugin library ([flutter/packages](vscode-file://vscode-app/e:/Microsoft VS Code/resources/app/out/vs/code/electron-browser/workbench/workbench.html)), adding compatibility and adaptation for the OpenHarmony platform. With this repository, developers can seamlessly integrate commonly used plugins into Flutter applications and gain full support for OpenHarmony native capabilities with minimal business changes.
+
+[OpenHarmony Compatible Packages](#packages)
+
+[OpenHarmony Compatible Third-Party Libraries](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.en.md)
+
+> *For third-party library issues, please submit an issue to the corresponding repository. For third-party library adaptation requests, please submit an issue to the* [OpenHarmony-Flutter](https://gitcode.com/org/openharmony-flutter/issues) *organization.*
 
 ## Getting Started
 
@@ -45,21 +53,6 @@ dev_dependencies:
       ref: gitee/pigeon-v11.0.1	# Release tag
 ```
 
-**Reference by Commit ID (Recommended for precise version locking)：**
-
-```yaml
-dev_dependencies:
-  pigeon:
-    git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/pigeon
-      ref: f5a64d90e140a378ffc18962590f57c8d81bff9c	# commit ID
-```
-
-> **Tip**: Using a **commit ID** precisely pins a specific commit, making it immune to subsequent branch or tag changes—ideal for production dependencies requiring high stability. Tags are suitable for semantic versioning, while branches are appropriate for tracking active development branches.
-
-
-
 ## Usage Examples
 
 ### 1. Use of tool library pigeon
@@ -72,6 +65,7 @@ dev_dependencies:
         git:
           url: https://gitcode.com/openharmony-tpc/flutter_packages.git
           path: packages/pigeon
+          ref: br_pigeon-v26.1.5_ohos
     ```
     
 2. Run `flutter pub get` in the project root directory;
@@ -93,6 +87,7 @@ Take path_provider as an example:
        git:
          url: https://gitcode.com/openharmony-tpc/flutter_packages.git
          path: packages/path_provider/path_provider
+         ref: br_path_provider-v2.1.5_ohos
    ```
    
 2. Run `flutter pub get` in the project root directory; (ohos/entry/oh-package.json5 will automatically add related plug-in har dependencies)
@@ -104,7 +99,7 @@ Example: Add the path_provider library dependency that supports the OpenHarmony 
 Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/master/ohos/pictures_provider_demo.
 
 
-## OpenHarmony platform has compatible with third-party libraries and packages.
+## <a id="packages">OpenHarmony Compatible Packages</a>
 
 | No | Initial Warehouse Name                                 | 3.7 Recommended Version                       | 3.22 Recommended Version                     | 3.27 Recommended Version                     | 3.35 Recommended Version                                     | Warehouse Name                                               | Is Compatible                      |      |
 | ---- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------ | ---- |
@@ -148,11 +143,6 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 | 38   | [webview_flutter_platform_interface](https://pub.dev/packages/webview_flutter_platform_interface) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | webview_flutter_platform_interface                           | No |      |
 | 39   | [xdg_directories](https://pub.dev/packages/xdg_directories)  | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | xdg_directories                                              | No |      |
 
-
-## OpenHarmony platform has compatible third-party libraries
-
-[See](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.en.md)
-
 ## FAQ
 
 ### 1. Run `flutter pub get` displayed `"File name too long"` error
@@ -161,3 +151,7 @@ Open the `Git Bash` or `cmd.exe`(you need to have git as an environment variable
 ``` 
   git config --global core.longpaths true
 ```
+
+## Communication
+
+- **Issue Feedback:** Submit issues to the [Flutter Framework Repository](https://gitcode.com/openharmony-tpc/flutter_flutter/issues) or related third-party libraries.
