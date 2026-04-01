@@ -4,7 +4,11 @@
 
 本仓库基于 Flutter 社区官方插件库（[flutter/packages](https://github.com/flutter/packages/)）进行扩展，新增对 OpenHarmony 平台的兼容适配。通过本仓库，开发者可在 Flutter 应用中无缝集成常用插件，通过最小化业务改动获得完整的OpenHarmony原生能力支持。
 
+[OpenHarmony平台已适配packages三方库](#packages)
 
+[OpenHarmony平台已适配三方库列表](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
+
+> 三方库问题请在对应仓库提交 issue；三方库适配请求请至 [OpenHarmony-Flutter](https://gitcode.com/org/openharmony-flutter/issues) 组织提交 issue。
 
 ## 开始使用
 
@@ -18,7 +22,6 @@
 
   前往 [flutter_samples](https://gitcode.com/openharmony-tpc/flutter_samples) 仓库获取集成示例 Demo。
   
-  
 
 ## 引用方式
 
@@ -26,8 +29,6 @@
 
 - `path` : 库在仓库中的实际路径，否则可能找不到 `pubspec.yaml`。
 - `ref`（可选） : 指定要拉取的版本，可以是 **分支名**、**标签（tag）** 或 **commit id**，不写则使用仓库默认分支。
-
-
 
 **按分支引用（branch）:**
 
@@ -51,19 +52,6 @@ dev_dependencies:
       ref: gitee/pigeon-v11.0.1	# 发布标签
 ```
 
-**按 commit id 引用（推荐用于精确锁定版本）：**
-
-```yaml
-dev_dependencies:
-  pigeon:
-    git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/pigeon
-      ref: f5a64d90e140a378ffc18962590f57c8d81bff9c	# commit ID
-```
-
-> **提示**：使用 **commit id** 可精确锁定某次提交，不受后续分支或标签变更影响，适合对稳定性要求高的生产依赖；标签适合语义化版本；分支适合跟踪开发中的适配分支。
-
 ## 使用示例
 
 ### 一、工具库pigeon使用
@@ -76,6 +64,7 @@ dev_dependencies:
        git:
          url: https://gitcode.com/openharmony-tpc/flutter_packages.git
          path: packages/pigeon
+         ref: br_pigeon-v26.1.5_ohos
    ```
 
 2. 项目根目录运行 `flutter pub get`。
@@ -96,6 +85,7 @@ dev_dependencies:
         git:
           url: https://gitcode.com/openharmony-tpc/flutter_packages.git
           path: packages/path_provider/path_provider
+          ref: br_path_provider-v2.1.5_ohos
     ```
     
 2. 项目根目录运行 `flutter pub get`，ohos/entry/oh-package.json5会自动添加相关插件har依赖。
@@ -107,7 +97,7 @@ dev_dependencies:
    可参考示例：[pictures_provider_demo](https://gitcode.com/openharmony-tpc/flutter_samples/tree/master/ohos/pictures_provider_demo)
 
 
-## OpenHarmony平台已兼容库packages三方库
+## <a id='packages'>OpenHarmony平台已适配packages三方库</a>
 
 | 序号 | 原库名                                                       | 3.7推荐使用版本                                              | 3.22推荐使用版本                                             | 3.27推荐使用版本                                             | 3.35推荐使用版本                                             | 仓库名                                                       | 状态   |      |
 | ---- | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ | ------ | ---- |
@@ -151,10 +141,6 @@ dev_dependencies:
 | 38   | [webview_flutter_platform_interface](https://pub.dev/packages/webview_flutter_platform_interface) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | [2.6.0](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/webview_flutter_platform_interface-v2.10.0) | webview_flutter_platform_interface                           | 未适配 |      |
 | 39   | [xdg_directories](https://pub.dev/packages/xdg_directories)  | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | [1.0.3](https://gitcode.com/openharmony-sig/flutter_packages/tree/master/packages/xdg_directories) | xdg_directories                                              | 未适配 |      |
 
-## OpenHarmony平台已适配三方库
-
-[OpenHarmony平台已适配三方库列表](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
-
 ## FAQ
 
 1. 运行 `flutter pub get` 遇到 `"File name too long"` 问题。
@@ -167,4 +153,4 @@ dev_dependencies:
 
 ## 问题交流
 
-- 问题反馈：欢迎在[Flutter框架仓库](https://gitcode.com/openharmony-tpc/flutter_flutter)以及各个Flutter三方库提交issues
+- 问题反馈：欢迎在 [Flutter框架仓库](https://gitcode.com/openharmony-tpc/flutter_flutter/issues) 以及各个Flutter三方库提交issue。
