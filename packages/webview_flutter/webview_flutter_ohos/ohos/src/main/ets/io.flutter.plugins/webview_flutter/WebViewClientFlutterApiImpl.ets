@@ -27,16 +27,19 @@ export class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
     }
   }
 
-  static createWebResourceErrorData(error: WebResourceError | WebResourceResponse): WebResourceErrorData {
-    if(error instanceof WebResourceResponse){
+  static createWebResourceErrorData(resource: WebResourceError | WebResourceResponse): WebResourceErrorData {
+    if (!resource) {
+      return WebResourceErrorData.Builder().setErrorCode(-1).setDescription('Unknown error').build();
+    }
+    if(resource instanceof WebResourceResponse){
       return WebResourceErrorData.Builder()
-      .setErrorCode(error.getResponseCode())
-      .setDescription(error.getReasonMessage())
+      .setErrorCode(resource.getResponseCode())
+      .setDescription(resource.getReasonMessage())
       .build();
     }
     return WebResourceErrorData.Builder()
-      .setErrorCode(error.getErrorCode())
-      .setDescription(error.getErrorInfo())
+      .setErrorCode(resource.getErrorCode())
+      .setDescription(resource.getErrorInfo())
       .build();
   }
 
