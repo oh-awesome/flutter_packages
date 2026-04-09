@@ -12,6 +12,7 @@ import { CameraUtils } from './CameraUtils';
 import { FocusMode } from './features/autofocus/FocusMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
+import { CameraGlobalEventApi, PlatformDeviceOrientation } from './Messages';
 
 enum DeviceEventType {
   ORIENTATION_CHANGED = "orientation_changed",
@@ -37,9 +38,24 @@ export class DartMessenger {
   }
 
   sendDeviceOrientationChangeEvent(orientation: DeviceOrientation) {
-    const args: HashMap<String, Object> = new HashMap();
-    args.set('orientation', CameraUtils.serializeDeviceOrientation(orientation));
-    this.sendDeviceEvent(DeviceEventType.ORIENTATION_CHANGED, args);
+    const globalEventApi = new CameraGlobalEventApi(this.binaryMessenger);
+    const platformOrientation = this.toPlatformDeviceOrientation(orientation);
+    globalEventApi.deviceOrientationChanged(platformOrientation, { reply: (_) => {} });
+  }
+
+  private toPlatformDeviceOrientation(orientation: DeviceOrientation): PlatformDeviceOrientation {
+    switch (orientation) {
+      case DeviceOrientation.PORTRAIT_UP:
+        return PlatformDeviceOrientation.portraitUp;
+      case DeviceOrientation.PORTRAIT_DOWN:
+        return PlatformDeviceOrientation.portraitDown;
+      case DeviceOrientation.LANDSCAPE_LEFT:
+        return PlatformDeviceOrientation.landscapeLeft;
+      case DeviceOrientation.LANDSCAPE_RIGHT:
+        return PlatformDeviceOrientation.landscapeRight;
+      default:
+        return PlatformDeviceOrientation.portraitUp;
+    }
   }
 
   sendCameraInitializedEvent(

@@ -93,8 +93,6 @@ export class DeviceOrientationManager {
 
 
   public getVideoOrientation(orientation?: DeviceOrientation): number {
-
-
     let angle: number = 0;
 
     // Fallback to device orientation when the orientation value is null.
@@ -134,39 +132,22 @@ export class DeviceOrientationManager {
     this.lastOrientation = orientation;
   }
 
-
   getUIOrientation(): DeviceOrientation {
     const rotation: number | undefined = display.getDefaultDisplaySync().rotation;
-    const orientation: display.Orientation | undefined = display.getDefaultDisplaySync().orientation
-    switch (orientation) {
+    switch (rotation) {
       case display.Orientation.PORTRAIT:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.PORTRAIT_UP;
-        } else {
-          return DeviceOrientation.PORTRAIT_DOWN;
-        }
+        return DeviceOrientation.PORTRAIT_UP;
       case display.Orientation.LANDSCAPE:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.LANDSCAPE_LEFT;
-        } else {
-          return DeviceOrientation.LANDSCAPE_RIGHT;
-        }
+        return DeviceOrientation.LANDSCAPE_LEFT;
       case display.Orientation.PORTRAIT_INVERTED:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.PORTRAIT_UP;
-        } else {
-          return DeviceOrientation.PORTRAIT_DOWN;
-        }
+        return DeviceOrientation.PORTRAIT_DOWN;
       case display.Orientation.LANDSCAPE_INVERTED:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.LANDSCAPE_RIGHT;
-        } else {
-          return DeviceOrientation.LANDSCAPE_LEFT;
-        }
+        return DeviceOrientation.LANDSCAPE_RIGHT;
       default:
         return DeviceOrientation.PORTRAIT_UP;
     }
   }
+
   // getDeviceDefaultOrientation():number{
   //    Configuration config = activity.getResources().getConfiguration();
   //   int rotation = getDisplay().getRotation();
@@ -179,6 +160,4 @@ export class DeviceOrientationManager {
   //     return Configuration.ORIENTATION_PORTRAIT;
   //   }
   // }
-
-
 }

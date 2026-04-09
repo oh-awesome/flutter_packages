@@ -24,7 +24,7 @@ export class FlutterError implements Error {
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string,  message: string, stack: string) 
+  constructor(code: string, name: string,  message: string, stack: string)
   {
     this.code = code;
     this.name = name;
@@ -103,7 +103,7 @@ export enum PlatformFlashMode {
 
 /*
 *  Pigeon equivalent of [CameraDescription].
-* 
+*
 *  Generated class from Pigeon that represents data sent in messages.
 */
 export class PlatformCameraDescription {
@@ -147,7 +147,7 @@ export class PlatformCameraDescription {
 
 /*
 *  Data needed for [CameraInitializedEvent].
-* 
+*
 *  Generated class from Pigeon that represents data sent in messages.
 */
 export class PlatformCameraState {
@@ -211,10 +211,10 @@ export class PlatformCameraState {
       previewSize = PlatformSize.fromList(arr[0] as Object[]);
     }
     let instance: PlatformCameraState = new PlatformCameraState(
-      previewSize, 
-      PlatformExposureMode[PlatformExposureMode[arr[1] as number]], 
-      PlatformFocusMode[PlatformFocusMode[arr[2] as number]], 
-      arr[3] as boolean, 
+      previewSize,
+      PlatformExposureMode[PlatformExposureMode[arr[1] as number]],
+      PlatformFocusMode[PlatformFocusMode[arr[2] as number]],
+      arr[3] as boolean,
       arr[4] as boolean
     );
     return instance;
@@ -223,7 +223,7 @@ export class PlatformCameraState {
 
 /*
 *  Pigeon equivalent of [Size].
-* 
+*
 *  Generated class from Pigeon that represents data sent in messages.
 */
 export class PlatformSize {
@@ -262,7 +262,7 @@ export class PlatformSize {
 
 /*
 *  Pigeon equivalent of [Point].
-* 
+*
 *  Generated class from Pigeon that represents data sent in messages.
 */
 export class PlatformPoint {
@@ -301,7 +301,7 @@ export class PlatformPoint {
 
 /*
 *  Pigeon equivalent of [MediaSettings].
-* 
+*
 *  Generated class from Pigeon that represents data sent in messages.
 */
 export class PlatformMediaSettings {
@@ -405,7 +405,7 @@ class CameraApiCodec extends StandardMessageCodec {
 
 /*
 *  Handles calls from Dart to the native side.
-* 
+*
 *  Generated abstract class from Pigeon that represents a handler of messages from Flutter.
 */
 export abstract class CameraApi {
@@ -447,7 +447,7 @@ export abstract class CameraApi {
   abstract setExposureMode(exposureMode: PlatformExposureMode , result: Result<void>): void;
   /*
   *  Sets the exposure point of the camera with the given ID.
-  * 
+  *
   *  A null value resets to the default exposure point.
   */
   abstract setExposurePoint(point: PlatformPoint , result: Result<void>): void;
@@ -466,7 +466,7 @@ export abstract class CameraApi {
   abstract setFocusMode(focusMode: PlatformFocusMode ): void;
   /*
   *  Sets the focus point of the camera with the given ID.
-  * 
+  *
   *  A null value resets to the default focus point.
   */
   abstract setFocusPoint(point: PlatformPoint , result: Result<void>): void;
@@ -482,7 +482,7 @@ export abstract class CameraApi {
   abstract resumePreview(): void;
   /*
   *  Changes the camera while recording video.
-  * 
+  *
   *  This should be called only while video recording is active.
   */
   abstract setDescriptionWhileRecording(description: string): Promise<void>;
@@ -1175,7 +1175,7 @@ export abstract class CameraApi {
 }
 /*
 *  Handles calls from native side to Dart that are not camera-specific.
-* 
+*
 *  Generated class from Pigeon that represents Flutter messages that can be called from ArkTS.
 */
 export class CameraGlobalEventApi {
@@ -1192,7 +1192,7 @@ export class CameraGlobalEventApi {
 
   /* Called when the device's physical orientation changes.*/
   deviceOrientationChanged(orientationArg: PlatformDeviceOrientation, callback: Reply<void>) {
-    let channel: BasicMessageChannel<Object> = 
+    let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
             this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged", CameraGlobalEventApi.getCodec());
     channel.send(
@@ -1236,7 +1236,7 @@ class CameraEventApiCodec extends StandardMessageCodec {
 
 /*
 *  Handles device-specific calls from native side to Dart.
-* 
+*
 *  Generated class from Pigeon that represents Flutter messages that can be called from ArkTS.
 */
 export class CameraEventApi {
@@ -1253,7 +1253,7 @@ export class CameraEventApi {
 
   /* Called when the camera is initialized.*/
   initialized(initialStateArg: PlatformCameraState, callback: Reply<void>) {
-    let channel: BasicMessageChannel<Object> = 
+    let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
             this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized", CameraEventApi.getCodec());
     channel.send(
@@ -1262,16 +1262,26 @@ export class CameraEventApi {
   }
   /* Called when an error occurs in the camera.*/
   error(messageArg: string, callback: Reply<void>) {
-    let channel: BasicMessageChannel<Object> = 
+    let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
             this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.error", CameraEventApi.getCodec());
     channel.send(
         [messageArg],
         channelReply => callback.reply(null));
   }
+  /* Called when the camera is automatically switched (e.g., to rear camera
+   * in tri-fold dual-screen mode).*/
+  cameraSwitched(newCameraNameArg: string, callback: Reply<void>) {
+    let channel: BasicMessageChannel<Object> =
+        new BasicMessageChannel<Object>(
+            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched", CameraEventApi.getCodec());
+    channel.send(
+        [newCameraNameArg],
+        channelReply => callback.reply(null));
+  }
   /* Called when the camera closes.*/
   closed(callback: Reply<void>):void {
-    let channel: BasicMessageChannel<Object> = 
+    let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
             this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.closed", CameraEventApi.getCodec());
     channel.send(

@@ -197,6 +197,7 @@ class CameraController extends ValueNotifier<CameraValue> {
   FutureOr<bool>? _initCalled;
   StreamSubscription<DeviceOrientationChangedEvent>?
       _deviceOrientationSubscription;
+  StreamSubscription<CameraInitializedEvent>? _cameraInitializedSubscription;
 
   /// The camera identifier with which the controller is associated.
   int get cameraId => _cameraId;
@@ -250,6 +251,15 @@ class CameraController extends ValueNotifier<CameraValue> {
       focusPointSupported: await initializeCompleter.future
           .then((CameraInitializedEvent event) => event.focusPointSupported),
     );
+
+    _cameraInitializedSubscription = CameraPlatform.instance
+        .onCameraInitialized(_cameraId)
+        .listen((CameraInitializedEvent event) {
+      final Size newPreviewSize = Size(event.previewWidth, event.previewHeight);
+      if (value.previewSize != newPreviewSize) {
+        value = value.copyWith(previewSize: newPreviewSize);
+      }
+    });
 
     _initCalled = true;
   }
@@ -438,6 +448,7 @@ class CameraController extends ValueNotifier<CameraValue> {
     }
     _isDisposed = true;
     await _deviceOrientationSubscription?.cancel();
+    await _cameraInitializedSubscription?.cancel();
     super.dispose();
     if (_initCalled != null) {
       await _initCalled;
