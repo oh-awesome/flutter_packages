@@ -56,7 +56,6 @@ function mapPlaybackSpeed(speed: number): media.PlaybackSpeed | null {
 
 export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   private videoPlayers: HashMap<number, VideoPlayer> = new HashMap<number, VideoPlayer>();
-  private nextPlayerId: number = 1;
   private flutterState: FlutterState | null = null;
   private binding: AbilityPluginBinding | null = null;
   private audioFocus: Boolean = false;
@@ -71,10 +70,6 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   disposeAllPlayers(): void {
     this.videoPlayers.forEach(videoPlayer => videoPlayer?.release());
     this.videoPlayers.clear();
-  }
-
-  private getNextPlayerId(): number {
-    return this.nextPlayerId++;
   }
 
   initialize(): void {
@@ -123,8 +118,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       }
       header[key.toString()] = value.toString();
     })
-    let playerId: number = this.getNextPlayerId(); 
     let textureId: number = flutterRenderer.getTextureId();
+    let playerId: number = textureId;
     Log.i(TAG, "enter getRawFd, textureId=" + textureId);
     let surfaceTextureEntry: SurfaceTextureEntry = flutterRenderer.registerTexture(textureId);
     let windowProperties = windowClass.getWindowProperties();
