@@ -44,6 +44,12 @@ class OhosCamera extends CameraPlatform {
   final StreamController<CameraEvent> cameraEventStreamController =
       StreamController<CameraEvent>.broadcast();
 
+  /// Stream controller for camera-switched events (e.g., automatic switch to
+  /// rear camera in tri-fold dual-screen mode).
+  @visibleForTesting
+  final StreamController<String> cameraSwitchedStreamController =
+      StreamController<String>.broadcast();
+
   /// Handler for device-level callbacks from the native side.
   @visibleForTesting
   late final HostDeviceMessageHandler hostHandler = HostDeviceMessageHandler();
@@ -63,6 +69,10 @@ class OhosCamera extends CameraPlatform {
   Stream<CameraEvent> _cameraEvents(int cameraId) =>
       cameraEventStreamController.stream
           .where((CameraEvent event) => event.cameraId == cameraId);
+
+  /// Returns a stream of camera-switched event names.
+  Stream<String> onCameraSwitched(int cameraId) =>
+      cameraSwitchedStreamController.stream;
 
   @override
   Future<List<CameraDescription>> availableCameras() async {
@@ -115,24 +125,42 @@ class OhosCamera extends CameraPlatform {
     int cameraId, {
     ImageFormatGroup imageFormatGroup = ImageFormatGroup.unknown,
   }) async {
-    hostCameraHandlers.putIfAbsent(cameraId,
-        () => HostCameraMessageHandler(cameraId, cameraEventStreamController));
+    hostCameraHandlers.putIfAbsent(
+        cameraId,
+        () => HostCameraMessageHandler(cameraId, cameraEventStreamController,
+            cameraSwitchedStreamController));
 
     final Completer<void> completer = Completer<void>();
 
     unawaited(onCameraInitialized(cameraId)
         .first
         .then((CameraInitializedEvent value) {
-      completer.complete();
+      if (!completer.isCompleted) {
+        completer.complete();
+      }
     }));
+
+    StreamSubscription<CameraErrorEvent>? errorSub;
+    errorSub = onCameraError(cameraId).listen((CameraErrorEvent event) {
+      if (!completer.isCompleted) {
+        completer
+            .completeError(CameraException('CameraError', event.description));
+        errorSub?.cancel();
+      }
+    });
 
     try {
       await _hostApi.initialize(imageFormatGroupToPlatform(imageFormatGroup));
     } on PlatformException catch (e, s) {
+      unawaited(errorSub.cancel());
       completer.completeError(CameraException(e.code, e.message), s);
     }
 
-    return completer.future;
+    try {
+      return await completer.future;
+    } finally {
+      unawaited(errorSub.cancel());
+    }
   }
 
   @override
@@ -393,7 +421,8 @@ class HostDeviceMessageHandler implements CameraGlobalEventApi {
 @visibleForTesting
 class HostCameraMessageHandler implements CameraEventApi {
   /// Creates a new handler and registers it to listen to its camera's platform channel.
-  HostCameraMessageHandler(this.cameraId, this.cameraEventStreamController) {
+  HostCameraMessageHandler(this.cameraId, this.cameraEventStreamController,
+      this.cameraSwitchedStreamController) {
     CameraEventApi.setUp(this);
   }
 
@@ -407,6 +436,9 @@ class HostCameraMessageHandler implements CameraEventApi {
 
   /// The controller which broadcasts camera events from the host platform.
   final StreamController<CameraEvent> cameraEventStreamController;
+
+  /// The controller which broadcasts camera-switched events from the host platform.
+  final StreamController<String> cameraSwitchedStreamController;
   @override
   void error(String message) {
     cameraEventStreamController.add(CameraErrorEvent(cameraId, message));
@@ -422,6 +454,11 @@ class HostCameraMessageHandler implements CameraEventApi {
         initialState.exposurePointSupported,
         focusModeFromPlatform(initialState.focusMode),
         initialState.focusPointSupported));
+  }
+
+  @override
+  void cameraSwitched(String newCameraName) {
+    cameraSwitchedStreamController.add(newCameraName);
   }
 
   @override
