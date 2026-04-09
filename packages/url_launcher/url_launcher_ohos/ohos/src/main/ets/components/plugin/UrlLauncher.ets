@@ -43,6 +43,7 @@ export class UrlLauncher implements UrlLauncherApi {
   static MMS_BUNDLE_NAME = "com.ohos.mms";
   static MMS_ABILITY_NAME = "com.ohos.mms.MainAbility";
   static MMS_ENTITIES = 'entity.system.home';
+  static SMS_QUERY_BODY_REGEX: RegExp = /(?:^|&)body=([^&]*)/;
 
   private context: common.UIAbilityContext;
 
@@ -136,11 +137,30 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   launchSms(url: string): boolean {
-    let phoneNum = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_SMS);
-    let formatNum = this.format(phoneNum);
+    let smsUrl = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_SMS);
+    let phoneNumber: string = '';
+    let messageBody: string = '';
+
+    let questionMarkIndex = smsUrl.indexOf('?');
+    if (questionMarkIndex !== -1) {
+      let queryString = smsUrl.substring(questionMarkIndex + 1);
+      phoneNumber = smsUrl.substring(0, questionMarkIndex);
+      let bodyMatch = queryString.match(UrlLauncher.SMS_QUERY_BODY_REGEX);
+      if (bodyMatch) {
+        try {
+          messageBody = decodeURIComponent(bodyMatch[1]);
+        } catch (e) {
+          Log.e(TAG, 'decodeURIComponent failed for sms body, raw: ' + bodyMatch[1]);
+          messageBody = bodyMatch[1];
+        }
+      }
+    } else {
+      phoneNumber = smsUrl;
+    }
+    let formatNum = this.format(phoneNumber);
 
     let msgParam = new SendMessageParams();
-    msgParam.telephone = phoneNum;
+    msgParam.telephone = phoneNumber;
     msgParam.telephoneFormat = formatNum;
 
     let params = new Array<SendMessageParams>();
@@ -149,6 +169,9 @@ export class UrlLauncher implements UrlLauncherApi {
     let actionData: ESObject = {};
     actionData.contactObjects = JSON.stringify(params);
     actionData.pageFlag = 'conversation';
+    if (messageBody) {
+      actionData.content = messageBody;
+    }
     let str : Want = {
       'bundleName': UrlLauncher.MMS_BUNDLE_NAME,
       'abilityName': UrlLauncher.MMS_ABILITY_NAME,
