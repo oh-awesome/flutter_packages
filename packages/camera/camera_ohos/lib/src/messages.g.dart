@@ -255,11 +255,11 @@ class _CameraApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128: 
+      case 128:
         return PlatformCameraDescription.decode(readValue(buffer)!);
-      case 129: 
+      case 129:
         return PlatformMediaSettings.decode(readValue(buffer)!);
-      case 130: 
+      case 130:
         return PlatformPoint.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -283,8 +283,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.getAvailableCameras', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -302,17 +301,19 @@ class CameraApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (replyList[0] as List<Object?>?)!.cast<PlatformCameraDescription?>();
+      return (replyList[0] as List<Object?>?)!
+          .cast<PlatformCameraDescription?>();
     }
   }
 
   /// Creates a new camera with the given name and settings and returns its ID.
-  Future<int> create(String arg_cameraName, PlatformMediaSettings arg_mediaSettings) async {
+  Future<int> create(
+      String arg_cameraName, PlatformMediaSettings arg_mediaSettings) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.create', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_cameraName, arg_mediaSettings]) as List<Object?>?;
+    final List<Object?>? replyList = await channel
+        .send(<Object?>[arg_cameraName, arg_mediaSettings]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -362,8 +363,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.dispose', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -381,9 +381,11 @@ class CameraApi {
   }
 
   /// Locks the camera with the given ID to the given orientation.
-  Future<void> lockCaptureOrientation(PlatformDeviceOrientation arg_orientation) async {
+  Future<void> lockCaptureOrientation(
+      PlatformDeviceOrientation arg_orientation) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.camera_ohos.CameraApi.lockCaptureOrientation', codec,
+        'dev.flutter.pigeon.camera_ohos.CameraApi.lockCaptureOrientation',
+        codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_orientation.index]) as List<Object?>?;
@@ -406,10 +408,10 @@ class CameraApi {
   /// Unlocks the orientation for the camera with the given ID.
   Future<void> unlockCaptureOrientation() async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.camera_ohos.CameraApi.unlockCaptureOrientation', codec,
+        'dev.flutter.pigeon.camera_ohos.CameraApi.unlockCaptureOrientation',
+        codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -432,8 +434,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.takePicture', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -484,8 +485,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.stopVideoRecording', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -512,8 +512,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.pauseVideoRecording', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -535,8 +534,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.resumeVideoRecording', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -558,8 +556,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.startImageStream', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -581,8 +578,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.stopImageStream', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -675,8 +671,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.getMinExposureOffset', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -703,8 +698,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.getMaxExposureOffset', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -729,10 +723,10 @@ class CameraApi {
   /// Returns the exposure step size of the camera with the given ID.
   Future<double> getExposureOffsetStepSize() async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.camera_ohos.CameraApi.getExposureOffsetStepSize', codec,
+        'dev.flutter.pigeon.camera_ohos.CameraApi.getExposureOffsetStepSize',
+        codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -836,8 +830,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.getMaxZoomLevel', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -864,8 +857,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.getMinZoomLevel', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -915,8 +907,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.pausePreview', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -938,8 +929,7 @@ class CameraApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.resumePreview', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -961,7 +951,8 @@ class CameraApi {
   /// This should be called only while video recording is active.
   Future<void> setDescriptionWhileRecording(String arg_description) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-        'dev.flutter.pigeon.camera_ohos.CameraApi.setDescriptionWhileRecording', codec,
+        'dev.flutter.pigeon.camera_ohos.CameraApi.setDescriptionWhileRecording',
+        codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
         await channel.send(<Object?>[arg_description]) as List<Object?>?;
@@ -989,19 +980,23 @@ abstract class CameraGlobalEventApi {
   /// Called when the device's physical orientation changes.
   void deviceOrientationChanged(PlatformDeviceOrientation orientation);
 
-  static void setUp(CameraGlobalEventApi? api, {BinaryMessenger? binaryMessenger}) {
+  static void setUp(CameraGlobalEventApi? api,
+      {BinaryMessenger? binaryMessenger}) {
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged', codec,
+          'dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged',
+          codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
       } else {
         channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged was null.');
+              'Argument for dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final PlatformDeviceOrientation? arg_orientation = args[0] == null ? null : PlatformDeviceOrientation.values[args[0] as int];
+          final PlatformDeviceOrientation? arg_orientation = args[0] == null
+              ? null
+              : PlatformDeviceOrientation.values[args[0] as int];
           assert(arg_orientation != null,
               'Argument for dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged was null, expected non-null PlatformDeviceOrientation.');
           api.deviceOrientationChanged(arg_orientation!);
@@ -1030,9 +1025,9 @@ class _CameraEventApiCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 128: 
+      case 128:
         return PlatformCameraState.decode(readValue(buffer)!);
-      case 129: 
+      case 129:
         return PlatformSize.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -1050,6 +1045,10 @@ abstract class CameraEventApi {
   /// Called when an error occurs in the camera.
   void error(String message);
 
+  /// Called when the camera is automatically switched (e.g., to rear camera
+  /// in tri-fold dual-screen mode).
+  void cameraSwitched(String newCameraName);
+
   /// Called when the camera closes.
   void closed();
 
@@ -1063,9 +1062,10 @@ abstract class CameraEventApi {
       } else {
         channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized was null.');
+              'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized was null.');
           final List<Object?> args = (message as List<Object?>?)!;
-          final PlatformCameraState? arg_initialState = (args[0] as PlatformCameraState?);
+          final PlatformCameraState? arg_initialState =
+              (args[0] as PlatformCameraState?);
           assert(arg_initialState != null,
               'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized was null, expected non-null PlatformCameraState.');
           api.initialized(arg_initialState!);
@@ -1082,12 +1082,31 @@ abstract class CameraEventApi {
       } else {
         channel.setMessageHandler((Object? message) async {
           assert(message != null,
-          'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.error was null.');
+              'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.error was null.');
           final List<Object?> args = (message as List<Object?>?)!;
           final String? arg_message = (args[0] as String?);
           assert(arg_message != null,
               'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.error was null, expected non-null String.');
           api.error(arg_message!);
+          return;
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched', codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final String? arg_newCameraName = (args[0] as String?);
+          assert(arg_newCameraName != null,
+              'Argument for dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched was null, expected non-null String.');
+          api.cameraSwitched(arg_newCameraName!);
           return;
         });
       }
@@ -1107,5 +1126,4 @@ abstract class CameraEventApi {
       }
     }
   }
-  
 }
