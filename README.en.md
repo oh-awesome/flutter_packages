@@ -10,6 +10,25 @@ This repository is an extension of the Flutter community’s official plugin lib
 
 > *For third-party library issues, please submit an issue to the corresponding repository. For third-party library adaptation requests, please submit an issue to the* [OpenHarmony-Flutter](https://gitcode.com/org/openharmony-flutter/issues) *organization.*
 
+## Contribution Guidelines
+
+This repository employs a multi-branch management strategy. **Each third-party library version maintains dedicated dev and release branches**.
+
+| Branch Type    | Naming Convention                       |
+| -------------- | --------------------------------------- |
+| Dev Branch     | `br_<library-name>-v<version>_ohos_dev` |
+| Release Branch | `br_<library-name>-v<version>_ohos`     |
+
+When contributing code, please adhere to the following process:
+
+1. **Identify the Target Branch**: Locate the appropriate dev branch for the third-party library and version you intend to modify.
+
+2. **Develop from the Dev Branch**: Fork the repository and create your feature branch from the corresponding dev branch.
+
+3. **Submit Your Pull Request**: Open a pull request targeting the **dev branch** of the respective library version.
+
+> **Important**: Release branches are designated for stable releases only and do not accept direct pull requests. All contributions must be submitted to the appropriate dev branch for the corresponding library version.
+
 ## Getting Started
 
 Before using the plugins from this repository, please ensure that you have completed the OpenHarmony environment setup for the Flutter SDK.
