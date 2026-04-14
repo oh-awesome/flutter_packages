@@ -80,7 +80,7 @@ export class VideoPlayer {
     try {
       this.isWindowKeepScreenOn = (GlobalContext.getContext().getObject('windowClass') as window.Window).getWindowProperties().isKeepScreenOn;
     } catch (e) {
-      Log.e(TAG, e);
+      Log.e(TAG, 'getWindowProperties failed: ' + JSON.stringify(e));
     }
     if (AudioFocus == true) {
       this.interruptMode = audio.InterruptMode.SHARE_MODE;
