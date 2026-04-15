@@ -27,10 +27,19 @@ export class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
     }
   }
 
-  static createWebResourceErrorData(error: WebResourceError): WebResourceErrorData {
+  static createWebResourceErrorData(resource: WebResourceError | WebResourceResponse): WebResourceErrorData {
+    if (!resource) {
+      return WebResourceErrorData.Builder().setErrorCode(-1).setDescription('Unknown error').build();
+    }
+    if(resource instanceof WebResourceResponse){
+      return WebResourceErrorData.Builder()
+      .setErrorCode(resource.getResponseCode())
+      .setDescription(resource.getReasonMessage())
+      .build();
+    }
     return WebResourceErrorData.Builder()
-      .setErrorCode(error.getErrorCode())
-      .setDescription(error.getErrorInfo())
+      .setErrorCode(resource.getErrorCode())
+      .setDescription(resource.getErrorInfo())
       .build();
   }
 
@@ -107,7 +116,7 @@ export class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
     webViewClient: WebViewClient,
     webView: WebViewPlatformView,
     request: WebResourceRequest,
-    error: WebResourceError,
+    response: WebResourceResponse,
     callback: Reply<void>
   ) {
     this.webViewFlutterApi.create(webView, this.emptyReply);
@@ -117,7 +126,7 @@ export class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
       this.getIdentifierForClient(webViewClient),
       webViewIdentifier,
       WebViewClientFlutterApiImpl.createWebResourceRequestData(request),
-      WebViewClientFlutterApiImpl.createWebResourceErrorData(error),
+      WebViewClientFlutterApiImpl.createWebResourceErrorData(response),
       callback
     )
   }

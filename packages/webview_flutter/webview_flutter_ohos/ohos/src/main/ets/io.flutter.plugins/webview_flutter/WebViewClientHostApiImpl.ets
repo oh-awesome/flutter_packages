@@ -16,7 +16,7 @@ export interface WebViewClient {
 
   onReceivedError(view: WebViewPlatformView, request: WebResourceRequest, error: WebResourceError): void;
 
-  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, error: WebResourceError): void;
+  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, response: WebResourceResponse): void;
 
   shouldOverrideUrlLoading(view: WebViewPlatformView, request: WebResourceRequest): boolean;
 
@@ -54,8 +54,8 @@ export class WebViewClientImpl implements WebViewClient {
     this.flutterApi.onReceivedRequestErrorImpl(this, view, request, error, this.emptyReply);
   }
 
-  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, error: WebResourceError) {
-    this.flutterApi.onReceivedHttpErrorImpl(this, view, request, error, this.emptyReply);
+  onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, response: WebResourceResponse) {
+    this.flutterApi.onReceivedHttpErrorImpl(this, view, request, response, this.emptyReply);
   }
 
   shouldOverrideUrlLoading(view: WebViewPlatformView, request: WebResourceRequest): boolean {
