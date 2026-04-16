@@ -28,7 +28,7 @@ import {
 const TAG = "SharedPreferencesOhosPlugin";
 const PREFERENCES_NAME = "FlutterSharedPreferences";
 const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
-
+const JSON_LIST_PREFIX = LIST_IDENTIFIER + "!";
 // ListEncoder implementation
 interface ListEncoder {
   encode(list: string[]): string;
@@ -143,9 +143,18 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
 
   async getStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<StringListResult | null> {
     try {
-      const list = await this.getPlatformEncodedStringList(key, options);
-      if (list != null) {
-        return new StringListResult(JSON.stringify(list), StringListLookupResultType.jsonEncoded);
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'string') {
+        if (value.startsWith(JSON_LIST_PREFIX)) {
+          return new StringListResult(value, StringListLookupResultType.jsonEncoded);
+        } else if (value.startsWith(LIST_IDENTIFIER)) {
+          return new StringListResult(undefined, StringListLookupResultType.platformEncoded);
+        } else {
+          return new StringListResult(undefined, StringListLookupResultType.unexpectedString);
+        }
       }
       return null;
     } catch (err) {
@@ -512,10 +521,6 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 
   async setString(key: string, value: string): Promise<void> {
-    if (value.startsWith(LIST_IDENTIFIER)) {
-      return Promise.reject(new Error(
-        "StorageError: This string cannot be stored as it clashes with special identifier prefixes"));
-    }
     return this.put(key, value);
   }
 
@@ -581,13 +586,21 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 
   transformPref(value: ExtendedPreferenceValue): ESObject {
-    if (typeof value === 'string' && value.startsWith(LIST_IDENTIFIER)) {
-      try {
-        const decoded: string[] = this.listEncoder.decode(value.substring(LIST_IDENTIFIER.length));
-        return decoded;
-      } catch (err) {
-        Log.w(TAG, "Failed to decode list: " + JSON.stringify(err));
-        return value;
+    if (typeof value === 'string') {
+      if (value.startsWith(JSON_LIST_PREFIX)) {
+        try {
+          return this.listEncoder.decode(value.substring(JSON_LIST_PREFIX.length));
+        } catch (err) {
+          Log.w(TAG, "Failed to decode JSON list: " + JSON.stringify(err));
+          return value;
+        }
+      } else if (value.startsWith(LIST_IDENTIFIER)) {
+        try {
+          return this.listEncoder.decode(value.substring(LIST_IDENTIFIER.length));
+        } catch (err) {
+          Log.w(TAG, "Failed to decode legacy list: " + JSON.stringify(err));
+          return value;
+        }
       }
     }
     if (typeof value === 'bigint') {
