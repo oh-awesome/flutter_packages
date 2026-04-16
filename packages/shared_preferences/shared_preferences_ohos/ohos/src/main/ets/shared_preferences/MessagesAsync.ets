@@ -87,8 +87,25 @@ class PigeonCodec extends StandardMessageCodec {
       return this.writeValue(stream, encoded);
     } else if (value instanceof StringListResult) {
       stream.writeUint8(131);
-      const encoded = (value as StringListResult).encode();
-      return this.writeValue(stream, encoded);
+      const slr = value as StringListResult;
+      // Manually write the 2-element list so the enum field is written with the
+      // correct type tag (129), matching the Kotlin PigeonCodec on Android.
+      stream.writeUint8(12); // list type tag
+      this.writeSize(stream, 2); // list length: use variable-length encoding (1 byte for size < 254)
+      // Element 0: the JSON-encoded string value
+      this.writeValue(stream, slr.jsonEncodedValue ?? null);
+      // Element 1: the enum ordinal, encoded as:
+      //   byte 129  — custom enum type tag (Dart readValueOfType(129))
+      //   byte 4    — _valueInt64 type marker (Flutter StandardMessageCodec)
+      //   8 bytes   — int64 value little-endian
+      // Matches Android Kotlin: writeValue(stream, value.raw.toLong())
+      // Dart readValueOfType(129) calls readValue() which reads type byte 4
+      // (_valueInt64) → buffer.getInt64() → int, then indexes into
+      // StringListLookupResultType.values[ordinal].
+      stream.writeUint8(129);
+      stream.writeUint8(4); // _valueInt64 type marker (matches Android Kotlin)
+      stream.writeInt64(BigInt(slr.type as number), true); // 8-byte little-endian int64
+      return stream;
     } else {
       return super.writeValue(stream, value);
     }
