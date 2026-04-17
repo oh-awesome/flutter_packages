@@ -476,19 +476,17 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     setup(binding.getBinaryMessenger(), this);
     
     // Initialize preferences and register async API after initialization
-    data_preferences.getPreferences(this.context, PREFERENCES_NAME).then((preferences) => {
-      this.preferences = preferences;
-      Log.i(TAG, 'Preferences initialized successfully');
-      
-      // Register async API only after preferences are initialized
+    try {
+      this.preferences = data_preferences.getPreferencesSync(binding.getApplicationContext(), { name: PREFERENCES_NAME });
+      Log.i(TAG, "Succeeded in getting preferences.");
+      // Register async API only after preferences are initialized	 
+      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.data_store')
+    } catch(err) {
+      Log.w(TAG, "Failed to get preferences."+ JSON.stringify(err));
+      // Even if preferences initialization fails, we should still register the async API 
+      // so that it can properly return errors instead of hanging 
       setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.data_store');
-      Log.i(TAG, 'Async API registered successfully');
-    }).catch((err: Error) => {
-      Log.e(TAG, 'Failed to get preferences.' + err.message);
-      // Even if preferences initialization fails, we should still register the async API
-      // so that it can properly return errors instead of hanging
-      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.data_store');
-    });
+    }
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
