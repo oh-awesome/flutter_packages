@@ -213,6 +213,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     const javaScriptChannel: JavaScriptChannel = this.instanceManager.getInstance(javaScriptChannelInstanceId);
     await webView.waitControllerAttached();
     try {
+      webView.addJavaScriptChannel(javaScriptChannel);
       webView.getController().registerJavaScriptProxy(
         {
           postMessage: (message: string) => {
@@ -231,7 +232,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
   removeJavaScriptChannel(instanceId: number, javaScriptChannelInstanceId: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
     const javaScriptChannel: JavaScriptChannel = this.instanceManager.getInstance(javaScriptChannelInstanceId);
+    webView.removeJavaScriptChannel(javaScriptChannel.getJavaScriptChannelName());
     webView.getController().deleteJavaScriptRegister(javaScriptChannel.getJavaScriptChannelName());
+    this.instanceManager.remove(javaScriptChannelInstanceId);
   }
 
   setDownloadListener(instanceId: number, listenerInstanceId: number) {
@@ -274,6 +277,8 @@ export class WebViewPlatformView extends PlatformView {
   private returnValueForShouldOverrideUrlLoading: boolean = false;
 
   private controllerAttached: boolean = false;
+
+  private javaScriptChannels: Map<string, JavaScriptChannel> = new Map();
 
   private onDisposeCallback?: () => void;
 
@@ -386,7 +391,8 @@ export class WebViewPlatformView extends PlatformView {
 
   onControllerAttached = () => {
     Log.d(TAG, "onControllerAttached");
-    this.controllerAttached = true
+    this.controllerAttached = true;
+    this.reRegisterJavaScriptChannels();
   }
 
 
@@ -477,6 +483,36 @@ export class WebViewPlatformView extends PlatformView {
         reject()
       }
     })
+  }
+
+  addJavaScriptChannel(channel: JavaScriptChannel) {
+      this.javaScriptChannels.set(channel.getJavaScriptChannelName(), channel);
+    }
+
+  removeJavaScriptChannel(channelName: string) {
+    this.javaScriptChannels.delete(channelName);
+  }
+
+  reRegisterJavaScriptChannels() {
+    if (this.javaScriptChannels.size === 0) {
+      return;
+    }
+    try {
+      this.javaScriptChannels.forEach((channel: JavaScriptChannel, channelName: string) => {
+        this.controller.registerJavaScriptProxy(
+          {
+            postMessage: (message: string) => {
+              channel.postMessage(message)
+            },
+          },
+          channelName,
+          ["postMessage"]
+        )
+      })
+      this.controller.refresh()
+    } catch (err) {
+      Log.e(TAG, "reRegisterJavaScriptChannels err = " + err);
+    }
   }
 
 }
