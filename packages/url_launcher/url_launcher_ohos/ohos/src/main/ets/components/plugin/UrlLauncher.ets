@@ -189,33 +189,20 @@ export class UrlLauncher implements UrlLauncherApi {
     return true
   }
 
-  launchTel(url: string): Promise<boolean> {
+  launchTel(url: string): boolean {
     let phoneNum = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_TEL + ':');
-    
     try {
-      phoneNum = decodeURIComponent(phoneNum);
+      phoneNum = decodeURIComponent(phoneNum).replace(/\s+/g, '');
     } catch (e) {
-      Log.w(TAG, `decodeURIComponent failed for: ${phoneNum}, error: ${e}`);
-    }
-    phoneNum = phoneNum.replace(/\s+/g, '');
-    
-    if (!phoneNum) {
-      Log.e(TAG, 'launchTel failed: empty phone number');
-      return Promise.resolve(false);
-    }
-    
-    Log.d(TAG, `launchTel: ${phoneNum}`);
-    
-    return call.makeCall(phoneNum)
-      .then(() => {
-        Log.i(TAG, `launchTel success`);
-        return true;
-      })
-      .catch((err: ESObject) => {
-        const errorMsg = err?.message || err?.code || JSON.stringify(err);
-        Log.e(TAG, `launchTel failed, error: ${errorMsg}`);
-        return false;
-      });
+      phoneNum = phoneNum.replace(/\s+/g, '');
+    };
+    Log.d(TAG, 'launchTel:' + phoneNum);
+    call.makeCall(phoneNum).then(() => {
+      Log.e(TAG, `launchTel success`);
+    }).catch((err: ESObject) => {
+      Log.e(TAG, `launchTel failed,  error: ${JSON.stringify(err)}`);
+    })
+    return true;
   }
 
   // 只支持沙箱路径
