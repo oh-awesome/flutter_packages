@@ -371,13 +371,8 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     try {
-      let promise = data_preferences.getPreferences(binding.getApplicationContext(), PREFERENCES_NAME);
-      promise.then((object) => {
-        this.preferences = object;
-        Log.i(TAG, "Succeeded in getting preferences.");
-      }).catch((err: ESObject) => {
-        Log.w(TAG, "Failed to get preferences. code =" + err.code + ", message =" + err.message);
-      })
+      this.preferences = data_preferences.getPreferencesSync(binding.getApplicationContext(), { name: PREFERENCES_NAME });
+      Log.i(TAG, "Succeeded in getting preferences.");
     } catch(err) {
       Log.w(TAG, "Failed to get preferences."+ JSON.stringify(err));
     }
