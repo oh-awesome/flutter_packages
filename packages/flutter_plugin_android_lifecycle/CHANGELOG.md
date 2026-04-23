@@ -1,6 +1,6 @@
 ## 2.0.29
 
-* Updates kotlin version to 2.2.0 to enable gradle 8.11 support.
+* Upgrades plugin to 1.8.0 for Gradle 8.11 compatibility.
 
 ## 2.0.28
 

@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "flutter_plugin_android_lifecycle",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}
