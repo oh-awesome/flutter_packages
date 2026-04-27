@@ -53,7 +53,7 @@ preparation_steps:
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
-    args: ["flutter_packages", "br_camera-v0.11.0+2_ohos"]
+    args: ["flutter_packages", "br_camera-v0.11.0_2_ohos"]
     required: true
 
 # Compilation steps - executed in order
