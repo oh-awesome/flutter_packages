@@ -119,7 +119,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       header[key.toString()] = value.toString();
     })
     let textureId: number = flutterRenderer.getTextureId();
-    let playerId: number = textureId();
+    let playerId: number = textureId;
     Log.i(TAG, "enter getRawFd, textureId=" + textureId);
     let surfaceTextureEntry: SurfaceTextureEntry = flutterRenderer.registerTexture(textureId);
     let windowProperties = windowClass.getWindowProperties();
