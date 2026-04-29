@@ -200,7 +200,12 @@ export class WebViewHostApiImpl extends WebViewHostApi {
 
   clearCache(instanceId: number, includeDiskFiles: boolean): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().removeCache(includeDiskFiles);
+    // Wait for controller to be attached before clearing cache
+    webView.waitControllerAttached().then(() => {
+      webView.getController().removeCache(includeDiskFiles);
+    }).catch(() => {
+      // If controller is not attached, silently ignore (no cache to clear yet)
+    });
   }
 
   evaluateJavascript(instanceId: number, javascriptString: string, result: Result<string>): void {
@@ -225,12 +230,17 @@ export class WebViewHostApiImpl extends WebViewHostApi {
 
   scrollTo(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().scrollTo(x, y);
+    // scrollTo may need the page to be loaded first
+    webView.waitControllerAttached().then(() => {
+      webView.getController().scrollTo(x, y);
+    });
   }
 
   scrollBy(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().scrollBy(x, y);
+    webView.waitControllerAttached().then(() => {
+      webView.getController().scrollBy(x, y);
+    });
   }
 
   getScrollX(instanceId: number): number {
@@ -268,8 +278,8 @@ export class WebViewHostApiImpl extends WebViewHostApi {
       webView.addJavaScriptChannel(javaScriptChannel);
       webView.getController().registerJavaScriptProxy(
         {
-          postMessage: (message: string) => {
-            javaScriptChannel.postMessage(message)
+          postMessage: (message: ESObject) => {
+            javaScriptChannel.postMessage(String(message))
           },
         },
         javaScriptChannel.getJavaScriptChannelName(),
@@ -521,10 +531,8 @@ export class WebViewPlatformView extends PlatformView {
 
   onConsoleMessage = (event: ESObject) => {
     let message:ConsoleMessage = event.message;
-    if (message.getMessageLevel() == MessageLevel.Error || message.getMessageLevel() == MessageLevel.Warn) {
-      if (this.webChromeClient) {
+    if (this.webChromeClient) {
         this.webChromeClient.onConsoleMessage(event.message);
-      }
     } else {
       Log.d(TAG, "logLevel: " + message.getMessageLevel() + " "+ message.getMessage());
     }
