@@ -9,11 +9,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-
+  path_provider: ^2.0.6
+  webview_flutter_ohos:
+    path: ../
+  webview_flutter_platform_interface:
+    git:
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/webview_flutter_platform_interface-v2.10.0/webview_flutter_platform_interface"
 
 dev_dependencies:
   espresso: ^0.2.0
   flutter_test:
+    sdk: flutter
+  integration_test:
     sdk: flutter
 
 flutter:
