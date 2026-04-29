@@ -77,10 +77,8 @@ class CameraPreview extends StatelessWidget {
   }
 
   DeviceOrientation _getApplicableOrientation() {
-    return controller.value.isRecordingVideo
-        ? controller.value.recordingOrientation!
-        : (controller.value.previewPauseOrientation ??
+    return controller.value.previewPauseOrientation ??
             controller.value.lockedCaptureOrientation ??
-            controller.value.deviceOrientation);
+            controller.value.deviceOrientation;
   }
 }
