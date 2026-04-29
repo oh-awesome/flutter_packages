@@ -202,13 +202,19 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     // scrollTo may need the page to be loaded first
     webView.waitControllerAttached().then(() => {
       webView.getController().scrollTo(x, y);
+      // Manually update scroll position since scrollTo doesn't trigger onScroll callback
+      webView.setScrollPosition(x, y);
     });
   }
 
   scrollBy(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
     webView.waitControllerAttached().then(() => {
+      const currentX = webView.getScrollX();
+      const currentY = webView.getScrollY();
       webView.getController().scrollBy(x, y);
+      // Manually update scroll position since scrollBy doesn't trigger onScroll callback
+      webView.setScrollPosition(currentX + x, currentY + y);
     });
   }
 
@@ -602,6 +608,12 @@ export class WebViewPlatformView extends PlatformView {
 
   getScrollY(): number {
     return this.scrollY;
+  }
+
+  setScrollPosition(x: number, y: number): void {
+    this.scrollX = x;
+    this.scrollY = y;
+    this.webViewFlutterApi.onScrollChanged(this, x, y, this.scrollX, this.scrollY, {reply: () => {}});
   }
 
   setReturnValueForShouldOverrideUrlLoading(value: boolean) {

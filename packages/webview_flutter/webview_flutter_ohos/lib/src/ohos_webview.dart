@@ -781,6 +781,7 @@ class WebViewClient extends OhosObject {
     this.urlLoading,
     this.doUpdateVisitedHistory,
     this.onReceivedHttpAuthRequest,
+    this.onReceivedHttpError,
     this.onReceivedSslError,
     @visibleForTesting super.binaryMessenger,
     @visibleForTesting super.instanceManager,
@@ -803,6 +804,7 @@ class WebViewClient extends OhosObject {
     this.urlLoading,
     this.doUpdateVisitedHistory,
     this.onReceivedHttpAuthRequest,
+    this.onReceivedHttpError,
     this.onReceivedSslError,
     super.binaryMessenger,
     super.instanceManager,
@@ -930,6 +932,13 @@ class WebViewClient extends OhosObject {
     String host,
     String realm,
   )? onReceivedHttpAuthRequest;
+
+  /// Notify the host application that an HTTP error has been received.
+  final void Function(
+    WebView webView,
+    WebResourceRequest request,
+    WebResourceError error,
+  )? onReceivedHttpError;
 
   /// Notify the host application that an SSL error occurred while loading a resource.
   final void Function(

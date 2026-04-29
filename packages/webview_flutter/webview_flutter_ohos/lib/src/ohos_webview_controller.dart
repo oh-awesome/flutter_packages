@@ -1009,9 +1009,9 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
               params as OhosWebViewWidgetCreationParams),
       viewType: 'plugins.flutter.io/webview',
       surfaceFactory: (
-          BuildContext context,
-          PlatformViewController controller,
-          ) {
+        BuildContext context,
+        PlatformViewController controller,
+      ) {
         return OhosViewSurface(
           controller: controller as OhosViewController,
           gestureRecognizers: _ohosParams.gestureRecognizers,
@@ -1022,7 +1022,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
         return _initOhosView(
           params,
           displayWithHybridComposition:
-          _ohosParams.displayWithHybridComposition,
+              _ohosParams.displayWithHybridComposition,
         )
           ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
           ..create();
@@ -1031,9 +1031,9 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
   }
 
   OhosViewController _initOhosView(
-      PlatformViewCreationParams params, {
-        required bool displayWithHybridComposition,
-      }) {
+    PlatformViewCreationParams params, {
+    required bool displayWithHybridComposition,
+  }) {
     if (displayWithHybridComposition) {
       return _ohosParams.platformViewsServiceProxy.initExpensiveOhosView(
         id: params.id,
@@ -1059,7 +1059,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
   // Attempt to handle custom views with a default implementation if it has not
   // been set.
   void _trySetDefaultOnShowCustomWidgetCallbacks(BuildContext context) {
-        final OhosWebViewController controller =
+    final OhosWebViewController controller =
         _ohosParams.controller as OhosWebViewController;
 
     if (controller._onShowCustomWidgetCallback == null) {
@@ -1299,22 +1299,6 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
             isForMainFrame: request.isForMainFrame,
           ));
         }
-        
-        // Handle HTTP errors
-        final HttpResponseErrorCallback? httpErrorCallback =
-            weakThis.target?._onHttpError;
-        if (httpErrorCallback != null) {
-          httpErrorCallback(HttpResponseError(
-            response: WebResourceResponse(
-              uri: Uri.parse(request.url),
-              statusCode: error.errorCode,
-              headers: <String, String>{},
-            ),
-            request: WebResourceRequest(
-              uri: Uri.parse(request.url),
-            ),
-          ));
-        }
       },
       onReceivedError: (
         ohos_webview.WebView webView,
@@ -1379,6 +1363,26 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
           );
         } else {
           httpAuthHandler.cancel();
+        }
+      },
+      onReceivedHttpError: (
+        ohos_webview.WebView webView,
+        ohos_webview.WebResourceRequest request,
+        ohos_webview.WebResourceError error,
+      ) {
+        final HttpResponseErrorCallback? httpErrorCallback =
+            weakThis.target?._onHttpError;
+        if (httpErrorCallback != null) {
+          httpErrorCallback(HttpResponseError(
+            response: WebResourceResponse(
+              uri: Uri.parse(request.url),
+              statusCode: error.errorCode ?? -1,
+              headers: <String, String>{},
+            ),
+            request: WebResourceRequest(
+              uri: Uri.parse(request.url),
+            ),
+          ));
         }
       },
       onReceivedSslError: (
