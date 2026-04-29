@@ -921,7 +921,7 @@ Future<void> main() async {
 
       expect(error, isNotNull);
       expect(error.response?.statusCode, 404);
-    }, skip: true);
+    });
 
     testWidgets('onHttpError is not called when no HTTP error is received',
         (WidgetTester tester) async {
@@ -963,7 +963,7 @@ Future<void> main() async {
 
       expect(errorCompleter.future, doesNotComplete);
       await pageFinishCompleter.future;
-    }, skip: true);
+    });
 
     testWidgets('can block requests', (WidgetTester tester) async {
       Completer<void> pageLoaded = Completer<void>();
@@ -1008,7 +1008,7 @@ Future<void> main() async {
           .timeout(const Duration(milliseconds: 500), onTimeout: () => false);
       final String? currentUrl = await controller.currentUrl();
       expect(currentUrl, isNot(contains('youtube.com')));
-    });
+  });
 
     testWidgets('supports asynchronous decisions', (WidgetTester tester) async {
       Completer<void> pageLoaded = Completer<void>();
