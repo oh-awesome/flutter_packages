@@ -11,16 +11,13 @@ dependencies:
   flutter:
     sdk: flutter
   path_provider: ^2.0.6
-  # path_provider:
-  #   path: "../../../path_provider/path_provider"
   path_provider_platform_interface: ^2.0.0
+  webview_flutter:
+    path: ../../webview_flutter
   webview_flutter_ohos:
-    # When depending on this package from a real application you should use:
-    #   webview_flutter: ^x.y.z
-    # See https://dart.dev/tools/pub/dependencies#version-constraints
-    # The example app is bundled with the plugin so we use a path dependency on
-    # the parent directory to use the current plugin's version.
     path: ../
+  webview_flutter_platform_interface:
+    path: ../../webview_flutter_platform_interface
 
 dependency_overrides:
   webview_flutter_ohos:
@@ -36,6 +33,8 @@ dependency_overrides:
 dev_dependencies:
   espresso: ^0.4.0
   flutter_test:
+    sdk: flutter  
+  integration_test:
     sdk: flutter
 
 flutter:
