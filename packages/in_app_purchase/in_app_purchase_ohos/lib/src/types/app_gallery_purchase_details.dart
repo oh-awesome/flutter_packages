@@ -43,7 +43,6 @@ class AppGalleryPurchaseDetails extends PurchaseDetails {
           serverVerificationData: base64EncodedReceipt,
           source: kIAPSource),
     );
-    var statuus = purchaseDetails.status;
     if (purchaseDetails.status == PurchaseStatus.error ||
         purchaseDetails.status == PurchaseStatus.canceled) {
       purchaseDetails.error = IAPError(
@@ -68,7 +67,8 @@ class AppGalleryPurchaseDetails extends PurchaseDetails {
 
   @override
   set status(PurchaseStatus status) {
-    _pendingCompletePurchase = status == PurchaseStatus.purchased;
+    _pendingCompletePurchase =
+        status == PurchaseStatus.purchased || status == PurchaseStatus.restored;
     _status = status;
   }
 
@@ -76,4 +76,9 @@ class AppGalleryPurchaseDetails extends PurchaseDetails {
 
   @override
   bool get pendingCompletePurchase => _pendingCompletePurchase;
+
+  /// Marks that the platform-specific completion step has already been handled.
+  void markCompletePurchaseHandled() {
+    _pendingCompletePurchase = false;
+  }
 }

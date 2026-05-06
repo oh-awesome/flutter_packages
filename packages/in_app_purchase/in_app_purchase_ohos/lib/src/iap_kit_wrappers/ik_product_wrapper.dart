@@ -158,7 +158,6 @@ enum IKProductDiscountPaymentMode {
   unspecified,
 }
 
-
 /// This is used as a property in the [IKProductDiscountWrapper].
 /// The values of the enum options are matching the [IKProductDiscountType]'s
 /// values.
@@ -259,8 +258,12 @@ enum ProductType {
   NONCONSUMABLE,
 
   /// 自动续期订阅商品
-  @JsonValue(3)
+  @JsonValue(2)
   AUTORENEWABLE,
+
+  /// 非续期订阅商品
+  @JsonValue(3)
+  NONRENEWABLE,
 }
 
 /// 商品状态枚举

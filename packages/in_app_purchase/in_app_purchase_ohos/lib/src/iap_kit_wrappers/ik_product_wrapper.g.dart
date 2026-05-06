@@ -48,8 +48,10 @@ ProductType _$IKProductTypeFromInt(int type) {
       return ProductType.CONSUMABLE;
     case 1:
       return ProductType.NONCONSUMABLE;
-    case 3:
+    case 2:
       return ProductType.AUTORENEWABLE;
+    case 3:
+      return ProductType.NONRENEWABLE;
     default:
       return ProductType.CONSUMABLE;
   }
