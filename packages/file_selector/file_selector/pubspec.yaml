@@ -39,7 +39,7 @@ dependencies:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/file_selector/file_selector_ohos"
- 	    ref: br_file_selector-v1.1.0_ohos
+      ref: br_file_selector-v1.1.0_ohos
   flutter:
     sdk: flutter
 
