@@ -11,6 +11,7 @@ import 'package:shared_preferences/util/legacy_to_async_migration_util.dart';
 import 'package:shared_preferences_android/shared_preferences_android.dart';
 import 'package:shared_preferences_foundation/shared_preferences_foundation.dart';
 import 'package:shared_preferences_linux/shared_preferences_linux.dart';
+import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
 import 'package:shared_preferences_windows/shared_preferences_windows.dart';
 
 const String stringKey = 'testString';
@@ -26,6 +27,7 @@ const double testDouble = 3.14159;
 const List<String> testList = <String>['foo', 'bar'];
 
 const String migrationCompletedKey = 'migrationCompleted';
+bool get isOhos => Platform.operatingSystem == 'ohos';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -96,6 +98,13 @@ void runAllGroups(
       sharedPreferencesAsyncOptions = const SharedPreferencesWindowsOptions(
         fileName: 'fileName',
       );
+    } else if (isOhos) {
+      sharedPreferencesAsyncOptions = const SharedPreferencesAsyncOhosOptions(
+        backend: SharedPreferencesOhosBackendLibrary.SharedPreferences,
+        originalSharedPreferencesOptions: OhosSharedPreferencesStoreOptions(
+          fileName: 'fileName',
+        ),
+      );
     } else {
       sharedPreferencesAsyncOptions = const SharedPreferencesOptions();
     }
@@ -114,6 +123,21 @@ void runAllGroups(
             backend: SharedPreferencesAndroidBackendLibrary.SharedPreferences,
             originalSharedPreferencesOptions:
                 AndroidSharedPreferencesStoreOptions(),
+          );
+
+      runTests(
+        sharedPreferencesAsyncOptions,
+        legacySharedPrefsConfig,
+        stringValue: stringValue,
+      );
+    });
+  } else if (isOhos) {
+    group('OHOS default sharedPreferences', () {
+      const SharedPreferencesOptions sharedPreferencesAsyncOptions =
+          SharedPreferencesAsyncOhosOptions(
+            backend: SharedPreferencesOhosBackendLibrary.SharedPreferences,
+            originalSharedPreferencesOptions:
+                OhosSharedPreferencesStoreOptions(),
           );
 
       runTests(

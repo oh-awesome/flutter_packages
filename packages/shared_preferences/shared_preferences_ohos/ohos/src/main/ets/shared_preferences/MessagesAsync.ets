@@ -165,7 +165,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as boolean;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setBool(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -192,7 +192,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setString(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -219,7 +219,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = BigInt(args[1] as bigint);
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setInt(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -246,7 +246,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as number;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setDouble(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -273,7 +273,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setEncodedStringList(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -300,7 +300,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as Array<string>;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[2] as Array<Object>);
+          const optionsArg = args[2] as SharedPreferencesPigeonOptions;
 
           api.setDeprecatedStringList(keyArg, valueArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -326,7 +326,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getString(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -353,7 +353,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getBool(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -380,7 +380,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getDouble(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -407,7 +407,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getInt(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -434,7 +434,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getPlatformEncodedStringList(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -461,7 +461,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const keyArg = args[0] as string;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getStringList(keyArg, optionsArg).then((result) => {
             wrapped.push(result);
@@ -488,7 +488,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const allowListArg = args[0] as Array<string> | null;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.clear(allowListArg, optionsArg).then(() => {
             reply.reply(wrapped);
@@ -514,7 +514,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const allowListArg = args[0] as Array<string> | null;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getAll(allowListArg, optionsArg).then((result) => {
             if (result == null) {
@@ -547,7 +547,7 @@ export function setupSharedPreferencesAsyncApi(binaryMessenger: BinaryMessenger,
           const wrapped = new Array<Object>();
           const args = msg as Array<Object>;
           const allowListArg = args[0] as Array<string> | null;
-          const optionsArg = SharedPreferencesPigeonOptions.decode(args[1] as Array<Object>);
+          const optionsArg = args[1] as SharedPreferencesPigeonOptions;
 
           api.getKeys(allowListArg, optionsArg).then((result) => {
             if (result == null) {
