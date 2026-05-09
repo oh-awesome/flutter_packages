@@ -1,6 +1,6 @@
 {
   "app": {
-    "bundleName": "dev.flutter.packages.file_selector_ohos_example",
+    "bundleName": "dev.flutter.packages.shared_preferences_ohos_example",
     "vendor": "example",
     "versionCode": 1000000,
     "versionName": "1.0.0",

@@ -1,19 +1,24 @@
-
 <p align="center">
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-This project is based on  [shared_preferences@2.5.4](https://pub.dev/packages/shared_preferences/versions/2.5.4)  .
+This project is developed as the OpenHarmony platform implementation based on [shared_preferences@2.5.4](https://pub.dev/packages/shared_preferences/versions/2.5.4).
 
-## 1. Installation and Usage
+## Introduction
 
-### 1.1 Installation
+`shared_preferences_ohos` provides OpenHarmony storage support for `shared_preferences`, and persists the following primitive value types locally:
 
-Go to the project directory and add the following dependencies in pubspec.yaml：
+- `String`
+- `int`
+- `double`
+- `bool`
+- `List<String>`
 
-<!-- tabs:start -->
+> Note: This plugin is designed for lightweight key-value persistence, not for critical business data.
 
-#### pubspec.yaml
+## Installation
+
+Go to your project directory and add the following dependency in `pubspec.yaml`:
 
 ```yaml
 dependencies:
@@ -30,23 +35,127 @@ Execute Command
 flutter pub get
 ```
 
-<!-- tabs:end -->
+## Constraints
 
-### 1.2 Usage
+### Compatibility
 
-For use cases [shared_preferences_ohos/example](./example)
+Tested with the following versions:
 
-## 2. Constraints
+1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
 
-### 2.1 Compatibility
+### Permission Requirements
 
-This document is verified based on the following versions:
+None.
 
-1. Flutter: 3.35.7; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+### Platform Differences and Notes
 
-## 3. Properties
+- Data types: only `String/int/double/bool/List<String>` are supported(same as upstream behavior).
+- Async filtering: Async APIs only support `allowList` filtering (`getPreferences/getKeys/clear`); prefix filtering is not supported by design (not OHOS-specific).
+- Async default storage name: when using the Async `SharedPreferences` backend without specifying `fileName`, OHOS uses `${bundleName}_preferences` by default to avoid collisions with the legacy `FlutterSharedPreferences` store. For consistent cross-platform behavior, specify `fileName` explicitly.
+- StringList storage protocol: JSON-encoded `List<String>` is persisted as a string in the form `jsonListPrefix + jsonEncode(list)` and is decoded back to `List<String>` on reads. Legacy platform-encoded list values are also supported for migration/regression.
+- Data security: this plugin does not provide encryption; do not store sensitive data.
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+## Usage example
+
+### Async API and backend options (OpenHarmony supported)
+
+```dart
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
+
+Future<void> asyncUsage() async {
+  final SharedPreferencesAsync prefs = SharedPreferencesAsync();
+  const SharedPreferencesAsyncOhosOptions options =
+      SharedPreferencesAsyncOhosOptions(
+    backend: SharedPreferencesOhosBackendLibrary.SharedPreferences,
+    originalSharedPreferencesOptions: OhosSharedPreferencesStoreOptions(
+      fileName: 'the_name_of_a_file',
+    ),
+  );
+
+  await prefs.setString('action', 'Start', options: options);
+  final String? action = await prefs.getString('action', options: options);
+  print('action=$action');
+}
+```
+
+## Usage Notes
+
+- `SharedPreferencesAsyncOhos`: OpenHarmony implementation of `SharedPreferencesAsyncPlatform`.
+- Filtering capability: Async APIs currently support `allowList` filtering for `getPreferences`, `clear`, and `getKeys`.
+- Backend options: `SharedPreferencesAsyncOhosOptions.backend` defines `DataStore` and `SharedPreferences` options.
+
+## API Description
+
+### API
+
+> [!TIP] In the "ohos Support" column, `yes` means this item is supported on the ohos platform, and `no` means it is not supported. The usage is cross-platform consistent, and the behavior aligns with iOS or Android.
+
+#### SharedPreferences
+
+| Name | Type | Parameter Type | Return Value | OHOS Platform Support | Description |
+| --- | --- | --- | --- | --- | --- |
+| `getInstance()` | function | `-` | `Future<SharedPreferences>` | yes | Return a SharedPreferences instance |
+| `getString()` | function | `String key` | `String?` | yes | Get the stored string value in the current legacy `SharedPreferences` scope |
+| `getInt()` | function | `String key` | `int?` | yes | Get the stored integer value in the current legacy `SharedPreferences` scope |
+| `getDouble()` | function | `String key` | `double?` | yes | Get the stored floating-point value in the current legacy `SharedPreferences` scope |
+| `getBool()` | function | `String key` | `bool?` | yes | Get the stored boolean value in the current legacy `SharedPreferences` scope |
+| `getStringList()` | function | `String key` | `List<String>?` | yes | Get the stored string list in the current legacy `SharedPreferences` scope |
+| `setString()` | function | `String key, String value` | `Future<bool>` | yes | Store a string value |
+| `setInt()` | function | `String key, int value` | `Future<bool>` | yes | Store an integer value |
+| `setDouble()` | function | `String key, double value` | `Future<bool>` | yes | Store a floating-point value |
+| `setBool()` | function | `String key, bool value` | `Future<bool>` | yes | Store a boolean value |
+| `setStringList()` | function | `String key, List<String> value` | `Future<bool>` | yes | Store a string list |
+| `remove()` | function | `String key` | `Future<bool>` | yes | Remove the stored value |
+| `clear()` | function | `-` | `Future<bool>` | yes | Remove all stored values in the current legacy `SharedPreferences` scope |
+| `reload()` | function | `-` | `Future<void>` | yes | Reload values from disk for the current legacy `SharedPreferences` scope |
+| `containsKey()` | function | `String key` | `bool` | yes | Check whether a key exists in the current legacy `SharedPreferences` scope |
+| `getKeys()` | function | `-` | `Set<String>` | yes | Return all keys in the current legacy `SharedPreferences` scope |
+
+#### SharedPreferencesOhos
+
+| Name | Type | Parameter Type | Return Value | OHOS Platform Support | Description |
+| --- | --- | --- | --- | --- | --- |
+| `remove()` | method | `String key` | `Future<bool>` | yes | Remove the specified key |
+| `setValue()` | method | `String valueType, String key, Object value` | `Future<bool>` | yes | Write `String`, `int`, `double`, `bool`, or `List<String>` values by type |
+| `clear()` | method | `-` | `Future<bool>` | yes | Clear data in the default legacy `flutter.` prefix scope |
+| `clearWithPrefix()` | method | `String prefix` | `Future<bool>` | yes | Clear data with a specified prefix |
+| `clearWithParameters()` | method | `ClearParameters parameters` | `Future<bool>` | yes | Clear data with legacy filter parameters |
+| `getAll()` | method | `-` | `Future<Map<String, Object>>` | yes | Get all data in the default legacy `flutter.` prefix scope |
+| `getAllWithPrefix()` | method | `String prefix` | `Future<Map<String, Object>>` | yes | Get all data in the specified prefix scope |
+| `getAllWithParameters()` | method | `GetAllParameters parameters` | `Future<Map<String, Object>>` | yes | Get all data with legacy filter parameters |
+
+#### SharedPreferencesAsyncOhos
+
+| Name | Type | Parameter Type | Return Value | OHOS Platform Support | Description |
+| --- | --- | --- | --- | --- | --- |
+| `getKeys()` | method | `GetPreferencesParameters parameters, SharedPreferencesOptions options` | `Future<Set<String>>` | yes | Get the key set in the async scope; currently supports `allowList` filtering |
+| `setString()` | method | `String key, String value, SharedPreferencesOptions options` | `Future<void>` | yes | Store a string value |
+| `setInt()` | method | `String key, int value, SharedPreferencesOptions options` | `Future<void>` | yes | Store an integer value |
+| `setDouble()` | method | `String key, double value, SharedPreferencesOptions options` | `Future<void>` | yes | Store a floating-point value |
+| `setBool()` | method | `String key, bool value, SharedPreferencesOptions options` | `Future<void>` | yes | Store a boolean value |
+| `setStringList()` | method | `String key, List<String> value, SharedPreferencesOptions options` | `Future<void>` | yes | Encode and store a string list |
+| `getString()` | method | `String key, SharedPreferencesOptions options` | `Future<String?>` | yes | Get a string value |
+| `getInt()` | method | `String key, SharedPreferencesOptions options` | `Future<int?>` | yes | Get an integer value |
+| `getDouble()` | method | `String key, SharedPreferencesOptions options` | `Future<double?>` | yes | Get a floating-point value |
+| `getBool()` | method | `String key, SharedPreferencesOptions options` | `Future<bool?>` | yes | Get a boolean value |
+| `getStringList()` | method | `String key, SharedPreferencesOptions options` | `Future<List<String>?>` | yes | Get a string list with compatibility for JSON-encoded and platform-encoded results |
+| `clear()` | method | `ClearPreferencesParameters parameters, SharedPreferencesOptions options` | `Future<void>` | yes | Clear data with async filter parameters; currently supports `allowList` |
+| `getPreferences()` | method | `GetPreferencesParameters parameters, SharedPreferencesOptions options` | `Future<Map<String, Object>>` | yes | Get all data with async filter parameters; currently supports `allowList` |
+
+#### SharedPreferencesAsyncOhosOptions
+
+| Name | Type | Parameter Type | Return Value | OHOS Platform Support | Description |
+| --- | --- | --- | --- | --- | --- |
+| `backend` | property | `SharedPreferencesOhosBackendLibrary` | `SharedPreferencesOhosBackendLibrary` | yes | Async backend option that defines `DataStore` and `SharedPreferences` enum values |
+| `originalSharedPreferencesOptions` | property | `OhosSharedPreferencesStoreOptions?` | `OhosSharedPreferencesStoreOptions?` | yes | Additional options used when the `SharedPreferences` backend is selected |
+
+#### OhosSharedPreferencesStoreOptions
+
+| Name | Type | Parameter Type | Return Value | OHOS Platform Support | Description |
+| --- | --- | --- | --- | --- | --- |
+| `fileName` | property | `String?` | `String?` | yes | Specifies the storage file name used by the `SharedPreferences` backend |
 
 #### Storage type
 
@@ -58,46 +167,35 @@ This document is verified based on the following versions:
 | bool         | Store boolean values        | bool   | yes              |
 | List<String> | Store string lists          | List   | yes              |
 
-### Parameters
+#### Parameters
 
 | Name   | Description                                                  | Type    | **ohos Support** |
 | ------ | ------------------------------------------------------------ | ------- | ---------------- |
 | key    | The unique identifier for storing values                     | String  | yes              |
 | value  | The value to be stored (String, int, double, bool, or List<String>) | dynamic | yes              |
-| prefix | An optional prefix for all keys to avoid naming conflicts    | String  | yes              |
+| prefix | The legacy `SharedPreferences` APIs use `flutter.` as the default key prefix to scope operations such as `clear()`, `getKeys()`, `containsKey()`, and `reload()` | String | yes |
 
-## 4. API
+## Directory structure
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+```text
+shared_preferences_ohos/
+├─ lib/
+│  ├─ shared_preferences_ohos.dart
+│  └─ src/
+│     ├─ shared_preferences_ohos.dart
+│     └─ shared_preferences_async_ohos.dart
+├─ ohos/
+├─ example/
+├─ test/
+└─ pubspec.yaml
+```
 
-#### SharedPreferences
+## Contributing
 
-| Name            | **return value**          | Description                          | Type     | **ohos Support** |
-| --------------- | ------------------------- | ------------------------------------ | -------- | ---------------- |
-| getInstance()   | Future<SharedPreferences> | Return a SharedPreferences instance  | function | yes              |
-| getString()     | String                    | Get the stored string value          | function | yes              |
-| getInt()        | Int                       | Get the stored integer value         | function | yes              |
-| getDouble()     | Double                    | Get the stored floating-point value  | function | yes              |
-| getBool()       | Bool                      | Get the stored boolean value         | function | yes              |
-| getStringList() | StringList                | Get the stored string list           | function | yes              |
-| setString()     | Future<bool>              | Store a string value                 | function | yes              |
-| setInt()        | Future<bool>              | Store an integer value               | function | yes              |
-| setDouble()     | Future<bool>              | Store a floating-point value         | function | yes              |
-| setBool()       | Future<bool>              | Store a boolean value                | function | yes              |
-| setStringList() | Future<bool>              | Store a string list                  | function | yes              |
-| remove()        | Future<bool>              | Remove the stored value              | function | yes              |
-| clear()         | Future<bool>              | Remove all stored values             | function | yes              |
-| reload()        | Future<bool>              | Reload stored values from disk       | function | yes              |
-| containsKey()   | bool                      | Check if a key exists in preferences | function | yes              |
-| getKeys()       | Set<String>               | Return all keys in preferences       | function | yes              |
+If you encounter any issues during use, you can submit an [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues). You are also very welcome to contribute through [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls).
 
-## 5. Known Issues
-
-## 6. Others
-
-## 7.**License**
+## License
 
 This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.4_ohos/packages/shared_preferences/shared_preferences/LICENSE)
 
 > Template version:  v0.0.1.
-

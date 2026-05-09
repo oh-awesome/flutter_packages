@@ -9,6 +9,9 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  shared_preferences:
+    # Use local shared_preferences package in this mono-repo.
+    path: ../../shared_preferences
   shared_preferences_ohos:
     # When depending on this package from a real application you should use:
     #   shared_preferences_ohos: ^x.y.z
@@ -26,6 +29,10 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+
+dependency_overrides:
+  shared_preferences_ohos:
+    path: ../
 
 flutter:
   uses-material-design: true
