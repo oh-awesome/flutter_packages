@@ -29,7 +29,7 @@ dev_dependencies:
     sdk: flutter
   pigeon: ^24.2.0
 
-  topics:
+topics:
   - camera
   - image-picker
   - files
