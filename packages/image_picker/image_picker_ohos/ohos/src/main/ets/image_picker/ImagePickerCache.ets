@@ -270,13 +270,17 @@ export default class ImagePickerCache {
           });
         resultMap.set(ImagePickerCache.MAP_KEY_MAX_HEIGHT, maxHeightValue);
       }
-      await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_IMAGE_QUALITY_KEY, 100)
-        .then((data) => {
-          return data;
-        });
-      resultMap.set(ImagePickerCache.MAP_KEY_IMAGE_QUALITY, ImagePickerCache);
+      hasKey = await this.hasKey(ImagePickerCache.SHARED_PREFERENCE_IMAGE_QUALITY_KEY).then((result) => {
+        return result;
+      });
+      if (hasKey) {
+        let imageQualityValue = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_IMAGE_QUALITY_KEY, 100)
+          .then((data) => {
+            return data;
+          });
+        resultMap.set(ImagePickerCache.MAP_KEY_IMAGE_QUALITY, imageQualityValue);
+      }
     }
-
     return resultMap;
   }
 }
