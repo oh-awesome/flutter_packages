@@ -641,16 +641,16 @@ export class ImagePickerApiCodec extends StandardMessageCodec {
       stream.writeInt8(129);
       super.writeValue(stream, value.toList());
     } else if (value instanceof GeneralOptions) {
-      stream.writeInt8(129);
-      super.writeValue(stream, value.toList());
-    } else if (value instanceof ImageSelectionOptions) {
       stream.writeInt8(130);
       super.writeValue(stream, value.toList());
-    } else if (value instanceof MediaSelectionOptions) {
+    } else if (value instanceof ImageSelectionOptions) {
       stream.writeInt8(131);
       super.writeValue(stream, value.toList());
-    } else if (value instanceof SourceSpecification) {
+    } else if (value instanceof MediaSelectionOptions) {
       stream.writeInt8(132);
+      super.writeValue(stream, value.toList());
+    } else if (value instanceof SourceSpecification) {
+      stream.writeInt8(133);
       super.writeValue(stream, value.toList());
     } else if (value instanceof VideoSelectionOptions) {
       stream.writeInt8(134);
