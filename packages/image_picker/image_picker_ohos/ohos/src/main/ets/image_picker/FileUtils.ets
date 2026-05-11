@@ -27,7 +27,8 @@ export default class FileUtils {
     }
     const uuid = util.generateRandomUUID();
     if (!context) {
-      return
+      fs.closeSync(inputFile);
+      return null;
     }
     {
       const targetDirectoryPath = context.cacheDir + "/" + uuid;
