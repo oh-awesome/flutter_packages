@@ -420,13 +420,16 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
-    this.nowZoom = zoom;
-    zoomLevel.setValue(zoom);
     try {
       this.getCurSession().setZoomRatio(zoom);
     } catch (error) {
-      result.error("setZoomLevelFailed", "Could not set exposure point.", null);
+      Log.e(TAG, "setZoomLevel failed: zoom=" + zoom + ", error=" + error.message);
+      result.error("setZoomLevelFailed", "Could not set zoom level.", null);
+      return;
     }
+    this.nowZoom = zoom;
+    zoomLevel.setValue(zoom);
+    result.success(null);
   }
 
   public lockCaptureOrientation(orientation: DeviceOrientation): void {

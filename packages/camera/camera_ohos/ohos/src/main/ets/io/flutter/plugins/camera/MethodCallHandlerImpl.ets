@@ -286,7 +286,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         }
         try {
           let maxZoomLevel: number = this.camera!.getMaxZoomLevel();
-          result.success(Math.floor(maxZoomLevel));
+          result.success(maxZoomLevel);
         } catch (e) {
           this.handleException(e, result);
         }
@@ -298,7 +298,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         }
         try {
           let minZoomLevel: number = this.camera!.getMinZoomLevel();
-          result.success(Math.floor(minZoomLevel));
+          result.success(minZoomLevel);
         } catch (e) {
           this.handleException(e, result);
         }
