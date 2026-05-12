@@ -315,14 +315,16 @@ export class Camera implements CameraCaptureStateListener {
         "Zoom level out of bounds (zoom level should be between " + minZoom + " and " + maxZoom + ").", null);
       return;
     }
-    
-    this.nowZoom = zoom;
-    zoomLevel.setValue(zoom);
     try {
       this.getCurSession().setZoomRatio(zoom);
     } catch (error) {
-      result.error("setZoomLevelFailed", "Could not set exposure point.", null);
+      Log.e(TAG, "setZoomLevel failed: zoom=" + zoom + ", error=" + error.message);
+      result.error("setZoomLevelFailed", "Could not set zoom level.", null);
+      return;
     }
+    this.nowZoom = zoom;
+    zoomLevel.setValue(zoom);
+    result.success(null);
   }
 
   public lockCaptureOrientation(orientation: DeviceOrientation): void {
@@ -707,9 +709,9 @@ export class Camera implements CameraCaptureStateListener {
     await this.photoSession.commitConfig();
     this.getCurSession().setZoomRatio(this.nowZoom);
     await this.photoSession.start();
-    
+
     await this.applyFlashMode(this.photoSession);
- 
+
     if (this.pausedPreview) {
       await this.previewOutput.stop();
     }
