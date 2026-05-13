@@ -234,6 +234,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     const javaScriptChannel: JavaScriptChannel = this.instanceManager.getInstance(javaScriptChannelInstanceId);
     await webView.waitControllerAttached();
     try {
+      webView.addJavaScriptChannel(javaScriptChannel);
       webView.getController().registerJavaScriptProxy(
         {
           postMessage: (message: string) => {
@@ -252,7 +253,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
   removeJavaScriptChannel(instanceId: number, javaScriptChannelInstanceId: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
     const javaScriptChannel: JavaScriptChannel = this.instanceManager.getInstance(javaScriptChannelInstanceId);
+    webView.removeJavaScriptChannel(javaScriptChannel.getJavaScriptChannelName());
     webView.getController().deleteJavaScriptRegister(javaScriptChannel.getJavaScriptChannelName());
+    this.instanceManager.remove(javaScriptChannelInstanceId);
   }
 
   setDownloadListener(instanceId: number, listenerInstanceId: number) {
@@ -309,6 +312,8 @@ export class WebViewPlatformView extends PlatformView {
   isWebviewBinding: boolean = false;
 
   private webViewFlutterApi: WebViewFlutterApiImpl;
+
+  private javaScriptChannels: Map<string, JavaScriptChannel> = new Map();
 
   private visibleAreaEventEnable: boolean = true;
 
@@ -447,6 +452,7 @@ export class WebViewPlatformView extends PlatformView {
       this.controller.refresh();
     }
     this.controllerAttached = true;
+    this.reRegisterJavaScriptChannels();
   }
 
   aboutToDisappear() {
@@ -496,6 +502,7 @@ export class WebViewPlatformView extends PlatformView {
     let windowClass = context.windowStage.getMainWindowSync();
     windowClass.setWindowSystemBarEnable(['status', 'navigation']);
     windowClass.setPreferredOrientation(this.rotation);
+    this.reRegisterJavaScriptChannels();
   }
 
   getType(): string {
@@ -608,6 +615,36 @@ export class WebViewPlatformView extends PlatformView {
         reject();
       }
     })
+  }
+
+  addJavaScriptChannel(channel: JavaScriptChannel) {
+    this.javaScriptChannels.set(channel.getJavaScriptChannelName(), channel);
+  }
+
+  removeJavaScriptChannel(channelName: string) {
+    this.javaScriptChannels.delete(channelName);
+  }
+
+  reRegisterJavaScriptChannels() {
+    if (this.javaScriptChannels.size === 0) {
+      return;
+    }
+    try {
+      this.javaScriptChannels.forEach((channel: JavaScriptChannel, channelName: string) => {
+        this.controller.registerJavaScriptProxy(
+          {
+            postMessage: (message: string) => {
+              channel.postMessage(message)
+            },
+          },
+          channelName,
+          ["postMessage"]
+        )
+      })
+      this.controller.refresh()
+    } catch (err) {
+      Log.e(TAG, "reRegisterJavaScriptChannels err = " + err);
+    }
   }
 
 }
