@@ -1744,6 +1744,9 @@ abstract class WebViewClientFlutterApi {
   void onReceivedHttpAuthRequest(int instanceId, int webViewInstanceId,
       int httpAuthHandlerInstanceId, String host, String realm);
 
+  void onReceivedHttpError(int instanceId, int webViewInstanceId,
+      WebResourceRequestData request, WebResourceErrorData error);
+
   static void setup(WebViewClientFlutterApi? api,
       {BinaryMessenger? binaryMessenger}) {
     {
@@ -1976,6 +1979,38 @@ abstract class WebViewClientFlutterApi {
               'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpAuthRequest was null, expected non-null String.');
           api.onReceivedHttpAuthRequest(arg_instanceId!, arg_webViewInstanceId!,
               arg_httpAuthHandlerInstanceId!, arg_host!, arg_realm!);
+          return;
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError',
+          codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_instanceId = (args[0] as int?);
+          assert(arg_instanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null int.');
+          final int? arg_webViewInstanceId = (args[1] as int?);
+          assert(arg_webViewInstanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null int.');
+          final WebResourceRequestData? arg_request =
+              (args[2] as WebResourceRequestData?);
+          assert(arg_request != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null WebResourceRequestData.');
+          final WebResourceErrorData? arg_error =
+              (args[3] as WebResourceErrorData?);
+          assert(arg_error != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null WebResourceErrorData.');
+          api.onReceivedHttpError(arg_instanceId!, arg_webViewInstanceId!,
+              arg_request!, arg_error!);
           return;
         });
       }

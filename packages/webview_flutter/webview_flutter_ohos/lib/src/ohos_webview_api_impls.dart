@@ -876,6 +876,34 @@ class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
           webViewInstance!, httpAuthHandlerInstance!, host, realm);
     }
   }
+
+  @override
+  void onReceivedHttpError(
+    int instanceId,
+    int webViewInstanceId,
+    WebResourceRequestData request,
+    WebResourceErrorData error,
+  ) {
+    final WebViewClient? instance = instanceManager
+        .getInstanceWithWeakReference(instanceId) as WebViewClient?;
+    final WebView? webViewInstance = instanceManager
+        .getInstanceWithWeakReference(webViewInstanceId) as WebView?;
+    assert(
+      instance != null,
+      'InstanceManager does not contain a WebViewClient with instanceId: $instanceId',
+    );
+    assert(
+      webViewInstance != null,
+      'InstanceManager does not contain a WebView with instanceId: $webViewInstanceId',
+    );
+    if (instance!.onReceivedHttpError != null) {
+      instance.onReceivedHttpError!(
+        webViewInstance!,
+        _toWebResourceRequest(request),
+        _toWebResourceError(error),
+      );
+    }
+  }
 }
 
 /// Host api implementation for [DownloadListener].
