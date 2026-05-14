@@ -19,11 +19,15 @@ import {
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
 import { SharedPreferencesApi, wrapError } from './Messages';
+import {
+  SharedPreferencesAsyncApi,
+  SharedPreferencesPigeonOptions,
+  setupSharedPreferencesAsyncApi
+} from './MessagesAsync';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import data_preferences from '@ohos.data.preferences'
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
-import { SharedPreferencesListEncoder } from './SharedPreferencesListEncoder';
 import buffer  from '@ohos.buffer';
 
 const TAG = "SharedPreferencesOhosPlugin"
@@ -32,15 +36,15 @@ const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
 
 export default class SharedPreferencesOhosPlugin implements FlutterPlugin, SharedPreferencesApi {
 
-  private preferences: data_preferences.Preferences | null = null;
-  private listEncoder: ListEncoder;
+  preferences: data_preferences.Preferences | null = null;
+  listEncoder: ListEncoderImpl;
 
   getUniqueClassName(): string {
     return "SharedPreferencesOhosPlugin"
   }
 
   constructor() {
-    this.listEncoder = new ListEncoder();
+    this.listEncoder = new ListEncoderImpl();
   }
 
   setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesApi | null): void {
@@ -377,6 +381,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       Log.w(TAG, "Failed to get preferences."+ JSON.stringify(err));
     }
     this.setup(binding.getBinaryMessenger(), this);
+    setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), new SharedPreferencesAsyncApiImpl(this));
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
@@ -391,6 +396,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       Log.w(TAG, "Failed to flush." + JSON.stringify(err));
     }
     this.setup(binding.getBinaryMessenger(), null);
+    setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null);
   }
 
   setBool(key: string, value: boolean): Promise<void> {
@@ -401,9 +407,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     if (typeof value == "string") {
       let stringValue = (value as string);
       if (stringValue.startsWith(LIST_IDENTIFIER)) {
-        let strList: ESObject = this.listEncoder.decode(stringValue.substring(LIST_IDENTIFIER.length));
-        let t: ESObject = JSON.parse(strList);
-        return t;
+        return this.listEncoder.decode(stringValue.substring(LIST_IDENTIFIER.length));
       }
     }
     if (typeof value == "bigint") {
@@ -413,24 +417,219 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 }
 
-class ListEncoder implements SharedPreferencesListEncoder {
+// Extended type definition to handle all OHOS ValueType values
+type ExtendedPreferenceValue = string | number | boolean | bigint | object | null;
+
+// ListEncoder implementation
+interface ListEncoder {
+  encode(list: string[]): string;
+  decode(encoded: string): string[];
+}
+
+class ListEncoderImpl implements ListEncoder {
   encode(list: string[]): string {
     try {
-      let jsonList = JSON.stringify(list)
-      return buffer.from(jsonList).toString('base64');;
+      const jsonList = JSON.stringify(list);
+      return buffer.from(jsonList).toString('base64');
     } catch (err) {
-      Log.e(TAG, "Failed encode."  + JSON.stringify(err));
+      Log.e(TAG, "Failed encode." + JSON.stringify(err));
     }
-    return ''
+    return '';
   }
 
-  decode(listString: string): ESObject {
+  decode(encoded: string): string[] {
     try {
-      let buf = buffer.from(listString, 'base64');
-      return buf.toString();
+      const buf = buffer.from(encoded, 'base64');
+      return JSON.parse(buf.toString()) as string[];
     } catch (err) {
       Log.e(TAG, "Failed decode." + JSON.stringify(err));
+      return [];
     }
-    return undefined
+  }
+}
+
+// Async API implementation class
+class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
+  private plugin: SharedPreferencesOhosPlugin;
+
+  constructor(plugin: SharedPreferencesOhosPlugin) {
+    this.plugin = plugin;
+  }
+
+  async getString(key: string, options: SharedPreferencesPigeonOptions): Promise<string | null> {
+    try {
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'string' && !(value as string).startsWith(LIST_IDENTIFIER)) {
+        return value as string;
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getString: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getBool(key: string, options: SharedPreferencesPigeonOptions): Promise<boolean | null> {
+    try {
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      return typeof value === 'boolean' ? value as boolean : null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getBool: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getDouble(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null> {
+    try {
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'number') {
+        return value as number;
+      } else if (typeof value === 'bigint') {
+        return Number(value);
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getDouble: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<bigint | null> {
+    try {
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, BigInt(0)) as ExtendedPreferenceValue;
+      if (typeof value === 'bigint' || typeof value === 'number') {
+        return BigInt(value);
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getInt: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<Array<string> | null> {
+    try {
+      if (this.plugin.preferences == null) {
+        return null;
+      }
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'string' && (value as string).startsWith(LIST_IDENTIFIER)) {
+        return this.plugin.listEncoder.decode((value as string).substring(LIST_IDENTIFIER.length));
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getStringList: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async clear(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<void> {
+    try {
+      if (this.plugin.preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const allData = await this.plugin.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const allKeys = Object.keys(allData);
+      const deletePromises: Promise<void>[] = [];
+      for (let key of allKeys) {
+        if (allowList == null || allowList.indexOf(key) != -1) {
+          deletePromises.push(new Promise<void>((resolve, reject) => {
+            this.plugin.preferences?.delete(key, (err: ESObject) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          }));
+        }
+      }
+      await Promise.all(deletePromises);
+      return this.plugin.preferences.flush();
+    } catch (err) {
+      Log.w(TAG, "Failed to clear: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getAll(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<Map<string, Object>> {
+    try {
+      if (this.plugin.preferences == null) {
+        return new Map<string, Object>();
+      }
+      const allData = await this.plugin.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const result = new Map<string, Object>();
+      Object.keys(allData).forEach((key: string) => {
+        const value = allData[key];
+        if (this.preferencesFilter(key, value, allowList) && value != null) {
+          const transformedValue = this.plugin.transformPref(value as Object);
+          if (transformedValue != null) {
+            result.set(key, transformedValue);
+          }
+        }
+      });
+      return result;
+    } catch (err) {
+      Log.w(TAG, "Failed to getAll: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getKeys(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<Array<string>> {
+    try {
+      if (this.plugin.preferences == null) {
+        return [];
+      }
+      const allData = await this.plugin.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const allKeys = Object.keys(allData);
+      return allKeys.filter((key: string) => {
+        const value = allData[key];
+        return this.preferencesFilter(key, value, allowList);
+      });
+    } catch (err) {
+      Log.w(TAG, "Failed to getKeys: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  private preferencesFilter(key: string, value: ExtendedPreferenceValue, allowList: Array<string> | null): boolean {
+    if (allowList == null) {
+      return typeof value === 'boolean' || typeof value === 'bigint' ||
+             typeof value === 'string' || typeof value === 'number';
+    }
+    return allowList.indexOf(key) !== -1;
+  }
+
+  // Async setter methods
+  async setBool(key: string, value: boolean, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.setBool(key, value);
+  }
+
+  async setString(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.put(key, value);
+  }
+
+  async setInt(key: string, value: bigint, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.setInt(key, value);
+  }
+
+  async setDouble(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.setDouble(key, value);
+  }
+
+  async setStringList(key: string, value: Array<string>, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.setStringList(key, value);
   }
 }
