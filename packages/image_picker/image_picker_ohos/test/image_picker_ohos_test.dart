@@ -912,6 +912,170 @@ void main() {
       expect(api.passedPhotoPickerFlag, true);
     });
   });
+
+  group('#getMultiVideoWithOptions', () {
+    test('calls the method correctly', () async {
+      const List<String> fakePaths = <String>['/foo.mp4', '/bar.mp4'];
+      api.returnValue = fakePaths;
+
+      final List<XFile> files = await picker.getMultiVideoWithOptions(
+        options: const MultiVideoPickerOptions(),
+      );
+
+      expect(api.lastCall, _LastPickType.video);
+      expect(api.passedAllowMultiple, true);
+      expect(files.length, 2);
+      expect(files[0].path, fakePaths[0]);
+      expect(files[1].path, fakePaths[1]);
+    });
+
+    test('passes null as the default duration', () async {
+      await picker.getMultiVideoWithOptions();
+
+      expect(api.passedVideoOptions, isNotNull);
+      expect(api.passedVideoOptions?.maxDurationSeconds, null);
+    });
+
+    test('passes the duration argument correctly', () async {
+      await picker.getMultiVideoWithOptions(
+        options: const MultiVideoPickerOptions(
+          maxDuration: Duration(minutes: 1),
+        ),
+      );
+
+      expect(api.passedVideoOptions?.maxDurationSeconds, 60);
+    });
+
+    test('handles an empty path response gracefully', () async {
+      api.returnValue = <String>[];
+
+      expect(await picker.getMultiVideoWithOptions(), <XFile>[]);
+    });
+
+    test('defaults to not using Android Photo Picker', () async {
+      await picker.getMultiVideoWithOptions();
+
+      expect(api.passedPhotoPickerFlag, false);
+    });
+
+    test('allows using Android Photo Picker', () async {
+      picker.useOhosPhotoPicker = true;
+      await picker.getMultiVideoWithOptions();
+
+      expect(api.passedPhotoPickerFlag, true);
+    });
+  });
+
+  // Test cases added specifically for OHOS
+  group('#getMultiImageWithOptions', () {
+    test('calls the method correctly', () async {
+      const List<String> fakePaths = <String>['/foo.jpg', '/bar.jpg'];
+      api.returnValue = fakePaths;
+
+      final List<XFile> files = await picker.getMultiImageWithOptions(
+        options: const MultiImagePickerOptions(),
+      );
+
+      expect(api.lastCall, _LastPickType.image);
+      expect(api.passedAllowMultiple, true);
+      expect(files.length, 2);
+      expect(files[0].path, fakePaths[0]);
+      expect(files[1].path, fakePaths[1]);
+    });
+
+    test('passes default image options', () async {
+      await picker.getMultiImageWithOptions();
+
+      expect(api.passedImageOptions?.maxWidth, null);
+      expect(api.passedImageOptions?.maxHeight, null);
+      expect(api.passedImageOptions?.quality, 100);
+    });
+
+    test('passes image option arguments correctly', () async {
+      await picker.getMultiImageWithOptions(
+        options: const MultiImagePickerOptions(
+          imageOptions: ImageOptions(
+            maxWidth: 10.0,
+            maxHeight: 20.0,
+            imageQuality: 70,
+          ),
+          limit: 5,
+        ),
+      );
+
+      expect(api.passedImageOptions?.maxWidth, 10.0);
+      expect(api.passedImageOptions?.maxHeight, 20.0);
+      expect(api.passedImageOptions?.quality, 70);
+    });
+
+    test('does not accept a negative width or height argument', () {
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(maxWidth: -1.0),
+          ),
+        ),
+        throwsArgumentError,
+      );
+
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(maxHeight: -1.0),
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('does not accept an invalid imageQuality argument', () {
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(imageQuality: -1),
+          ),
+        ),
+        throwsArgumentError,
+      );
+
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(imageQuality: 101),
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('does not accept limit lower than 2', () {
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(limit: 1),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('handles an empty path response gracefully', () async {
+      api.returnValue = <String>[];
+
+      expect(await picker.getMultiImageWithOptions(), <XFile>[]);
+    });
+
+    test('defaults to not using Android Photo Picker', () async {
+      await picker.getMultiImageWithOptions();
+
+      expect(api.passedPhotoPickerFlag, false);
+    });
+
+    test('allows using Android Photo Picker', () async {
+      picker.useOhosPhotoPicker = true;
+      await picker.getMultiImageWithOptions();
+
+      expect(api.passedPhotoPickerFlag, true);
+    });
+  });
 }
 
 enum _LastPickType { image, video }
