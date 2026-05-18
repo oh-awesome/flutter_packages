@@ -2163,6 +2163,33 @@ export abstract class WebViewClientFlutterApi {
       (channelReply: ESObject) => callback.reply(null)
     );
   }
+
+  onReceivedSslError(
+    instanceIdArg: number,
+    webViewInstanceIdArg: number,
+    sslHandlerInstanceIdArg: number,
+    urlArg: string,
+    certificateArg: string,
+    descriptionArg: string,
+    callback: Reply<void>,
+  ): void {
+    const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+      this.binaryMessenger,
+      "dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError",
+      WebViewClientFlutterApi.getCodec(),
+    );
+    channel.send(
+      [
+        instanceIdArg,
+        webViewInstanceIdArg,
+        sslHandlerInstanceIdArg,
+        urlArg,
+        certificateArg,
+        descriptionArg,
+      ],
+      (channelReply: ESObject) => callback.reply(null),
+    );
+  }
 }
 
 export abstract class WebSettingsHostApi {
@@ -3145,6 +3172,96 @@ export class HttpAuthHandlerFlutterApi {
 
 }
 
+export abstract class SslErrorHandlerHostApi {
+  abstract cancel(instanceId: number): void;
+
+  abstract proceed(instanceId: number): void;
+
+  static getCodec(): MessageCodec<ESObject> {
+    return new StandardMessageCodec();
+  }
+
+  static setup(binaryMessenger: BinaryMessenger, api: SslErrorHandlerHostApi) {
+    {
+      const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.cancel",
+        SslErrorHandlerHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          new MessageHandlerBuilder((message: ESObject, reply: Reply<ESObject>) => {
+            let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+            const args: Array<ESObject> = message;
+            const instanceIdentifierArg: number = args[0] as number;
+            try {
+              api.cancel(instanceIdentifierArg);
+              wrapped.insert(null, 0);
+            } catch (err) {
+              const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+              wrapped = wrappedError;
+            }
+            reply.reply(wrapped.convertToArray());
+          })
+        )
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.proceed",
+        SslErrorHandlerHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          new MessageHandlerBuilder((message: ESObject, reply: Reply<ESObject>) => {
+            let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+            const args: Array<ESObject> = message;
+            const instanceIdentifierArg: number = args[0] as number;
+            try {
+              api.proceed(instanceIdentifierArg);
+              wrapped.insert(null, 0);
+            } catch (err) {
+              const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+              wrapped = wrappedError;
+            }
+            reply.reply(wrapped.convertToArray());
+          })
+        )
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+  }
+}
+
+export class SslErrorHandlerFlutterApi {
+  private binaryMessenger: BinaryMessenger;
+
+  constructor(binaryMessenger: BinaryMessenger) {
+    this.binaryMessenger = binaryMessenger;
+  }
+
+  static getCodec(): MessageCodec<ESObject> {
+    return new StandardMessageCodec();
+  }
+
+  create(instanceIdArg: number, callback: Reply<void>): void {
+    const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+      this.binaryMessenger,
+      "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerFlutterApi.create",
+      SslErrorHandlerHostApi.getCodec()
+    );
+    channel.send(
+      [instanceIdArg],
+      (channelReply: ESObject) => callback.reply(null)
+    );
+  }
+
+}
+
 export abstract class CookieManagerHostApi {
   static getCodec(): MessageCodec<ESObject> {
     return new StandardMessageCodec();
@@ -3355,6 +3472,12 @@ export interface HttpAuthHandler {
   proceed(username: string, password: string): void;
 
   useHttpAuthUsernamePassword(): boolean;
+}
+
+export interface SslErrorHandler {
+  cancel(): void;
+
+  proceed(): void;
 }
 
 export interface CustomViewCallback {
