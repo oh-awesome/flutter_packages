@@ -5,7 +5,7 @@
 // Copyright 2013 The Flutter Authors.
 
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
-import { Reply, WebChromeClientHostApi, CustomViewCallback, HttpAuthHandler } from './GeneratedOhosWebView';
+import { Reply, WebChromeClientHostApi, CustomViewCallback, HttpAuthHandler, SslErrorHandler } from './GeneratedOhosWebView';
 import { InstanceManager } from './InstanceManager';
 import { OhosWebView } from './OhosWebView';
 import { WebChromeClientFlutterApiImpl } from './WebChromeClientFlutterApiImpl';
@@ -293,5 +293,17 @@ class newWindowWebViewClient implements WebViewClient {
   ): void {
     // todo
     Log.i(TAG, "onReceivedHttpAuthRequest");
+  }
+
+  onReceivedSslError(
+    view: WebViewPlatformView,
+    handler: SslErrorHandler,
+    url: string,
+    certificate: string,
+    description: string,
+  ): void {
+    // New-window WebViews are not bridged to Dart; safest default rejects the cert.
+    Log.i(TAG, "onReceivedSslError (new window): " + url + " — " + description);
+    handler.cancel();
   }
 }

@@ -224,8 +224,12 @@ Page resource error:
             openDialog(request);
           })
           ..setOnSSlAuthError((PlatformSslAuthError error) {
-             debugPrint('SSL error from ${(error as OhosSslAuthError).url}');
-            error.cancel();
+            final OhosSslAuthError sslErr = error as OhosSslAuthError;
+            if (!context.mounted) {
+              sslErr.cancel();
+              return;
+            }
+            openSslAuthDialog(context, sslErr);
           }),
       )
       ..addJavaScriptChannel(JavaScriptChannelParams(
@@ -284,6 +288,39 @@ Page resource error:
         }
       },
       child: const Icon(Icons.favorite),
+    );
+  }
+
+  Future<void> openSslAuthDialog(BuildContext context, OhosSslAuthError sslError) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Invalid SSL certificate'),
+          content: SingleChildScrollView(
+            child: SelectableText(
+              '${sslError.url}\n\n${sslError.description}',
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () {
+                sslError.cancel();
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                sslError.proceed();
+                Navigator.of(dialogContext).pop();
+              },
+              child: const Text('Proceed anyway'),
+            ),
+          ],
+        );
+      },
     );
   }
 

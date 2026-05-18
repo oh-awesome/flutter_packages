@@ -102,9 +102,8 @@ export struct OhosWebView {
             dialogController.open();
             event.handler.setWebController(newWebViewController);
           })
-          .onSslErrorEventReceive((event) => {
-            event.handler.handleConfirm();
-          })
+          .onSslErrorEventReceive(this.webView.onSslErrorReceive)
+          .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)

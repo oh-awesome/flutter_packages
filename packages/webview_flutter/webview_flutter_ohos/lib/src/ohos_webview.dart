@@ -781,6 +781,7 @@ class WebViewClient extends OhosObject {
     this.urlLoading,
     this.doUpdateVisitedHistory,
     this.onReceivedHttpAuthRequest,
+    this.onReceivedHttpError,
     this.onReceivedSslError,
     @visibleForTesting super.binaryMessenger,
     @visibleForTesting super.instanceManager,
@@ -803,6 +804,7 @@ class WebViewClient extends OhosObject {
     this.urlLoading,
     this.doUpdateVisitedHistory,
     this.onReceivedHttpAuthRequest,
+    this.onReceivedHttpError,
     this.onReceivedSslError,
     super.binaryMessenger,
     super.instanceManager,
@@ -931,9 +933,21 @@ class WebViewClient extends OhosObject {
     String realm,
   )? onReceivedHttpAuthRequest;
 
-  /// Notify the host application that an SSL error occurred while loading a resource.
+  /// Notify the host application that an HTTP error has been received.
   final void Function(
     WebView webView,
+    WebResourceRequest request,
+    WebResourceError error,
+  )? onReceivedHttpError;
+
+  /// Notify the host application that an SSL error occurred while loading a resource.
+  ///
+  /// Either [SslErrorHandler.cancel] or [SslErrorHandler.proceed] must be called
+  /// to complete the load, matching Android [WebViewClient.onReceivedSslError]
+  /// semantics.
+  final void Function(
+    WebView webView,
+    SslErrorHandler handler,
     String url,
     String certificate,
     String description,
@@ -968,6 +982,7 @@ class WebViewClient extends OhosObject {
       urlLoading: urlLoading,
       doUpdateVisitedHistory: doUpdateVisitedHistory,
       onReceivedHttpAuthRequest: onReceivedHttpAuthRequest,
+      onReceivedHttpError: onReceivedHttpError,
       onReceivedSslError: onReceivedSslError,
       binaryMessenger: _api.binaryMessenger,
       instanceManager: _api.instanceManager,
@@ -1616,5 +1631,30 @@ class HttpAuthHandler extends OhosObject {
   /// server for the current request.
   Future<bool> useHttpAuthUsernamePassword() {
     return api.useHttpAuthUsernamePasswordFromInstance(this);
+  }
+}
+
+/// Handler for ArkWeb SSL certificate errors (`onSslErrorEventReceive`).
+///
+/// The app must call either [cancel] or [proceed].
+class SslErrorHandler extends OhosObject {
+  /// Constructs an [SslErrorHandler] for a host-created native handler.
+  SslErrorHandler({
+    super.binaryMessenger,
+    super.instanceManager,
+  }) : super.detached();
+
+  /// Pigeon Host Api implementation for [SslErrorHandler].
+  @visibleForTesting
+  static SslErrorHandlerHostApiImpl api = SslErrorHandlerHostApiImpl();
+
+  /// Reject the certificate and stop loading.
+  Future<void> cancel() {
+    return api.cancelFromInstance(this);
+  }
+
+  /// Accept the certificate (unsafe; use only when appropriate).
+  Future<void> proceed() {
+    return api.proceedFromInstance(this);
   }
 }
