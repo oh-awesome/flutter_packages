@@ -49,9 +49,7 @@ class OhosWebViewProxy {
     void Function(ohos_webview.WebChromeClient instance,
             ohos_webview.ConsoleMessage message)?
         onConsoleMessage,
-    void Function(
-            ohos_webview.WebChromeClient instance,
-            ohos_webview.View view,
+    void Function(ohos_webview.WebChromeClient instance, ohos_webview.View view,
             ohos_webview.CustomViewCallback callback)?
         onShowCustomView,
     void Function(ohos_webview.WebChromeClient instance)? onHideCustomView,
@@ -90,6 +88,11 @@ class OhosWebViewProxy {
       String host,
       String realm,
     )? onReceivedHttpAuthRequest,
+    void Function(
+      ohos_webview.WebView webView,
+      ohos_webview.WebResourceRequest request,
+      ohos_webview.WebResourceError error,
+    )? onReceivedHttpError,
     void Function(
       ohos_webview.WebView webView,
       String url,

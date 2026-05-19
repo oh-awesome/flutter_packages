@@ -4,7 +4,7 @@
 # found in the LICENSE_HW file.
 #
 # USE IN CI
-# compileCMD：sh ./third_party/flutter_packages/.ci/compile.sh
+# This script runs dart unit tests for changed packages based on PR_FILE_PATHS env var
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,5 +16,5 @@ if ! command -v python3 &> /dev/null; then
 fi
 
 # Run the Python runner with unbuffered output
-python3 -u "$SCRIPT_DIR/build_hap_for_changed_packages.py"
+python3 -u "$SCRIPT_DIR/run_tests_for_changed_packages.py"
 exit $?
