@@ -1,0 +1,51 @@
+name: webview_flutter_ohos_example
+description: Demonstrates how to use the webview_flutter_ohos plugin.
+publish_to: none
+
+environment:
+  sdk: ^3.6.0
+  flutter: ^3.27.0
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: br_path_provider-v2.1.5_ohos
+  # path_provider:
+  #   path: "../../../path_provider/path_provider"
+  path_provider_platform_interface: ^2.0.0
+  webview_flutter_ohos:
+    # When depending on this package from a real application you should use:
+    #   webview_flutter: ^x.y.z
+    # See https://dart.dev/tools/pub/dependencies#version-constraints
+    # The example app is bundled with the plugin so we use a path dependency on
+    # the parent directory to use the current plugin's version.
+    path: ../
+
+dependency_overrides:
+  webview_flutter_ohos:
+    path: ../../webview_flutter_ohos
+  webview_flutter_platform_interface:
+    path: ../../webview_flutter_platform_interface
+  path_provider_ohos:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/path_provider/path_provider_ohos
+      ref: br_path_provider-v2.1.5_ohos
+
+dev_dependencies:
+  espresso: ^0.4.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/sample_audio.ogg
+    - assets/sample_video.mp4
+    - assets/www/index.html
+    - assets/www/styles/style.css
