@@ -355,4 +355,62 @@ class OhosVideoPlayerApi {
       return;
     }
   }
+
+  Future<List<Map<String?, Object?>>> getAudioTracks(int arg_playerId) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+      'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.getAudioTracks',
+      codec,
+      binaryMessenger: _binaryMessenger,
+    );
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_playerId]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      final List<Object?> result = (replyList[0] as List<Object?>?)!;
+      return result
+          .whereType<Map<Object?, Object?>>()
+          .map((Map<Object?, Object?> e) => e.cast<String?, Object?>())
+          .toList(growable: false);
+    }
+  }
+
+  Future<void> selectAudioTrack(int arg_playerId, String arg_trackId) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+      'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.selectAudioTrack',
+      codec,
+      binaryMessenger: _binaryMessenger,
+    );
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_playerId, arg_trackId])
+            as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
 }

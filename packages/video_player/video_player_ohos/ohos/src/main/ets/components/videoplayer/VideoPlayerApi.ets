@@ -30,5 +30,9 @@ export interface VideoPlayerApi {
 
   setMixWithOthers(mixWithOthers: boolean): void;
 
+  getAudioTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
+
+  selectAudioTrack(playerId: number, trackId: string): Promise<void>;
+
   setup(binaryMessenger: BinaryMessenger): void;
 }
