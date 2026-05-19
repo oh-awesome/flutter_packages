@@ -30,8 +30,21 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<int?> create(DataSource dataSource) async {
+    return _create(dataSource);
+  }
+
+  @override
+  Future<int?> createWithOptions(VideoCreationOptions options) async {
+    return _create(options.dataSource);
+  }
+
+  Future<int?> _create(DataSource dataSource) async {
     String? asset;
     String? uri;
+    final String? packageName = dataSource.package;
+    final String? formatHint = dataSource.formatHint == null
+        ? null
+        : _videoFormatStringMap[dataSource.formatHint];
     final httpHeaders = dataSource.httpHeaders.isEmpty
         ? null
         : Map<String?, String?>.fromEntries(dataSource.httpHeaders.entries
@@ -57,6 +70,8 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       httpHeaders: httpHeaders ?? <String?, String?>{},
       asset: asset,
       uri: uri,
+      packageName: packageName,
+      formatHint: formatHint,
       viewType: PlatformVideoViewType.textureView,
     );
 
@@ -150,6 +165,36 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     return _api.setMixWithOthers(mixWithOthers);
   }
 
+  @override
+  Future<List<VideoAudioTrack>> getAudioTracks(int playerId) async {
+    if (playerId < 0) {
+      return <VideoAudioTrack>[];
+    }
+    final List<Map<String?, Object?>> nativeTracks = await _api.getAudioTracks(
+      playerId,
+    );
+    return nativeTracks
+        .map(
+          (Map<String?, Object?> track) =>
+              _toVideoAudioTrack(track.cast<String, Object?>()),
+        )
+        .where((track) => track.id.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> selectAudioTrack(int playerId, String trackId) async {
+    if (playerId < 0) {
+      return;
+    }
+    await _api.selectAudioTrack(playerId, trackId);
+  }
+
+  @override
+  bool isAudioTrackSupportAvailable() {
+    return true;
+  }
+
   EventChannel _eventChannelFor(int textureId) {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }
@@ -168,5 +213,35 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       Duration(milliseconds: pair[0] as int),
       Duration(milliseconds: pair[1] as int),
     );
+  }
+
+  VideoAudioTrack _toVideoAudioTrack(Map<String, dynamic> track) {
+    final int? bitrate = _toInt(track['bitrate']);
+    final int? sampleRate = _toInt(track['sampleRate']);
+    final int? channelCount = _toInt(track['channelCount']);
+    final bool isSelected = track['isSelected'] == true;
+    return VideoAudioTrack(
+      id: track['id']?.toString() ?? '',
+      label: track['label']?.toString(),
+      language: track['language']?.toString(),
+      isSelected: isSelected,
+      bitrate: bitrate,
+      sampleRate: sampleRate,
+      channelCount: channelCount,
+      codec: track['codec']?.toString(),
+    );
+  }
+
+  int? _toInt(Object? value) {
+    if (value is int) {
+      return value;
+    }
+    if (value is num) {
+      return value.toInt();
+    }
+    if (value is String) {
+      return int.tryParse(value);
+    }
+    return null;
   }
 }

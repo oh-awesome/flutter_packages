@@ -11,6 +11,7 @@ import 'package:flutter/services.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 VideoPlayerPlatform? _cachedPlatform;
+const bool _kEnableApiTimingLog = true;
 
 VideoPlayerPlatform get _platform {
   if (_cachedPlatform == null) {
@@ -35,6 +36,8 @@ class VideoPlayerValue {
     this.isPlaying = false,
     this.isBuffering = false,
     this.playbackSpeed = 1.0,
+    this.volume = 1.0,
+    this.isLooping = false,
     this.errorDescription,
   });
 
@@ -68,6 +71,12 @@ class VideoPlayerValue {
 
   /// The current speed of the playback.
   final double playbackSpeed;
+
+  /// The current volume of the playback.
+  final double volume;
+
+  /// Whether playback should loop when the end is reached.
+  final bool isLooping;
 
   /// A description of the error if present.
   ///
@@ -112,6 +121,8 @@ class VideoPlayerValue {
     bool? isPlaying,
     bool? isBuffering,
     double? playbackSpeed,
+    double? volume,
+    bool? isLooping,
     String? errorDescription,
   }) {
     return VideoPlayerValue(
@@ -123,6 +134,8 @@ class VideoPlayerValue {
       isPlaying: isPlaying ?? this.isPlaying,
       isBuffering: isBuffering ?? this.isBuffering,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
+      volume: volume ?? this.volume,
+      isLooping: isLooping ?? this.isLooping,
       errorDescription: errorDescription ?? this.errorDescription,
     );
   }
@@ -138,6 +151,8 @@ class VideoPlayerValue {
           isPlaying == other.isPlaying &&
           isBuffering == other.isBuffering &&
           playbackSpeed == other.playbackSpeed &&
+          volume == other.volume &&
+          isLooping == other.isLooping &&
           errorDescription == other.errorDescription &&
           size == other.size &&
           isInitialized == other.isInitialized;
@@ -150,6 +165,8 @@ class VideoPlayerValue {
         isPlaying,
         isBuffering,
         playbackSpeed,
+        volume,
+        isLooping,
         errorDescription,
         size,
         isInitialized,
@@ -366,6 +383,46 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   Future<void> setPlaybackSpeed(double speed) async {
     value = value.copyWith(playbackSpeed: speed);
     await _applyPlaybackSpeed();
+  }
+
+  Future<void> setVolume(double volume) async {
+    final double next = volume.clamp(0.0, 1.0);
+    value = value.copyWith(volume: next);
+    await _platform.setVolume(_textureId, next);
+  }
+
+  Future<void> setLooping(bool looping) async {
+    value = value.copyWith(isLooping: looping);
+    await _platform.setLooping(_textureId, looping);
+  }
+
+  Future<void> setMixWithOthers(bool mixWithOthers) async {
+    await _platform.setMixWithOthers(mixWithOthers);
+  }
+
+  Future<void> setAllowBackgroundPlayback(bool allowBackgroundPlayback) async {
+    await _platform.setAllowBackgroundPlayback(allowBackgroundPlayback);
+  }
+
+  /// Gets the available audio tracks for the current video.
+  Future<List<VideoAudioTrack>> getAudioTracks() async {
+    if (_textureId == kUninitializedTextureId || !value.isInitialized) {
+      return <VideoAudioTrack>[];
+    }
+    return _platform.getAudioTracks(_textureId);
+  }
+
+  /// Selects an audio track by [trackId].
+  Future<void> selectAudioTrack(String trackId) async {
+    if (_textureId == kUninitializedTextureId || !value.isInitialized) {
+      return;
+    }
+    await _platform.selectAudioTrack(_textureId, trackId);
+  }
+
+  /// Returns whether audio track API is supported by current platform.
+  bool isAudioTrackSupportAvailable() {
+    return _platform.isAudioTrackSupportAvailable();
   }
 
   void _updatePosition(Duration position) {

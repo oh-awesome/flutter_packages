@@ -37,6 +37,11 @@ const AVPLAYER_STATE_ERROR: number = 5400102;
 const AVPLAYER_IO_ERROR: number = 5400103;
 
 const TAG = 'VideoPlayer'
+const ENABLE_AUDIO_TRACK_DEBUG: boolean = false;
+type NativeAudioTrackValue = string | number | boolean | null;
+type AudioTrackNativeMap = Map<string, NativeAudioTrackValue>;
+type TrackDescriptionValue = string | number | boolean | null | undefined;
+type TrackDescriptionRecord = Record<string, TrackDescriptionValue>;
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
   public playerModel: PlayerModel | null = null;
@@ -58,7 +63,11 @@ export class VideoPlayer {
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
- 	private isWindowKeepScreenOn: boolean = false;
+  private selectedAudioTrackIndex: number = -1;
+  private isWindowKeepScreenOn: boolean = false;
+  private isInitializingTracks: boolean = false;
+  private cachedAudioTracks: Array<AudioTrackNativeMap> | null = null;
+  private tracksCacheValid: boolean = false;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -68,11 +77,11 @@ export class VideoPlayer {
     this.url = url;
     this.eventChannel = eventChannel;
     this.headers = headers;
- 	  try {
- 	    this.isWindowKeepScreenOn = (GlobalContext.getContext().getObject('windowClass') as window.Window).getWindowProperties().isKeepScreenOn;
- 	  } catch (e) {
- 	    Log.e(TAG, 'getWindowProperties failed: ' + JSON.stringify(e));
- 	  }
+    try {
+      this.isWindowKeepScreenOn = (GlobalContext.getContext().getObject('windowClass') as window.Window).getWindowProperties().isKeepScreenOn;
+    } catch (e) {
+      Log.e(TAG, 'getWindowProperties failed: ' + JSON.stringify(e));
+    }
     if (AudioFocus == true) {
       this.interruptMode = audio.InterruptMode.SHARE_MODE;
       Log.i(TAG, "set interruptMode : " + this.interruptMode);
@@ -136,6 +145,10 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
+          this.isInitializingTracks = false;
+          this.cachedAudioTracks = null;
+          this.tracksCacheValid = false;
+          this.selectedAudioTrackIndex = -1;
           this.resetProgress();
           if (this.url) {
             this.avPlayer.url = this.getIUri();
@@ -153,6 +166,17 @@ export class VideoPlayer {
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
+          if (this.selectedAudioTrackIndex < 0 && !this.isInitializingTracks) {
+            this.isInitializingTracks = true;
+            try {
+              const tracks = await this.getAudioTracks();
+              if (tracks.length > 0) {
+                this.selectedAudioTrackIndex = Number.parseInt(tracks[0].get('id') as string, 10);
+              }
+            } catch (e) {
+              Log.e(TAG, 'init selectedAudioTrackIndex failed: ' + JSON.stringify(e));
+            }
+          }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -177,12 +201,19 @@ export class VideoPlayer {
             } else {
               this.rawFile = globalVideoList[this.index].src;
             }
+            this.cachedAudioTracks = null;
+            this.tracksCacheValid = false;
+            this.selectedAudioTrackIndex = -1;
           }
           break;
         case AvplayerStatus.RELEASED:
           this.avPlayer.release();
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
+          this.isInitializingTracks = false;
+          this.cachedAudioTracks = null;
+          this.tracksCacheValid = false;
+          this.selectedAudioTrackIndex = -1;
           Log.i(TAG, '[PlayVideoModel] state released called')
           break;
         default:
@@ -215,28 +246,28 @@ export class VideoPlayer {
   }
 
   /**
- * 设置音频焦点模式
- * 
- * @param mixWithOthers 是否与其他音频混合播放
- *                      true: 共享模式，与其他音频混合
- *                      false: 独占模式，暂停其他音频
- */
-setAudioFocus(mixWithOthers: boolean): void {
-  if (this.avPlayer == null) {
-    Log.w(TAG, "setAudioFocus: avPlayer is null, cannot set audio focus");
-    return;
+   * 设置音频焦点模式
+   *
+   * @param mixWithOthers 是否与其他音频混合播放
+   *                      true: 共享模式，与其他音频混合
+   *                      false: 独占模式，暂停其他音频
+   */
+  setAudioFocus(mixWithOthers: boolean): void {
+    if (this.avPlayer == null) {
+      Log.w(TAG, "setAudioFocus: avPlayer is null, cannot set audio focus");
+      return;
+    }
+
+    // 根据 mixWithOthers 参数设置中断模式
+    this.interruptMode = mixWithOthers ?
+      audio.InterruptMode.SHARE_MODE :
+      audio.InterruptMode.INDEPENDENT_MODE;
+
+    // 更新播放器的音频中断模式
+    this.avPlayer.audioInterruptMode = this.interruptMode;
+
+    Log.i(TAG, `setAudioFocus: mixWithOthers=${mixWithOthers}, interruptMode=${this.interruptMode}`);
   }
-  
-  // 根据 mixWithOthers 参数设置中断模式
-  this.interruptMode = mixWithOthers ? 
-    audio.InterruptMode.SHARE_MODE : 
-    audio.InterruptMode.INDEPENDENT_MODE;
-  
-  // 更新播放器的音频中断模式
-  this.avPlayer.audioInterruptMode = this.interruptMode;
-  
-  Log.i(TAG, `setAudioFocus: mixWithOthers=${mixWithOthers}, interruptMode=${this.interruptMode}`);
-}
 
   /**
    * Release the video player.
@@ -280,6 +311,166 @@ setAudioFocus(mixWithOthers: boolean): void {
       return 0;
     }
   }
+
+  async getAudioTracks(): Promise<Array<AudioTrackNativeMap>> {
+    if (this.tracksCacheValid && this.cachedAudioTracks !== null) {
+      return this.cachedAudioTracks;
+    }
+    const tracks: Array<AudioTrackNativeMap> = [];
+    if(!this.avPlayer){
+      return tracks;
+    }
+    try {
+      const descriptions: Array<media.MediaDescription> = await this.avPlayer.getTrackDescription();
+      let firstIncludedSelectIndex = -1;
+      for (let i = 0; i < descriptions.length; i++) {
+        const desc = descriptions[i];
+        const trackIndex = this.getTrackIndexFromDescription(desc);
+        if (trackIndex < 0) {
+          continue;
+        }
+        const trackType = this.getTrackTypeFromDescription(desc);
+        if (trackType != null && trackType !== media.MediaType.MEDIA_TYPE_AUD) {
+          if (ENABLE_AUDIO_TRACK_DEBUG) {
+            Log.i(TAG, `track[${i}] skip(type=${trackType} idx=${trackIndex}): ` + JSON.stringify(desc));
+          }
+          continue;
+        }
+        const rec = desc as Object as TrackDescriptionRecord;
+        const selectIndex = trackIndex;
+        const nativeTrack = new Map<string, NativeAudioTrackValue>();
+        const label = this.pickTrackLabelFromRecord(rec);
+        const language = this.getStringFromRecord(rec, ['language', 'lang', 'locale']);
+        const codec = this.getStringFromRecord(rec, ['codec_mime', 'codec', 'codecName', 'codecMimeType']);
+        const channelCount = this.getIntFromRecord(rec, ['channel_count', 'channelCount', 'channels']);
+        const sampleRate = this.getIntFromRecord(rec, ['sample_rate', 'sampleRate']);
+        const bitrate = this.getIntFromRecord(rec, ['bit_rate', 'bitrate']);
+
+        if (firstIncludedSelectIndex < 0) {
+          firstIncludedSelectIndex = selectIndex;
+        }
+
+        nativeTrack.set('id', selectIndex.toString());
+        nativeTrack.set('label', label);
+        nativeTrack.set('language', language);
+        nativeTrack.set('isSelected', this.selectedAudioTrackIndex == trackIndex);
+        nativeTrack.set('bitrate', bitrate);
+        nativeTrack.set('sampleRate', sampleRate);
+        nativeTrack.set('channelCount', channelCount);
+        nativeTrack.set('codec', codec);
+        tracks.push(nativeTrack);
+
+        if (ENABLE_AUDIO_TRACK_DEBUG) {
+          Log.i(TAG, `audioTrack id=${selectIndex}
+        selected=${this.selectedAudioTrackIndex == trackIndex}
+        info=` + JSON.stringify(desc));
+        }
+      }
+      this.cachedAudioTracks = tracks;
+      this.tracksCacheValid = true;
+    } catch (e) {
+      Log.e(TAG, 'getAudioTracks exception: ' + JSON.stringify(e));
+      throw new Error(e.message);
+    }
+    return tracks;
+  }
+
+  async selectAudioTrack(trackId: string): Promise<void> {
+    const trackIndex = this.parseTrackIndex(trackId);
+    if (this.avPlayer == null) {
+      throw new Error('avPlayer is null');
+    }
+    if (trackIndex < 0) {
+      throw new Error('Invalid trackId');
+    }
+    try {
+      await this.avPlayer.selectTrack(trackIndex);
+      this.selectedAudioTrackIndex = trackIndex;
+      if (this.cachedAudioTracks) {
+        for (const track of this.cachedAudioTracks) {
+          track.set('isSelected', track.get('id') === trackIndex.toString());
+        }
+      }
+    } catch (e) {
+      Log.e(TAG, 'selectAudioTrack exception: ' + JSON.stringify(e.message));
+      throw new Error(e.message);
+    }
+  }
+
+  private parseTrackIndex(trackId: string): number {
+    const parts = trackId.split('_');
+    const rawIndex = parts[parts.length - 1];
+    const parsed = Number.parseInt(rawIndex, 10);
+    return Number.isNaN(parsed) ? -1 : parsed;
+  }
+
+
+  private getTrackIndexFromDescription(desc: media.MediaDescription): number {
+    const value = desc[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX];
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? Math.trunc(value) : -1;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? -1 : parsed;
+    }
+    return -1;
+  }
+
+  private getTrackTypeFromDescription(desc: media.MediaDescription): number | null {
+    const value = desc[media.MediaDescriptionKey.MD_KEY_TRACK_TYPE];
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? Math.trunc(value) : null;
+    }
+    if (typeof value === 'string') {
+      const parsed = Number.parseInt(value, 10);
+      return Number.isNaN(parsed) ? null : parsed;
+    }
+    return null;
+  }
+
+  private nullableString(value: string | undefined): string | null {
+    if (value === undefined) {
+      return null;
+    }
+    const trimmed = value.trim();
+    return trimmed.length === 0 ? null : trimmed;
+  }
+
+  private getStringFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): string | null {
+    for (let i = 0; i < keys.length; i++) {
+      const v = rec[keys[i]];
+      if (typeof v === 'string') {
+        const s = this.nullableString(v);
+        if (s !== null) {
+          return s;
+        }
+      }
+    }
+    return null;
+  }
+
+  private getIntFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): number | null {
+    for (let i = 0; i < keys.length; i++) {
+      const v = rec[keys[i]];
+      if (typeof v === 'number') {
+        return Number.isFinite(v) ? Math.trunc(v) : null;
+      }
+      if (typeof v === 'string') {
+        const parsed = Number.parseInt(v, 10);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return null;
+  }
+
+  private pickTrackLabelFromRecord(rec: TrackDescriptionRecord): string | null {
+    return this.getStringFromRecord(rec, ['label', 'track_name', 'name']);
+  }
+
+
 
   /**
    * Playback mode. The options are as follows: true: playing a single video; false: playing a cyclic video.
@@ -338,6 +529,9 @@ setAudioFocus(mixWithOthers: boolean): void {
     } else {
       this.rawFile = globalVideoList[this.index].src;
     }
+    this.cachedAudioTracks = null;
+    this.tracksCacheValid = false;
+    this.selectedAudioTrackIndex = -1;
     this.avPlayer.reset();
   }
 
@@ -355,12 +549,15 @@ setAudioFocus(mixWithOthers: boolean): void {
     let globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
     let curIndex = this.index + PlayConstants.CONTROL_NEXT;
     this.index = (curIndex === globalVideoList.length) ?
-    PlayConstants.CONTROL_FIRST : curIndex;
+      PlayConstants.CONTROL_FIRST : curIndex;
     if (this.url) {
       this.url = globalVideoList[this.index].iSrc;
     } else {
       this.rawFile = globalVideoList[this.index].src;
     }
+    this.cachedAudioTracks = null;
+    this.tracksCacheValid = false;
+    this.selectedAudioTrackIndex = -1;
     this.avPlayer.reset();
   }
 
@@ -391,7 +588,7 @@ setAudioFocus(mixWithOthers: boolean): void {
     if (mode === Number(SliderMode.MOVING)) {
       this.playerModel.progressVal = value;
       this.playerModel.currentTime = DateFormatUtil.secondToTime(Math.floor(value * this.duration /
-      CommonConstants.ONE_HUNDRED / CommonConstants.A_THOUSAND));
+        CommonConstants.ONE_HUNDRED / CommonConstants.A_THOUSAND));
     }
     if (mode === Number(SliderMode.END) || mode === Number(SliderMode.CLICK)) {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
