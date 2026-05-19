@@ -184,11 +184,11 @@ export class Camera implements CameraCaptureStateListener {
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
 
     if (!resolutionFeature.checkIsSupported()) {
-      this.sendCameraErrorEvent(
-        "Camera with name \""
-          + this.cameraProperties.getCameraName()
-          + "\" is not supported by this plugin.");
-      return;
+      const errorMsg: string = "Camera with name \""
+        + this.cameraProperties.getCameraName()
+        + "\" is not supported by this plugin.";
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
@@ -206,8 +206,9 @@ export class Camera implements CameraCaptureStateListener {
     // 增强相机设备获取的错误处理
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
-      this.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
-      return;
+      const errorMsg: string = "Failed to get camera device: " + this.cameraProperties.getCameraName();
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     // Fixed the issue where the camera could not be turned on
@@ -220,7 +221,7 @@ export class Camera implements CameraCaptureStateListener {
       if (this.cameraDevice.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
         Log.w(TAG, "Cannot open front camera in tri-fold dual-screen state");
         this.sendCameraErrorEvent("FRONT_CAMERA_UNAVAILABLE");
-        return;
+        throw new Error("FRONT_CAMERA_UNAVAILABLE");
       }
     }
 
@@ -248,7 +249,7 @@ export class Camera implements CameraCaptureStateListener {
       default:
       errorDescription = "Unknown camera error";
       }
-      this.dartMessenger.sendCameraErrorEvent(errorDescription);
+      this.sendCameraErrorEvent(errorDescription);
       throw err as Error;
     }
   }

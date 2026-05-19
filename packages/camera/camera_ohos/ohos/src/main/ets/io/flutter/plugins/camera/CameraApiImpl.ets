@@ -16,7 +16,7 @@
 import { BinaryMessenger, MethodResult } from '@ohos/flutter_ohos';
 import MethodChannel, { MethodResult as FlutterMethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
-import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi } from './Messages';
+import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi, FlutterError } from './Messages';
 import { CameraUtils } from './CameraUtils';
 import { FlashMode } from './features/flash/FlashMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
@@ -435,19 +435,24 @@ export class CameraApiImpl extends CameraApi {
 
   // 在 initialize 方法中增强错误处理
   initialize(imageFormat: PlatformImageFormatGroup): void {
-    this.curStatus = STATUS.INITIALIZE_ING;
-    if (this.camera != null) {
-      try {
-        const imageFormatString = PlatformImageFormatGroup[imageFormat];
-        this.currentImageFormat = imageFormatString;
-        this.camera.open(imageFormatString);
-        this.curStatus = STATUS.DEFAULT;
-      } catch (e) {
-        this.curStatus = STATUS.DEFAULT;
-      }
-    } else {
-      this.curStatus = STATUS.DEFAULT;
+    if (this.camera == null) {
+      throw new FlutterError(
+        'cameraNotFound',
+        'cameraNotFound',
+        "Camera not found. Please call the 'create' method before calling 'initialize'.",
+        ''
+      );
     }
+
+    this.curStatus = STATUS.INITIALIZE_ING;
+    const imageFormatString = PlatformImageFormatGroup[imageFormat];
+    this.currentImageFormat = imageFormatString;
+    this.camera.open(imageFormatString).then(() => {
+      this.curStatus = STATUS.DEFAULT;
+    }).catch((e: Error) => {
+      Log.e(TAG, 'initialize failed: ' + e.message);
+      this.curStatus = STATUS.DEFAULT;
+    });
   }
 
   // 在 dispose 方法中改进错误处理
