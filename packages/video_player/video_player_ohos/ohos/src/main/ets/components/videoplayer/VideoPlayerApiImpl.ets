@@ -290,6 +290,30 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
+  async getAudioTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>> {
+    if (playerId < 0) {
+      return [];
+    }
+    const videoPlayer = this.videoPlayers.get(playerId);
+    if (videoPlayer) {
+      return await videoPlayer.getAudioTracks();
+    }
+    Log.w(TAG, `The player does not exist: ${playerId}`);
+    return [];
+  }
+
+  async selectAudioTrack(playerId: number, trackId: string): Promise<void> {
+    if (playerId < 0) {
+      return;
+    }
+    const videoPlayer = this.videoPlayers.get(playerId);
+    if (videoPlayer) {
+      await videoPlayer.selectAudioTrack(trackId);
+      return;
+    }
+    Log.w(TAG, `The player does not exist: ${playerId}`);
+  }
+
   setup(binaryMessenger: BinaryMessenger): void {
     Log.i(TAG, "设置消息通道处理程序");
     
@@ -305,6 +329,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     this.setupSeekToChannel(binaryMessenger);
     this.setupPauseChannel(binaryMessenger);
     this.setupSetMixWithOthersChannel(binaryMessenger);
+    this.setupGetAudioTracksChannel(binaryMessenger);
+    this.setupSelectAudioTrackChannel(binaryMessenger);
   }
 
   // 初始化通道设置
@@ -571,6 +597,53 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
         } catch (err) {
           reply.reply(wrapError(err));
         }
+      }
+    });
+  }
+
+  // 获取音轨通道
+  private setupGetAudioTracksChannel(binaryMessenger: BinaryMessenger): void {
+    const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+      binaryMessenger,
+      "dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.getAudioTracks",
+      OhosVideoPlayerApi.getCodec()
+    );
+
+    channel.setMessageHandler({
+      onMessage: (msg: Object, reply: Reply<Object>): void => {
+        const args = msg as Array<Object>;
+        const playerId = args[0] as number;
+        this.getAudioTracks(playerId)
+          .then((tracks: Array<Map<string, string | number | boolean | null>>) => {
+            reply.reply([tracks]);
+          })
+          .catch((err: Error) => {
+            reply.reply(wrapError(err));
+          });
+      }
+    });
+  }
+
+  // 选择音轨通道
+  private setupSelectAudioTrackChannel(binaryMessenger: BinaryMessenger): void {
+    const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+      binaryMessenger,
+      "dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.selectAudioTrack",
+      OhosVideoPlayerApi.getCodec()
+    );
+
+    channel.setMessageHandler({
+      onMessage: (msg: Object, reply: Reply<Object>): void => {
+        const args = msg as Array<Object>;
+        const playerId = args[0] as number;
+        const trackId = args[1] as string;
+        this.selectAudioTrack(playerId, trackId)
+          .then(() => {
+            reply.reply([]);
+          })
+          .catch((err: Error) => {
+            reply.reply(wrapError(err));
+          });
       }
     });
   }

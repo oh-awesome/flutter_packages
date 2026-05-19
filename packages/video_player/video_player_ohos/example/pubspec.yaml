@@ -15,13 +15,15 @@ dependencies:
   video_player_ohos:
     path: ../
   video_player_platform_interface: ^6.3.0
-  cupertino_icons: ^1.0.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   path_provider: ^2.0.6
   flutter_lints: ^2.0.0
+
+dependency_overrides:
+  path_provider_foundation: 2.4.0
 
 flutter:
   uses-material-design: true

@@ -7,9 +7,11 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 
+import 'audio_tracks_demo.dart';
 import 'fileselector/file_selector.dart';
 import 'fileselector/x_type_group.dart';
 import 'mini_controller.dart';
+import 'mix_with_others_demo.dart';
 
 void main() {
   runApp(
@@ -28,6 +30,35 @@ class _App extends StatelessWidget {
         key: const ValueKey<String>('home_page'),
         appBar: AppBar(
           title: const Text('Video player example'),
+          actions: <Widget>[
+            IconButton(
+              key: const ValueKey<String>('mix_with_others_demo'),
+              icon: const Icon(Icons.compare_arrows),
+              tooltip: 'Mix With Others Demo',
+              onPressed: () {
+                Navigator.push<MixWithOthersDemo>(
+                  context,
+                  MaterialPageRoute<MixWithOthersDemo>(
+                    builder: (BuildContext context) =>
+                        const MixWithOthersDemo(),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              key: const ValueKey<String>('audio_tracks_demo'),
+              icon: const Icon(Icons.audiotrack),
+              tooltip: 'Audio Tracks Demo',
+              onPressed: () {
+                Navigator.push<AudioTracksDemo>(
+                  context,
+                  MaterialPageRoute<AudioTracksDemo>(
+                    builder: (BuildContext context) => const AudioTracksDemo(),
+                  ),
+                );
+              },
+            ),
+          ],
           bottom: const TabBar(
             isScrollable: true,
             tabs: <Widget>[
@@ -107,6 +138,7 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
               ),
             ),
           ),
+          _ApiCoveragePanel(controller: _controller),
         ],
       ),
     );
@@ -186,6 +218,7 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
               ),
             ),
           ),
+          _ApiCoveragePanel(controller: _controller),
           Container(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -252,11 +285,116 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
               ),
             ),
           ),
+          _ApiCoveragePanel(controller: _controller),
         ],
       ),
     );
   }
 }
+class _ApiCoveragePanel extends StatefulWidget {
+  const _ApiCoveragePanel({required this.controller});
+
+  final MiniController controller;
+
+  @override
+  State<_ApiCoveragePanel> createState() => _ApiCoveragePanelState();
+}
+
+class _ApiCoveragePanelState extends State<_ApiCoveragePanel> {
+  Duration? _queriedPosition;
+  bool _mixWithOthers = false;
+  bool _allowBackgroundPlayback = false;
+  String? _lastApiError;
+
+  MiniController get _controller => widget.controller;
+
+  Future<void> _showCurrentPosition() async {
+    final Duration? position = await _controller.position;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _queriedPosition = position;
+    });
+  }
+
+  Future<void> _seekBy(Duration offset) async {
+    final Duration? current = await _controller.position;
+    if (current == null) {
+      return;
+    }
+    await _controller.seekTo(current + offset);
+  }
+
+  String _formatDuration(Duration? value) {
+    if (value == null) {
+      return '--:--:--';
+    }
+    final String hours = value.inHours.toString().padLeft(2, '0');
+    final String minutes = (value.inMinutes % 60).toString().padLeft(2, '0');
+    final String seconds = (value.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Column(
+        children: <Widget>[
+          Text(
+            'position(接口): ${_formatDuration(_queriedPosition)}',
+            style: const TextStyle(fontSize: 12),
+          ),
+          if (_lastApiError != null)
+            Text(
+              'lastError: $_lastApiError',
+              style: const TextStyle(fontSize: 12, color: Colors.red),
+            ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              OutlinedButton(
+                onPressed: _showCurrentPosition,
+                child: const Text('读取position'),
+              ),
+              OutlinedButton(
+                onPressed: () => _controller.seekTo(Duration.zero),
+                child: const Text('seekTo开头'),
+              ),
+              OutlinedButton(
+                onPressed: () => _seekBy(const Duration(seconds: -10)),
+                child: const Text('seekTo-10s'),
+              ),
+              OutlinedButton(
+                onPressed: () => _seekBy(const Duration(seconds: 10)),
+                child: const Text('seekTo+10s'),
+              ),
+              OutlinedButton(
+                onPressed: _controller.value.isPlaying
+                    ? _controller.pause
+                    : _controller.play,
+                child: Text(_controller.value.isPlaying ? 'pause' : 'play'),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  _controller.setLooping(!_controller.value.isLooping);
+                },
+                child: Text(
+                  _controller.value.isLooping ? 'loop: on' : 'loop: off',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
 
 class _ControlsOverlay extends StatelessWidget {
   const _ControlsOverlay({required this.controller});
