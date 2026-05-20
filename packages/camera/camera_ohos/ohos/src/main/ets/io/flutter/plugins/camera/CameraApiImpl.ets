@@ -208,7 +208,7 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMaxZoomLevel());
+      return this.camera!.getMaxZoomLevel();
     } catch (error) {
       console.error('getMaxZoomLevel error:', error);
       return 1.0;
@@ -220,7 +220,7 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMinZoomLevel());
+      return this.camera!.getMinZoomLevel();
     } catch (error) {
       console.error('getMinZoomLevel error:', error);
       return 1.0;
