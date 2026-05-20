@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 
+bool get _isOhos => Platform.operatingSystem == 'ohos';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -42,7 +44,7 @@ void main() {
     if (Platform.isIOS) {
       final Directory result = await getLibraryDirectory();
       _verifySampleFile(result, 'library');
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final Future<Directory?> result = getLibraryDirectory();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
     }
@@ -52,7 +54,7 @@ void main() {
     if (Platform.isIOS) {
       final Future<Directory?> result = getExternalStorageDirectory();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final Directory? result = await getExternalStorageDirectory();
       _verifySampleFile(result, 'externalStorage');
     }
@@ -62,7 +64,7 @@ void main() {
     if (Platform.isIOS) {
       final Future<List<Directory>?> result = getExternalCacheDirectories();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final List<Directory>? directories = await getExternalCacheDirectories();
       expect(directories, isNotNull);
       for (final Directory result in directories!) {
@@ -88,7 +90,7 @@ void main() {
       if (Platform.isIOS) {
         final Future<List<Directory>?> result = getExternalStorageDirectories();
         await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-      } else if (Platform.isAndroid) {
+      } else if (Platform.isAndroid || _isOhos) {
         final List<Directory>? directories =
             await getExternalStorageDirectories(type: type);
         expect(directories, isNotNull);
