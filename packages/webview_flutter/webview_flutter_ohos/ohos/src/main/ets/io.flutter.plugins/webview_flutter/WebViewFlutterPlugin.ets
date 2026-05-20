@@ -22,6 +22,7 @@ import GeneratedOhosWebView, {
   FlutterAssetManagerHostApi,
   GeolocationPermissionsCallbackHostApi,
   HttpAuthHandlerHostApi,
+  SslErrorHandlerHostApi,
   InstanceManagerHostApi,
   JavaScriptChannelHostApi,
   PermissionRequestHostApi,
@@ -36,6 +37,7 @@ import GeneratedOhosWebView, {
 } from './GeneratedOhosWebView';
 import { GeolocationPermissionsCallbackHostApiImpl } from './GeolocationPermissionsCallbackHostApiImpl';
 import { HttpAuthHandlerHostApiImpl } from './HttpAuthHandlerHostApiImpl';
+import { SslErrorHandlerHostApiImpl } from './SslErrorHandlerHostApiImpl';
 import { InstanceManager } from './InstanceManager';
 import { JavaScriptChannelCreator, JavaScriptChannelHostApiImpl } from './JavaScriptChannelHostApiImpl';
 import { PermissionRequestHostApiImpl } from './PermissionRequestHostApiImpl';
@@ -154,6 +156,8 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
       binaryMessenger, new CustomViewCallbackHostApiImpl(binaryMessenger, this.instanceManager));
     HttpAuthHandlerHostApi.setup(
       binaryMessenger, new HttpAuthHandlerHostApiImpl(binaryMessenger, this.instanceManager));
+    SslErrorHandlerHostApi.setup(
+      binaryMessenger, new SslErrorHandlerHostApiImpl(binaryMessenger, this.instanceManager));
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding) {

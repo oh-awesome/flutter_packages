@@ -66,6 +66,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               urlLoading: urlLoading,
@@ -108,6 +109,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               onPageStarted: onPageStarted,
@@ -144,6 +146,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               onPageFinished: onPageFinished,
@@ -180,6 +183,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               onReceivedRequestError: onReceivedRequestError,
@@ -217,6 +221,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               doUpdateVisitedHistory: doUpdateVisitedHistory,
@@ -253,6 +258,7 @@ void main() {
               urlLoading,
               doUpdateVisitedHistory,
               onReceivedHttpAuthRequest,
+              onReceivedSslError,
             }) =>
                 ohos_webview.WebViewClient.detached(
               onReceivedHttpError: onReceivedHttpError,

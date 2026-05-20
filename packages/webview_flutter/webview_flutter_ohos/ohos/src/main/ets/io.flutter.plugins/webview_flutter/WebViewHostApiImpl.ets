@@ -6,7 +6,7 @@
 
 import PlatformView, { Params } from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView'
 import { DVModel, DVModelParameters } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicView'
-import { Result, WebViewHostApi, WebViewPoint, HttpAuthHandler } from './GeneratedOhosWebView'
+import { Result, WebViewHostApi, WebViewPoint, HttpAuthHandler, SslErrorHandler } from './GeneratedOhosWebView'
 import web_webview from '@ohos.web.webview'
 import { WebBuilder, OhosWebView } from './OhosWebView'
 import { createDVModelFromJson } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicViewJson'
@@ -27,6 +27,37 @@ import window from '@ohos.window'
 import display from '@ohos.display'
 
 const TAG: string = "WebViewHostApiImpl";
+
+/**
+ * Parses ArkWeb OnSslErrorEventReceiveEvent.error (SslError enum).
+ * Values: Invalid=0, HostMismatch=1, DateInvalid=2, Untrusted=3.
+ */
+function arkWebSslErrorNumericCode(raw: ESObject): number | undefined {
+  if (raw === undefined || raw === null) {
+    return undefined;
+  }
+  if (typeof raw === 'number') {
+    return raw;
+  }
+  const n = Number(raw);
+  return Number.isNaN(n) ? undefined : n;
+}
+
+/** Wording aligned with Android [AndroidSslAuthError] where categories match. */
+function arkWebSslErrorCodeToDescription(code: number): string {
+  switch (code) {
+    case 0:
+      return 'A generic SSL error occurred.';
+    case 1:
+      return 'Hostname mismatch.';
+    case 2:
+      return 'The certificate date is invalid.';
+    case 3:
+      return 'The certificate authority is not trusted.';
+    default:
+      return `SSL certificate validation failed (error code ${code}).`;
+  }
+}
 
 export declare class PlatformViewVisibleAreaEventOptions {
   enable: boolean // Enable variable area monitoring
@@ -407,6 +438,70 @@ export class WebViewPlatformView extends PlatformView {
       return true;
     }
     return false;
+  }
+
+  onSslErrorReceive = (event: ESObject): void => {
+    if (!event || !event.handler) {
+      Log.e(TAG, "onSslErrorReceive: missing event or handler");
+      return;
+    }
+    let urlStr = "";
+    try {
+      if (event.originalUrl !== undefined && event.originalUrl !== null) {
+        urlStr = `${event.originalUrl}`;
+      } else if (event.url !== undefined && event.url !== null) {
+        urlStr = `${event.url}`;
+      }
+    } catch (err) {
+      Log.e(TAG, "onSslErrorReceive url extract err = " + err);
+    }
+
+    // OnSslErrorEventReceiveEvent often omits URL (see ArkWeb docs); use controller URL for main frame.
+    if (!urlStr || urlStr.trim().length === 0) {
+      try {
+        const fromCtrl = this.controller.getUrl();
+        if (fromCtrl !== undefined && fromCtrl !== null && `${fromCtrl}`.trim().length > 0) {
+          urlStr = `${fromCtrl}`;
+        }
+      } catch (_) {
+      }
+    }
+    if (!urlStr || urlStr.trim().length === 0) {
+      urlStr = this.getUrl() ?? "";
+    }
+
+    let description = "SSL certificate validation failed.";
+    try {
+      const code = arkWebSslErrorNumericCode(event.error ?? event.sslError);
+      if (code !== undefined) {
+        description = arkWebSslErrorCodeToDescription(code);
+      } else if (event.error !== undefined && event.error !== null) {
+        description = `SSL error: ${event.error}`;
+      }
+    } catch (errDesc) {
+      Log.e(TAG, "onSslErrorReceive description extract err = " + errDesc);
+    }
+
+    let certStr = "";
+    try {
+      if (event.certIssuer !== undefined && event.certIssuer !== null) {
+        certStr = `${event.certIssuer}`;
+      }
+    } catch (errCert) {
+      Log.e(TAG, "onSslErrorReceive cert extract err = " + errCert);
+    }
+
+    if (this.webViewClint) {
+      try {
+        const wrappedHandler = new OhosSslErrorHandler(event.handler as ESObject);
+        this.webViewClint.onReceivedSslError(this, wrappedHandler, urlStr, certStr, description);
+      } catch (errForward) {
+        Log.e(TAG, "onSslErrorReceive forward err = " + errForward);
+        new OhosSslErrorHandler(event.handler as ESObject).cancel();
+      }
+    } else {
+      new OhosSslErrorHandler(event.handler as ESObject).cancel();
+    }
   }
 
   onProgressChange = (event: ESObject) => {
@@ -850,5 +945,35 @@ class OhosHttpAuthHandler implements HttpAuthHandler {
 
   useHttpAuthUsernamePassword(): boolean {
     return this.nativeHandler.isHttpAuthInfoSaved?.() ?? false;
+  }
+}
+
+class OhosSslErrorHandler implements SslErrorHandler {
+  private nativeHandler: ESObject;
+
+  constructor(handler: ESObject) {
+    this.nativeHandler = handler;
+  }
+
+  cancel(): void {
+    try {
+      if (typeof this.nativeHandler.handleCancel === 'function') {
+        try {
+          this.nativeHandler.handleCancel(true);
+        } catch (_e) {
+          this.nativeHandler.handleCancel();
+        }
+      }
+    } catch (err) {
+      Log.e(TAG, "OhosSslErrorHandler.cancel err = " + err);
+    }
+  }
+
+  proceed(): void {
+    try {
+      this.nativeHandler.handleConfirm?.();
+    } catch (err) {
+      Log.e(TAG, "OhosSslErrorHandler.proceed err = " + err);
+    }
   }
 }
