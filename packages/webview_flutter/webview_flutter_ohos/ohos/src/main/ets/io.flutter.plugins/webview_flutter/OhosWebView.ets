@@ -59,6 +59,20 @@ export struct OhosWebView {
     commonEventManager.unsubscribe(this.subscriber);
   }
 
+  getMixedModeValue(): MixedMode {
+    const mode: number = this.webView.getWebSettings().getMixedMode();
+    switch (mode) {
+      case 0:
+        return MixedMode.All;
+      case 1:
+        return MixedMode.Compatible;
+      case 2:
+        return MixedMode.None;
+      default:
+        return MixedMode.All;
+    }
+  }
+
   build() {
     Column() {
       if (!this.disposed) {
@@ -109,7 +123,7 @@ export struct OhosWebView {
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)
-          .mixedMode(MixedMode.All)
+          .mixedMode(this.getMixedModeValue())
           .onOverrideUrlLoading(this.webView.onOverrideUrlLoading)
           .onFullScreenEnter(this.webView.onFullScreenEnter)
           .onFullScreenExit(this.webView.onFullScreenExit)

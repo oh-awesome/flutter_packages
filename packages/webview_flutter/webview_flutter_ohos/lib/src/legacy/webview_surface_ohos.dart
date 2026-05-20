@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2013 The Flutter Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -30,8 +30,6 @@ import 'webview_ohos_widget.dart';
 /// https://github.com/flutter/flutter/wiki/Hybrid-Composition for more
 /// information.
 class SurfaceOhosWebView extends OhosWebView {
-  /// Constructs a [SurfaceOhosWebView].
-  SurfaceOhosWebView({@visibleForTesting super.instanceManager});
 
   @override
   Widget build({
@@ -68,7 +66,7 @@ class SurfaceOhosWebView extends OhosWebView {
               // OhosViewSurface. This switches the WebView to Hybrid
               // Composition when the background color is not 100% opaque.
               hybridComposition:
-                  backgroundColor != null && backgroundColor.opacity < 1.0,
+                  backgroundColor != null && backgroundColor.a < 1.0,
               id: params.id,
               viewType: 'plugins.flutter.io/webview',
               // WebView content is not affected by the Ohos view's layout direction,

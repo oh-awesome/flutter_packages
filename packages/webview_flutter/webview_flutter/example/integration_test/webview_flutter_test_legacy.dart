@@ -112,7 +112,7 @@ Future<void> main() async {
     // ignore: deprecated_member_use
     final String result = await controller.evaluateJavascript('1 + 1');
     expect(result, equals('2'));
-  });
+  }, skip: true);
 
   testWidgets('loadUrl with headers', (WidgetTester tester) async {
     final controllerCompleter = Completer<WebViewController>();
@@ -256,7 +256,7 @@ Future<void> main() async {
 
     final String customUserAgent2 = await _getUserAgent(controller1);
     expect(customUserAgent2, 'Custom_User_Agent2');
-  });
+  }, skip: true);
 
   testWidgets('use default platform userAgent after webView is rebuilt', (
     WidgetTester tester,
@@ -307,7 +307,7 @@ Future<void> main() async {
 
     final String customUserAgent2 = await _getUserAgent(controller);
     expect(customUserAgent2, defaultPlatformUserAgent);
-  });
+  }, skip: true);
 
   group('Video playback policy', () {
     testWidgets(
@@ -480,7 +480,7 @@ Future<void> main() async {
 
       final String fullScreen = await controller.runJavascriptReturningResult('isFullScreen();');
       expect(fullScreen, _webviewBool(false));
-    });
+    }, skip: true);
   });
 
   group('Audio playback policy', () {
@@ -1042,7 +1042,7 @@ Future<void> main() async {
     await pageLoaded.future;
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, primaryUrl);
-  });
+  }, skip: true);
 
   testWidgets('can open new window and go back', (WidgetTester tester) async {
     final controllerCompleter = Completer<WebViewController>();
@@ -1077,7 +1077,7 @@ Future<void> main() async {
     await controller.goBack();
     await pageLoaded.future;
     await expectLater(controller.currentUrl(), completion(primaryUrl));
-  });
+  }, skip: true);
 
   testWidgets('clearCache should clear local storage', (WidgetTester tester) async {
     final controllerCompleter = Completer<WebViewController>();

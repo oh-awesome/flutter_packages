@@ -699,6 +699,8 @@ class WebSettingsImpl implements WebSettings {
   textZoomRatio : number = 0;
   textZoomRatioCallback?: (ratio: number) => void;
   isAllowFullScreenRotate: boolean = false;
+  paymentRequestEnabled: boolean = false;
+  mixedMode: number = 0; // Default: MixedMode.All (allow all mixed content)
 
   constructor(webView: WebViewPlatformView) {
     this.webView = webView;
@@ -826,6 +828,18 @@ class WebSettingsImpl implements WebSettings {
 
   getAllowFullScreenRotate() : boolean {
     return this.isAllowFullScreenRotate;
+  }
+
+  setPaymentRequestEnabled(enabled: boolean) {
+    this.paymentRequestEnabled = enabled;
+  }
+
+  setMixedContentMode(mode: number) {
+    this.mixedMode = mode;
+  }
+
+  getMixedMode(): number {
+    return this.mixedMode;
   }
 }
 

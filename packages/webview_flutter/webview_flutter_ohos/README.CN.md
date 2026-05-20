@@ -1,21 +1,23 @@
 
-<p align="center">
-  <h1 align="center"> <code>webview_flutter</code> </h1>
-</p>
+# webview_flutter
 
+本项目基于 [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.0) 开发。
 
+## 简介
 
-本项目基于 [webview_flutter@4.13.0](https://pub.dev/packages/webview_flutter/versions/4.13.0) 开发。
+webview_flutter_ohos 是 webview_flutter 在 OpenHarmony 平台上的联合实现。业务工程通常只需依赖 webview_flutter，插件会在 OpenHarmony 上自动注册 OhosWebViewPlatform 作为默认后端；当需要访问 OpenHarmony 专属能力时，可直接引入 webview_flutter_ohos 并通过 OhosWebViewController 等类型使用扩展 API。
 
-## 1. 安装与使用
+当前实现覆盖以下核心能力：
 
-### 1.1 安装方式
+- 页面加载与导航拦截
+- JavaScript 执行、JavaScript Channel、控制台消息回调
+- Cookie 管理、本地文件与 Flutter 资源加载
+- HTTP 认证、可恢复 SSL 证书错误回调
+- 地理位置权限回调、平台权限请求、全屏自定义视图处理
 
-进入到工程目录并在 pubspec.yaml 中添加以下依赖：
+## 下载安装
 
-<!-- tabs:start -->
-
-#### pubspec.yaml
+进入工程目录并在 pubspec.yaml 中添加以下依赖，推荐业务应用优先依赖应用层包 webview_flutter：
 
 ```yaml
 dependencies:
@@ -23,30 +25,33 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
-      ref: br_webview_flutter-v4.13.0_ohos
+      ref: br_webview_flutter-v4.13.1_ohos
 ```
 
-执行命令
+如果需要直接调试 OHOS 平台实现，或需要调用平台扩展 API，也可以直接依赖当前包：：
+
+```yaml
+dependencies:
+  webview_flutter_ohos:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/webview_flutter/webview_flutter_ohos
+      ref: br_webview_flutter-v4.13.1_ohos
+```
 
 ```bash
 flutter pub get
 ```
 
-<!-- tabs:end -->
+## 约束与限制
 
-### 1.2 使用案例
-
-使用案例详见 [webview_flutter_ohos/example](./example)
-
-## 2. 约束与限制
-
-### 2.1 兼容性
+### 兼容性
 
 在以下版本中已测试通过
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
 
-### 2.2 权限要求
+### 权限要求
 
 以下权限中有`system_basic` 权限，而默认的应用权限是 `normal` ，只能使用 `normal` 等级的权限，所以可能会在安装hap包时报错**9568289**，请参考 [文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/bm-tool-V5#ZH-CN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) 修改应用等级为 `system_basic`
 
@@ -84,7 +89,74 @@ flutter pub get
 }
 ```
 
-## 3. API
+## 使用示例
+以下片段展示了在 OpenHarmony 上初始化 WebView、配置导航回调并挂载 `WebViewWidget` 的最小示例：
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:webview_flutter/webview_flutter.dart';
+import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
+
+class SimpleWebViewPage extends StatefulWidget {
+  const SimpleWebViewPage({super.key});
+
+  @override
+  State<SimpleWebViewPage> createState() => _SimpleWebViewPageState();
+}
+
+class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
+  late final WebViewController controller;
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller = WebViewController.fromPlatformCreationParams(
+      OhosWebViewControllerCreationParams(),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onPageStarted: (String url) {},
+          onPageFinished: (String url) {},
+          onNavigationRequest: (NavigationRequest request) {
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..addJavaScriptChannel(
+        'Toaster',
+        onMessageReceived: (JavaScriptMessage message) {
+          debugPrint(message.message);
+        },
+      )
+      ..loadRequest(Uri.parse('https://flutter.dev'));
+
+    final PlatformWebViewController platformController = controller.platform;
+    if (platformController is OhosWebViewController) {
+      OhosWebViewController.enableDebugging(true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: WebViewWidget(controller: controller),
+    );
+  }
+}
+```
+
+## 使用说明
+1. 业务应用优先依赖 `webview_flutter`，OpenHarmony 平台会自动使用 `webview_flutter_ohos` 作为默认实现。
+2. 如果需要使用 `OhosWebViewController`、`OhosSslAuthError` 等平台扩展类型，再额外在 `pubspec.yaml` 中显式引入 `webview_flutter_ohos`。
+3. 建议在 `StatefulWidget` 的 `initState` 中创建 controller，并在首次 `loadRequest` 之前完成 JavaScript 模式、导航回调、JavaScript Channel 和权限回调等初始化。
+4. 页面展示阶段使用 `WebViewWidget(controller: controller)` 或 `PlatformWebViewWidget(...)` 挂载 WebView，不要在 `build` 中重复创建 controller。
+5. 如需开启调试、处理 SSL 错误、地理位置授权或平台权限请求，可通过 `controller.platform` 获取 OpenHarmony 平台实现后调用对应扩展 API。
+6. 业务工程接入时至少需要在 OpenHarmony 模块中声明 `ohos.permission.INTERNET`；若页面涉及定位、摄像头或麦克风，还需要同步声明对应系统权限。
+
+## 接口说明
+###  API
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
@@ -95,18 +167,18 @@ flutter pub get
 | ProgressCallback(int progress)                               | Future<void>                 | 报告页面加载进度的回调签名                    | function | yes          |
 | WebResourceErrorCallback([WebResourceError](#WebResourceError ) error) | Future<void>                 | 报告资源加载错误的回调的签名                  | function | yes          |
 
-## 4. 属性
+###  属性
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
-### WebViewWidget
+#### WebViewWidget
 
 | Name            | Description               | Type              | ohos Support |
 | --------------- | ------------------------- | ----------------- | ------------ |
 | controller      | 控制宿主平台提供的WebView | WebViewController | yes          |
 | layoutDirection | 布局方向                  | TextDirection     | yes          |
 
-### WebViewController
+#### WebViewController
 
 | Name                                                         | return            | Description                                                  | Type     | ohos Support |
 | ------------------------------------------------------------ | ----------------- | ------------------------------------------------------------ | -------- | ------------ |
@@ -143,14 +215,14 @@ flutter pub get
 | setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt（）对话框 | function | yes          |
 | getUserAgent()                                               | Future<String?>   | 获取用于HTTP“User-Agent:”请求标头的值                        | function | yes          |
 
-### NavigationDelegate
+#### NavigationDelegate
 
 | Name                       | Description                                        | Type     | ohos Support |
 | -------------------------- | -------------------------------------------------- | -------- | ------------ |
 | fromPlatformCreationParams | 根据特定平台的创建参数构造一个[NavigationDelegate] | function | yes          |
 | fromPlatform               | 从特定的平台实现构造一个[NavigationDelegate]       | function | yes          |
 
-### HttpAuthRequest
+#### HttpAuthRequest
 
 | Name                                                         | return       | Description        | Type     | ohos Support |
 | ------------------------------------------------------------ | ------------ | ------------------ | -------- | ------------ |
@@ -159,34 +231,34 @@ flutter pub get
 | host                                                         |              | 需要身份验证的主机 | String   | yes          |
 | realm                                                        |              | 需要身份验证的领域 | String   | yes          |
 
-### JavaScriptAlertDialogRequest
+#### JavaScriptAlertDialogRequest
 
 | Name    | Description           | Type   | ohos Support |
 | ------- | --------------------- | ------ | ------------ |
 | message | 要在窗口中显示的消息  | String | yes          |
 | url     | 请求对话框的页面的URL | String | yes          |
 
-### JavaScriptConfirmDialogRequest
+#### JavaScriptConfirmDialogRequest
 
 | Name    | Description           | Type   | ohos Support |
 | ------- | --------------------- | ------ | ------------ |
 | message | 要在窗口中显示的消息  | String | yes          |
 | url     | 请求对话框的页面的URL | String | yes          |
 
-### JavaScriptConsoleMessage
+#### JavaScriptConsoleMessage
 
 | Name    | Description                | Type   | ohos Support |
 | ------- | -------------------------- | ------ | ------------ |
 | level   | JavaScript日志消息的严重性 | String | yes          |
 | message | 写入控制台的消息           | String | yes          |
 
-### JavaScriptMessage
+#### JavaScriptMessage
 
 | Name    | Description                  | Type   | ohos Support |
 | ------- | ---------------------------- | ------ | ------------ |
 | message | JavaScript代码发送的消息内容 | String | yes          |
 
-### JavaScriptTextInputDialogRequest
+#### JavaScriptTextInputDialogRequest
 
 | Name        | Description                      | Type    | ohos Support |
 | ----------- | -------------------------------- | ------- | ------------ |
@@ -194,14 +266,14 @@ flutter pub get
 | url         | 请求对话框的页面的URL            | String  | yes          |
 | defaultText | 要在文本输入字段中显示的初始文本 | String? | yes          |
 
-### NavigationRequest
+#### NavigationRequest
 
 | Name        | Description                                | Type   | ohos Support |
 | ----------- | ------------------------------------------ | ------ | ------------ |
 | url         | 待处理导航请求的URL                        | String | yes          |
 | isMainFrame | 指示请求是在网站的主框架还是子框架中发出的 | bool   | yes          |
 
-### PlatformWebViewController
+#### PlatformWebViewController
 
 | Name                                                         | return                                                  | Description                                                  | Type                                    | ohos Support |
 | ------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------- | ------------ |
@@ -239,11 +311,11 @@ flutter pub get
 | setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt（）对话框 | function                                | yes          |
 | getUserAgent()                                               | Future<String?>                                         | 获取用于HTTP“User-Agent:”请求标头的值                        | function                                | yes          |
 
-### PlatformWebViewControllerCreationParams
+#### PlatformWebViewControllerCreationParams
 
-### PlatformNavigationDelegateCreationParams
+#### PlatformNavigationDelegateCreationParams
 
-### PlatformWebViewPermissionRequest
+#### PlatformWebViewPermissionRequest
 
 | Name  | return       | Description          | Type                          | ohos Support |
 | ----- | ------------ | -------------------- | ----------------------------- | ------------ |
@@ -251,7 +323,7 @@ flutter pub get
 | grant | Future<void> | 为请求的资源授予权限 | function                      | yes          |
 | deny  | Future<void> | 拒绝所请求资源的权限 | function                      | yes          |
 
-### LoadRequestParams
+#### LoadRequestParams
 
 | Name    | Description            | Type                | ohos Support |
 | ------- | ---------------------- | ------------------- | ------------ |
@@ -260,7 +332,7 @@ flutter pub get
 | headers | 请求的标头             | Map<String, String> | yes          |
 | body    | 请求的HTTP正文         | Uint8List?          | yes          |
 
-### PlatformNavigationDelegate
+#### PlatformNavigationDelegate
 
 | Name    | Description            | Type                | ohos Support |
 | ------- | ---------------------- | ------------------- | ------------ |
@@ -269,7 +341,7 @@ flutter pub get
 | headers | 请求的标头             | Map<String, String> | yes          |
 | body    | 请求的HTTP正文         | Uint8List?          | yes          |
 
-### WebViewPermissionRequest
+#### WebViewPermissionRequest
 
 | Name     | return       | Description                                      | Type                             | ohos Support |
 | -------- | ------------ | ------------------------------------------------ | -------------------------------- | ------------ |
@@ -278,7 +350,7 @@ flutter pub get
 | grant()  | Future<void> | 为请求的资源授予权限                             | function                         | yes          |
 | deny()   | Future<void> | 拒绝所请求资源的权限                             | function                         | yes          |
 
-### PlatformWebViewWidgetCreationParams
+#### PlatformWebViewWidgetCreationParams
 
 | Name               | Description                                  | Type                                       | ohos Support |
 | ------------------ | -------------------------------------------- | ------------------------------------------ | ------------ |
@@ -287,20 +359,20 @@ flutter pub get
 | layoutDirection    | 用于嵌入式WebView的布局方向                  | TextDirection                              | yes          |
 | gestureRecognizers | “手势识别器”指定web视图应使用哪些手势        | Set<Factory<OneSequenceGestureRecognizer>> | yes          |
 
-### UrlChange
+#### UrlChange
 
 | Name | Description    | Type    | ohos Support |
 | ---- | -------------- | ------- | ------------ |
 | url  | web视图的新url | String? | yes          |
 
-### WebResourceError
+#### WebResourceError
 
 | Name        | Description                                             | Type   | ohos Support |
 | ----------- | ------------------------------------------------------- | ------ | ------------ |
 | errorCode   | 错误的整数代码（例如[WebViewClient.errorAuthentication] | int    | yes          |
 | description | 描述错误                                                | String | yes          |
 
-### WebViewCookie
+#### WebViewCookie
 
 | Name       | Description    | Type   | ohos Support |
 | ---------- | -------------- | ------ | ------------ |
@@ -309,28 +381,28 @@ flutter pub get
 | domain     | cookie的域值   | String | yes          |
 | path = '/' | cookie的路径值 | String | yes          |
 
-### WebViewCredential
+#### WebViewCredential
 
 | Name     | Description | Type   | ohos Support |
 | -------- | ----------- | ------ | ------------ |
 | user     | 用户名      | String | yes          |
 | password | 密码        | String | yes          |
 
-### WebViewPermissionResourceType
+#### WebViewPermissionResourceType
 
 | Name                                     | Description                | Type  | ohos Support |
 | ---------------------------------------- | -------------------------- | ----- | ------------ |
 | WebViewPermissionResourceType.camera     | 一种可以捕获视频的媒体设备 | enums | yes          |
 | WebViewPermissionResourceType.microphone | 一种可以捕获音频的媒体设备 | enums | yes          |
 
-### JavaScriptMode
+#### JavaScriptMode
 
 | Name                        | Description              | Type | ohos Support |
 | --------------------------- | ------------------------ | ---- | ------------ |
 | JavaScriptMode.disabled     | JavaScript执行已禁用     | enum | yes          |
 | JavascriptMode.unrestricted | JavaScript的执行不受限制 | enum | yes          |
 
-### JavaScriptLogLevel
+#### JavaScriptLogLevel
 
 | Name                       | Description                                            | Type | ohos Support |
 | -------------------------- | ------------------------------------------------------ | ---- | ------------ |
@@ -340,21 +412,21 @@ flutter pub get
 | JavaScriptLogLevel.info    | 表示使用`console.info`方法记录了一条信息性消息         | enum | yes          |
 | JavaScriptLogLevel.log     | 表示使用`console.log `方法记录了日志消息               | enum | yes          |
 
-### LoadRequestMethod
+#### LoadRequestMethod
 
 | Name                   | Description   | Type | ohos Support |
 | ---------------------- | ------------- | ---- | ------------ |
 | LoadRequestMethod.get  | HTTP GET方法  | enum | yes          |
 | LoadRequestMethod.post | HTTP POST方法 | enum | yes          |
 
-### NavigationDecision
+#### NavigationDecision
 
 | Name                        | Description  | Type | ohos Support |
 | --------------------------- | ------------ | ---- | ------------ |
 | NavigationDecision.prevent  | 阻止导航发生 | enum | yes          |
 | NavigationDecision.navigate | 允许导航发生 | enum | yes          |
 
-### WebResourceErrorType
+#### WebResourceErrorType
 
 | Name                                                   | Description                          | Type | ohos Support |
 | ------------------------------------------------------ | ------------------------------------ | ---- | ------------ |
@@ -379,16 +451,48 @@ flutter pub get
 | WebResourceErrorType.javaScriptExceptionOccurred       | 发生JavaScript异常                   | enum | yes          |
 | WebResourceErrorType.javaScriptResultTypeIsUnsupported | 无法返回JavaScript执行的结果         | enum | yes          |
 
-## 5. 遗留问题
+## 遗留问题
 
 无
 
-## 6. 其他
+## 其他
 
-## 7. 开源协议
+无
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_webview_flutter-v4.13.0_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
+## 目录结构
 
+```text
+webview_flutter_ohos/
+|---- .github/                         # 技能模板与文档规范
+|---- example/                         # Flutter 示例工程
+|     |---- assets/                    # 示例资源
+|     |---- lib/                       # 示例 Dart 代码
+|     |---- ohos/                      # 示例应用的 OpenHarmony 工程
+|     |---- pubspec.yaml               # 示例工程依赖配置
+|     |---- README.md                  # 示例说明
+|---- lib/                             # 包对外导出的 Dart 入口与核心实现
+|     |---- src/                       # OpenHarmony 控制器、平台实现、Pigeon 绑定与兼容层
+|     |---- webview_flutter_ohos.dart  # 当前包主入口
+|---- ohos/                            # 当前包的 OpenHarmony HAR 工程
+|     |---- src/
+|     |     |---- main/
+|     |           |---- ets/           # ArkTS 侧入口与实现
+|     |           |---- module.json5   # HAR 模块配置
+|---- AUTHORS                          # 作者列表
+|---- CHANGELOG.md                     # 版本变更记录
+|---- CHANGELOG_README.md              # README 变更记录
+|---- LICENSE                          # 开源协议
+|---- pubspec.yaml                     # 包配置文件
+|---- README.CN.md                     # 中文说明文档
+|---- README.md                        # 英文说明文档
+|---- SKILL.md                         # 当前库文档技能说明
+```
 
+##  贡献代码
 
-> 模板版本: v0.0.1
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues)；当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
+
+##  开源协议
+
+本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
+

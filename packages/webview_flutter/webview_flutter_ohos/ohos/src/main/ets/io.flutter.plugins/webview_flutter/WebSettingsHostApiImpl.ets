@@ -67,6 +67,12 @@ export interface WebSettings {
   setAllowFullScreenRotate(enabled: boolean): void;
   
   getAllowFullScreenRotate(): boolean;
+
+  setPaymentRequestEnabled(enabled: boolean): void;
+
+  setMixedContentMode(mode: number): void;
+
+  getMixedMode(): number;
 }
 
 export class WebSettingsCreator {
@@ -169,5 +175,15 @@ export class WebSettingsHostApiImpl extends WebSettingsHostApi {
   setAllowFullScreenRotate(instanceId: number, enabled: boolean) {
     const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
     webSettings.setAllowFullScreenRotate(enabled);
+  }
+
+  setPaymentRequestEnabled(instanceId: number, enabled: boolean) {
+    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    webSettings.setPaymentRequestEnabled(enabled);
+  }
+
+  setMixedContentMode(instanceId: number, mode: number) {
+    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    webSettings.setMixedContentMode(mode);
   }
 }

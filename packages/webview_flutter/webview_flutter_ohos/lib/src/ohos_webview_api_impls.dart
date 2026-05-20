@@ -588,6 +588,28 @@ class WebSettingsHostApiImpl extends WebSettingsHostApi {
       enabled,
     );
   }
+
+  /// Helper method to convert instances ids to objects.
+  Future<void> setPaymentRequestEnabledFromInstance(
+    WebSettings instance,
+    bool enabled,
+  ) {
+    return setPaymentRequestEnabled(
+      instanceManager.getIdentifier(instance)!,
+      enabled,
+    );
+  }
+
+  /// Helper method to convert instances ids to objects.
+  Future<void> setMixedContentModeFromInstance(
+    WebSettings instance,
+    MixedContentMode mode,
+  ) {
+    return setMixedContentMode(
+      instanceManager.getIdentifier(instance)!,
+      mode.index,
+    );
+  }
 }
 
 /// Host api implementation for [JavaScriptChannel].

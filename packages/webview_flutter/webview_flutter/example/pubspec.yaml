@@ -34,6 +34,9 @@ dev_dependencies:
   integration_test:
     sdk: flutter
   webview_flutter_platform_interface: ^2.13.0
+  
+dependency_overrides:
+  path_provider_foundation: 2.5.1
 
 flutter:
   uses-material-design: true

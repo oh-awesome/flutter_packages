@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2013 The Flutter Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -134,24 +134,6 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
         weakReference.target?.callbacksHandler.onPageFinished(url);
       };
     }),
-    onReceivedError: withWeakReferenceTo(this, (
-      WeakReference<WebViewOhosPlatformController> weakReference,
-    ) {
-      return (
-        _,
-        int errorCode,
-        String description,
-        String failingUrl,
-      ) {
-        weakReference.target?.callbacksHandler
-            .onWebResourceError(WebResourceError(
-          errorCode: errorCode,
-          description: description,
-          failingUrl: failingUrl,
-          errorType: _errorCodeToErrorType(errorCode),
-        ));
-      };
-    }),
     onReceivedRequestError: withWeakReferenceTo(this, (
       WeakReference<WebViewOhosPlatformController> weakReference,
     ) {
@@ -273,7 +255,7 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
 
   @override
   Future<void> loadFile(String absoluteFilePath) {
-    final String url = absoluteFilePath.startsWith('file://')
+    final url = absoluteFilePath.startsWith('file://')
         ? absoluteFilePath
         : 'file://$absoluteFilePath';
 
@@ -406,7 +388,7 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
         },
       ).map<Future<void>>(
         (String channelName) {
-          final WebViewOhosJavaScriptChannel javaScriptChannel =
+          final javaScriptChannel =
               WebViewOhosJavaScriptChannel(
                   channelName, javascriptChannelRegistry);
           _javaScriptChannels[channelName] = javaScriptChannel;
@@ -427,7 +409,7 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
         },
       ).map<Future<void>>(
         (String channelName) {
-          final WebViewOhosJavaScriptChannel javaScriptChannel =
+          final javaScriptChannel =
               _javaScriptChannels[channelName]!;
           _javaScriptChannels.remove(channelName);
           return webView.removeJavaScriptChannel(javaScriptChannel);
@@ -633,12 +615,6 @@ class WebViewProxy {
       ohos_webview.WebResourceRequest request,
       ohos_webview.WebResourceError error,
     )? onReceivedRequestError,
-    void Function(
-      ohos_webview.WebView webView,
-      int errorCode,
-      String description,
-      String failingUrl,
-    )? onReceivedError,
     void Function(ohos_webview.WebView webView,
             ohos_webview.WebResourceRequest request)?
         requestLoading,
@@ -648,7 +624,6 @@ class WebViewProxy {
       onPageStarted: onPageStarted,
       onPageFinished: onPageFinished,
       onReceivedRequestError: onReceivedRequestError,
-      onReceivedError: onReceivedError,
       requestLoading: requestLoading,
       urlLoading: urlLoading,
     );
