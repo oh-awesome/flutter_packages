@@ -711,12 +711,68 @@ class WebSettings extends OhosObject {
     return api.setAllowFullScreenRotateInstance(this, enabled);
   }
 
+  /// Configures how mixed content (HTTP content on HTTPS pages) should be handled.
+  ///
+  /// The [mode] parameter determines the behavior:
+  /// - `MixedContentMode.alwaysAllow`: Allow all mixed content
+  /// - `MixedContentMode.compatibilityMode`: Allow only compatibility-safe content
+  /// - `MixedContentMode.neverAllow`: Block all mixed content
+  Future<void> setMixedContentMode(MixedContentMode mode) {
+    return api.setMixedContentModeFromInstance(this, mode);
+  }
+
   @override
   WebSettings copy() {
     return WebSettings.detached(
       binaryMessenger: _api.binaryMessenger,
       instanceManager: _api.instanceManager,
     );
+  }
+}
+
+/// Controls mixed content handling for the OHOS Dart compatibility layer.
+enum MixedContentMode {
+  /// Allow all mixed HTTP and HTTPS content.
+  alwaysAllow,
+
+  /// Allow only compatibility-safe mixed content.
+  compatibilityMode,
+
+  /// Block all mixed content.
+  neverAllow,
+}
+
+/// Compatibility helpers for [WebSettings].
+class WebSettingsCompat {
+  /// Sets whether the Payment Request API is enabled for [webSettings].
+  ///
+  /// On OHOS this is currently a compatibility shim only. The underlying
+  /// ArkWeb implementation does not yet expose a public Payment Request enable
+  /// API, so calling this method does not turn on a native payment backend.
+  static Future<void> setPaymentRequestEnabled(
+    WebSettings webSettings,
+    bool enabled,
+  ) {
+    return WebSettings.api.setPaymentRequestEnabledFromInstance(
+      webSettings,
+      enabled,
+    );
+  }
+}
+
+/// Utility class for checking which features are supported by the OHOS Web wrapper.
+class WebViewFeature {
+  /// Pigeon Host Api implementation for [WebViewFeature].
+  @visibleForTesting
+  static WebViewFeatureHostApi api = WebViewFeatureHostApi();
+
+  /// Checks whether [feature] is supported by the current OHOS implementation.
+  ///
+  /// For `PAYMENT_REQUEST`, the current implementation returns `false`
+  /// because OHOS only has a compatibility surface here and no public ArkWeb
+  /// feature query or enable hook.
+  static Future<bool> isFeatureSupported(String feature) {
+    return api.isFeatureSupported(feature);
   }
 }
 
@@ -1470,6 +1526,9 @@ class WebResourceError {
 class FlutterAssetManager {
   /// Constructs the [FlutterAssetManager].
   const FlutterAssetManager();
+
+  /// The singleton instance of this class.
+  static const FlutterAssetManager instance = FlutterAssetManager();
 
   /// Pigeon Host Api implementation for [FlutterAssetManager].
   @visibleForTesting
