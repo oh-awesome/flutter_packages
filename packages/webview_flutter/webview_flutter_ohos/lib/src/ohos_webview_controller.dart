@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+// Copyright 2013 The Flutter Authors
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,13 +11,48 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
-import 'ohos_proxy.dart';
 import 'ohos_webview.dart' as ohos_webview;
+import 'ohos_webview_constants.dart';
 import 'ohos_webview_api_impls.dart';
 import 'ohos_ssl_auth_error.dart';
 import 'instance_manager.dart';
 import 'platform_views_service_proxy.dart';
 import 'weak_reference_utils.dart';
+
+/// Object specifying parameters for loading a local file in a
+/// [OhosWebViewController].
+@immutable
+base class OhosLoadFileParams extends LoadFileParams {
+  /// Constructs a [OhosLoadFileParams], the subclass of a [LoadFileParams].
+  OhosLoadFileParams({
+    required String absoluteFilePath,
+    this.headers = const <String, String>{},
+  }) : super(
+         absoluteFilePath: absoluteFilePath.startsWith('file://')
+             ? absoluteFilePath
+             : Uri.file(absoluteFilePath).toString(),
+       );
+
+  /// Constructs a [OhosLoadFileParams] using a [LoadFileParams].
+  factory OhosLoadFileParams.fromLoadFileParams(
+    LoadFileParams params, {
+    Map<String, String> headers = const <String, String>{},
+  }) {
+    return OhosLoadFileParams(
+      absoluteFilePath: params.absoluteFilePath,
+      headers: headers,
+    );
+  }
+
+  /// Additional HTTP headers to be included when loading the local file.
+  ///
+  /// If not provided at initialization time, doesn't add any additional headers.
+  ///
+  /// On Ohos, WebView supports adding headers when loading local or remote
+  /// content. This can be useful for scenarios like authentication,
+  /// content-type overrides, or custom request context.
+  final Map<String, String> headers;
+}
 
 /// Object specifying creation parameters for creating a [OhosWebViewController].
 ///
@@ -30,7 +65,6 @@ class OhosWebViewControllerCreationParams
   /// Creates a new [OhosWebViewControllerCreationParams] instance.
   OhosWebViewControllerCreationParams({
     bool? this.isAllowFullScreenRotate = false,
-    @visibleForTesting this.ohosWebViewProxy = const OhosWebViewProxy(),
     @visibleForTesting ohos_webview.WebStorage? ohosWebStorage,
   })  : ohosWebStorage =
             ohosWebStorage ?? ohos_webview.WebStorage.instance,
@@ -42,13 +76,10 @@ class OhosWebViewControllerCreationParams
     // ignore: avoid_unused_constructor_parameters
     PlatformWebViewControllerCreationParams params, {
     bool? isAllowFullScreenRotate = false,
-    @visibleForTesting
-    OhosWebViewProxy ohosWebViewProxy = const OhosWebViewProxy(),
     @visibleForTesting ohos_webview.WebStorage? ohosWebStorage,
   }) {
     return OhosWebViewControllerCreationParams(
       isAllowFullScreenRotate: isAllowFullScreenRotate,
-      ohosWebViewProxy: ohosWebViewProxy,
       ohosWebStorage:
           ohosWebStorage ?? ohos_webview.WebStorage.instance,
     );
@@ -59,8 +90,6 @@ class OhosWebViewControllerCreationParams
 
   /// Handles constructing objects and calling static methods for the Ohos WebView
   /// native library.
-  @visibleForTesting
-  final OhosWebViewProxy ohosWebViewProxy;
 
   /// Manages the JavaScript storage APIs provided by the [ohos_webview.WebView].
   @visibleForTesting
@@ -107,7 +136,7 @@ class OhosWebViewController extends PlatformWebViewController {
 
   /// The native [ohos_webview.WebView] being controlled.
   late final ohos_webview.WebView _webView =
-      _ohosWebViewParams.ohosWebViewProxy.createOhosWebView(
+      ohos_webview.WebView(
           onScrollChanged: withWeakReferenceTo(this,
               (WeakReference<OhosWebViewController> weakReference) {
     return (int left, int top, int oldLeft, int oldTop) async {
@@ -118,7 +147,7 @@ class OhosWebViewController extends PlatformWebViewController {
   }));
 
   late final ohos_webview.WebChromeClient _webChromeClient =
-      _ohosWebViewParams.ohosWebViewProxy.createOhosWebChromeClient(
+      ohos_webview.WebChromeClient(
     onProgressChanged: withWeakReferenceTo(this,
         (WeakReference<OhosWebViewController> weakReference) {
       return (ohos_webview.WebView webView, int progress) {
@@ -290,7 +319,7 @@ class OhosWebViewController extends PlatformWebViewController {
         final Future<void> Function(JavaScriptAlertDialogRequest)? callback =
             weakReference.target?._onJavaScriptAlert;
         if (callback != null) {
-          final JavaScriptAlertDialogRequest request =
+          final request =
               JavaScriptAlertDialogRequest(message: message, url: url);
 
           await callback.call(request);
@@ -304,7 +333,7 @@ class OhosWebViewController extends PlatformWebViewController {
         final Future<bool> Function(JavaScriptConfirmDialogRequest)? callback =
             weakReference.target?._onJavaScriptConfirm;
         if (callback != null) {
-          final JavaScriptConfirmDialogRequest request =
+          final request =
               JavaScriptConfirmDialogRequest(message: message, url: url);
           final bool result = await callback.call(request);
           return result;
@@ -318,7 +347,7 @@ class OhosWebViewController extends PlatformWebViewController {
         final Future<String> Function(JavaScriptTextInputDialogRequest)?
             callback = weakReference.target?._onJavaScriptPrompt;
         if (callback != null) {
-          final JavaScriptTextInputDialogRequest request =
+          final request =
               JavaScriptTextInputDialogRequest(
                   message: message, url: url, defaultText: defaultValue);
           final String result = await callback.call(request);
@@ -331,7 +360,7 @@ class OhosWebViewController extends PlatformWebViewController {
 
   /// The native [ohos_webview.FlutterAssetManager] allows managing assets.
   late final ohos_webview.FlutterAssetManager _flutterAssetManager =
-      _ohosWebViewParams.ohosWebViewProxy.createFlutterAssetManager();
+      ohos_webview.FlutterAssetManager.instance;
 
   final Map<String, OhosJavaScriptChannelParams> _javaScriptChannelParams =
       <String, OhosJavaScriptChannelParams>{};
@@ -367,11 +396,9 @@ class OhosWebViewController extends PlatformWebViewController {
   ///
   /// Defaults to false.
   static Future<void> enableDebugging(
-    bool enabled, {
-    @visibleForTesting
-    OhosWebViewProxy webViewProxy = const OhosWebViewProxy(),
-  }) {
-    return webViewProxy.setWebContentsDebuggingEnabled(enabled);
+    bool enabled,
+  ) {
+    return ohos_webview.WebView.setWebContentsDebuggingEnabled(enabled);
   }
 
   /// Identifier used to retrieve the underlying native `WKWebView`.
@@ -388,12 +415,25 @@ class OhosWebViewController extends PlatformWebViewController {
   Future<void> loadFile(
     String absoluteFilePath,
   ) {
-    final String url = absoluteFilePath.startsWith('file://')
-        ? absoluteFilePath
-        : Uri.file(absoluteFilePath).toString();
+    return loadFileWithParams(
+      OhosLoadFileParams(absoluteFilePath: absoluteFilePath),
+    );
+  }
 
-    _webView.settings.setAllowFileAccess(true);
-    return _webView.loadUrl(url, <String, String>{});
+  @override
+  Future<void> loadFileWithParams(LoadFileParams params) async {
+    switch (params) {
+      case final OhosLoadFileParams params:
+        await Future.wait(<Future<void>>[
+          _webView.settings.setAllowFileAccess(true),
+          _webView.loadUrl(params.absoluteFilePath, params.headers),
+        ]);
+
+      default:
+        await loadFileWithParams(
+          OhosLoadFileParams.fromLoadFileParams(params),
+        );
+    }
   }
 
   @override
@@ -607,8 +647,6 @@ class OhosWebViewController extends PlatformWebViewController {
 
   /// Sets a callback that notifies the host application that web content is
   /// requesting permission to access the specified resources.
-  ///
-  /// Only invoked on Ohos versions 21+.
   @override
   Future<void> setOnPlatformPermissionRequest(
     void Function(
@@ -626,8 +664,7 @@ class OhosWebViewController extends PlatformWebViewController {
   /// The host application should invoke the specified callback with the desired permission state.
   /// See GeolocationPermissions for details.
   ///
-  /// Note that for applications targeting Ohos N and later SDKs (API level > Build.VERSION_CODES.M)
-  /// this method is only called for requests originating from secure origins such as https.
+  /// This method is only called for requests originating from secure origins such as https.
   /// On non-secure origins geolocation requests are automatically denied.
   ///
   /// Param [onHidePrompt] notifies the host application that a request for Geolocation permissions,
@@ -709,6 +746,60 @@ class OhosWebViewController extends PlatformWebViewController {
     _onJavaScriptPrompt = onJavaScriptTextInputDialog;
     return _webChromeClient.setSynchronousReturnValueForOnJsPrompt(true);
   }
+
+  /// Configures the WebView's behavior when handling mixed content.
+  Future<void> setMixedContentMode(MixedContentMode mode) {
+    final ohos_webview.MixedContentMode ohosMode = switch (mode) {
+      MixedContentMode.alwaysAllow =>
+        ohos_webview.MixedContentMode.alwaysAllow,
+      MixedContentMode.compatibilityMode =>
+        ohos_webview.MixedContentMode.compatibilityMode,
+      MixedContentMode.neverAllow =>
+        ohos_webview.MixedContentMode.neverAllow,
+    };
+    return _webView.settings.setMixedContentMode(ohosMode);
+  }
+
+  /// Checks if a WebView feature is supported on the current device.
+  ///
+  /// This method uses [ohos_webview.WebViewFeature.isFeatureSupported] to check
+  /// if the specified WebView feature is available on the current device and WebView version.
+  ///
+  /// For [WebViewFeatureType.paymentRequest], the current OHOS implementation
+  /// reports `false` because ArkWeb does not expose a public Payment Request
+  /// feature query or enable API yet.
+  ///
+  /// See [WebViewFeatureType] for available feature constants.
+  Future<bool> isWebViewFeatureSupported(WebViewFeatureType featureType) {
+    final String feature = switch (featureType) {
+      WebViewFeatureType.paymentRequest =>
+        WebViewFeatureConstants.paymentRequest,
+    };
+    return ohos_webview.WebViewFeature.isFeatureSupported(feature);
+  }
+
+  /// Sets whether the WebView should enable the Payment Request API.
+  ///
+  /// This method uses [ohos_webview.WebSettingsCompat.setPaymentRequestEnabled]
+  /// to enable or disable the Payment Request API for the WebView.
+  ///
+  /// On OHOS this currently exists for API compatibility only. The Web
+  /// component does not yet have a real ArkWeb Payment Request backend, so
+  /// callers should continue to guard this behind
+  /// [isWebViewFeatureSupported].
+  ///
+  /// Before calling this method, you should check if the feature is supported using
+  /// [isWebViewFeatureSupported] with [WebViewFeatureType.paymentRequest].
+  ///
+  /// This feature requires adding queries to the OHOSManifest.xml to allow WebView to query the device for the user's payment applications:
+  /// See https://developer.android.com/reference/androidx/webkit/WebSettingsCompat#setPaymentRequestEnabled(android.webkit.WebSettings,boolean).
+  Future<void> setPaymentRequestEnabled(bool enabled) {
+    return ohos_webview.WebSettingsCompat.setPaymentRequestEnabled(
+      _webView.settings,
+      enabled,
+    );
+  }
+
 }
 
 /// Ohos implementation of [PlatformWebViewPermissionRequest].
@@ -722,23 +813,23 @@ class OhosWebViewPermissionRequest extends PlatformWebViewPermissionRequest {
 
   @override
   Future<void> grant() {
-    return _request
-        .grant(types.map<String>((WebViewPermissionResourceType type) {
-      switch (type) {
-        case WebViewPermissionResourceType.camera:
-          return ohos_webview.PermissionRequest.videoCapture;
-        case WebViewPermissionResourceType.microphone:
-          return ohos_webview.PermissionRequest.audioCapture;
-        case OhosWebViewPermissionResourceType.midiSysex:
-          return ohos_webview.PermissionRequest.midiSysex;
-        case OhosWebViewPermissionResourceType.protectedMediaId:
-          return ohos_webview.PermissionRequest.protectedMediaId;
-      }
+    return _request.grant(
+      types.map<String>((WebViewPermissionResourceType type) {
+        switch (type) {
+          case WebViewPermissionResourceType.camera:
+            return ohos_webview.PermissionRequest.videoCapture;
+          case WebViewPermissionResourceType.microphone:
+            return ohos_webview.PermissionRequest.audioCapture;
+          case OhosWebViewPermissionResourceType.midiSysex:
+            return ohos_webview.PermissionRequest.midiSysex;
+          case OhosWebViewPermissionResourceType.protectedMediaId:
+            return ohos_webview.PermissionRequest.protectedMediaId;
+        }
 
-      throw UnsupportedError(
-        'Resource of type `${type.name}` is not supported.',
-      );
-    }).toList());
+        throw UnsupportedError(
+          'Resource of type `${type.name}` is not supported.',
+        );
+      }).toList());
   }
 
   @override
@@ -807,6 +898,49 @@ enum FileSelectorMode {
   save,
 }
 
+/// Mode for controlling mixed content handling.
+
+/// See [OhosWebViewController.setMixedContentMode].
+enum MixedContentMode {
+  /// The WebView will allow a secure origin to load content from any other
+  /// origin, even if that origin is insecure.
+  ///
+  /// This is the least secure mode of operation, and where possible apps should
+  /// not set this mode.
+  alwaysAllow,
+
+  /// The WebView will attempt to be compatible with the approach of a modern
+  /// web browser with regard to mixed content.
+  ///
+  /// The types of content are allowed or blocked may change release to release
+  /// of the underlying OHOS WebView, and are not explicitly defined. This
+  /// mode is intended to be used by apps that are not in control of the content
+  /// that they render but desire to operate in a reasonably secure environment.
+  compatibilityMode,
+
+  /// The WebView will not allow a secure origin to load content from an
+  /// insecure origin.
+  ///
+  /// This is the preferred and most secure mode of operation, and apps are
+  /// strongly advised to use this mode.
+  ///
+  /// This is the default mode.
+  neverAllow,
+}
+
+/// WebView support library feature types used to query for support on the device.
+///
+/// See https://developer.android.com/reference/androidx/webkit/WebViewFeature#constants_1.
+enum WebViewFeatureType {
+  /// Feature for isFeatureSupported.
+  ///
+  /// This feature covers [WebSettingsCompat.setPaymentRequestEnabled].
+  ///
+  /// The current OHOS implementation reports this feature as unsupported until
+  /// ArkWeb provides a public Payment Request capability.
+  paymentRequest,
+}
+
 /// Parameters received when the `WebView` should show a file selector.
 @immutable
 class FileSelectorParams {
@@ -864,9 +998,8 @@ class OhosJavaScriptChannelParams extends JavaScriptChannelParams {
   OhosJavaScriptChannelParams({
     required super.name,
     required super.onMessageReceived,
-    @visibleForTesting OhosWebViewProxy webViewProxy = const OhosWebViewProxy(),
   })  : assert(name.isNotEmpty),
-        _javaScriptChannel = webViewProxy.createJavaScriptChannel(
+        _javaScriptChannel = ohos_webview.JavaScriptChannel(
           name,
           postMessage: withWeakReferenceTo(
             onMessageReceived,
@@ -887,12 +1020,10 @@ class OhosJavaScriptChannelParams extends JavaScriptChannelParams {
   /// Constructs a [OhosJavaScriptChannelParams] using a
   /// [JavaScriptChannelParams].
   OhosJavaScriptChannelParams.fromJavaScriptChannelParams(
-    JavaScriptChannelParams params, {
-    @visibleForTesting OhosWebViewProxy webViewProxy = const OhosWebViewProxy(),
-  }) : this(
+    JavaScriptChannelParams params, 
+  ) : this(
           name: params.name,
           onMessageReceived: params.onMessageReceived,
-          webViewProxy: webViewProxy,
         );
 
   final ohos_webview.JavaScriptChannel _javaScriptChannel;
@@ -907,24 +1038,21 @@ class OhosJavaScriptChannelParams extends JavaScriptChannelParams {
 class OhosWebViewWidgetCreationParams
     extends PlatformWebViewWidgetCreationParams {
   /// Creates [OhosWebWidgetCreationParams].
-  OhosWebViewWidgetCreationParams({
+  const OhosWebViewWidgetCreationParams({
     super.key,
     required super.controller,
     super.layoutDirection,
     super.gestureRecognizers,
     this.displayWithHybridComposition = false,
-    @visibleForTesting InstanceManager? instanceManager,
     @visibleForTesting
     this.platformViewsServiceProxy = const PlatformViewsServiceProxy(),
-  }) : instanceManager =
-            instanceManager ?? ohos_webview.OhosObject.globalInstanceManager;
+  });
 
   /// Constructs a [WebKitWebViewWidgetCreationParams] using a
   /// [PlatformWebViewWidgetCreationParams].
   OhosWebViewWidgetCreationParams.fromPlatformWebViewWidgetCreationParams(
     PlatformWebViewWidgetCreationParams params, {
     bool displayWithHybridComposition = false,
-    @visibleForTesting InstanceManager? instanceManager,
     @visibleForTesting PlatformViewsServiceProxy platformViewsServiceProxy =
         const PlatformViewsServiceProxy(),
   }) : this(
@@ -933,7 +1061,6 @@ class OhosWebViewWidgetCreationParams
           layoutDirection: params.layoutDirection,
           gestureRecognizers: params.gestureRecognizers,
           displayWithHybridComposition: displayWithHybridComposition,
-          instanceManager: instanceManager,
           platformViewsServiceProxy: platformViewsServiceProxy,
         );
 
@@ -942,8 +1069,6 @@ class OhosWebViewWidgetCreationParams
   ///
   /// This field is exposed for testing purposes only and should not be used
   /// outside of tests.
-  @visibleForTesting
-  final InstanceManager instanceManager;
 
   /// Proxy that provides access to the platform views service.
   ///
@@ -970,7 +1095,6 @@ class OhosWebViewWidgetCreationParams
         layoutDirection,
         displayWithHybridComposition,
         platformViewsServiceProxy,
-        instanceManager,
       );
 
   @override
@@ -979,8 +1103,7 @@ class OhosWebViewWidgetCreationParams
         controller == other.controller &&
         layoutDirection == other.layoutDirection &&
         displayWithHybridComposition == other.displayWithHybridComposition &&
-        platformViewsServiceProxy == other.platformViewsServiceProxy &&
-        instanceManager == other.instanceManager;
+        platformViewsServiceProxy == other.platformViewsServiceProxy;
   }
 }
 
@@ -1034,13 +1157,15 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
     PlatformViewCreationParams params, {
     required bool displayWithHybridComposition,
   }) {
+    final int webViewIdentifier =
+        (_ohosParams.controller as OhosWebViewController).webViewIdentifier;
+
     if (displayWithHybridComposition) {
       return _ohosParams.platformViewsServiceProxy.initExpensiveOhosView(
         id: params.id,
         viewType: 'plugins.flutter.io/webview',
         layoutDirection: _ohosParams.layoutDirection,
-        creationParams: _ohosParams.instanceManager.getIdentifier(
-            (_ohosParams.controller as OhosWebViewController)._webView),
+        creationParams: webViewIdentifier,
         creationParamsCodec: const StandardMessageCodec(),
       );
     } else {
@@ -1048,8 +1173,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
         id: params.id,
         viewType: 'plugins.flutter.io/webview',
         layoutDirection: _ohosParams.layoutDirection,
-        creationParams: _ohosParams.instanceManager.getIdentifier(
-            (_ohosParams.controller as OhosWebViewController)._webView),
+        creationParams: webViewIdentifier,
         creationParamsCodec: const StandardMessageCodec(),
       );
     }
@@ -1059,7 +1183,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
   // Attempt to handle custom views with a default implementation if it has not
   // been set.
   void _trySetDefaultOnShowCustomWidgetCallbacks(BuildContext context) {
-    final OhosWebViewController controller =
+        final controller =
         _ohosParams.controller as OhosWebViewController;
 
     if (controller._onShowCustomWidgetCallback == null) {
@@ -1098,15 +1222,13 @@ class OhosCustomViewWidget extends StatelessWidget {
   /// This constructor is visible for testing purposes only and should
   /// never be called externally.
   @visibleForTesting
-  OhosCustomViewWidget.private({
+  const OhosCustomViewWidget.private({
     super.key,
     required this.controller,
     required this.customView,
-    @visibleForTesting InstanceManager? instanceManager,
     @visibleForTesting
     this.platformViewsServiceProxy = const PlatformViewsServiceProxy(),
-  }) : instanceManager =
-            instanceManager ?? ohos_webview.OhosObject.globalInstanceManager;
+  });
 
   /// The reference to the Android native view that should be shown.
   final ohos_webview.View customView;
@@ -1120,8 +1242,6 @@ class OhosCustomViewWidget extends StatelessWidget {
   ///
   /// This field is exposed for testing purposes only and should not be used
   /// outside of tests.
-  @visibleForTesting
-  final InstanceManager instanceManager;
 
   /// Proxy that provides access to the platform views service.
   ///
@@ -1139,8 +1259,8 @@ class OhosCustomViewWidget extends StatelessWidget {
           ValueKey<OhosWebViewWidgetCreationParams>(_ohosParams),
       viewType: 'plugins.flutter.io/webview',
       layoutDirection: _ohosParams.layoutDirection,
-      creationParams: _ohosParams.instanceManager.getIdentifier(
-          (_ohosParams.controller as OhosWebViewController)._webView),
+      creationParams:
+          (_ohosParams.controller as OhosWebViewController).webViewIdentifier,
       creationParamsCodec: const StandardMessageCodec(),
       gestureRecognizers: _ohosParams.gestureRecognizers,
     );
@@ -1225,27 +1345,18 @@ class OhosWebResourceError extends WebResourceError {
 class OhosNavigationDelegateCreationParams
     extends PlatformNavigationDelegateCreationParams {
   /// Creates a new [OhosNavigationDelegateCreationParams] instance.
-  const OhosNavigationDelegateCreationParams._({
-    @visibleForTesting this.ohosWebViewProxy = const OhosWebViewProxy(),
-  }) : super();
+  const OhosNavigationDelegateCreationParams._() : super();
 
   /// Creates a [OhosNavigationDelegateCreationParams] instance based on [PlatformNavigationDelegateCreationParams].
   factory OhosNavigationDelegateCreationParams.fromPlatformNavigationDelegateCreationParams(
     // Recommended placeholder to prevent being broken by platform interface.
     // ignore: avoid_unused_constructor_parameters
-    PlatformNavigationDelegateCreationParams params, {
-    @visibleForTesting
-    OhosWebViewProxy ohosWebViewProxy = const OhosWebViewProxy(),
-  }) {
-    return OhosNavigationDelegateCreationParams._(
-      ohosWebViewProxy: ohosWebViewProxy,
-    );
+    PlatformNavigationDelegateCreationParams params,
+  ) {
+    return const OhosNavigationDelegateCreationParams._();
   }
-
   /// Handles constructing objects and calling static methods for the Ohos WebView
   /// native library.
-  @visibleForTesting
-  final OhosWebViewProxy ohosWebViewProxy;
 }
 
 /// Ohos details of the change to a web view's url.
@@ -1266,12 +1377,10 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
             ? params
             : OhosNavigationDelegateCreationParams
                 .fromPlatformNavigationDelegateCreationParams(params)) {
-    final WeakReference<OhosNavigationDelegate> weakThis =
+    final weakThis =
         WeakReference<OhosNavigationDelegate>(this);
 
-    _webViewClient = (this.params as OhosNavigationDelegateCreationParams)
-        .ohosWebViewProxy
-        .createOhosWebViewClient(
+    _webViewClient = ohos_webview.WebViewClient(
       onPageFinished: (ohos_webview.WebView webView, String url) {
         final PageEventCallback? callback = weakThis.target?._onPageFinished;
         if (callback != null) {
@@ -1299,21 +1408,20 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
             isForMainFrame: request.isForMainFrame,
           ));
         }
-      },
-      onReceivedError: (
-        ohos_webview.WebView webView,
-        int errorCode,
-        String description,
-        String failingUrl,
-      ) {
-        final WebResourceErrorCallback? callback =
-            weakThis.target?._onWebResourceError;
-        if (callback != null) {
-          callback(OhosWebResourceError._(
-            errorCode: errorCode,
-            description: description,
-            url: failingUrl,
-            isForMainFrame: true,
+        
+        // Handle HTTP errors
+        final HttpResponseErrorCallback? httpErrorCallback =
+            weakThis.target?._onHttpError;
+        if (httpErrorCallback != null) {
+          httpErrorCallback(HttpResponseError(
+            response: WebResourceResponse(
+              uri: Uri.parse(request.url),
+              statusCode: error.errorCode,
+              headers: <String, String>{},
+            ),
+            request: WebResourceRequest(
+              uri: Uri.parse(request.url),
+            ),
           ));
         }
       },
@@ -1405,9 +1513,7 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
 
     );
 
-    _downloadListener = (this.params as OhosNavigationDelegateCreationParams)
-        .ohosWebViewProxy
-        .createDownloadListener(
+    _downloadListener = ohos_webview.DownloadListener(
       onDownloadStart: (
         String url,
         String userAgent,
@@ -1422,11 +1528,11 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
     );
   }
 
-  OhosNavigationDelegateCreationParams get _ohosParams =>
-      params as OhosNavigationDelegateCreationParams;
-
   late final ohos_webview.WebChromeClient _webChromeClient =
-      _ohosParams.ohosWebViewProxy.createOhosWebChromeClient();
+      ohos_webview.WebChromeClient(
+        onJsConfirm: (_, __) async => false,
+        onShowFileChooser: (_, __) async => <String>[],
+      );
 
   /// Gets the native [ohos_webview.WebChromeClient] that is bridged by this [OhosNavigationDelegate].
   ///

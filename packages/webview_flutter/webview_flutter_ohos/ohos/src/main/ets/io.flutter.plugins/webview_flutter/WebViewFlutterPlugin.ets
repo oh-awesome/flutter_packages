@@ -32,6 +32,7 @@ import GeneratedOhosWebView, {
   WebViewClientHostApi,
   WebChromeClientHostApi,
   WebSettingsHostApi,
+  WebViewFeatureHostApi,
   WebStorageHostApi
 } from './GeneratedOhosWebView';
 import { GeolocationPermissionsCallbackHostApiImpl } from './GeolocationPermissionsCallbackHostApiImpl';
@@ -47,6 +48,7 @@ import { WebViewClientFlutterApiImpl } from './WebViewClientFlutterApiImpl';
 import { WebChromeClientCreator, WebChromeClientHostApiImpl } from './WebChromeClientHostApiImpl';
 import { WebChromeClientFlutterApiImpl } from './WebChromeClientFlutterApiImpl';
 import { WebSettingsCreator, WebSettingsHostApiImpl } from './WebSettingsHostApiImpl';
+import { WebViewFeatureHostApiImpl } from './WebViewFeatureHostApiImpl';
 import { WebStorageHostApiImpl } from './WebStorageHostApiImpl';
 
 const TAG:string = "WebViewFlutterPlugin";
@@ -127,6 +129,11 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
       binaryMessenger,
       new WebSettingsHostApiImpl(
         this.instanceManager, new WebSettingsCreator())
+    );
+
+    WebViewFeatureHostApi.setup(
+      binaryMessenger,
+      new WebViewFeatureHostApiImpl()
     );
 
     FlutterAssetManagerHostApi.setup(
