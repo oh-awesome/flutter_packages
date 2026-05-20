@@ -328,7 +328,7 @@ class PigeonOptions {
   /// Options that control how Dart will be generated.
   final DartOptions? dartOptions;
 
-  /// Path to the arkTS file that will be generated.
+  /// Path to the ArkTS file that will be generated.
   final String? arkTSOut;
 
   /// Options that control how ArkTS will be generated.
@@ -752,7 +752,7 @@ ${_argParser.usage}''';
           const DartTestGeneratorAdapter(),
           const ObjcGeneratorAdapter(),
           const AstGeneratorAdapter(),
-          ArkTSGeneratorAdapter(),
+          const ArkTSGeneratorAdapter(),
         ];
     _executeConfigurePigeon(options);
 
