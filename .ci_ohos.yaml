@@ -58,7 +58,12 @@ preparation_steps:
 
 # Compilation steps - executed in order
 compilation_steps:
-  - name: Build hap for changed packages
+  - name: Build haps
     script: .ci/scripts/build_haps.sh
-    description: Build hap file
+    description: Build haps for changed packages
     required: true
+  
+  - name: Unit Tests
+    script: .ci/scripts/run_tests.sh
+    description: Run unit Tests for changed packages
+    required: false
