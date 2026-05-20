@@ -60,7 +60,7 @@ void main() {
             enableJavaScript: false,
             enableDomStorage: false,
             universalLinksOnly: false,
-            headers: <String, String>{}),
+            headers: <String, String>{'harmony_browser_page': 'pages/LaunchInAppPage'}),
         true);
     await launcher.closeWebView();
     // Delay required to catch ohos side crashes in onDestroy.

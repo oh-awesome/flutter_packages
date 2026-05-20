@@ -27,27 +27,27 @@ void main() {
   });
 
   test('registers instance', () {
-    .registerWith();
-    expect(UrlLauncherPlatform.instance, isA<>());
+    UrlLauncherOhos.registerWith();
+    expect(UrlLauncherPlatform.instance, isA<UrlLauncherOhos>());
   });
 
   group('canLaunch', () {
     test('returns true', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool canLaunch = await launcher.canLaunch('http://example.com/');
 
       expect(canLaunch, true);
     });
 
     test('returns false', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool canLaunch = await launcher.canLaunch('unknown://scheme');
 
       expect(canLaunch, false);
     });
 
     test('checks a generic URL if an http URL returns false', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool canLaunch = await launcher
           .canLaunch('http://${_FakeUrlLauncherApi.specialHandlerDomain}');
 
@@ -55,7 +55,7 @@ void main() {
     });
 
     test('checks a generic URL if an https URL returns false', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool canLaunch = await launcher
           .canLaunch('https://${_FakeUrlLauncherApi.specialHandlerDomain}');
 
@@ -65,7 +65,7 @@ void main() {
 
   group('launch without webview', () {
     test('calls through', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool launched = await launcher.launch(
         'http://example.com/',
         useSafariVC: true,
@@ -81,7 +81,7 @@ void main() {
     });
 
     test('passes headers', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await launcher.launch(
         'http://example.com/',
         useSafariVC: true,
@@ -96,7 +96,7 @@ void main() {
     });
 
     test('passes through no-activity exception', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
           launcher.launch(
             'noactivity://',
@@ -111,7 +111,7 @@ void main() {
     });
 
     test('throws if there is no handling activity', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
           launcher.launch(
             'unknown://scheme',
@@ -129,7 +129,7 @@ void main() {
 
   group('launch with webview', () {
     test('calls through', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       final bool launched = await launcher.launch(
         'http://example.com/',
         useSafariVC: true,
@@ -147,7 +147,7 @@ void main() {
     });
 
     test('passes enableJavaScript to webview', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await launcher.launch(
         'http://example.com/',
         useSafariVC: true,
@@ -162,7 +162,7 @@ void main() {
     });
 
     test('passes enableDomStorage to webview', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await launcher.launch(
         'http://example.com/',
         useSafariVC: true,
@@ -177,7 +177,7 @@ void main() {
     });
 
     test('passes through no-activity exception', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
           launcher.launch(
             'noactivity://scheme',
@@ -192,7 +192,7 @@ void main() {
     });
 
     test('throws if there is no handling activity', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
           launcher.launch(
             'unknown://scheme',
@@ -210,7 +210,7 @@ void main() {
 
   group('closeWebView', () {
     test('calls through', () async {
-      final  launcher = (api: api);
+      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await launcher.closeWebView();
 
       expect(api.closed, true);
