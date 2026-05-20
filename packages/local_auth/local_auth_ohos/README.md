@@ -2,18 +2,15 @@
   <h1 align="center"> <code>local_auth</code> </h1>
 </p>
 
+This project is developed based on [local_auth@3.0.1](https://pub.dev/packages/local_auth/versions/3.0.1).
 
-This project is developed based on [local_auth@3.0.0](https://pub.dev/packages/local_auth/versions/3.0.0).
+## Introduction
 
-## 1. Installation and Usage
+`local_auth` is a Flutter plugin for local authentication. This OpenHarmony adaptation provides device capability checks, enrolled biometric queries, authentication, cancellation, and custom OHOS-side prompt messages.
 
-### 1.1 Installation
+## Installation
 
 Enter the project directory and add the following dependency in `pubspec.yaml`:
-
-<!-- tabs:start -->
-
-#### pubspec.yaml
 
 ```yaml
 dependencies:
@@ -21,38 +18,30 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/local_auth/local_auth
-      ref: br_local_auth-v2.3.0_ohos
+      ref: br_local_auth-v3.0.1_ohos
 ```
 
-Execute Command
+Execute command:
 
 ```bash
 flutter pub get
 ```
 
-<!-- tabs:end -->
+## Constraints and Limitations
 
-### 1.2 Usag
+### Compatibility
 
-For use cases [ohos/example](./example)
+Verified with the following versions:
 
-## 2. Constraints
+1. Flutter: 3.41.10-ohos-0.0.1; SDK: 6.1.0(23); IDE: DevEco Studio: 6.1.0.830; ROM: 6.23.0.100 SP6;
 
-### 2.1 Compatibility
+### Permission Requirements
 
-This document is verified based on the following versions:
+This plugin requires the `ohos.permission.ACCESS_BIOMETRIC` permission.
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+Open `entry/src/main/module.json5` and add the following information:
 
-### 2.2 **Permission Requirements**
-
-Since this plugin relies on the `ohos.permission.ACCESS_BIOMETRIC` permission to function properly, it is necessary to request this permission.
-
-####  2.2.1 **Add permissions to the module.json5 file in the entry directory.**
-
-Open  `entry/src/main/module.json5` and add the following information:
-
-```diff
+```json
 {
   "module": {
     "requestPermissions": [
@@ -71,11 +60,9 @@ Open  `entry/src/main/module.json5` and add the following information:
 }
 ```
 
-#### 2.2.2 **Add the reason for applying for the preceding permission to the entry directory.**
+Open `entry/src/main/resources/base/element/string.json` and add the following information:
 
-Open  `entry/src/main/resources/base/element/string.json` and add the following information:
-
-```diff
+```json
 {
   "string": [
     {
@@ -86,47 +73,161 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 }
 ```
 
-## 3. API
+## Usage Example
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+```dart
+import 'package:flutter/material.dart';
+import 'package:local_auth_ohos/local_auth_ohos.dart';
+import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
 
-### LocalAuthentication API
+void main() {
+  runApp(const LocalAuthDemoApp());
+}
 
-| Name                     | Return                      | Description                                      | Type     | ohos Support |
-| ------------------------ | --------------------------- | ------------------------------------------------ | -------- | ------------ |
-| deviceSupportsBiometrics | Future<bool>                | Check if biometric hardware is supported         | function | yes          |
-| isDeviceSupported        | Future<bool>                | Check if local authentication is supported       | function | yes          |
-| getEnrolledBiometrics    | Future<List<BiometricType>> | Get the types of biometrics registered on device | function | yes          |
-| authenticate             | Future<bool>                | Perform authentication                           | function | yes          |
-| stopAuthentication       | Future<bool>                | Cancel current authentication                    | function | yes          |
+class LocalAuthDemoApp extends StatelessWidget {
+  const LocalAuthDemoApp({super.key});
 
-## 4. Properties
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: LocalAuthDemoPage());
+  }
+}
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+class LocalAuthDemoPage extends StatefulWidget {
+  const LocalAuthDemoPage({super.key});
+
+  @override
+  State<LocalAuthDemoPage> createState() => _LocalAuthDemoPageState();
+}
+
+class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
+  final LocalAuthPlatform _localAuth = LocalAuthPlatform.instance;
+  String _status = 'Not authenticated';
+
+  Future<void> _authenticate() async {
+    final bool authenticated = await _localAuth.authenticate(
+      localizedReason: 'Please complete identity verification',
+      authMessages: <AuthMessages>[
+        const OhosAuthMessages(),
+      ],
+      options: const AuthenticationOptions(
+        stickyAuth: true,
+        biometricOnly: true,
+        sensitiveTransaction: true,
+      ),
+    );
+
+    setState(() {
+      _status = authenticated ? 'Authenticated' : 'Authentication failed';
+    });
+  }
+
+  Future<void> _cancelAuthentication() async {
+    await _localAuth.stopAuthentication();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('local_auth example')),
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(_status),
+            ElevatedButton(
+              onPressed: _authenticate,
+              child: const Text('Authenticate'),
+            ),
+            ElevatedButton(
+              onPressed: _cancelAuthentication,
+              child: const Text('Cancel authentication'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+```
+
+## Usage Notes
+
+`deviceSupportsBiometrics()` checks whether the device has biometric hardware; `isDeviceSupported()` checks whether local authentication is available; `getEnrolledBiometrics()` returns the biometric types enrolled on the device.
+
+`authenticate()` requires a non-empty `localizedReason`, and `OhosAuthMessages()` is recommended. Set `AuthenticationOptions.biometricOnly` to `true` when you want biometrics only; set `stickyAuth` to `true` when you want the authentication state to survive app backgrounding.
+
+`stopAuthentication()` cancels the authentication flow in progress.
+
+> `getEnrolledBiometrics()` currently returns only `face` and `fingerprint` on OHOS. `PIN` is an authentication mode configuration and is not returned as a biometric type.
+
+If you need to customize OHOS dialog strings, use `OhosAuthMessages`. The `authType` field can be set to `FACE`, `FINGERPRINT`, or `PIN`. The other fields customize hints, button labels, and settings guidance text.
+
+## API Reference
+
+### API
+
+> [!TIP] If the value in the **OHOS Platform Support** column is **yes**, it means that the OHOS platform supports this API or property; **no** means it is not supported; The usage is consistent across platforms, and the behavior matches iOS or Android.
+
+| Name                     | Type     | Parameter Type | Return Value                | OHOS Platform Support | Description                                      |
+| ------------------------ | -------- | -------------- | --------------------------- | --------------------- | ------------------------------------------------ |
+| deviceSupportsBiometrics | function | None           | Future<bool>                | yes                   | Check whether biometric hardware is supported    |
+| isDeviceSupported        | function | None           | Future<bool>                | yes                   | Check whether local authentication is supported  |
+| getEnrolledBiometrics    | function | None           | Future<List<BiometricType>> | yes                   | Get the biometrics enrolled on the device        |
+| authenticate             | function | None           | Future<bool>                | yes                   | Perform authentication                            |
+| stopAuthentication       | function | None           | Future<bool>                | yes                   | Cancel the current authentication                 |
 
 ### BiometricType
 
-| Name        | Description      | Type | ohos Support |
-| ----------- | ---------------- | ---- | ------------ |
-| face        | Face recognition | enum | yes          |
-| fingerprint | Fingerprint      | enum | yes          |
-| weak        | Weak biometric   | enum | yes          |
-| strong      | Strong biometric | enum | yes          |
+| Name        | Type  | Parameter Type | Return Value | OHOS Platform Support | Description         |
+| ----------- | ----- | -------------- | ------------ | --------------------- | ------------------- |
+| face        | property | enum           | None         | yes                   | Face recognition    |
+| fingerprint | property | enum           | None         | yes                   | Fingerprint recognition |
+| weak        | property | enum           | None         | yes                   | Weak biometric      |
+| strong      | property | enum           | None         | yes                   | Strong biometric    |
 
 ### AuthenticationOptions
 
-| Name            | Description                                               | Type | ohos Support |
-| --------------- | --------------------------------------------------------- | ---- | ------------ |
-| biometricOnly   | Whether to use biometrics only                            | bool | yes          |
-| useErrorDialogs | Whether to use default error dialog boxes                 | bool | yes          |
-| stickyAuth      | Whether to maintain auth status after app goes background | bool | yes          |
+| Name            | Type      | Parameter Type | Return Value | OHOS Platform Support | Description                                           |
+| --------------- | --------- | -------------- | ------------ | --------------------- | ----------------------------------------------------- |
+| biometricOnly   | property  | bool           | None         | yes                   | Whether to use biometrics only                        |
+| useErrorDialogs | property  | bool           | None         | yes                   | Whether to use the default error dialog boxes         |
+| stickyAuth      | property  | bool           | None         | yes                   | Whether to maintain the auth state after the app is backgrounded |
 
-## 5. Known Issues
+## Known Issues
 
 None
 
-## 6. Others
+## Others
 
-## 7. License
+None
 
-This project is licensed under [BSD 3-Clause License](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_local_auth-v2.3.0_ohos/packages/local_auth/local_auth_ohos/LICENSE), please feel free to enjoy and participate in open source.
+## Directory Structure
+
+```text
+local_auth_ohos/
+├─ lib/
+│  ├─ local_auth_ohos.dart
+│  └─ types/
+│     ├─ auth_messages_ohos.dart
+│     └─ ohos_auth_error_code.dart
+├─ ohos/
+│  ├─ index.ets
+│  └─ src/main/ets/io/flutter/plugins/localauth/
+├─ example/
+│  ├─ lib/main.dart
+│  └─ ohos/
+├─ test/
+│  └─ local_auth_test.dart
+├─ README_CN.md
+├─ README.md
+└─ pubspec.yaml
+```
+
+## Contributing
+
+Contributions, bug reports, and improvement suggestions are welcome through the GitCode repository. Before submitting code, please make sure the change does not alter the behavior of the public APIs above and keeps the Chinese and English documentation in sync.
+
+## License
+
+This project is licensed under [BSD 3-Clause License](LICENSE).
