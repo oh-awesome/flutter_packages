@@ -126,6 +126,14 @@ enum PlatformFlashMode {
   torch,
 }
 
+/// Pigeon equivalent of [VideoStabilizationMode].
+enum PlatformVideoStabilizationMode { 
+  off, 
+  level1, 
+  level2, 
+  level3 
+}
+
 /// Handles calls from Dart to the native side.
 @HostApi()
 abstract class CameraApi {
@@ -229,6 +237,14 @@ abstract class CameraApi {
   ///
   /// This should be called only while video recording is active.
   void setDescriptionWhileRecording(String description);
+
+  /// Sets the video stabilization mode of the camera with the given ID.
+  @async
+  void setVideoStabilizationMode(PlatformVideoStabilizationMode mode);
+
+  /// Returns a list of video stabilization modes supported by the camera with the given ID.
+  @async
+  List<PlatformVideoStabilizationMode> getSupportedVideoStabilizationModes();
 }
 
 /// Handles calls from native side to Dart that are not camera-specific.
