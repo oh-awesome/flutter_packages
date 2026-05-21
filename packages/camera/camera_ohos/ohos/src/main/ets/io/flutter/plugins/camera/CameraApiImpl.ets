@@ -16,7 +16,8 @@
 import { BinaryMessenger, MethodResult } from '@ohos/flutter_ohos';
 import MethodChannel, { MethodResult as FlutterMethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
-import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi } from './Messages';
+import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi,
+  PlatformVideoStabilizationMode } from './Messages';
 import { CameraUtils } from './CameraUtils';
 import { FlashMode } from './features/flash/FlashMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
@@ -126,6 +127,10 @@ interface CameraMethodResult {
 }
 
 export class CameraApiImpl extends CameraApi {
+  private currentFps = 30;
+  private currentVideoBitrate = 100000000;
+  private currentAudioBitrate = 48000;
+
   getMinExposureOffset(): number {
     try {
       if (this.camera == null) {
@@ -344,6 +349,9 @@ export class CameraApiImpl extends CameraApi {
                   switch (key) {
                     case 'cameraName': return cameraName;
                     case 'resolutionPreset': return mediaSettings.getResolutionPreset();
+                    case 'fps': return mediaSettings.getFps();
+                    case 'videoBitrate': return mediaSettings.getVideoBitrate();
+                    case 'audioBitrate': return mediaSettings.getAudioBitrate();
                     case 'enableAudio': return mediaSettings.getEnableAudio();
                     default: return null;
                   }
@@ -773,6 +781,14 @@ export class CameraApiImpl extends CameraApi {
   private instantiateCamera(call: CallArgument, result: Result<number>): void {
     let cameraName: string = call.argument('cameraName') as string;
     const resolutionPreset: ResolutionPreset = call.argument('resolutionPreset') as ResolutionPreset;
+    let fps: number | null = call.argument('fps') as number | null;
+    let videoBitrate: number | null = call.argument('videoBitrate') as number | null;
+    let audioBitrate: number | null = call.argument('audioBitrate') as number | null;
+
+    this.currentFps = fps ?? 30;
+    this.currentVideoBitrate = videoBitrate ?? 100000000;
+    this.currentAudioBitrate = audioBitrate ?? 48000;
+
     let enableAudio: boolean = call.argument('enableAudio') as boolean;
 
     this.currentResolutionPreset = resolutionPreset;
@@ -793,7 +809,10 @@ export class CameraApiImpl extends CameraApi {
         resolutionPreset,
         enableAudio,
         this.cameraPermissions,
-        this.textureRegistry);
+        this.textureRegistry,
+        this.currentFps,
+        this.currentVideoBitrate,
+        this.currentAudioBitrate);
 
     this.camera.onAutoSwitchToRearCamera = (): void => {
       this.switchToRearCamera().catch((e: Error): void =>
@@ -878,7 +897,10 @@ export class CameraApiImpl extends CameraApi {
       this.currentResolutionPreset,
       this.currentEnableAudio,
       this.cameraPermissions,
-      this.textureRegistry
+      this.textureRegistry,
+      this.currentFps,
+      this.currentVideoBitrate,
+      this.currentAudioBitrate
     );
     this.camera.onAutoSwitchToRearCamera = (): void => {
       this.switchToRearCamera().catch((e: Error): void =>
@@ -897,6 +919,58 @@ export class CameraApiImpl extends CameraApi {
       cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
     } catch (e) {
       Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
+    }
+  }
+
+  // 设置视频防抖模式
+  setVideoStabilizationMode(mode: PlatformVideoStabilizationMode, result: Result<void>): void {
+    console.log(TAG, `CameraApiImpl.ets - setVideoStabilizationMode called with mode: ${mode}`);
+    try {
+      if (this.camera == null) {
+        console.error(TAG, 'CameraApiImpl.ets - setVideoStabilizationMode error: Camera not initialized');
+        result.error(new Error('VIDEO_STABILIZATION_ERROR: Camera not initialized'));
+        return;
+      }
+      
+      const methodResult: CameraMethodResult = {
+        success: (value: Any) => {
+          console.log(TAG, 'CameraApiImpl.ets - setVideoStabilizationMode success');
+          result.success(undefined);
+        },
+        error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
+          console.error(TAG, `CameraApiImpl.ets - setVideoStabilizationMode error: ${errorCode}: ${errorMessage}`);
+          result.error(new Error(`${errorCode}: ${errorMessage}`));
+        },
+        notImplemented: () => {
+          console.error(TAG, 'CameraApiImpl.ets - setVideoStabilizationMode not implemented');
+          result.error(new Error('VIDEO_STABILIZATION_ERROR: Method not implemented'));
+        }
+      };
+      // 传递给底层相机对象处理
+      this.camera.setVideoStabilizationMode(methodResult, mode);
+    } catch (error) {
+      console.error(TAG, `CameraApiImpl.ets - setVideoStabilizationMode exception: ${error}`);
+      result.error(new Error('VIDEO_STABILIZATION_ERROR: Failed to set video stabilization mode'));
+    }
+  }
+
+  // 获取当前设备支持的视频防抖模式列表
+  getSupportedVideoStabilizationModes(result: Result<Array<PlatformVideoStabilizationMode>>): void {
+    console.log(TAG, 'CameraApiImpl.ets - getSupportedVideoStabilizationModes called');
+    try {
+      if (this.camera == null) {
+        console.error(TAG, 'CameraApiImpl.ets - getSupportedVideoStabilizationModes error: Camera not initialized');
+        result.error(new Error('VIDEO_STABILIZATION_ERROR: Camera not initialized'));
+        return;
+      }
+      
+      // 调用相机对象获取支持的防抖模式
+      const modes = this.camera.getSupportedVideoStabilizationModes();
+      console.log(TAG, `CameraApiImpl.ets - getSupportedVideoStabilizationModes modes: ${JSON.stringify(modes)}`);
+      result.success(modes);
+    } catch (error) {
+      console.error(TAG, `CameraApiImpl.ets - getSupportedVideoStabilizationModes exception: ${error}`);
+      result.error(new Error('VIDEO_STABILIZATION_ERROR: Failed to get supported video stabilization modes'));
     }
   }
 }

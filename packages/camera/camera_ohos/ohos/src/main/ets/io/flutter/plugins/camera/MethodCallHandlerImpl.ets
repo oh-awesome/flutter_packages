@@ -398,6 +398,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   private instantiateCamera(call: MethodCall, result: MethodResult): void {
     let cameraName: string = call.argument('cameraName');
     let preset: string = call.argument('resolutionPreset');
+    // 读取可选 fps 参数，后续传递给 Camera 构造函数参与 profile 选择。
+    let fps: number | null = call.argument('fps');
+    // 读取可选码率参数，非正数时由 Camera 层回退到设备默认值。
+    let videoBitrate: number | null = call.argument('videoBitrate');
+    let audioBitrate: number | null = call.argument('audioBitrate');
     let enableAudio: boolean = call.argument('enableAudio');
 
 
@@ -417,7 +422,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         resolutionPreset,
         enableAudio,
         this.cameraPermissions,
-        this.textureRegistry);
+        this.textureRegistry,
+        fps ?? 30,
+        videoBitrate ?? 100000000,
+        audioBitrate ?? 48000);
 
     const reply: HashMap<String, Object> = new HashMap();
     reply.set('cameraId', this.textureId);

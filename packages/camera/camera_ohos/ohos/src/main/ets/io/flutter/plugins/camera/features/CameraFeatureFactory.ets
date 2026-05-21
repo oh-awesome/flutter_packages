@@ -19,6 +19,7 @@ import { DartMessenger } from '../DartMessenger';
 import { ZoomLevelFeature } from './zoomlevel/ZoomLevelFeature';
 import { ExposurePointFeature } from './exposurepoint/ExposurePointFeature';
 import { NoiseReductionFeature } from './noisereduction/NoiseReductionFeature';
+import { VideoStabilizationFeature } from './videostabilization/VideoStabilizationFeature';
 import camera from '@ohos.multimedia.camera';
 
 export interface CameraFeatureFactory {
@@ -147,4 +148,6 @@ export interface CameraFeatureFactory {
    */
 
   createNoiseReductionFeature(cameraProperties: CameraProperties): NoiseReductionFeature;
+
+  createVideoStabilizationFeature(cameraProperties: CameraProperties): VideoStabilizationFeature;
 }

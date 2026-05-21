@@ -1,4 +1,4 @@
-/*
+﻿/*
 * Copyright 2013 The Flutter Authors. All rights reserved.
 * Use of this source code is governed by a BSD-style license that can be
 * found in the LICENSE file.
@@ -99,6 +99,14 @@ export enum PlatformFlashMode {
   auto,
   always,
   torch
+}
+
+/* Pigeon equivalent of [VideoStabilizationMode].*/
+export enum PlatformVideoStabilizationMode {
+  off,
+  level1,
+  level2,
+  level3
 }
 
 /*
@@ -486,6 +494,10 @@ export abstract class CameraApi {
   *  This should be called only while video recording is active.
   */
   abstract setDescriptionWhileRecording(description: string): Promise<void>;
+  /* Sets the video stabilization mode of the camera with the given ID.*/
+  abstract setVideoStabilizationMode(mode: PlatformVideoStabilizationMode, result: Result<void>): void;
+  /* Returns a list of video stabilization modes supported by the camera with the given ID.*/
+  abstract getSupportedVideoStabilizationModes(result: Result<Array<PlatformVideoStabilizationMode>>): void;
   /** The codec used by CameraApi. */
   static getCodec(): MessageCodec<Object>{
     return CameraApiCodec.INSTANCE;
@@ -1167,6 +1179,61 @@ export abstract class CameraApi {
             reply.reply(res);
           }
         });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      let channel: BasicMessageChannel<Object> =
+          new BasicMessageChannel(
+              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setVideoStabilizationMode", CameraApi.getCodec());
+      if (api != null) {
+        channel.setMessageHandler({
+            onMessage(message: Object ,reply: Reply<Object> ) {
+              let args: Array<Object> = message as Array<Object>;
+              class ResultImp implements Result<void>{
+                    success(result: void): void {
+                      let res: Array<Object> = [];
+                      res.push(null);
+                      reply.reply(res);
+                    }
+
+                    error(error: Error): void {
+                      let wrappedError: Array<Object> = wrapError(error);
+                      reply.reply(wrappedError);
+                    }
+              }
+              let resultCallback: Result<void> = new ResultImp();
+
+              api!.setVideoStabilizationMode(args[0] as PlatformVideoStabilizationMode, resultCallback);
+            } });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      let channel: BasicMessageChannel<Object> =
+          new BasicMessageChannel(
+              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getSupportedVideoStabilizationModes", CameraApi.getCodec());
+      if (api != null) {
+        channel.setMessageHandler({
+            onMessage(message: Object ,reply: Reply<Object> ) {
+              class ResultImp implements Result<Array<PlatformVideoStabilizationMode>>{
+                    success(result: Array<PlatformVideoStabilizationMode>): void {
+                      let res: Array<Object> = [];
+                      res.push(result);
+                      reply.reply(res);
+                    }
+
+                    error(error: Error): void {
+                      let wrappedError: Array<Object> = wrapError(error);
+                      reply.reply(wrappedError);
+                    }
+              }
+              let resultCallback: Result<Array<PlatformVideoStabilizationMode>> = new ResultImp();
+
+              api!.getSupportedVideoStabilizationModes(resultCallback);
+            } });
       } else {
         channel.setMessageHandler(null);
       }

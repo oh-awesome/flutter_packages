@@ -22,7 +22,7 @@ import { FlashFeature } from './flash/FlashFeature';
 import { ExposurePointFeature } from './exposurepoint/ExposurePointFeature';
 import { ExposureOffsetFeature } from './exposureoffset/ExposureOffsetFeature';
 import { ExposureLockFeature } from './exposurelock/ExposureLockFeature';
-
+import { VideoStabilizationFeature } from './videostabilization/VideoStabilizationFeature';
 
 const AUTO_FOCUS: string = "AUTO_FOCUS";
 const EXPOSURE_LOCK: string = "EXPOSURE_LOCK";
@@ -36,6 +36,7 @@ const REGION_BOUNDARIES: string = "REGION_BOUNDARIES";
 const RESOLUTION: string = "RESOLUTION";
 const SENSOR_ORIENTATION: string = "SENSOR_ORIENTATION";
 const ZOOM_LEVEL: string = "ZOOM_LEVEL";
+const VIDEO_STABILIZATION: string = "VIDEO_STABILIZATION";
 
 export class CameraFeatures {
   static init(
@@ -62,12 +63,15 @@ export class CameraFeatures {
     cameraFeatures.setFlash(cameraFeatureFactory.createFlashFeature(cameraProperties));
     cameraFeatures.setFocusPoint(
       cameraFeatureFactory.createFocusPointFeature(cameraProperties, sensorOrientationFeature));
+    // 注册 fps 特性，供分辨率/录像链路统一读取目标帧率。
+    cameraFeatures.setFpsRange(cameraFeatureFactory.createFpsRangeFeature(cameraProperties));
     cameraFeatures.setNoiseReduction(
       cameraFeatureFactory.createNoiseReductionFeature(cameraProperties));
     cameraFeatures.setResolution(
       cameraFeatureFactory.createResolutionFeature(
         cameraProperties, resolutionPreset, cameraProperties.getCameraName()));
     cameraFeatures.setZoomLevel(cameraFeatureFactory.createZoomLevelFeature(cameraProperties));
+    cameraFeatures.setVideoStabilization(cameraFeatureFactory.createVideoStabilizationFeature(cameraProperties));
     return cameraFeatures;
   }
 
@@ -161,5 +165,13 @@ export class CameraFeatures {
 
   public setResolution(resolution: ResolutionFeature) {
     this.featureMap.set(RESOLUTION, resolution);
+  }
+
+  public getVideoStabilization(): VideoStabilizationFeature {
+    return this.featureMap.get(VIDEO_STABILIZATION);
+  }
+
+  public setVideoStabilization(videoStabilization: VideoStabilizationFeature) {
+    this.featureMap.set(VIDEO_STABILIZATION, videoStabilization);
   }
 }

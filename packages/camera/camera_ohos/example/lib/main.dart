@@ -57,6 +57,10 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   VideoPlayerController? videoController;
   VoidCallback? videoPlayerListener;
   bool enableAudio = true;
+  static const List<int> _fpsOptions = <int>[24, 30, 60];
+  int _requestedFps = 30;
+  VideoStabilizationMode _currentVideoStabilizationMode =
+      VideoStabilizationMode.off;
   double _minAvailableExposureOffset = 0.0;
   double _maxAvailableExposureOffset = 0.0;
   double _currentExposureOffset = 0.0;
@@ -174,6 +178,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       appBar: AppBar(title: const Text('Camera example')),
       body: Column(
         children: <Widget>[
+          _settingsRowWidget(),
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -357,6 +362,58 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         _exposureModeControlRowWidget(),
         _focusModeControlRowWidget(),
       ],
+    );
+  }
+
+  Widget _settingsRowWidget() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: <Widget>[
+            const Text('FPS:', style: TextStyle(fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            DropdownButton<int>(
+              value: _requestedFps,
+              onChanged: (int? newValue) {
+                if (newValue != null && newValue != _requestedFps) {
+                  unawaited(_onRequestedFpsChanged(newValue));
+                }
+              },
+              items: _fpsOptions.map<DropdownMenuItem<int>>((int fps) {
+                return DropdownMenuItem<int>(value: fps, child: Text('$fps'));
+              }).toList(),
+            ),
+            const SizedBox(width: 24),
+            const Text(
+              'Stabilization:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<VideoStabilizationMode>(
+              value: _currentVideoStabilizationMode,
+              onChanged: (VideoStabilizationMode? newValue) {
+                if (newValue != null &&
+                    newValue != _currentVideoStabilizationMode &&
+                    controller != null) {
+                  unawaited(_onVideoStabilizationModeChanged(newValue));
+                }
+              },
+              items: VideoStabilizationMode.values
+                  .map<DropdownMenuItem<VideoStabilizationMode>>((
+                    VideoStabilizationMode mode,
+                  ) {
+                    return DropdownMenuItem<VideoStabilizationMode>(
+                      value: mode,
+                      child: Text(mode.name),
+                    );
+                  })
+                  .toList(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -800,6 +857,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         resolutionPreset: kIsWeb
             ? ResolutionPreset.max
             : ResolutionPreset.medium,
+        fps: _requestedFps,
         enableAudio: enableAudio,
       ),
       imageFormatGroup: ImageFormatGroup.jpeg,
@@ -888,6 +946,36 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  Future<void> _onRequestedFpsChanged(int fps) async {
+    setState(() {
+      _requestedFps = fps;
+    });
+    showInSnackBar('Switching requested fps to $_requestedFps');
+
+    final CameraDescription? currentDescription = controller?.description;
+    if (currentDescription == null) {
+      return;
+    }
+    await _initializeCameraController(currentDescription);
+  }
+
+  Future<void> _onVideoStabilizationModeChanged(
+    VideoStabilizationMode mode,
+  ) async {
+    setState(() {
+      _currentVideoStabilizationMode = mode;
+    });
+    final CameraController? cameraController = controller;
+    if (cameraController != null && cameraController.value.isInitialized) {
+      try {
+        await cameraController.setVideoStabilizationMode(mode);
+        showInSnackBar('Video stabilization mode set to ${mode.name}');
+      } on CameraException catch (e) {
+        _showCameraException(e);
+      }
     }
   }
 

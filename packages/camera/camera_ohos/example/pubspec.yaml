@@ -1,4 +1,4 @@
-name: camera_example
+name: camera_ohos_example
 description: Demonstrates how to use the camera plugin.
 publish_to: none
 
@@ -22,21 +22,24 @@ dependencies:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/path_provider/path_provider"
+      ref: "br_path_provider-v2.1.5_ohos"
   video_player:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/video_player/video_player"
+      ref: "br_video_player-v2.10.1_ohos"
 
 dependency_overrides:
-  path_provider_ohos: 
+  path_provider_foundation:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
-      path: "packages/path_provider/path_provider_ohos"
-  video_player_ohos:
+      path: "packages/path_provider/path_provider_foundation"
+      ref: "br_path_provider-v2.1.5_ohos"
+  pigeon:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
-      path: "packages/video_player/video_player_ohos"
-
+      path: "packages/pigeon"
+      ref: "br_pigeon-v26.1.5_ohos"
 
 
 dev_dependencies:

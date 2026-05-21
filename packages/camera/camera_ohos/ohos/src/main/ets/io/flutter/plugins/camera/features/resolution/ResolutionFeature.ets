@@ -131,12 +131,18 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
 
   public getVideoSessionProfile(
     previewProfilesArray: Array<camera.Profile>,
-    videoProfilesArray: Array<camera.VideoProfile>): VideoSessionProfile {
+    videoProfilesArray: Array<camera.VideoProfile>,
+    targetFps: number | null = null): VideoSessionProfile {
+    // 按目标 fps 对视频 profile 进行优先级重排，再走分辨率匹配。
+    const prioritizedVideoProfiles = this.prioritizeVideoProfilesByFps(
+      videoProfilesArray,
+      targetFps,
+    );
     let bestVideoProfile: camera.VideoProfile | undefined = undefined;
     let bestPreviewProfile: camera.Profile | undefined = undefined;
 
     if (this.currentSetting === ResolutionPreset.max) {
-      for (const videoProfile of videoProfilesArray.sort((a, b) =>
+      for (const videoProfile of prioritizedVideoProfiles.sort((a, b) =>
       (b.size.width * b.size.height) - (a.size.width * a.size.height))) {
 
         const videoRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
@@ -161,8 +167,8 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
       let minDifference = Number.MAX_VALUE;
 
       // Iterate through all recording profiles to retrieve the optimal recording resolution.
-      for (let i = 0; i < videoProfilesArray.length; i++) {
-        const videoProfile = videoProfilesArray[i];
+      for (let i = 0; i < prioritizedVideoProfiles.length; i++) {
+        const videoProfile = prioritizedVideoProfiles[i];
         const videoAspectRatio = this.simplifyAspectRatio(videoProfile.size.width, videoProfile.size.height);
 
         // Check if the video ratio exists in the preview configuration.
@@ -188,8 +194,8 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
 
     // If it does not match, set it to the default value.
     if (!bestVideoProfile || !bestPreviewProfile) {
-      bestVideoProfile = videoProfilesArray.find(profile =>
-        profile.size.width === 1920 &&
+      bestVideoProfile = prioritizedVideoProfiles.find(profile =>
+      profile.size.width === 1920 &&
         profile.size.height === 1080
       );
       bestPreviewProfile = previewProfilesArray.find(profile =>
@@ -199,7 +205,33 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
       );
     }
 
-    Log.i(TAG, "bestPreviewProfileSize data: " + bestPreviewProfile!.size.width + " " + bestPreviewProfile!.size.height);
+    if (!bestVideoProfile) {
+      // 优先从prioritizedVideoProfiles中获取
+      if (prioritizedVideoProfiles.length > 0) {
+        bestVideoProfile = prioritizedVideoProfiles[0];
+      } else if (videoProfilesArray.length > 0) {
+        // fallback到原始数组
+        bestVideoProfile = videoProfilesArray[0];
+      }
+    }
+
+    if (!bestPreviewProfile) {
+      // 类似处理
+      if (previewProfilesArray.length > 0) {
+        bestPreviewProfile = this.findMatchingPreviewProfile(
+          previewProfilesArray,
+          bestVideoProfile!,
+        ) ?? previewProfilesArray[0];
+      }
+    }
+
+    // 添加防御性检查，确保bestVideoProfile和bestPreviewProfile都不为null
+    if (!bestVideoProfile || !bestPreviewProfile) {
+      throw new Error('No valid video/preview profile available');
+    }
+
+    Log.i(TAG,
+      "bestPreviewProfileSize data: " + bestPreviewProfile!.size.width + " " + bestPreviewProfile!.size.height);
     Log.i(TAG, "bestVideoProfileSize data: " + bestVideoProfile!.size.width + " " + bestVideoProfile!.size.height);
     const videoSessionProfile: VideoSessionProfile = new VideoSessionProfile();
     videoSessionProfile.setPreviewProfile(bestPreviewProfile!);
@@ -253,6 +285,70 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     const widthDiff = profile.size.width - presetSize.width;
     const heightDiff = profile.size.height - presetSize.height;
     return widthDiff * widthDiff + heightDiff * heightDiff;
+  }
+
+  private prioritizeVideoProfilesByFps(
+    videoProfilesArray: Array<camera.VideoProfile>,
+    targetFps: number | null,
+  ): Array<camera.VideoProfile> {
+    if (targetFps == null || targetFps <= 0) {
+      return [...videoProfilesArray];
+    }
+
+    const exactMatches = new Array<camera.VideoProfile>();
+    const rangeMatches = new Array<camera.VideoProfile>();
+
+    for (const profile of videoProfilesArray) {
+      const range = this.getVideoProfileFrameRateRange(profile);
+      if (range == null) {
+        continue;
+      }
+
+      if (range.min === targetFps && range.max === targetFps) {
+        exactMatches.push(profile);
+        continue;
+      }
+
+      if (targetFps >= range.min && targetFps <= range.max) {
+        rangeMatches.push(profile);
+      }
+    }
+
+    if (exactMatches.length > 0) {
+      const matched = new Set<camera.VideoProfile>([...exactMatches, ...rangeMatches]);
+      const fallback = videoProfilesArray.filter(profile => !matched.has(profile));
+      return [...exactMatches, ...rangeMatches, ...fallback];
+    }
+
+    if (rangeMatches.length > 0) {
+      const matched = new Set<camera.VideoProfile>(rangeMatches);
+      const fallback = videoProfilesArray.filter(profile => !matched.has(profile));
+      return [...rangeMatches, ...fallback];
+    }
+
+    return [...videoProfilesArray].sort((a, b) =>
+    this.getFrameRateDistance(a, targetFps) - this.getFrameRateDistance(b, targetFps),
+    );
+  }
+
+  private getVideoProfileFrameRateRange(
+    profile: camera.VideoProfile,
+  ): camera.FrameRateRange | null {
+    return profile.frameRateRange;
+  }
+
+  private getFrameRateDistance(profile: camera.VideoProfile, targetFps: number): number {
+    const range = this.getVideoProfileFrameRateRange(profile);
+    if (range == null) {
+      return Number.MAX_VALUE;
+    }
+    if (targetFps < range.min) {
+      return range.min - targetFps;
+    }
+    if (targetFps > range.max) {
+      return targetFps - range.max;
+    }
+    return 0;
   }
 
   public getDebugName(): string {
