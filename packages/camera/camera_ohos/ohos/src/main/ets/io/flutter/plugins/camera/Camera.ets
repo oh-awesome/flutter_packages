@@ -696,7 +696,9 @@ export class Camera implements CameraCaptureStateListener {
       Log.d(TAG, "videoSession stop error" + e.toString());
     } finally {
       try {
-        fs.close(this.captureFile);
+        if(this.captureFile != null) {
+          fs.close(this.captureFile);
+        }
         this.captureFile = null;
         this.isVideoMode = false;
         this.open(this.imageFormatGroup);
