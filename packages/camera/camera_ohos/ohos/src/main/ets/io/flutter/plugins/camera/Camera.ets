@@ -173,11 +173,11 @@ export class Camera implements CameraCaptureStateListener {
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
 
     if (!resolutionFeature.checkIsSupported()) {
-      this.sendCameraErrorEvent(
-        "Camera with name \""
-          + this.cameraProperties.getCameraName()
-          + "\" is not supported by this plugin.");
-      return;
+      const errorMsg: string = "Camera with name \""
+        + this.cameraProperties.getCameraName()
+        + "\" is not supported by this plugin.";
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
@@ -195,8 +195,9 @@ export class Camera implements CameraCaptureStateListener {
     // 增强相机设备获取的错误处理
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
-      this.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
-      return;
+      const errorMsg: string = "Failed to get camera device: " + this.cameraProperties.getCameraName();
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
@@ -222,7 +223,7 @@ export class Camera implements CameraCaptureStateListener {
       default:
       errorDescription = "Unknown camera error";
       }
-      this.dartMessenger.sendCameraErrorEvent(errorDescription);
+      this.sendCameraErrorEvent(errorDescription);
       throw err as Error;
     }
   }
