@@ -450,7 +450,7 @@ export abstract class CameraApi {
   *
   *  A null value resets to the default exposure point.
   */
-  abstract setExposurePoint(point: PlatformPoint , result: Result<void>): void;
+  abstract setExposurePoint(point: PlatformPoint | null, result: Result<void>): void;
   /* Returns the minimum exposure offset of the camera with the given ID.*/
   abstract getMinExposureOffset(): number;
   /* Returns the maximum exposure offset of the camera with the given ID.*/
@@ -469,7 +469,7 @@ export abstract class CameraApi {
   *
   *  A null value resets to the default focus point.
   */
-  abstract setFocusPoint(point: PlatformPoint , result: Result<void>): void;
+  abstract setFocusPoint(point: PlatformPoint | null, result: Result<void>): void;
   /* Returns the maximum zoom level of the camera with the given ID.*/
   abstract getMaxZoomLevel(): number;
   /* Returns the minimum zoom level of the camera with the given ID.*/
@@ -876,7 +876,7 @@ export abstract class CameraApi {
               }
               let resultCallback: Result<void> = new ResultImp();
 
-              api!.setExposurePoint(args[0] as PlatformPoint, resultCallback);
+              api!.setExposurePoint(args[0] as PlatformPoint | null, resultCallback);
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1021,7 +1021,7 @@ export abstract class CameraApi {
               }
               let resultCallback: Result<void> = new ResultImp();
 
-              api!.setFocusPoint(args[0] as PlatformPoint, resultCallback);
+              api!.setFocusPoint(args[0] as PlatformPoint | null, resultCallback);
             } });
       } else {
         channel.setMessageHandler(null);

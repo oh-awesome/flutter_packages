@@ -227,7 +227,7 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  setFocusPoint(point: PlatformPoint, result: Result<void>): void {
+  setFocusPoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
@@ -240,7 +240,8 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('FOCUS_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setFocusPoint(methodResult, new Point(point.getX(), point.getY()));
+      const focusPoint: Point = point == null ? new Point(null, null) : new Point(point.getX(), point.getY());
+      this.camera!.setFocusPoint(methodResult, focusPoint);
     } catch (error) {
       result.error(new Error('FOCUS_POINT_ERROR: Failed to set focus point'));
     }
@@ -674,7 +675,7 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  setExposurePoint(point: PlatformPoint, result: Result<void>): void {
+  setExposurePoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
@@ -687,7 +688,8 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('EXPOSURE_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setExposurePoint(methodResult, new Point(point.getX(), point.getY()));
+      const exposurePoint: Point = point == null ? new Point(null, null) : new Point(point.getX(), point.getY());
+      this.camera!.setExposurePoint(methodResult, exposurePoint);
     } catch (error) {
       result.error(new Error('EXPOSURE_POINT_ERROR: Failed to set exposure point'));
     }
