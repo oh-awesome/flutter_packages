@@ -10,7 +10,7 @@ import Ability from '@ohos.app.ability.Ability';
 import UIAbility from '@ohos.app.ability.UIAbility';
 import camera from '@ohos.multimedia.camera';
 import image from '@ohos.multimedia.image';
-import { buffer, HashMap, List } from '@kit.ArkTS';
+import { buffer, HashMap, JSON, List } from '@kit.ArkTS';
 import { EventChannel, Log } from '@ohos/flutter_ohos';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { SurfaceTextureEntry, TextureRegistry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
@@ -49,7 +49,7 @@ import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/eng
 import display from '@ohos.display';
 import { AudioPermission, CameraPermissions } from './CameraPermissions';
 import { BinaryMessenger } from '@ohos/flutter_ohos';
-import { CameraEventApi, PlatformCameraState, PlatformSize, PlatformExposureMode, PlatformFocusMode } from './Messages';
+import { CameraEventApi, PlatformCameraState, PlatformSize, PlatformExposureMode, PlatformFocusMode, PlatformVideoStabilizationMode } from './Messages';
 import { Decimal } from '@kit.ArkTS';
 import { sensor } from '@kit.SensorServiceKit';
 
@@ -127,6 +127,8 @@ export class Camera implements CameraCaptureStateListener {
   public onAutoSwitchToRearCamera: (() => void) | null = null;
   private lastDeviceDegree: number = 0;
   private isClosed: boolean = false;
+  private targetVideoBitrate: number | null = null;
+  private targetAudioBitrate: number | null = null;
 
   constructor(
     ability: UIAbility,
@@ -138,6 +140,9 @@ export class Camera implements CameraCaptureStateListener {
     enableAudio: boolean,
     permissions: CameraPermissions,
     textureRegistry?: TextureRegistry,
+    fps: number = 30,
+    videoBitrate: number = 100000000,
+    audioBitrate: number = 48000,
   ) {
     if (ability == null) {
       throw new Error('No Ability available!');
@@ -156,6 +161,9 @@ export class Camera implements CameraCaptureStateListener {
     this.cameraFeatures =
       CameraFeatures.init(
         cameraFeatureFactory, cameraProperties, ability, dartMessenger, resolutionPreset);
+    this.cameraFeatures.getFpsRange().setValue(fps);
+    this.targetVideoBitrate = videoBitrate;
+    this.targetAudioBitrate = audioBitrate;
 
     this.cameraManager = CameraUtils.getCameraManager(this.applicationContext);
     // Create capture callback.
@@ -384,7 +392,7 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setFocusMode(newMode)
       result?.success(null)
     } catch (error) {
-      result?.success(null)
+      result?.error("焦点设置失败: ", `${JSON.stringify(error)}`, null)
     }
   }
 
@@ -489,7 +497,7 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     let modeExistence: boolean = false;
-    Object.values(camera.ExposureMode).forEach(async (value) => {
+    Object.values(camera.ExposureMode).forEach((value) => {
       if (newMode == value) {
         modeExistence = true
       }
@@ -507,7 +515,7 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setExposureMode(newMode);
       result.success(null)
     } catch (error) {
-      result.success(null)
+      result.error("setExposureModeError", JSON.stringify(error), null)
     }
   }
 
@@ -752,7 +760,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
+  async startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
     this.prepareRecording(result);
 
     if (imageStreamChannel != null) {
@@ -764,12 +772,12 @@ export class Camera implements CameraCaptureStateListener {
 
     try {
       // 开始录制
-      this.startCapture(true, imageStreamChannel != null);
+      await this.startCapture(true, imageStreamChannel != null);
       result.success(null);
     } catch (e) {
       this.recordingVideo = false;
       this.captureFile = null;
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", e.message, null);
     }
   }
 
@@ -820,47 +828,58 @@ export class Camera implements CameraCaptureStateListener {
 
   // 开启录像预览
   async startPreviewWithVideo() {
-    this.cameraOutputCapability =
-      CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
-        this.cameraManager);
-    let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
-                                                       .getResolution()
-                                                       .getVideoSessionProfile(
-                                                         this.cameraOutputCapability.previewProfiles,
-                                                         this.cameraOutputCapability.videoProfiles);
+    try {
+      this.cameraOutputCapability =
+        CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
+          this.cameraManager);
+      // 使用fps参数选择profile，保持与startCapture逻辑一致
+      const preferredFps = this.cameraFeatures.getFpsRange().getValue();
+      let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
+                                                         .getResolution()
+                                                         .getVideoSessionProfile(
+                                                           this.cameraOutputCapability.previewProfiles,
+                                                           this.cameraOutputCapability.videoProfiles,
+                                                           preferredFps
+                                                         );
 
-    let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
-    this.cameraFeatures.getResolution().setPreviewSize(previewSize);
-    this.previewOutput = this.cameraManager.createPreviewOutput(
-      videoSessionProfile.getPreviewProfile(),
-      this.flutterTexture.getSurfaceId().toString());
-    this.videoOutput = this.cameraManager.createVideoOutput(
-      videoSessionProfile.getCaptureProfile(),
-      this.videoId);
-    this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
-    this.videoSession?.beginConfig();
-    this.videoSession?.addInput(this.cameraInput);
-    this.videoSession?.addOutput(this.previewOutput);
-    this.videoSession?.addOutput(this.videoOutput);
-    await this.videoSession?.commitConfig();
+      let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
+      this.cameraFeatures.getResolution().setPreviewSize(previewSize);
+      this.previewOutput = this.cameraManager.createPreviewOutput(
+        videoSessionProfile.getPreviewProfile(),
+        this.flutterTexture.getSurfaceId().toString());
+      this.videoOutput = this.cameraManager.createVideoOutput(
+        videoSessionProfile.getCaptureProfile(),
+        this.videoId);
+      this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
+      this.videoSession?.beginConfig();
+      this.videoSession?.addInput(this.cameraInput);
+      this.videoSession?.addOutput(this.previewOutput);
+      this.videoSession?.addOutput(this.videoOutput);
+      await this.videoSession?.commitConfig();
 
-    this.updatePreviewRotation();
-    this.registerDisplayChangeListener();
-    await this.enableVideoMirrorIfNeeded();
-    await this.updateVideoRotation();
-    await this.videoSession?.start();
-    this.enableAutoDeviceSwitch(this.videoSession!);
-    this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
+      this.updatePreviewRotation();
+      this.registerDisplayChangeListener();
+      await this.enableVideoMirrorIfNeeded();
+      await this.updateVideoRotation();
+      await this.videoSession?.start();
+      if (preferredFps) {
+        this.setFrameRate(this.videoOutput, preferredFps)
+      }
+      this.enableAutoDeviceSwitch(this.videoSession!);
+      this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
 
-    await this.applyFlashMode(this.videoSession!);
+      await this.applyFlashMode(this.videoSession!);
 
-    if (this.pausedPreview) {
-      this.previewOutput.stop();
-    }
-    if (this.recordingVideo && this.avRecorder != undefined && this.avRecorder.state === 'paused') {
-      // 录像中且暂停状态
-    } else {
-      await this.videoOutput.start();
+      if (this.pausedPreview) {
+        this.previewOutput.stop();
+      }
+      if (this.recordingVideo && this.avRecorder != undefined && this.avRecorder.state === 'paused') {
+        // 录像中且暂停状态
+      } else {
+        await this.videoOutput.start();
+      }
+    } catch (e) {
+      console.error(TAG, `启用录像预览失败：${e}`)
     }
   }
 
@@ -1095,7 +1114,8 @@ export class Camera implements CameraCaptureStateListener {
     }
     this.photoSession = null;
     this.isVideoMode = true;
-    media.createAVRecorder(async (error, recorder) => {
+    try {
+      let recorder = await media.createAVRecorder();
       if (recorder != null) {
         this.avRecorder = recorder;
         let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
@@ -1105,14 +1125,25 @@ export class Camera implements CameraCaptureStateListener {
         this.cameraOutputCapability =
           CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
             this.cameraManager);
+        // 录像模式下同样基于目标 fps 选择最合适的会话 profile。
+        const preferredFps = this.cameraFeatures.getFpsRange().getValue();
         let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
                                                            .getResolution()
                                                            .getVideoSessionProfile(
                                                              this.cameraOutputCapability.previewProfiles,
-                                                             this.cameraOutputCapability.videoProfiles);
+                                                             this.cameraOutputCapability.videoProfiles,
+                                                             preferredFps);
 
         this.aVRecorderProfile.videoFrameWidth = videoSessionProfile.getCaptureProfile()?.size.width;
         this.aVRecorderProfile.videoFrameHeight = videoSessionProfile.getCaptureProfile()?.size.height;
+        // 使用筛选后的 profile 更新 AVRecorder 目标帧率。
+        this.updateRecorderFrameRate(videoSessionProfile.getCaptureProfile());
+        if (this.targetVideoBitrate != null && this.targetVideoBitrate > 0) {
+            this.aVRecorderProfile.videoBitrate = this.targetVideoBitrate;
+        }
+        if (this.enableAudio && this.targetAudioBitrate != null && this.targetAudioBitrate > 0) {
+            this.aVRecorderProfile.audioBitrate = this.targetAudioBitrate;
+        }
         const avRecorderConfig = await this.getAVRecorderConfig(fd, this.getCurrentPreviewRotation());
         await this.avRecorder.prepare(avRecorderConfig).then(async () => {
           this.videoId = await this.avRecorder?.getInputSurface();
@@ -1138,6 +1169,9 @@ export class Camera implements CameraCaptureStateListener {
         }
         this.videoSession?.addOutput(this.videoOutput);
         await this.videoSession?.commitConfig();
+        if (this.videoSession) {
+            this.cameraFeatures.getVideoStabilization().updateBuilder(this.videoSession);
+        }
         this.updatePreviewRotation();
         this.registerDisplayChangeListener();
         this.getCurSession().setZoomRatio(this.nowZoom);
@@ -1146,6 +1180,10 @@ export class Camera implements CameraCaptureStateListener {
         await this.videoSession?.start();
         this.enableAutoDeviceSwitch(this.videoSession!);
         this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
+
+        if (preferredFps) {
+          this.setFrameRate(this.videoOutput, preferredFps)
+        }
 
         await this.applyFlashMode(this.videoSession!);
 
@@ -1161,9 +1199,11 @@ export class Camera implements CameraCaptureStateListener {
           Log.d(TAG, "startAVRecorder error")
         }
       } else {
-        Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
+        Log.e(TAG, "startVideo createAVRecorder fail : recorder is null");
       }
-    });
+    } catch (error) {
+      Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
+    }
   }
 
   async getAVRecorderConfig(fd: number, rotation: camera.ImageRotation): Promise<media.AVRecorderConfig> {
@@ -1189,6 +1229,41 @@ export class Camera implements CameraCaptureStateListener {
       };
     }
     return aVRecorderConfig;
+  }
+
+  private updateRecorderFrameRate(profile: camera.VideoProfile | undefined): void {
+    if (profile == null) {
+      return;
+    }
+
+    const fpsFeature = this.cameraFeatures.getFpsRange();
+    const preferredFps = fpsFeature.getPreferredFpsForProfile(profile);
+
+    // 目标 fps 会按 profile 可支持范围钳制，避免设置非法帧率。
+    if (preferredFps != null && preferredFps > 0) {
+      this.aVRecorderProfile.videoFrameRate = preferredFps;
+    }
+  }
+
+  // 设置视频防抖模式
+  public setVideoStabilizationMode(result: MethodResult, mode: PlatformVideoStabilizationMode) {
+    console.log(Camera.TAG, `Camera.ets - setVideoStabilizationMode called with mode: ${mode}`);
+    // 保存用户设置的防抖模式
+    this.cameraFeatures.getVideoStabilization().setValue(mode);
+
+    // 记录日志说明实际应用将在录制开始时进行
+    console.log(Camera.TAG, `Video stabilization mode ${mode} saved, will be applied during video recording start`);
+
+    result.success(null);
+  }
+
+  // 获取当前相机支持的防抖模式列表
+  public getSupportedVideoStabilizationModes(): PlatformVideoStabilizationMode[] {
+    console.log(Camera.TAG, 'Camera.ets - getSupportedVideoStabilizationModes called');
+    // 通过特性管理类查询底层支持情况
+    const modes = this.cameraFeatures.getVideoStabilization().getSupportedModes();
+    console.log(Camera.TAG, `Camera.ets - getSupportedVideoStabilizationModes returning from feature: ${modes}`);
+    return modes;
   }
 
   async prepareRecording(result: MethodResult): Promise<void> {
@@ -1541,5 +1616,18 @@ export class Camera implements CameraCaptureStateListener {
     await this.releasePreviewOutput();
     await this.releaseVideoOutput();
     await this.releasePhotoOutput();
+  }
+
+  setFrameRate(videoOutput: camera.VideoOutput, fps: number) {
+    const frameRates = videoOutput.getSupportedFrameRates();
+    console.debug(TAG, `setFrameRate frameRates = ${JSON.stringify(frameRates)}`)
+    for (const frameRate of frameRates) {
+      if (fps >= frameRate.min && fps <= frameRate.max) {
+        console.debug(TAG, `setFrameRate fps = ${fps}`)
+        videoOutput.setFrameRate(fps, fps)
+        return
+      }
+    }
+    console.warn(TAG, `${fps}不在支持的帧率范围内`);
   }
 }

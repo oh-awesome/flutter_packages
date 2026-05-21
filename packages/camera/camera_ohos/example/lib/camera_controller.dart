@@ -440,6 +440,27 @@ class CameraController extends ValueNotifier<CameraValue> {
     value = value.copyWith(focusMode: mode);
   }
 
+  /// Sets the video stabilization mode.
+  Future<void> setVideoStabilizationMode(VideoStabilizationMode mode) async {
+    try {
+      await CameraPlatform.instance.setVideoStabilizationMode(_cameraId, mode);
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
+  /// Gets the supported video stabilization modes.
+  Future<Iterable<VideoStabilizationMode>>
+  getSupportedVideoStabilizationModes() async {
+    try {
+      return await CameraPlatform.instance.getSupportedVideoStabilizationModes(
+        _cameraId,
+      );
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
   /// Releases the resources of this camera.
   @override
   Future<void> dispose() async {

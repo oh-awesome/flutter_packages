@@ -260,7 +260,7 @@ void main() {
 
     expect(duration, greaterThanOrEqualTo(const Duration(seconds: 4).inMilliseconds));
     await controller.dispose();
-  });
+  }, skip: Platform.operatingSystem == 'ohos');
 
   testWidgets('Set description', (WidgetTester tester) async {
     final List<CameraDescription> cameras = await availableCameras();

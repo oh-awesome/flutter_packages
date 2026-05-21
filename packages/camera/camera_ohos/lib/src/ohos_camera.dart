@@ -383,6 +383,32 @@ class OhosCamera extends CameraPlatform {
   }
 
   @override
+  Future<Iterable<VideoStabilizationMode>> getSupportedVideoStabilizationModes(
+    int cameraId,
+  ) async {
+    final List<PlatformVideoStabilizationMode?> modes = await _hostApi
+        .getSupportedVideoStabilizationModes();
+    return modes
+        .where((mode) => mode != null)
+        .cast<PlatformVideoStabilizationMode>()
+        .map(videoStabilizationModeFromPlatform);
+  }
+
+  @override
+  Future<void> setVideoStabilizationMode(
+    int cameraId,
+    VideoStabilizationMode mode,
+  ) async {
+    try {
+      await _hostApi.setVideoStabilizationMode(
+        videoStabilizationModeToPlatform(mode),
+      );
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
+  @override
   Future<void> resumePreview(int cameraId) async {
     await _hostApi.resumePreview();
   }

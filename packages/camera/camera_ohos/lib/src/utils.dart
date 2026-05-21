@@ -159,3 +159,33 @@ PlatformFlashMode flashModeToPlatform(FlashMode mode) {
 /// Null becomes null.
 PlatformPoint? pointToPlatform(Point<double>? point) =>
     (point != null) ? PlatformPoint(x: point.x, y: point.y) : null;
+
+/// Converts a [PlatformVideoStabilizationMode] to [VideoStabilizationMode].
+VideoStabilizationMode videoStabilizationModeFromPlatform(
+  PlatformVideoStabilizationMode mode,
+) => switch (mode) {
+  PlatformVideoStabilizationMode.off => VideoStabilizationMode.off,
+  PlatformVideoStabilizationMode.level1 => VideoStabilizationMode.level1,
+  PlatformVideoStabilizationMode.level2 => VideoStabilizationMode.level2,
+  PlatformVideoStabilizationMode.level3 => VideoStabilizationMode.level3,
+};
+
+/// Converts a [VideoStabilizationMode] to [PlatformVideoStabilizationMode].
+PlatformVideoStabilizationMode videoStabilizationModeToPlatform(
+  VideoStabilizationMode mode,
+) {
+  switch (mode) {
+    case VideoStabilizationMode.off:
+      return PlatformVideoStabilizationMode.off;
+    case VideoStabilizationMode.level1:
+      return PlatformVideoStabilizationMode.level1;
+    case VideoStabilizationMode.level2:
+      return PlatformVideoStabilizationMode.level2;
+    case VideoStabilizationMode.level3:
+      return PlatformVideoStabilizationMode.level3;
+  }
+  // This enum is defined outside of this package. This fall-through case
+  // ensures that the code does not break if a new value is ever added.
+  // ignore: dead_code
+  return PlatformVideoStabilizationMode.off;
+}

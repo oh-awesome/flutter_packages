@@ -21,6 +21,7 @@ import { ZoomLevelFeature } from './zoomlevel/ZoomLevelFeature';
 import { ExposurePointFeature } from './exposurepoint/ExposurePointFeature';
 import { NoiseReductionFeature } from './noisereduction/NoiseReductionFeature';
 import camera from '@ohos.multimedia.camera';
+import { VideoStabilizationFeature } from './videostabilization/VideoStabilizationFeature';
 
 export class CameraFeatureFactoryImpl implements CameraFeatureFactory {
   createAutoFocusFeature(
@@ -67,6 +68,10 @@ export class CameraFeatureFactoryImpl implements CameraFeatureFactory {
 
   public createZoomLevelFeature(cameraProperties: CameraProperties): ZoomLevelFeature {
     return new ZoomLevelFeature(cameraProperties);
+  }
+
+  createVideoStabilizationFeature(cameraProperties: CameraProperties): VideoStabilizationFeature {
+    return new VideoStabilizationFeature(cameraProperties);
   }
 
   public createExposurePointFeature(
