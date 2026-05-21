@@ -15,7 +15,7 @@
 
 import PlatformView, { Params } from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView'
 import { DVModel, DVModelParameters } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicView'
-import { Result, WebViewHostApi, WebViewPoint } from './GeneratedOhosWebView'
+import { Result, WebViewHostApi, WebViewPoint, HttpAuthHandler } from './GeneratedOhosWebView'
 import web_webview from '@ohos.web.webview'
 import { WebBuilder, OhosWebView } from './OhosWebView'
 import { createDVModelFromJson } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicViewJson'
@@ -170,7 +170,10 @@ export class WebViewHostApiImpl extends WebViewHostApi {
 
   clearCache(instanceId: number, includeDiskFiles: boolean): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().removeCache(includeDiskFiles);
+    webView.waitControllerAttached().then(() => {
+      webView.getController().removeCache(includeDiskFiles);
+    }).catch(() => {
+    });
   }
 
   evaluateJavascript(instanceId: number, javascriptString: string, result: Result<string>): void {
@@ -195,12 +198,20 @@ export class WebViewHostApiImpl extends WebViewHostApi {
 
   scrollTo(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().scrollTo(x, y);
+    webView.waitControllerAttached().then(() => {
+      webView.getController().scrollTo(x, y);
+      webView.setScrollPosition(x, y);
+    });
   }
 
   scrollBy(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
-    webView.getController().scrollBy(x, y);
+    webView.waitControllerAttached().then(() => {
+      const currentX = webView.getScrollX();
+      const currentY = webView.getScrollY();
+      webView.getController().scrollBy(x, y);
+      webView.setScrollPosition(currentX + x, currentY + y);
+    });
   }
 
   getScrollX(instanceId: number): number {
@@ -238,8 +249,8 @@ export class WebViewHostApiImpl extends WebViewHostApi {
       webView.addJavaScriptChannel(javaScriptChannel);
       webView.getController().registerJavaScriptProxy(
         {
-          postMessage: (message: string) => {
-            javaScriptChannel.postMessage(message)
+          postMessage: (message: ESObject) => {
+            javaScriptChannel.postMessage(String(message))
           },
         },
         javaScriptChannel.getJavaScriptChannelName(),
@@ -378,6 +389,16 @@ export class WebViewPlatformView extends PlatformView {
     }
   }
 
+  onHttpAuthRequest = (event: ESObject): boolean => {
+    Log.i(TAG, "onHttpAuthRequest host=" + event.host + " realm=" + event.realm);
+    if (this.webViewClint) {
+      const wrappedHandler = new OhosHttpAuthHandler(event.handler);
+      this.webViewClint.onReceivedHttpAuthRequest(this, wrappedHandler, event.host, event.realm);
+      return true;
+    }
+    return false;
+  }
+
   onProgressChange = (event: ESObject) => {
     if (this.webChromeClient) {
       this.webChromeClient.onProgressChanged(this, event.newProgress);
@@ -411,10 +432,8 @@ export class WebViewPlatformView extends PlatformView {
 
   onConsoleMessage = (event: ESObject) => {
     let message:ConsoleMessage = event.message;
-    if (message.getMessageLevel() == MessageLevel.Error || message.getMessageLevel() == MessageLevel.Warn) {
-      if (this.webChromeClient) {
+    if (this.webChromeClient) {
         this.webChromeClient.onConsoleMessage(event.message);
-      }
     } else {
       Log.d(TAG, "logLevel: " + message.getMessageLevel() + " "+ message.getMessage());
     }
@@ -589,6 +608,12 @@ export class WebViewPlatformView extends PlatformView {
 
   getScrollY(): number {
     return this.scrollY;
+  }
+
+  setScrollPosition(x: number, y: number): void {
+    this.scrollX = x;
+    this.scrollY = y;
+    this.webViewFlutterApi.onScrollChanged(this, x, y, this.scrollX, this.scrollY, {reply: () => {}});
   }
 
   setReturnValueForShouldOverrideUrlLoading(value: boolean) {
@@ -825,5 +850,29 @@ class WebSettingsImpl implements WebSettings {
 
   getAllowFullScreenRotate() : boolean {
     return this.isAllowFullScreenRotate;
+  }
+}
+
+class OhosHttpAuthHandler implements HttpAuthHandler {
+  private nativeHandler: ESObject;
+  private savedUsername: string = '';
+  private savedPassword: string = '';
+
+  constructor(handler: ESObject) {
+    this.nativeHandler = handler;
+  }
+
+  cancel(): void {
+    this.nativeHandler.cancel();
+  }
+
+  proceed(username: string, password: string): void {
+    this.savedUsername = username;
+    this.savedPassword = password;
+    this.nativeHandler.confirm(username, password);
+  }
+
+  useHttpAuthUsernamePassword(): boolean {
+    return this.nativeHandler.isHttpAuthInfoSaved?.() ?? false;
   }
 }
