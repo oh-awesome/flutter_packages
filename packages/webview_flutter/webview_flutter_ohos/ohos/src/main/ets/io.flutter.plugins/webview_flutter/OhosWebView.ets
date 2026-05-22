@@ -82,6 +82,7 @@ export struct OhosWebView {
               handler.handleCancel();
             }
           })
+          .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)
