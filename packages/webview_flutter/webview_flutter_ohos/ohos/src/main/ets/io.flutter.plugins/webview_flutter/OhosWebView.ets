@@ -75,6 +75,7 @@ export struct OhosWebView {
           .onSslErrorEventReceive((event) => {
             event.handler.handleCancel(true);
           })
+          .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)
