@@ -162,6 +162,12 @@ export class UrlLauncher implements UrlLauncherApi {
     } else {
       phoneNumber = smsUrl;
     }
+    try {
+      phoneNumber = decodeURIComponent(phoneNumber).replace(/\s+/g, '');
+    } catch (e) {
+      Log.e(TAG, 'decodeURIComponent failed for phone number, raw: ' + phoneNumber);
+      phoneNumber = phoneNumber.replace(/\s+/g, '');
+    }
     let formatNum = this.format(phoneNumber);
 
     let msgParam = new SendMessageParams();
