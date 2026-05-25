@@ -189,7 +189,7 @@ export class FileTypes {
 
 
 export interface Result<T> {
-  success(result: T): void;
+  success(result: T | null): void;
   error(error: Error): void;
 }
 

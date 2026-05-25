@@ -145,19 +145,140 @@ export async function documentPickerSelect(option: picker.DocumentSelectOptions,
   return undefined;
 }
 
+export function pickPhotoViewMimeType(mimeTypes: Array<string> | null): picker.PhotoViewMIMETypes | null {
+  if (mimeTypes == null || mimeTypes.length === 0) {
+    return null;
+  }
+  let hasImage: boolean = false;
+  let hasVideo: boolean = false;
+  for (let mime of mimeTypes) {
+    if (mime === '*/*') {
+      hasImage = true;
+      hasVideo = true;
+    } else if (mime === 'image/*') {
+      hasImage = true;
+    } else if (mime === 'video/*') {
+      hasVideo = true;
+    } else {
+      return null;
+    }
+  }
+  if (hasImage && hasVideo) {
+    return picker.PhotoViewMIMETypes.IMAGE_VIDEO_TYPE;
+  }
+  if (hasImage) {
+    return picker.PhotoViewMIMETypes.IMAGE_TYPE;
+  }
+  if (hasVideo) {
+    return picker.PhotoViewMIMETypes.VIDEO_TYPE;
+  }
+  return null;
+}
+
+/**
+ * PhotoViewPicker 仅覆盖图/视频通配符 mimeTypes。
+ * extensions 非空时需走 DocumentViewPicker。
+ */
+export function resolvePhotoViewMimeTypeForExtensions(
+  allowedTypes: FileTypes
+): picker.PhotoViewMIMETypes | null {
+  const photoMime: picker.PhotoViewMIMETypes | null = pickPhotoViewMimeType(allowedTypes.mimeTypes);
+  if (photoMime === null) {
+    return null;
+  }
+  if (allowedTypes.extensions != null && allowedTypes.extensions.length > 0) {
+    return null;
+  }
+  return photoMime;
+}
+
+/** 通配符 MIME 对应的扩展名集合 */
+const IMAGE_WILDCARD_EXTENSIONS: Array<string> = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp', 'svg'];
+const VIDEO_WILDCARD_EXTENSIONS: Array<string> = ['mp4', '3gp', 'webm', 'mov', 'mkv'];
+const AUDIO_WILDCARD_EXTENSIONS: Array<string> = ['mp3', 'wav', 'aac', 'flac'];
+
+ /** 文件后缀的反向映射表 */
+const MIME_TO_EXTENSIONS: Map<string, Array<string>> = new Map<string, Array<string>>([
+  ['image/*', IMAGE_WILDCARD_EXTENSIONS],
+  ['video/*', VIDEO_WILDCARD_EXTENSIONS],
+  ['audio/*', AUDIO_WILDCARD_EXTENSIONS],
+  ['image/jpeg', ['jpg', 'jpeg']],
+  ['image/png', ['png']],
+  ['image/gif', ['gif']],
+  ['image/webp', ['webp']],
+  ['image/bmp', ['bmp']],
+  ['image/svg+xml', ['svg']],
+  ['video/mp4', ['mp4']],
+  ['video/3gpp', ['3gp']],
+  ['video/webm', ['webm']],
+  ['video/quicktime', ['mov']],
+  ['video/x-matroska', ['mkv']],
+  ['audio/mpeg', ['mp3']],
+  ['audio/x-wav', ['wav']],
+  ['audio/aac', ['aac']],
+  ['audio/flac', ['flac']],
+  ['application/pdf', ['pdf']],
+  ['application/msword', ['doc']],
+  ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', ['docx']],
+  ['application/vnd.ms-excel', ['xls']],
+  ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ['xlsx']],
+  ['application/vnd.ms-powerpoint', ['ppt']],
+  ['application/vnd.openxmlformats-officedocument.presentationml.presentation', ['pptx']],
+  ['text/plain', ['txt', 'log']],
+  ['text/csv', ['csv']],
+  ['text/html', ['html', 'htm']],
+  ['text/xml', ['xml']],
+  ['application/json', ['json']],
+  ['application/xml', ['xml']],
+  ['application/zip', ['zip']],
+  ['application/gzip', ['gz']],
+  ['application/x-tar', ['tar']],
+  ['application/x-7z-compressed', ['7z']],
+  ['application/x-rar-compressed', ['rar']],
+]);
+
+ //把 mime 列表反向映射为对应的扩展名列表
+export function tryConvertMimetypesToExtensions(mimeTypes: Array<string> | null): Array<string> {
+  let result: Array<string> = [];
+  if (mimeTypes == null || mimeTypes.length === 0) {
+    return result;
+  }
+  let extSet: Set<string> = new Set<string>();
+  for (let mime of mimeTypes) {
+    let exts: Array<string> | undefined = MIME_TO_EXTENSIONS.get(mime);
+    if (exts != null) {
+      for (let ext of exts) {
+        extSet.add(ext);
+      }
+    } else {
+      Log.w(TAG, '[mimeTypes] MIME type "' + mime + '" is NOT in the built-in mapping on OpenHarmony. ');
+    }
+  }
+  extSet.forEach((value: string): void => {
+    result.push(value);
+  });
+  return result;
+}
+
 export async function filePicker(initialDirectory: string, allowedTypes: FileTypes, selectorNumber?: number): Promise<ESObject> {
   let documentSelectOptions = new picker.DocumentSelectOptions();
   documentSelectOptions.defaultFilePathUri = initialDirectory;
   if (selectorNumber != undefined) {
     documentSelectOptions.maxSelectNumber = selectorNumber;
   }
-  let file_suffix: Array<string> = [];
+  let file_suffix_set: Set<string> = new Set<string>();
   if (allowedTypes.extensions != null) {
     for (let extensionType of allowedTypes.extensions) {
-      file_suffix.push("." + extensionType);
+      file_suffix_set.add("." + extensionType);
     }
   }
-  documentSelectOptions.fileSuffixFilters = file_suffix;
+  if (allowedTypes.mimeTypes != null && allowedTypes.mimeTypes.length > 0) {
+    let derived: Array<string> = tryConvertMimetypesToExtensions(allowedTypes.mimeTypes);
+    for (let extensionType of derived) {
+      file_suffix_set.add("." + extensionType);
+    }
+  }
+  documentSelectOptions.fileSuffixFilters = Array.from(file_suffix_set);
   try {
     const documentViewPicker = new picker.DocumentViewPicker();
     let documentSelectResult = await documentViewPicker.select(documentSelectOptions);

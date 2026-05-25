@@ -22,7 +22,8 @@ import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageC
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
 import common from '@ohos.app.ability.common';
-import { photoPickerSelect, documentPickerSelect, filePicker } from './FIleSelectorUtil'
+import { photoPickerSelect, documentPickerSelect, filePicker,
+  resolvePhotoViewMimeTypeForExtensions } from './FIleSelectorUtil'
 import ArrayList from '@ohos.util.ArrayList';
 import List from '@ohos.util.List';
 
@@ -41,7 +42,31 @@ export class FileSelectorApiImpl {
   }
 
   openFileWithExtensions(initialDirectory: string, allowedTypes: FileTypes, result: Result<FileResponse>): void {
-    Log.d(TAG, 'openFile types:' + allowedTypes.extensions + ' dir:' + initialDirectory)
+    Log.d(TAG, 'openFile mimeTypes:' + allowedTypes.mimeTypes
+      + ' extensions:' + allowedTypes.extensions + ' dir:' + initialDirectory);
+
+    const photoMime: picker.PhotoViewMIMETypes | null = resolvePhotoViewMimeTypeForExtensions(allowedTypes);
+    if (photoMime !== null) {
+      const mimeType: picker.PhotoViewMIMETypes = photoMime;
+      this.runPhotoViewPickerForExtensions(mimeType, true, 'uri', (res: picker.PhotoSelectResult) => {
+        if (res == null || res.photoUris == null || res.photoUris.length === 0) {
+          Log.i(TAG, 'User cancelled or no files selected in PhotoViewPicker');
+          result.success(null);
+          return;
+        }
+        const fileName = res.photoUris[0].substring(res.photoUris[0].lastIndexOf("/") + 1);
+        FileSelectorApiImpl.toFileResponse(res.photoUris[0], mimeType as string, fileName)
+          .then((file) => result.success(file))
+          .catch((err: ESObject) => {
+            Log.e(TAG, 'PhotoViewPicker toFileResponse failed: ' + err);
+            result.error(err);
+          });
+      }, (err: ESObject) => {
+        result.error(new Error('Failed to read file, err: ' + err));
+      });
+      return;
+    }
+
     filePicker(initialDirectory, allowedTypes, 1).then(async (filePickerResult: ESObject) => {
       if (filePickerResult != undefined) {
         let fileUris = await this.getUrisForPaths(filePickerResult);
@@ -62,7 +87,30 @@ export class FileSelectorApiImpl {
   }
 
   openFilesWithExtensions(initialDirectory: string, allowedTypes: FileTypes, result: Result<Array<FileResponse>>): void {
-    Log.d(TAG, 'openFiles types:' + allowedTypes.extensions + ' dir:' + initialDirectory)
+    Log.d(TAG, 'openFiles mimeTypes:' + allowedTypes.mimeTypes
+      + ' extensions:' + allowedTypes.extensions + ' dir:' + initialDirectory);
+
+    const photoMime: picker.PhotoViewMIMETypes | null = resolvePhotoViewMimeTypeForExtensions(allowedTypes);
+    if (photoMime !== null) {
+      const mimeType: picker.PhotoViewMIMETypes = photoMime;
+      this.runPhotoViewPickerForExtensions(mimeType, false, 'uris', (res: picker.PhotoSelectResult) => {
+        if (res == null || res.photoUris == null || res.photoUris.length === 0) {
+          Log.i(TAG, 'User cancelled or no files selected in PhotoViewPicker');
+          result.success([]);
+          return;
+        }
+        FileSelectorApiImpl.toFileListResponse(res.photoUris, mimeType as string)
+          .then((files) => result.success(files))
+          .catch((err: ESObject) => {
+            Log.e(TAG, 'PhotoViewPicker toFileListResponse failed: ' + err);
+            result.error(err);
+          });
+      }, (err: ESObject) => {
+        result.error(new Error('Failed to read files, err: ' + err));
+      });
+      return;
+    }
+
     filePicker(initialDirectory, allowedTypes).then((filePickerResult: ESObject) => {
       if (filePickerResult != undefined) {
         Log.i(TAG,'documentPickerSelect select files successfully, documentPicker uris: ' + filePickerResult);
@@ -143,6 +191,27 @@ export class FileSelectorApiImpl {
           break;
       }
     }
+  }
+
+  private runPhotoViewPickerForExtensions(
+    photoMime: picker.PhotoViewMIMETypes,
+    singleSelect: boolean,
+    resultLogLabel: string,
+    onPhotoResult: (res: picker.PhotoSelectResult) => void,
+    onPickerFailure: (err: ESObject) => void,
+  ): void {
+    let photoOptions = new picker.PhotoSelectOptions();
+    photoOptions.MIMEType = photoMime;
+    if (singleSelect) {
+      photoOptions.maxSelectNumber = 1;
+    }
+    photoPickerSelect(photoOptions, this.getContext()).then((res: picker.PhotoSelectResult) => {
+      Log.i(TAG, 'PhotoViewPicker.select successfully, ' + resultLogLabel + ': ' + JSON.stringify(res));
+      onPhotoResult(res);
+    }).catch((err: ESObject) => {
+      Log.e(TAG, 'PhotoViewPicker.select failed: ' + err);
+      onPickerFailure(err);
+    });
   }
 
   getContext(): common.UIAbilityContext {
@@ -255,7 +324,7 @@ export class FileSelectorApiImpl {
           const args: Array<ESObject> = msg as Array<ESObject>;
           const initialDirectoryArg = args[0] as string;
           const allowedTypesArg = args[1] as FileTypes;
-          const resultCallback: Result<FileResponse> = new ResultBuilder((result: FileResponse): void => {
+          const resultCallback: Result<FileResponse> = new ResultBuilder((result: FileResponse | null): void => {
             wrapped.push(result);
             reply.reply(wrapped);
           },(error: Error): void => {
@@ -277,7 +346,7 @@ export class FileSelectorApiImpl {
           const args: Array<ESObject> = msg as Array<ESObject>;
           const initialDirectoryArg = args[0] as string;
           const allowedTypesArg = args[1] as FileTypes;
-          const resultCallback: Result<Array<FileResponse>> = new ResultsBuilder((result: Array<FileResponse>): void => {
+          const resultCallback: Result<Array<FileResponse>> = new ResultsBuilder((result: Array<FileResponse> | null): void => {
             wrapped.push(result);
             reply.reply(wrapped);
           },(error: Error): void => {
@@ -358,7 +427,7 @@ function tryConvertExtensionsToMimetypes(list: Array<string>): Array<string> | n
 }
 
 class ResultBuilder{
-  success : (result: FileResponse)=>void
+  success : (result: FileResponse | null)=>void
   error: (error: Error) =>void
 
   constructor(success:ESObject , error:ESObject) {
@@ -367,7 +436,7 @@ class ResultBuilder{
   }
 }
 class ResultsBuilder{
-  success : (result: Array<FileResponse>)=>void
+  success : (result: Array<FileResponse> | null)=>void
   error: (error: Error) =>void
 
   constructor(success:ESObject , error:ESObject) {
