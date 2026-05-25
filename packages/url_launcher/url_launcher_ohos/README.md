@@ -16,7 +16,7 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages
       path: packages/url_launcher/url_launcher_ohos
-      ref: br_url_launcher-v6.3.2_ohos_dev
+      ref: br_url_launcher-v6.3.2_ohos
 ```
 
 Run the command:
@@ -32,7 +32,7 @@ flutter pub get
 Tested and passed in the following versions:
 
 1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
-2. Flutter: 3.41.4-ohos-1.0.0-6; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
+2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
 
 ### Permission Requirements
 
