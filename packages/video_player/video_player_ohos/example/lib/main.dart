@@ -13,15 +13,64 @@ import 'fileselector/x_type_group.dart';
 import 'mini_controller.dart';
 import 'mix_with_others_demo.dart';
 
+final RouteObserver<PageRoute<dynamic>> _routeObserver =
+    RouteObserver<PageRoute<dynamic>>();
+
 void main() {
   runApp(
     MaterialApp(
       home: _App(),
+      navigatorObservers: <NavigatorObserver>[_routeObserver],
     ),
   );
 }
 
-class _App extends StatelessWidget {
+class _App extends StatefulWidget {
+  @override
+  State<_App> createState() => _AppState();
+}
+
+class _AppState extends State<_App> with RouteAware {
+  final GlobalKey<_ButterFlyAssetVideoState> _assetKey =
+      GlobalKey<_ButterFlyAssetVideoState>();
+  final GlobalKey<_BumbleBeeRemoteVideoState> _remoteKey =
+      GlobalKey<_BumbleBeeRemoteVideoState>();
+  final GlobalKey<_LocalFileVideoState> _localFileKey =
+      GlobalKey<_LocalFileVideoState>();
+  PageRoute<dynamic>? _subscribedRoute;
+
+  void _pauseAllPlayers() {
+    _assetKey.currentState?.pauseIfPlaying();
+    _remoteKey.currentState?.pauseIfPlaying();
+    _localFileKey.currentState?.pauseIfPlaying();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final ModalRoute<dynamic>? route = ModalRoute.of(context);
+    if (route is PageRoute<dynamic> && route != _subscribedRoute) {
+      if (_subscribedRoute != null) {
+        _routeObserver.unsubscribe(this);
+      }
+      _routeObserver.subscribe(this, route);
+      _subscribedRoute = route;
+    }
+  }
+
+  @override
+  void dispose() {
+    if (_subscribedRoute != null) {
+      _routeObserver.unsubscribe(this);
+    }
+    super.dispose();
+  }
+
+  @override
+  void didPushNext() {
+    _pauseAllPlayers();
+  }
+
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
@@ -39,8 +88,8 @@ class _App extends StatelessWidget {
                 Navigator.push<MixWithOthersDemo>(
                   context,
                   MaterialPageRoute<MixWithOthersDemo>(
-                    builder: (BuildContext context) =>
-                        const MixWithOthersDemo(),
+                    builder:
+                        (BuildContext context) => const MixWithOthersDemo(),
                   ),
                 );
               },
@@ -79,9 +128,9 @@ class _App extends StatelessWidget {
         ),
         body: TabBarView(
           children: <Widget>[
-            _ButterFlyAssetVideo(),
-            _BumbleBeeRemoteVideo(),
-            _LocalFileVideo(),
+            _ButterFlyAssetVideo(key: _assetKey),
+            _BumbleBeeRemoteVideo(key: _remoteKey),
+            _LocalFileVideo(key: _localFileKey),
           ],
         ),
       ),
@@ -90,6 +139,8 @@ class _App extends StatelessWidget {
 }
 
 class _ButterFlyAssetVideo extends StatefulWidget {
+  const _ButterFlyAssetVideo({super.key});
+
   @override
   _ButterFlyAssetVideoState createState() => _ButterFlyAssetVideoState();
 }
@@ -113,6 +164,12 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void pauseIfPlaying() {
+    if (_controller.value.isInitialized && _controller.value.isPlaying) {
+      _controller.pause();
+    }
   }
 
   @override
@@ -146,6 +203,8 @@ class _ButterFlyAssetVideoState extends State<_ButterFlyAssetVideo> {
 }
 
 class _LocalFileVideo extends StatefulWidget {
+  const _LocalFileVideo({super.key});
+
   @override
   _LocalFileVideoState createState() => _LocalFileVideoState();
 }
@@ -162,19 +221,24 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
       uniformTypeIdentifiers: <String>['public.video'],
     );
     final FileSelector instance = FileSelector();
-    fileFd = await instance
-        .openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+    fileFd = await instance.openFile(
+      acceptedTypeGroups: <XTypeGroup>[typeGroup],
+    );
   }
 
   @override
   void initState() {
     super.initState();
-     _controller = MiniController.file(0);
+    _controller = MiniController.file(0);
   }
 
   void getFileFd() {
     print("getFileFd");
     selectorFile().then((value) {
+      if (fileFd == null) {
+        return;
+      }
+      _controller.dispose();
       _controller = MiniController.file(fileFd ?? 0);
       _controller.addListener(() {
         setState(() {});
@@ -189,6 +253,12 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void pauseIfPlaying() {
+    if (_controller.value.isInitialized && _controller.value.isPlaying) {
+      _controller.pause();
+    }
   }
 
   @override
@@ -238,6 +308,8 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
 }
 
 class _BumbleBeeRemoteVideo extends StatefulWidget {
+  const _BumbleBeeRemoteVideo({super.key});
+
   @override
   _BumbleBeeRemoteVideoState createState() => _BumbleBeeRemoteVideoState();
 }
@@ -262,6 +334,12 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  void pauseIfPlaying() {
+    if (_controller.value.isInitialized && _controller.value.isPlaying) {
+      _controller.pause();
+    }
   }
 
   @override
@@ -384,6 +462,24 @@ class _ApiCoveragePanelState extends State<_ApiCoveragePanel> {
                 },
                 child: Text(
                   _controller.value.isLooping ? 'loop: on' : 'loop: off',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: <Widget>[
+              const Text('volume'),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Slider(
+                  value: _controller.value.volume,
+                  min: 0,
+                  max: 1,
+                  onChanged: (double value) {
+                    _controller.setVolume(value);
+                    setState(() {});
+                  },
                 ),
               ),
             ],

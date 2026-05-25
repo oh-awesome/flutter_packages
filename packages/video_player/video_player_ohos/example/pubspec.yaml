@@ -10,6 +10,8 @@ environment:
   flutter: ">=3.29.0"
 
 dependencies:
+  integration_test:
+    sdk: flutter
   flutter:
     sdk: flutter
   video_player_ohos:
@@ -19,11 +21,14 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  path_provider: ^2.0.6
   flutter_lints: ^2.0.0
 
 dependency_overrides:
-  path_provider_foundation: 2.4.0
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: "br_path_provider-v2.1.5_ohos"
 
 flutter:
   uses-material-design: true

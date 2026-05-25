@@ -271,8 +271,8 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
             isInitialized: event.duration != null,
           );
           initializingCompleter.complete(null);
-          _platform.setVolume(_textureId, 1.0);
-          _platform.setLooping(_textureId, true);
+          _platform.setVolume(_textureId, value.volume);
+          _platform.setLooping(_textureId, value.isLooping);
           _applyPlayPause();
           break;
         case VideoEventType.completed:

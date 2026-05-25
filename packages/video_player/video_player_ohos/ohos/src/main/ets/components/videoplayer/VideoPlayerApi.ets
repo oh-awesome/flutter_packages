@@ -32,7 +32,7 @@ export interface VideoPlayerApi {
 
   getAudioTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
 
-  selectAudioTrack(playerId: number, trackId: string): Promise<void>;
+  selectAudioTrack(playerId: number, groupIndex: number, trackIndex: number): Promise<void>;
 
   setup(binaryMessenger: BinaryMessenger): void;
 }
