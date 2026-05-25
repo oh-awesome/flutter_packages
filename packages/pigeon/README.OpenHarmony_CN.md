@@ -85,10 +85,11 @@ Pigeon **ArkTS（OHOS）** 宿主生成结果与典型 **Android（Kotlin）、i
 
 | 序号  | 能力项                                 | OHOS ArkTS 与 Kotlin / Swift（参考生成侧）的差异要点                                                                                                                                                |
 | --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 6   | `@TaskQueue` / `TaskQueueType`      | Kotlin 等可将 `**TaskQueue`** 与 `**BasicMessageChannel`** 构造函数绑定。`**flutter_ohos`** 当前的 `**BasicMessageChannel` 一般为三参数**（`binaryMessenger`、频道名、`codec`），生成器通常**无法像 Android 一样传入第四个队列参数**。 |
-| 7   | `@EventChannelApi`                  | Kotlin / Swift 侧可生成 `**EventChannel` / `StreamHandler`** 等与 IDL 配套的一整套宿主代码。`**ArkTSGenerator`** 对部分场景仍可能没有与 Kotlin 同等程度的端到端自动生成；宿主侧常需额外编写 `**EventChannel`** 注册、生命周期与安全卸载等与插件入口的粘合代码。  |
-| 9   | `**@ProxyApi` 进阶能力**（继承、弱引用 GC 语义等） | Kotlin 侧的 ProxyApi **功能面更宽**。OHOS 路线当前多落在 MVP：例如 `**InstanceManager` 常为强引用模型**，与 JVM 侧的弱引用回收路径语义不一定一致；IDL 中出现多级继承、`**superClass`** 等特点时更需在 Kotlin 与本仓库 ArkTS 生成物两边分别验证。                |
-| 10  | `**sealed` 数据类继承**                  | Kotlin / Swift 普遍支持受限的 sealed 父子类建模与生成。OHOS ArkTS 对「任意 HostApi 或数据结构里的 sealed 继承树」的生成范围可能不完整；使用前应对同一份 pigeon 输出的 Kotlin（或 Swift）与 ArkTS 文件都做编译与联调测试。                                   |
+| 1   | `@TaskQueue` / `TaskQueueType`      | Kotlin 等可将 **`TaskQueue`** 与 **`BasicMessageChannel`** 构造函数绑定。**`flutter_ohos`** 当前的 **`BasicMessageChannel` 一般为三参数**（`binaryMessenger`、频道名、`codec`），生成器通常**无法像 Android 一样传入第四个队列参数**。 |
+| 2   | `@EventChannelApi`                  | Kotlin / Swift 侧可生成 **`EventChannel` / `StreamHandler`** 等与 IDL 配套的一整套宿主代码。**`ArkTSGenerator`** 对部分场景仍可能没有与 Kotlin 同等程度的端到端自动生成；宿主侧常需额外编写 **`EventChannel`** 注册、生命周期与安全卸载等与插件入口的粘合代码。  |
+| 3   | **枚举（enum）的伴侣类包装**                 | 除 `export enum` 外，生成器还会为每个 Pigeon 枚举生成 **`<枚举名>Enum` 伴侣类**（如携带 `index` 等），在 **`toList` / `fromList` 与 `PigeonCodec`** 中通过 **`new <枚举名>Enum(...)` 包装** 参与编解码，以契合 `StandardMessageCodec` 对自定义类型的传递。Kotlin / Swift 侧生成物通常更直接地使用 **语言原生 enum**，**形态与手写习惯与 ArkTS 不一致**；宿主侧若混用「裸枚举值」与「包装实例」易导致编解码失败，须按生成代码的 getter/setter 与 codec 分支使用。 |
+| 4   | **`@ProxyApi` 进阶能力**（继承、弱引用 GC 语义等） | Kotlin 侧的 ProxyApi **功能面更宽**。OHOS 路线当前多落在 MVP：例如 **`InstanceManager` 常为强引用模型**，与 JVM 侧的弱引用回收路径语义不一定一致；IDL 中出现多级继承、**`superClass`** 等特点时更需在 Kotlin 与本仓库 ArkTS 生成物两边分别验证。                |
+| 5   | **`sealed` 数据类继承**                  | Kotlin / Swift 普遍支持受限的 sealed 父子类建模与生成。OHOS ArkTS 对「任意 HostApi 或数据结构里的 sealed 继承树」的生成范围可能不完整；使用前应对同一份 pigeon 输出的 Kotlin（或 Swift）与 ArkTS 文件都做编译与联调测试。                                   |
 
 
 ## 8. 开源协议
