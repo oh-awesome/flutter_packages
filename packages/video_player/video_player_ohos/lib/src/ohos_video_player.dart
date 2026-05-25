@@ -16,7 +16,10 @@ import 'messages.g.dart';
 /// An OHOS implementation of [VideoPlayerPlatform] that uses the
 /// Pigeon-generated [OhosVideoPlayerApi].
 class OhosVideoPlayer extends VideoPlayerPlatform {
-  final OhosVideoPlayerApi _api = OhosVideoPlayerApi();
+  OhosVideoPlayer({OhosVideoPlayerApi? pluginApi})
+    : _api = pluginApi ?? OhosVideoPlayerApi();
+
+  final OhosVideoPlayerApi _api;
 
   static void registerWith() {
     VideoPlayerPlatform.instance = OhosVideoPlayer();
@@ -187,7 +190,8 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     if (playerId < 0) {
       return;
     }
-    await _api.selectAudioTrack(playerId, trackId);
+    final (int groupIndex, int trackIndex) = _parseTrackId(trackId);
+    await _api.selectAudioTrack(playerId, groupIndex, trackIndex);
   }
 
   @override
@@ -243,5 +247,24 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       return int.tryParse(value);
     }
     return null;
+  }
+
+  (int, int) _parseTrackId(String trackId) {
+    final List<String> parts = trackId.split('_');
+    if (parts.length != 2) {
+      throw ArgumentError(
+        'Invalid trackId format: "$trackId". Expected format: "groupIndex_trackIndex"',
+      );
+    }
+
+    final int? groupIndex = int.tryParse(parts[0]);
+    final int? trackIndex = int.tryParse(parts[1]);
+    if (groupIndex == null || trackIndex == null) {
+      throw ArgumentError(
+        'Invalid trackId format: "$trackId". Expected format: "groupIndex_trackIndex"',
+      );
+    }
+
+    return (groupIndex, trackIndex);
   }
 }

@@ -225,4 +225,4 @@ video_player_ohos/
 
 ## 开源协议
 
-本项目基于 [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE) 开源发布。
+本项目基于 [The BSD-3-Clause License (BSD-3-Clause)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE) 开源发布。

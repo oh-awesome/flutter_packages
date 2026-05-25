@@ -5,7 +5,7 @@
 import 'package:flutter_driver/driver_extension.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:video_player_example/main.dart' as app;
+import 'package:example/main.dart' as app;
 
 /// Entry point for integration tests that require espresso.
 @pragma('vm:entry-point')
