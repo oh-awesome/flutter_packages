@@ -658,10 +658,10 @@ class GObjectGeneratorAdapter implements GeneratorAdapter {
 /// A [GeneratorAdapter] that generates ArkTS source code.
 class ArkTSGeneratorAdapter implements GeneratorAdapter {
   /// Constructor for [ArkTSGeneratorAdapter].
-  ArkTSGeneratorAdapter({this.fileTypeList = const <FileType>[FileType.na]});
+  const ArkTSGeneratorAdapter();
 
   @override
-  List<FileType> fileTypeList;
+  List<FileType> get fileTypeList => const <FileType>[FileType.na];
 
   @override
   void generate(
@@ -673,7 +673,7 @@ class ArkTSGeneratorAdapter implements GeneratorAdapter {
     if (options.arkTSOptions == null) {
       return;
     }
-    const ArkTSGenerator generator = ArkTSGenerator();
+    const generator = ArkTSGenerator();
     generator.generate(
       options.arkTSOptions!,
       root,
@@ -684,8 +684,10 @@ class ArkTSGeneratorAdapter implements GeneratorAdapter {
 
   @override
   IOSink? shouldGenerate(InternalPigeonOptions options, FileType _) =>
-      _openSink(options.arkTSOptions?.arkTSOut,
-          basePath: options.basePath ?? '');
+      _openSink(
+        options.arkTSOptions?.arkTSOut,
+        basePath: options.basePath ?? '',
+      );
 
   @override
   List<Error> validate(InternalPigeonOptions options, Root root) => <Error>[];
