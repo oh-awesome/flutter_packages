@@ -3,7 +3,7 @@
 // found in the LICENSE_ODID file.
 
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
-import { CreateMessage} from './Messages';
+import { CreateMessage, PlatformVideoViewType } from './Messages';
 import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 
@@ -20,7 +20,13 @@ export class VideoPlayerApiCodec extends StandardMessageCodec {
 
   readValueOfType(type: number, buffer: ByteBuffer): ESObject {
     switch (type) {
-      case this.getByte(128):
+      case this.getByte(129): {
+        const value = super.readValue(buffer) as number;
+        return value as PlatformVideoViewType;
+      }
+      case this.getByte(130):
+        return super.readValue(buffer);
+      case this.getByte(131):
         return CreateMessage.fromList(super.readValue(buffer));
       default:
         return super.readValueOfType(type, buffer);
@@ -29,7 +35,7 @@ export class VideoPlayerApiCodec extends StandardMessageCodec {
 
   writeValue(stream: ByteBuffer, value: ESObject): ESObject {
     if (value instanceof CreateMessage) {
-      stream.writeUint8(this.getByte(128));
+      stream.writeUint8(this.getByte(131));
       this.writeValue(stream, (value as CreateMessage).toList());
     } else {
       super.writeValue(stream, value);

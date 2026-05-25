@@ -23,8 +23,14 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
-  path_provider: ^2.0.6
   test: any
+
+dependency_overrides:
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-sig/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: "br_path_provider-v2.1.5_ohos"
 
 flutter:
   uses-material-design: true
