@@ -129,7 +129,7 @@ export default class ImageResizer {
     try {
       imagePackerApi = image.createImagePacker();
       let bufferData = await imagePackerApi.packing(imagePixelMap, {
-        format: "image/jpeg", quality: imageQuality
+        format: "image/jpeg", quality: imageQuality, needsPackProperties: true
       });
 
       outFile = fs.openSync(outFileName, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
