@@ -16,8 +16,6 @@ dependencies:
 dependency_overrides:
   path_provider_ohos:
     path: ../../path_provider_ohos
-  path_provider_foundation:
-    path: ../../path_provider_foundation
 
 dev_dependencies:
   flutter_test:
