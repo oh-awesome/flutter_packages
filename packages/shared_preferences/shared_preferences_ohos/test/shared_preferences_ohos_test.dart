@@ -17,7 +17,7 @@ void main() {
   late _FakeSharedPreferencesApi api;
   late SharedPreferencesOhos plugin;
 
-  const Map<String, Object> flutterTestValues = <String, Object>{
+  const flutterTestValues = <String, Object>{
     'flutter.String': 'hello world',
     'flutter.Bool': true,
     'flutter.Int': 42,
@@ -25,7 +25,7 @@ void main() {
     'flutter.StringList': <String>['foo', 'bar'],
   };
 
-  const Map<String, Object> prefixTestValues = <String, Object>{
+  const prefixTestValues = <String, Object>{
     'prefix.String': 'hello world',
     'prefix.Bool': true,
     'prefix.Int': 42,
@@ -33,7 +33,7 @@ void main() {
     'prefix.StringList': <String>['foo', 'bar'],
   };
 
-  const Map<String, Object> nonPrefixTestValues = <String, Object>{
+  const nonPrefixTestValues = <String, Object>{
     'String': 'hello world',
     'Bool': true,
     'Int': 42,
@@ -64,7 +64,7 @@ void main() {
     plugin = SharedPreferencesOhos(api: api);
   });
 
-  test('registerWith', () {
+  test('registerWith', () async {
     SharedPreferencesOhos.registerWith();
     expect(
       SharedPreferencesStorePlatform.instance,
@@ -104,22 +104,16 @@ void main() {
     }
 
     Map<String?, Object?> all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     expect(all.length, 5);
     await plugin.clearWithParameters(
-      ClearParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      ClearParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     all = await plugin.getAll();
     expect(all.length, 5);
     all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     expect(all.length, 0);
   });
@@ -130,9 +124,7 @@ void main() {
     }
 
     Map<String?, Object?> all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     expect(all.length, 5);
     await plugin.clearWithParameters(
@@ -146,9 +138,7 @@ void main() {
     all = await plugin.getAll();
     expect(all.length, 5);
     all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     expect(all.length, 4);
   });
@@ -188,9 +178,7 @@ void main() {
       api.items[key] = allTestValuesForAddingDirectlyToCache[key]!;
     }
     final Map<String?, Object?> all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: 'prefix.'),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: 'prefix.')),
     );
     expect(all.length, 5);
     expect(all, prefixTestValues);
@@ -222,9 +210,9 @@ void main() {
     expect(await plugin.setValue('String', 'flutter.String', 'hi'), isTrue);
     expect(api.items['flutter.String'], 'hi');
     expect(
-        await plugin
-            .setValue('StringList', 'flutter.StringList', <String>['hi']),
-        isTrue);
+      await plugin.setValue('StringList', 'flutter.StringList', <String>['hi']),
+      isTrue,
+    );
     expect(
       api.items['flutter.StringList'],
       '$jsonListPrefix${jsonEncode(<String>['hi'])}',
@@ -242,9 +230,7 @@ void main() {
       api.items[key] = allTestValuesForAddingDirectlyToCache[key]!;
     }
     final Map<String?, Object?> all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: ''),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: '')),
     );
     expect(all.length, 15);
     expect(all, allTestValuesForComparison);
@@ -256,20 +242,14 @@ void main() {
     }
 
     Map<String?, Object?> all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: ''),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: '')),
     );
     expect(all.length, 15);
     await plugin.clearWithParameters(
-      ClearParameters(
-        filter: PreferencesFilter(prefix: ''),
-      ),
+      ClearParameters(filter: PreferencesFilter(prefix: '')),
     );
     all = await plugin.getAllWithParameters(
-      GetAllParameters(
-        filter: PreferencesFilter(prefix: ''),
-      ),
+      GetAllParameters(filter: PreferencesFilter(prefix: '')),
     );
     expect(all.length, 0);
   });
@@ -280,25 +260,25 @@ class _FakeSharedPreferencesApi implements SharedPreferencesApi {
 
   @override
   Future<Map<String, Object>> getAll(
-      String prefix,
-      List<String?>? allowList,
-      ) async {
+    String prefix,
+    List<String?>? allowList,
+  ) async {
     Set<String?>? allowSet;
     if (allowList != null) {
       allowSet = Set<String>.from(allowList);
     }
-    final Map<String, Object> filteredItems = <String, Object>{
+    final filteredItems = <String, Object>{
       for (final String key in items.keys)
         if (key.startsWith(prefix) &&
             (allowSet == null || allowSet.contains(key)))
-          key: items[key]!
+          key: items[key]!,
     };
     filteredItems.forEach((String? key, Object? value) {
       if (value.runtimeType == String &&
           (value! as String).startsWith(jsonListPrefix)) {
         filteredItems[key!] =
             (jsonDecode((value as String).substring(jsonListPrefix.length))
-            as List<dynamic>)
+                    as List<dynamic>)
                 .cast<String>()
                 .toList();
       }
