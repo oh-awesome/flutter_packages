@@ -112,6 +112,7 @@ The following table lists support status in this OHOS implementation for path ca
 |---------------------|-------------------------------------------------------------------------------------------------------|------|-------|-------------------|
 | getTemporaryPath()   |   Future<String?>             | Gets a non-backed-up temporary directory path on the device, suitable for caching downloaded files.     | function | yes               |
 | getApplicationSupportPath()   |    Future<String?>     | Method to get the application support files directory path—the path of the directory where the application may place application support files; if the directory does not exist, it is created automatically.         | function | yes               |
+| getLibraryPath()   |    Future<String?>     | Gets the application Library directory path (used on iOS/macOS, etc.). Not supported on OHOS; calls throw `UnsupportedError`. The example app still includes a button to verify this behavior.         | function | no               |
 | getApplicationDocumentsPath() |     Future<String?>  | Method to get the application documents directory path where the application may place user-generated data or data that cannot be recreated by the application.       | function | yes               |
 | getApplicationCachePath()   | Future<String?>       | Method to get the application cache path—the path of the directory where the application may place application-specific cache files; if the directory does not exist, it is created automatically.      | function       | yes              |
 | getExternalCachePaths()     | Future<List<String?>> | Gets directory paths where the application's cache data can be stored externally; these paths are typically on external storage, such as separate partitions or SD cards. A phone may have multiple available storage directories.  | function       | yes               |
@@ -135,6 +136,10 @@ The following table lists support status in this OHOS implementation for path ca
 |  StorageDirectory.downloads  | Download file type in the storage directory |  enum | yes   |
 |  StorageDirectory.dcim  | Photo and video file type in the storage directory |  enum | yes   |
 |  StorageDirectory.documents  | Standard file type in the storage directory |  enum | yes   |
+
+## Unsupported capabilities
+
+- `getLibraryPath()`: OHOS has no Library directory equivalent to iOS/macOS. This implementation throws `UnsupportedError('getLibraryPath is not supported on OHOS')` (same behavior as the Android implementation). The example app [`example/lib/main.dart`](./example/lib/main.dart) still includes a **Get Library Directory** button so you can trigger the call and see the error via `FutureBuilder`.
 
 ## Differences from Android
 

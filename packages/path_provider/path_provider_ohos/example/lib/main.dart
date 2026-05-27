@@ -38,6 +38,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final PathProviderPlatform provider = PathProviderPlatform.instance;
   Future<String?>? _tempDirectory;
   Future<String?>? _appSupportDirectory;
+  Future<String?>? _libraryDirectory;
   Future<String?>? _appDocumentsDirectory;
   Future<String?>? _appCacheDirectory;
   Future<String?>? _externalDocumentsDirectory;
@@ -91,6 +92,12 @@ class _MyHomePageState extends State<MyHomePage> {
   void _requestAppSupportDirectory() {
     setState(() {
       _appSupportDirectory = provider.getApplicationSupportPath();
+    });
+  }
+
+  void _requestLibraryDirectory() {
+    setState(() {
+      _libraryDirectory = provider.getLibraryPath();
     });
   }
 
@@ -161,6 +168,15 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             FutureBuilder<String?>(
                 future: _appSupportDirectory, builder: _buildDirectory),
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: ElevatedButton(
+                onPressed: _requestLibraryDirectory,
+                child: const Text('Get Library Directory'),
+              ),
+            ),
+            FutureBuilder<String?>(
+                future: _libraryDirectory, builder: _buildDirectory),
             Padding(
               padding: const EdgeInsets.all(16.0),
               child: ElevatedButton(

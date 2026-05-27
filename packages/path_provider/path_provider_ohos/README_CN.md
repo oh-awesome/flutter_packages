@@ -112,6 +112,7 @@ Future<void> logPathsFromExample() async {
 |---------------------|-------------------------------------------------------------------------------------------------------|------|-------|-------------------|
 | getTemporaryPath()   |   Future<String?>             |         获取设备上未备份的临时目录路径，适合存放下载文件的缓存     | function | yes               |
 | getApplicationSupportPath()   |    Future<String?>     |    获取应用程序支持文件目录路径的方法，应用程序可能放置应用程序支持文件的目录的路径，如果该目录不存在，则自动创建。         | function | yes               |
+| getLibraryPath()   |    Future<String?>     |    获取应用程序 Library 目录路径（iOS/macOS 等平台使用）。OHOS 不支持，调用将抛出 `UnsupportedError`。示例应用仍提供对应按钮以便验证该行为。         | function | no               |
 | getApplicationDocumentsPath() |     Future<String?>  |          获取应用程序文件路径的方法，应用程序可以在其中放置用户生成的数据，或者不能由应用程序重新创建的数据。       | function | yes               |
 | getApplicationCachePath()   | Future<String?>       |          获取应用程序缓存路径的方法，应用程序可能放置特定于应用程序的缓存文件目录的路径，如果该目录不存在，则自动创建。      | function       | yes              |
 | getExternalCachePaths()     | Future<List<String?>> | 获取应用程序的缓存数据可以存储在外部的目录路径，这些路径通常位于外部存储上，如单独的分区或SD卡。手机可能有多个可用的存储目录  | function       | yes               |
@@ -135,6 +136,10 @@ Future<void> logPathsFromExample() async {
 |  StorageDirectory.downloads  | 存储目录的下载文件类型 |  enum | yes   |
 |  StorageDirectory.dcim  | 存储目录的照片和视频文件类型 |  enum | yes   |
 |  StorageDirectory.documents  | 存储目录的标准文件类型 |  enum | yes   |
+
+## 不支持的能力
+
+- `getLibraryPath()`：OHOS 不提供与 iOS/macOS 等价的 Library 目录概念，本实现会抛出 `UnsupportedError('getLibraryPath is not supported on OHOS')`（行为与 Android 实现一致）。示例应用 [`example/lib/main.dart`](./example/lib/main.dart) 中仍保留 **Get Library Directory** 按钮，点击后可通过 `FutureBuilder` 查看上述错误信息。
 
 ## 与 Android 的差异
 
