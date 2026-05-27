@@ -11,6 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
@@ -579,28 +580,30 @@ class SampleMenu extends StatelessWidget {
     ));
   }
 
-  Future<void> _onVideoExample(BuildContext context) {
-    final OhosWebViewController androidController =
-        webViewController as OhosWebViewController;
-    // #docregion fullscreen_example
-    androidController.setCustomWidgetCallbacks(
-      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
-        Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (BuildContext context) => widget,
-          fullscreenDialog: true,
-        ));
-      },
-      onHideCustomWidget: () {
-        Navigator.of(context).pop();
-      },
-    );
-    // #enddocregion fullscreen_example
+  Future<void> _onVideoExample(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
 
-    return androidController.loadRequest(
-      LoadRequestParams(
-        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => Scaffold(
+          body: PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: videoController),
+          ).build(context),
+        ),
       ),
     );
+
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp, DeviceOrientation.portraitDown, DeviceOrientation.landscapeLeft, DeviceOrientation.landscapeRight]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   Future<void> _onDoPostRequest() {
