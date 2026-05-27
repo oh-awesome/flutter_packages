@@ -1619,15 +1619,19 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   setFrameRate(videoOutput: camera.VideoOutput, fps: number) {
-    const frameRates = videoOutput.getSupportedFrameRates();
-    console.debug(TAG, `setFrameRate frameRates = ${JSON.stringify(frameRates)}`)
-    for (const frameRate of frameRates) {
-      if (fps >= frameRate.min && fps <= frameRate.max) {
-        console.debug(TAG, `setFrameRate fps = ${fps}`)
-        videoOutput.setFrameRate(fps, fps)
-        return
+    try {
+      const frameRate = videoOutput.getActiveFrameRate();
+      console.debug(TAG, `setFrameRate frameRate = ${JSON.stringify(frameRate)}`)
+      let mFps = fps
+      if (fps > frameRate.max) {
+        mFps = frameRate.max
+      } else if (fps < frameRate.min) {
+        mFps = frameRate.min
       }
+      console.debug(TAG, `setFrameRate mFps = ${mFps}`)
+      videoOutput.setFrameRate(mFps, mFps)
+    } catch (e) {
+      console.error(TAG, `setFrameRate error = ${JSON.stringify(e)}`)
     }
-    console.warn(TAG, `${fps}不在支持的帧率范围内`);
   }
 }
