@@ -1299,22 +1299,6 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
             isForMainFrame: request.isForMainFrame,
           ));
         }
-        
-        // Handle HTTP errors
-        final HttpResponseErrorCallback? httpErrorCallback =
-            weakThis.target?._onHttpError;
-        if (httpErrorCallback != null) {
-          httpErrorCallback(HttpResponseError(
-            response: WebResourceResponse(
-              uri: Uri.parse(request.url),
-              statusCode: error.errorCode,
-              headers: <String, String>{},
-            ),
-            request: WebResourceRequest(
-              uri: Uri.parse(request.url),
-            ),
-          ));
-        }
       },
       onReceivedError: (
         ohos_webview.WebView webView,
@@ -1381,21 +1365,46 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
           httpAuthHandler.cancel();
         }
       },
+      onReceivedHttpError: (
+        ohos_webview.WebView webView,
+        ohos_webview.WebResourceRequest request,
+        ohos_webview.WebResourceError error,
+      ) {
+        final HttpResponseErrorCallback? httpErrorCallback =
+            weakThis.target?._onHttpError;
+        if (httpErrorCallback != null) {
+          httpErrorCallback(HttpResponseError(
+            response: WebResourceResponse(
+              uri: Uri.parse(request.url),
+              statusCode: error.errorCode ?? -1,
+              headers: <String, String>{},
+            ),
+            request: WebResourceRequest(
+              uri: Uri.parse(request.url),
+            ),
+          ));
+        }
+      },
       onReceivedSslError: (
         ohos_webview.WebView webView,
+        ohos_webview.SslErrorHandler handler,
         String url,
         String certificate,
         String description,
-      ) {
+      ) async {
         final SslAuthErrorCallback? callback = weakThis.target?._onSslAuthError;
+
         if (callback != null) {
-          OhosSslAuthError.fromNativeCallback(
-            url: url,
-            certificateData: certificate,
-            description: description,
-          ).then((sslAuthError) {
-            callback(sslAuthError);
-          });
+          callback(
+            await OhosSslAuthError.fromNativeCallback(
+              handler: handler,
+              url: url,
+              certificateHint: certificate,
+              description: description,
+            ),
+          );
+        } else {
+          await handler.cancel();
         }
       },
 

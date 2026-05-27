@@ -1744,6 +1744,19 @@ abstract class WebViewClientFlutterApi {
   void onReceivedHttpAuthRequest(int instanceId, int webViewInstanceId,
       int httpAuthHandlerInstanceId, String host, String realm);
 
+  /// Notifies Dart of an SSL certificate error; use [SslErrorHandlerHostApi] to respond.
+  void onReceivedSslError(
+    int instanceId,
+    int webViewInstanceId,
+    int sslErrorHandlerInstanceId,
+    String url,
+    String certificate,
+    String description,
+  );
+
+  void onReceivedHttpError(int instanceId, int webViewInstanceId,
+      WebResourceRequestData request, WebResourceErrorData error);
+
   static void setup(WebViewClientFlutterApi? api,
       {BinaryMessenger? binaryMessenger}) {
     {
@@ -1976,6 +1989,80 @@ abstract class WebViewClientFlutterApi {
               'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpAuthRequest was null, expected non-null String.');
           api.onReceivedHttpAuthRequest(arg_instanceId!, arg_webViewInstanceId!,
               arg_httpAuthHandlerInstanceId!, arg_host!, arg_realm!);
+          return;
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError',
+          codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_instanceId = (args[0] as int?);
+          assert(arg_instanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null int.');
+          final int? arg_webViewInstanceId = (args[1] as int?);
+          assert(arg_webViewInstanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null int.');
+          final WebResourceRequestData? arg_request =
+              (args[2] as WebResourceRequestData?);
+          assert(arg_request != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null WebResourceRequestData.');
+          final WebResourceErrorData? arg_error =
+              (args[3] as WebResourceErrorData?);
+          assert(arg_error != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedHttpError was null, expected non-null WebResourceErrorData.');
+          api.onReceivedHttpError(arg_instanceId!, arg_webViewInstanceId!,
+              arg_request!, arg_error!);
+          return;
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError',
+          codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_instanceId = (args[0] as int?);
+          assert(arg_instanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null int.');
+          final int? arg_webViewInstanceId = (args[1] as int?);
+          assert(arg_webViewInstanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null int.');
+          final int? arg_sslErrorHandlerInstanceId = (args[2] as int?);
+          assert(arg_sslErrorHandlerInstanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null int.');
+          final String? arg_url = (args[3] as String?);
+          assert(arg_url != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null String.');
+          final String? arg_certificate = (args[4] as String?);
+          assert(arg_certificate != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null String.');
+          final String? arg_description = (args[5] as String?);
+          assert(arg_description != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError was null, expected non-null String.');
+          api.onReceivedSslError(
+            arg_instanceId!,
+            arg_webViewInstanceId!,
+            arg_sslErrorHandlerInstanceId!,
+            arg_url!,
+            arg_certificate!,
+            arg_description!,
+          );
           return;
         });
       }
@@ -3153,6 +3240,92 @@ abstract class HttpAuthHandlerFlutterApi {
           final int? arg_instanceId = (args[0] as int?);
           assert(arg_instanceId != null,
               'Argument for dev.flutter.pigeon.webview_flutter_ohos.HttpAuthHandlerFlutterApi.create was null, expected non-null int.');
+          api.create(arg_instanceId!);
+          return;
+        });
+      }
+    }
+  }
+}
+
+/// Host API for ArkWeb [SslErrorHandler] (proceed / cancel after certificate error).
+class SslErrorHandlerHostApi {
+  /// Constructor for [SslErrorHandlerHostApi].
+  SslErrorHandlerHostApi({BinaryMessenger? binaryMessenger})
+      : _binaryMessenger = binaryMessenger;
+  final BinaryMessenger? _binaryMessenger;
+
+  static const MessageCodec<Object?> codec = StandardMessageCodec();
+
+  Future<void> cancel(int arg_instanceId) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.cancel',
+        codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_instanceId]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  Future<void> proceed(int arg_instanceId) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.proceed',
+        codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_instanceId]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+}
+
+abstract class SslErrorHandlerFlutterApi {
+  static const MessageCodec<Object?> codec = StandardMessageCodec();
+
+  void create(int instanceId);
+
+  static void setup(SslErrorHandlerFlutterApi? api,
+      {BinaryMessenger? binaryMessenger}) {
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerFlutterApi.create',
+          codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        channel.setMessageHandler(null);
+      } else {
+        channel.setMessageHandler((Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerFlutterApi.create was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final int? arg_instanceId = (args[0] as int?);
+          assert(arg_instanceId != null,
+              'Argument for dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerFlutterApi.create was null, expected non-null int.');
           api.create(arg_instanceId!);
           return;
         });
