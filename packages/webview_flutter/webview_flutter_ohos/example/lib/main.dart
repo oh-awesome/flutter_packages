@@ -584,30 +584,7 @@ class SampleMenu extends StatelessWidget {
       )
       ..loadFlutterAsset('assets/www/video.html');
 
-    videoController.setCustomWidgetCallbacks(
-      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
-        Navigator.of(context).push(
-          MaterialPageRoute<void>(
-            builder: (BuildContext context) => widget,
-          ),
-        );
-      },
-      onHideCustomWidget: () {
-        SystemChrome.setPreferredOrientations([
-          DeviceOrientation.landscapeLeft,
-          DeviceOrientation.landscapeRight,
-          DeviceOrientation.portraitUp,
-        ]);
-        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-        Navigator.of(context).pop();
-      },
-    );
 
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-      DeviceOrientation.portraitUp,
-    ]);
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -619,7 +596,12 @@ class SampleMenu extends StatelessWidget {
       ),
     );
 
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown
+    ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
