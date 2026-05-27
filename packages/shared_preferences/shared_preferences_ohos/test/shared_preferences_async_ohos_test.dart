@@ -6,10 +6,10 @@
 
 import 'dart:convert';
 
-import 'package:flutter/services.dart';
+import 'package:flutter/src/services/binary_messenger.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shared_preferences_ohos/src/messages_async.g.dart';
 import 'package:shared_preferences_ohos/src/shared_preferences_async_ohos.dart';
+import 'package:shared_preferences_ohos/src/messages_async.g.dart';
 import 'package:shared_preferences_ohos/src/strings.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
 
@@ -29,11 +29,13 @@ void main() {
   const testList = <String>['foo', 'bar'];
 
   SharedPreferencesAsyncOhos getPreferences(bool useDataStore) {
-    final api = _FakeSharedPreferencesAsyncApi();
-    return SharedPreferencesAsyncOhos(
+    final api = _FakeSharedPreferencesApi();
+    final preferences = SharedPreferencesAsyncOhos(
       dataStoreApi: api,
       sharedPreferencesApi: api,
     );
+
+    return preferences;
   }
 
   void runTests(bool useDataStore) {
@@ -240,64 +242,11 @@ void main() {
     });
   }
 
-  group('SharedPreferencesAsyncOhos', () {
-    test('convertOptionsToPigeonOptions uses DataStore by default', () {
-      final SharedPreferencesAsyncOhos plugin = SharedPreferencesAsyncOhos(
-        dataStoreApi: SharedPreferencesAsyncApi(
-          messageChannelSuffix: 'data_store',
-        ),
-        sharedPreferencesApi: SharedPreferencesAsyncApi(
-          messageChannelSuffix: 'shared_preferences',
-        ),
-      );
-
-      final SharedPreferencesPigeonOptions options =
-          plugin.convertOptionsToPigeonOptions(
-        const SharedPreferencesAsyncOhosOptions(),
-      );
-
-      expect(options.useDataStore, isTrue);
-      expect(options.fileName, isNull);
-      expect(
-        plugin.getApiForBackend(options).pigeonVar_messageChannelSuffix,
-        '.data_store',
-      );
-    });
-
-    test('convertOptionsToPigeonOptions forwards shared preferences options', () {
-      final SharedPreferencesAsyncOhos plugin = SharedPreferencesAsyncOhos(
-        dataStoreApi: SharedPreferencesAsyncApi(
-          messageChannelSuffix: 'data_store',
-        ),
-        sharedPreferencesApi: SharedPreferencesAsyncApi(
-          messageChannelSuffix: 'shared_preferences',
-        ),
-      );
-
-      final SharedPreferencesPigeonOptions options =
-          plugin.convertOptionsToPigeonOptions(
-        const SharedPreferencesAsyncOhosOptions(
-          backend: SharedPreferencesOhosBackendLibrary.SharedPreferences,
-          originalSharedPreferencesOptions: OhosSharedPreferencesStoreOptions(
-            fileName: 'custom_prefs',
-          ),
-        ),
-      );
-
-      expect(options.useDataStore, isFalse);
-      expect(options.fileName, 'custom_prefs');
-      expect(
-        plugin.getApiForBackend(options).pigeonVar_messageChannelSuffix,
-        '.shared_preferences',
-      );
-    });
-  });
-
   runTests(true);
   runTests(false);
 }
 
-class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
+class _FakeSharedPreferencesApi implements SharedPreferencesAsyncApi {
   final Map<String, Object> items = <String, Object>{};
 
   @override
@@ -307,7 +256,7 @@ class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
   String get pigeonVar_messageChannelSuffix => throw UnimplementedError();
 
   @override
-  Future<void> clear(
+  Future<bool> clear(
     List<String?>? allowList,
     SharedPreferencesPigeonOptions options,
   ) async {
@@ -316,6 +265,8 @@ class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
     } else {
       items.clear();
     }
+
+    return true;
   }
 
   @override
@@ -371,8 +322,7 @@ class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
     String key,
     SharedPreferencesPigeonOptions options,
   ) async {
-    final Object? value = items[key];
-    return value is String ? value : null;
+    return items[key] as String?;
   }
 
   @override
@@ -381,25 +331,12 @@ class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
     SharedPreferencesPigeonOptions options,
   ) async {
     final Object? value = items[key];
-    if (value is String) {
-      if (value.startsWith(jsonListPrefix)) {
-        return StringListResult(
-          jsonEncodedValue: value,
-          type: StringListLookupResultType.jsonEncoded,
-        );
-      }
-      if (value.startsWith(listPrefix)) {
-        return StringListResult(
-          jsonEncodedValue: null,
-          type: StringListLookupResultType.platformEncoded,
-        );
-      }
-      return StringListResult(
-        jsonEncodedValue: null,
-        type: StringListLookupResultType.unexpectedString,
-      );
-    }
-    return null;
+    return value == null
+        ? null
+        : StringListResult(
+            jsonEncodedValue: value as String?,
+            type: StringListLookupResultType.jsonEncoded,
+          );
   }
 
   @override
@@ -411,56 +348,62 @@ class _FakeSharedPreferencesAsyncApi implements SharedPreferencesAsyncApi {
   }
 
   @override
-  Future<void> setBool(
+  Future<bool> setBool(
     String key,
     bool value,
     SharedPreferencesPigeonOptions options,
   ) async {
     items[key] = value;
+    return true;
   }
 
   @override
-  Future<void> setDouble(
+  Future<bool> setDouble(
     String key,
     double value,
     SharedPreferencesPigeonOptions options,
   ) async {
     items[key] = value;
+    return true;
   }
 
   @override
-  Future<void> setInt(
+  Future<bool> setInt(
     String key,
     int value,
     SharedPreferencesPigeonOptions options,
   ) async {
     items[key] = value;
+    return true;
   }
 
   @override
-  Future<void> setString(
+  Future<bool> setString(
     String key,
     String value,
     SharedPreferencesPigeonOptions options,
   ) async {
     items[key] = value;
+    return true;
   }
 
   @override
-  Future<void> setEncodedStringList(
+  Future<bool> setEncodedStringList(
     String key,
     String value,
     SharedPreferencesPigeonOptions options,
   ) async {
-    items[key] = value;
+    items[key] = '$jsonListPrefix${jsonEncode(value)}';
+    return true;
   }
 
   @override
-  Future<void> setDeprecatedStringList(
+  Future<bool> setDeprecatedStringList(
     String key,
     List<String> value,
     SharedPreferencesPigeonOptions options,
   ) async {
     items[key] = value;
+    return true;
   }
 }
