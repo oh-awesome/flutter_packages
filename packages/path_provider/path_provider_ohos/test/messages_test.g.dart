@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+﻿// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 import 'dart:async';
@@ -19,6 +19,8 @@ abstract class TestPathProviderApi {
   String? getApplicationSupportPath();
 
   String? getApplicationDocumentsPath();
+
+  String? getApplicationCachePath();
 
   String? getExternalStoragePath();
 
@@ -76,6 +78,23 @@ abstract class TestPathProviderApi {
                 (Object? message) async {
           // ignore message
           final String? output = api.getApplicationDocumentsPath();
+          return <Object?>[output];
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.PathProviderApi.getApplicationCachePath', codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel, null);
+      } else {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel,
+                (Object? message) async {
+          // ignore message
+          final String? output = api.getApplicationCachePath();
           return <Object?>[output];
         });
       }
