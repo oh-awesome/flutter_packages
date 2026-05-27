@@ -1,17 +1,6 @@
-/*
-* Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+// Copyright 2013 The Flutter Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 import 'dart:typed_data';
 
@@ -28,17 +17,17 @@ import 'file_selector_ohos_test.mocks.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late FileSelectorAndroid plugin;
+  late FileSelectorOhos plugin;
   late MockFileSelectorApi mockApi;
 
   setUp(() {
     mockApi = MockFileSelectorApi();
-    plugin = FileSelectorAndroid(api: mockApi);
+    plugin = FileSelectorOhos(api: mockApi);
   });
 
   test('registered instance', () {
-    FileSelectorAndroid.registerWith();
-    expect(FileSelectorPlatform.instance, isA<FileSelectorAndroid>());
+    FileSelectorOhos.registerWith();
+    expect(FileSelectorPlatform.instance, isA<FileSelectorOhos>());
   });
 
   group('openFile', () {
@@ -47,15 +36,17 @@ void main() {
         mockApi.openFile(
           'some/path/',
           argThat(
-            isA<FileTypes>().having(
-              (FileTypes types) => types.mimeTypes,
-              'mimeTypes',
-              <String>['text/plain', 'image/jpg'],
-            ).having(
-              (FileTypes types) => types.extensions,
-              'extensions',
-              <String>['txt', 'jpg'],
-            ),
+            isA<FileTypes>()
+                .having(
+                  (FileTypes types) => types.mimeTypes,
+                  'mimeTypes',
+                  <String>['text/plain', 'image/jpg'],
+                )
+                .having(
+                  (FileTypes types) => types.extensions,
+                  'extensions',
+                  <String>['txt', 'jpg'],
+                ),
           ),
         ),
       ).thenAnswer(
@@ -98,35 +89,35 @@ void main() {
         mockApi.openFiles(
           'some/path/',
           argThat(
-            isA<FileTypes>().having(
-              (FileTypes types) => types.mimeTypes,
-              'mimeTypes',
-              <String>['text/plain', 'image/jpg'],
-            ).having(
-              (FileTypes types) => types.extensions,
-              'extensions',
-              <String>['txt', 'jpg'],
-            ),
+            isA<FileTypes>()
+                .having(
+                  (FileTypes types) => types.mimeTypes,
+                  'mimeTypes',
+                  <String>['text/plain', 'image/jpg'],
+                )
+                .having(
+                  (FileTypes types) => types.extensions,
+                  'extensions',
+                  <String>['txt', 'jpg'],
+                ),
           ),
         ),
       ).thenAnswer(
-        (_) => Future<List<FileResponse>>.value(
-          <FileResponse>[
-            FileResponse(
-              path: 'some/path.txt',
-              size: 30,
-              bytes: Uint8List(0),
-              name: 'name',
-              mimeType: 'text/plain',
-            ),
-            FileResponse(
-              path: 'other/dir.jpg',
-              size: 40,
-              bytes: Uint8List(0),
-              mimeType: 'image/jpg',
-            ),
-          ],
-        ),
+        (_) => Future<List<FileResponse>>.value(<FileResponse>[
+          FileResponse(
+            path: 'some/path.txt',
+            size: 30,
+            bytes: Uint8List(0),
+            name: 'name',
+            mimeType: 'text/plain',
+          ),
+          FileResponse(
+            path: 'other/dir.jpg',
+            size: 40,
+            bytes: Uint8List(0),
+            mimeType: 'image/jpg',
+          ),
+        ]),
       );
 
       const XTypeGroup group = XTypeGroup(
@@ -157,8 +148,9 @@ void main() {
   });
 
   test('getDirectoryPath', () async {
-    when(mockApi.getDirectoryPath('some/path'))
-        .thenAnswer((_) => Future<String?>.value('some/path/chosen/'));
+    when(
+      mockApi.getDirectoryPath('some/path'),
+    ).thenAnswer((_) => Future<String?>.value('some/path/chosen/'));
 
     final String? path = await plugin.getDirectoryPath(
       initialDirectory: 'some/path',

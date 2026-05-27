@@ -41,6 +41,12 @@ class HomePage extends StatelessWidget {
               onPressed: () => Navigator.pushNamed(context, '/open/images'),
             ),
             const SizedBox(height: 10),
+            ElevatedButton(
+              style: style,
+              child: const Text('Open with mimeTypes'),
+              onPressed: () => Navigator.pushNamed(context, '/open/mime'),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),
