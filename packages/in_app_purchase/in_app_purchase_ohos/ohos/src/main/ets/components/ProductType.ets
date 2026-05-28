@@ -13,5 +13,6 @@ export const ProductType: Array<iap.ProductType> = deviceInfo.sdkApiVersion >= 1
 ] : [
   iap.ProductType.CONSUMABLE,
   iap.ProductType.NONCONSUMABLE,
-  iap.ProductType.AUTORENEWABLE
+  iap.ProductType.AUTORENEWABLE,
+  iap.ProductType.NONRENEWABLE
 ]
