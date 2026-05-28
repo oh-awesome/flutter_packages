@@ -65,9 +65,11 @@ export class VideoPlayer {
   private bufferTimeTemp: number = 0;
   private selectedAudioTrackIndex: number = -1;
   private isWindowKeepScreenOn: boolean = false;
-  private isInitializingTracks: boolean = false;
   private cachedAudioTracks: Array<AudioTrackNativeMap> | null = null;
   private tracksCacheValid: boolean = false;
+  private isPrepared: boolean = false;
+  private pendingPlay: boolean = false;
+  private pendingSeekPosition: number | null = null;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -145,37 +147,45 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
-          this.isInitializingTracks = false;
           this.cachedAudioTracks = null;
           this.tracksCacheValid = false;
           this.selectedAudioTrackIndex = -1;
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.resetProgress();
           if (this.url) {
-            this.avPlayer.url = this.getIUri();
+            const iUri = this.getIUri();
+            if (iUri) {
+              this.avPlayer.url = iUri;
+            } else {
+              Log.e(TAG, 'IDLE: getIUri returned empty, cannot set url for: ' + this.url);
+              // 可选择上报错误给Flutter层
+              this.sendError(new Error('Failed to open file: ' + this.url));
+            }
           } else {
             this.avPlayer.fdSrc = this.rawFile!;
           }
           break;
         case AvplayerStatus.INITIALIZED:
+          this.isPrepared = false;
           this.avPlayer.surfaceId = this.surfaceId;
           this.avPlayer.prepare();
           break;
         case AvplayerStatus.PREPARED:
+          this.isPrepared = true;
           this.avPlayer.videoScaleType = 0;
           this.avPlayer.audioInterruptMode = this.interruptMode;
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
-          if (this.selectedAudioTrackIndex < 0 && !this.isInitializingTracks) {
-            this.isInitializingTracks = true;
-            try {
-              const tracks = await this.getAudioTracks();
-              if (tracks.length > 0) {
-                this.selectedAudioTrackIndex = Number.parseInt(tracks[0].get('id') as string, 10);
-              }
-            } catch (e) {
-              Log.e(TAG, 'init selectedAudioTrackIndex failed: ' + JSON.stringify(e));
-            }
+          if (this.pendingSeekPosition !== null) {
+            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            this.pendingSeekPosition = null;
+          }
+          if (this.pendingPlay) {
+            this.pendingPlay = false;
+            this.avPlayer.play();
           }
           break;
         case AvplayerStatus.PLAYING:
@@ -207,13 +217,14 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.RELEASED:
-          this.avPlayer.release();
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
-          this.isInitializingTracks = false;
           this.cachedAudioTracks = null;
           this.tracksCacheValid = false;
           this.selectedAudioTrackIndex = -1;
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           Log.i(TAG, '[PlayVideoModel] state released called')
           break;
         default:
@@ -232,10 +243,7 @@ export class VideoPlayer {
     });
 
     this.avPlayer.on(Events.ERROR, (err: BusinessError) => {
-      // 播放直播视频时，设置 loop 会报错，而 loop 一定会设置(video_player.dart 中初始化之后会 _applyLooping)，所以屏蔽掉该报错
-      // message: Unsupport Capability: The stream is live stream, not support loop
-      /// 规避部分错误导致的reset，如：5400102 当前状态机不支持此操作；5400103 出现IO错误
-      if(err.code == OPERATE_ERROR || err.code == AVPLAYER_STATE_ERROR || err.code == AVPLAYER_IO_ERROR) {
+      if (err.code == OPERATE_ERROR) {
         Log.e(TAG, "AvPlayer Avoid Error Reporting: " + JSON.stringify(err));
         return;
       }
@@ -272,19 +280,25 @@ export class VideoPlayer {
   /**
    * Release the video player.
    */
-  release() {
+  async release() {
     if (this.avPlayer !== null) {
-      this.avPlayer.release();
+      await this.avPlayer.release();
+      this.avPlayer = null;
       this.eventChannel?.setStreamHandler(null);
     }
     if (this.fd != null) {
       fs.closeSync(this.fd!);
+      this.fd = null;
     }
   }
 
 
   play() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = true;
+        return;
+      }
       this.avPlayer.play();
     }
   }
@@ -294,19 +308,27 @@ export class VideoPlayer {
    */
   pause() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = false;
+        return;
+      }
       this.avPlayer.pause();
     }
   }
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingSeekPosition = position;
+        return;
+      }
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
   getPosition(): number {
     if (this.avPlayer !== null) {
-      return this.avPlayer.currentTime;
+      return Math.max(0, this.avPlayer.currentTime);
     } else {
       return 0;
     }
@@ -348,9 +370,12 @@ export class VideoPlayer {
 
         if (firstIncludedSelectIndex < 0) {
           firstIncludedSelectIndex = selectIndex;
+          if (this.selectedAudioTrackIndex < 0) {
+            this.selectedAudioTrackIndex = selectIndex;
+          }
         }
 
-        nativeTrack.set('id', selectIndex.toString());
+        nativeTrack.set('id', `0_${selectIndex}`);
         nativeTrack.set('label', label);
         nativeTrack.set('language', language);
         nativeTrack.set('isSelected', this.selectedAudioTrackIndex == trackIndex);
@@ -375,10 +400,12 @@ export class VideoPlayer {
     return tracks;
   }
 
-  async selectAudioTrack(trackId: string): Promise<void> {
-    const trackIndex = this.parseTrackIndex(trackId);
+  async selectAudioTrack(groupIndex: number, trackIndex: number): Promise<void> {
     if (this.avPlayer == null) {
       throw new Error('avPlayer is null');
+    }
+    if (groupIndex !== 0) {
+      throw new Error(`Unsupported audio track groupIndex: ${groupIndex}`);
     }
     if (trackIndex < 0) {
       throw new Error('Invalid trackId');
@@ -388,22 +415,15 @@ export class VideoPlayer {
       this.selectedAudioTrackIndex = trackIndex;
       if (this.cachedAudioTracks) {
         for (const track of this.cachedAudioTracks) {
-          track.set('isSelected', track.get('id') === trackIndex.toString());
+          track.set('isSelected', track.get('id') === `0_${trackIndex}`);
         }
       }
     } catch (e) {
-      Log.e(TAG, 'selectAudioTrack exception: ' + JSON.stringify(e.message));
-      throw new Error(e.message);
+	    const errMsg = e instanceof Error ? e.message : String(e);
+	    Log.e(TAG, 'selectAudioTrack exception: ' + errMsg);
+	    throw new Error(errMsg);
     }
   }
-
-  private parseTrackIndex(trackId: string): number {
-    const parts = trackId.split('_');
-    const rawIndex = parts[parts.length - 1];
-    const parsed = Number.parseInt(rawIndex, 10);
-    return Number.isNaN(parsed) ? -1 : parsed;
-  }
-
 
   private getTrackIndexFromDescription(desc: media.MediaDescription): number {
     const value = desc[media.MediaDescriptionKey.MD_KEY_TRACK_INDEX];
@@ -481,9 +501,16 @@ export class VideoPlayer {
 
   setLooping(isLooping: boolean) {
     if (this.avPlayer != null) {
-      this.avPlayer.loop = isLooping;
+      try {
+        this.avPlayer.loop = isLooping;
+        this.loop = isLooping;
+      } catch (e) {
+        Log.w(TAG, 'setLooping failed (likely live stream): ' + JSON.stringify(e));
+        this.loop = false;
+      }
+    } else {
+      this.loop = isLooping;
     }
-    this.loop = isLooping;
   }
 
 
@@ -829,8 +856,18 @@ export class VideoPlayer {
     let iUrl = this.url;
     const ohosFilePrefix = 'file://';
     if (iUrl != null && iUrl.startsWith(ohosFilePrefix)) {
-      this.fd = fs.openSync(iUrl, fs.OpenMode.READ_ONLY).fd;
-      iUrl = `fd://${this.fd!.toString()}`;
+      try {
+        if (this.fd != null) {
+          fs.closeSync(this.fd!);
+          this.fd = null;
+        }
+        this.fd = fs.openSync(iUrl, fs.OpenMode.READ_ONLY).fd;
+        iUrl = `fd://${this.fd!.toString()}`;
+      } catch (e) {
+        Log.e(TAG, 'getIUri fs.openSync failed: ' + JSON.stringify(e));
+        this.fd = null;
+        return '';
+      }
     }
     return iUrl ?? '';
   }

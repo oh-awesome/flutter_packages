@@ -58,7 +58,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   private videoPlayers: HashMap<number, VideoPlayer> = new HashMap<number, VideoPlayer>();
   private flutterState: FlutterState | null = null;
   private binding: AbilityPluginBinding | null = null;
-  private audioFocus: Boolean = false;
+  private audioFocus: boolean = false;
   private pixelMaps: HashMap<string, image.PixelMap> = new HashMap();
 
   constructor(flutterState: FlutterState | null, binding: AbilityPluginBinding | null) {
@@ -70,6 +70,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   disposeAllPlayers(): void {
     this.videoPlayers.forEach(videoPlayer => videoPlayer?.release());
     this.videoPlayers.clear();
+    this.pixelMapRelease();
   }
 
   initialize(): void {
@@ -182,6 +183,15 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       
       Log.i(TAG, `The player was created successfully,ID: ${playerId}`);
       return playerId;
+  }
+
+  pixelMapRelease(){
+    for (let pixelMap of this.pixelMaps.values()) {
+      if (pixelMap && typeof pixelMap.release === 'function') {
+        pixelMap.release();
+      }
+    }
+    this.pixelMaps.clear();
   }
 
   dispose(playerId:number): void {
@@ -302,13 +312,13 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     return [];
   }
 
-  async selectAudioTrack(playerId: number, trackId: string): Promise<void> {
+  async selectAudioTrack(playerId: number, groupIndex: number, trackIndex: number): Promise<void> {
     if (playerId < 0) {
       return;
     }
     const videoPlayer = this.videoPlayers.get(playerId);
     if (videoPlayer) {
-      await videoPlayer.selectAudioTrack(trackId);
+      await videoPlayer.selectAudioTrack(groupIndex, trackIndex);
       return;
     }
     Log.w(TAG, `The player does not exist: ${playerId}`);
@@ -636,8 +646,9 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       onMessage: (msg: Object, reply: Reply<Object>): void => {
         const args = msg as Array<Object>;
         const playerId = args[0] as number;
-        const trackId = args[1] as string;
-        this.selectAudioTrack(playerId, trackId)
+        const groupIndex = args[1] as number;
+        const trackIndex = args[2] as number;
+        this.selectAudioTrack(playerId, groupIndex, trackIndex)
           .then(() => {
             reply.reply([]);
           })

@@ -219,4 +219,4 @@ Contributions are welcome through Issues and Pull Requests:
 
 ## License
 
-Licensed under [The MIT License (MIT)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE).
+Licensed under [The BSD-3-Clause License (BSD-3-Clause)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE).
