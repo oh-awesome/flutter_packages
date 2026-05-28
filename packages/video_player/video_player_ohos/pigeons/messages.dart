@@ -43,6 +43,6 @@ abstract class OhosVideoPlayerApi {
   void seekTo(int playerId, int position);
   void pause(int playerId);
   void setMixWithOthers(bool mixWithOthers);
-  List<Map<String?, Object?>> getAudioTracks(int playerId);
+  List<Object?> getAudioTracks(int playerId);
   void selectAudioTrack(int playerId, int groupIndex, int trackIndex);
 }
