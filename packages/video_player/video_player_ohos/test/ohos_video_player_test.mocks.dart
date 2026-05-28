@@ -102,18 +102,17 @@ class MockOhosVideoPlayerApi extends Mock implements OhosVideoPlayerApi {
           as Future<void>;
 
   @override
-  Future<List<Map<String?, Object?>>> getAudioTracks(int? playerId) =>
+  Future<List<Object?>> getAudioTracks(int? playerId) =>
       super.noSuchMethod(
             Invocation.method(#getAudioTracks, <Object?>[playerId]),
-            returnValue: Future<List<Map<String?, Object?>>>.value(
-              <Map<String?, Object?>>[],
+            returnValue: Future<List<Object?>>.value(
+              <Object?>[],
             ),
-            returnValueForMissingStub:
-                Future<List<Map<String?, Object?>>>.value(
-                  <Map<String?, Object?>>[],
-                ),
+            returnValueForMissingStub: Future<List<Object?>>.value(
+              <Object?>[],
+            ),
           )
-          as Future<List<Map<String?, Object?>>>;
+          as Future<List<Object?>>;
 
   @override
   Future<void> selectAudioTrack(
