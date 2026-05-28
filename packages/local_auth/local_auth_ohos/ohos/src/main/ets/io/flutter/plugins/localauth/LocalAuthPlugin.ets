@@ -222,9 +222,9 @@ export default class LocalAuthPlugin implements FlutterPlugin, AbilityAware, Met
 
 async function isDeviceSecure(): Promise<boolean> {
   Log.i(TAG, `isDeviceSecure`);
-  let result = await screenLock.isSecureMode().then((data: Boolean) => {
+  let result = await screenLock.isSecureMode().then((data: boolean) => {
     console.info(`Succeeded in Obtaining whether the device is in secure mode. result: ${data}`);
-    return true;
+    return data as boolean;
   }).catch((err: BusinessError) => {
     console.error(`Failed to obtain whether the device is in secure mode, Code: ${err.code}, message: ${err.message}`);
     return false;
@@ -249,7 +249,6 @@ export class AuthCallback implements userAuth.IAuthCallback {
     switch (result.result) {
       case userAuth.UserAuthResultCode.SUCCESS:
         this.result.success(true);
-        this.stop();
         break;
       case userAuth.UserAuthResultCode.FAIL:
         this.result.success(false);
@@ -284,20 +283,6 @@ export class AuthCallback implements userAuth.IAuthCallback {
         break;
       default:
         this.result.success(false);
-    }
-  }
-
-  /** Stops the biometric listener. */
-  stop(): void {
-    try {
-      // this.off('result', {
-      //   onResult (result) {
-      //     Log.i(TAG, 'auth off result: ' + JSON.stringify(result));
-      //   }
-      // });
-      Log.i(TAG, 'auth off success');
-    } catch (error) {
-      Log.e(TAG, 'auth catch error: ' + JSON.stringify(error));
     }
   }
 }
