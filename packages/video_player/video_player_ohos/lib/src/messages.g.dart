@@ -423,7 +423,7 @@ class OhosVideoPlayerApi {
     ;
   }
 
-  Future<List<Map<String?, Object?>>> getAudioTracks(int playerId) async {
+  Future<List<Object?>> getAudioTracks(int playerId) async {
     final pigeonVar_channelName = 'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.getAudioTracks$pigeonVar_messageChannelSuffix';
     final pigeonVar_channel = BasicMessageChannel<Object?>(
       pigeonVar_channelName,
@@ -439,7 +439,7 @@ class OhosVideoPlayerApi {
         isNullValid: false,
     )
     !;
-    return (pigeonVar_replyValue as List<Object?>).cast<Map<String?, Object?>>();
+    return pigeonVar_replyValue as List<Object?>;
   }
 
   Future<void> selectAudioTrack(int playerId, int groupIndex, int trackIndex) async {
@@ -456,6 +456,7 @@ class OhosVideoPlayerApi {
         pigeonVar_replyList,
         pigeonVar_channelName,
         isNullValid: true,
-    );
+    )
+    ;
   }
 }
