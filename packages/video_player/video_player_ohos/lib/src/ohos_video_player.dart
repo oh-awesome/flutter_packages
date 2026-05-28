@@ -173,13 +173,14 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     if (playerId < 0) {
       return <VideoAudioTrack>[];
     }
-    final List<Map<String?, Object?>> nativeTracks = await _api.getAudioTracks(
+    final List<Object?> nativeTracks = await _api.getAudioTracks(
       playerId,
     );
     return nativeTracks
         .map(
-          (Map<String?, Object?> track) =>
-              _toVideoAudioTrack(track.cast<String, Object?>()),
+          (Object? track) => _toVideoAudioTrack(
+            (track! as Map<Object?, Object?>).cast<String, Object?>(),
+          ),
         )
         .where((track) => track.id.isNotEmpty)
         .toList(growable: false);
