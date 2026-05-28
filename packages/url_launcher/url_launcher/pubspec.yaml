@@ -43,6 +43,7 @@ dependencies:
    git:
      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
      path: "packages/url_launcher/url_launcher_ohos"
+     ref: "dev"
 
 dev_dependencies:
   flutter_test:
