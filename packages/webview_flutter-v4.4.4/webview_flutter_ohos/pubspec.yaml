@@ -30,3 +30,6 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   pigeon: ^9.2.4
+  mockito: 5.4.4
+  webview_flutter:
+    path: ../webview_flutter
