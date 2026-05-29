@@ -114,6 +114,7 @@ export struct OhosWebView {
             event.handler.setWebController(newWebViewController);
           })
           .onSslErrorEventReceive((event) => {
+            let handler: ESObject = event.handler as ESObject;
             if (deviceInfo.sdkApiVersion >= 20) {
               event.handler.handleCancel(true);
             } else {
