@@ -196,8 +196,13 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   launchTel(url: string): boolean {
-    Log.d(TAG, 'launchTel:' + url);
     let phoneNum = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_TEL + ':');
+    try {
+ 	    phoneNum = decodeURIComponent(phoneNum).replace(/\s+/g, '');
+ 	  } catch (e) {
+ 	    phoneNum = phoneNum.replace(/\s+/g, '');
+ 	  };
+ 	  Log.d(TAG, 'launchTel:' + phoneNum);
     call.makeCall(phoneNum).then(() => {
       Log.e(TAG, `launchTel success`);
     }).catch((err: ESObject) => {
