@@ -18,6 +18,8 @@ import  PlatformView from '@ohos/flutter_ohos/src/main/ets/plugin/platform/Platf
 import { WebViewPlatformView } from './WebViewHostApiImpl';
 import { Any } from '@ohos/flutter_ohos';
 import { commonEventManager } from '@kit.BasicServicesKit';
+import { deviceInfo } from '@kit.BasicServicesKit';
+
 @Observed
 export declare class Params {
   direction: Direction
@@ -112,7 +114,12 @@ export struct OhosWebView {
             event.handler.setWebController(newWebViewController);
           })
           .onSslErrorEventReceive((event) => {
-            event.handler.handleCancel(true);
+            let handler: ESObject = event.handler as ESObject;
+            if (deviceInfo.sdkApiVersion >= 20) {
+              handler.handleCancel(true);
+            } else {
+              handler.handleCancel();
+            }
           })
           .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
