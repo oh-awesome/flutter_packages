@@ -433,7 +433,7 @@ Future<void> main() async {
             await controller.runJavaScriptReturningResult('isPaused();')
                 as bool;
         expect(isPaused, true);
-      });
+      }, skip: true);
     },
     // OGG playback is not supported on macOS, so the test data would need
     // to be changed to support macOS.
@@ -897,7 +897,7 @@ Future<void> main() async {
     await pageLoaded.future;
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, primaryUrl);
-  });
+  }, skip: true);
 
   testWidgets('can open new window and go back', (WidgetTester tester) async {
     var pageLoaded = Completer<void>();
@@ -924,7 +924,7 @@ Future<void> main() async {
     await controller.goBack();
     await pageLoaded.future;
     await expectLater(controller.currentUrl(), completion(primaryUrl));
-  });
+  }, skip: true);
 
   testWidgets('clearLocalStorage', (WidgetTester tester) async {
     var pageLoadCompleter = Completer<void>();

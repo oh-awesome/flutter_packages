@@ -2200,6 +2200,10 @@ export abstract class WebSettingsHostApi {
 
   abstract setAllowFullScreenRotate(instanceId: number, enabled: boolean): void;
 
+  abstract setPaymentRequestEnabled(instanceId: number, enabled: boolean): void;
+
+  abstract setMixedContentMode(instanceId: number, mode: number): void;
+
   static getCodec(): MessageCodec<ESObject> {
     return new StandardMessageCodec();
   }
@@ -2731,6 +2735,110 @@ export abstract class WebSettingsHostApi {
                   instanceIdArg, enabledArg
                 );
                 wrapped.insert(null, 0);
+              } catch (err) {
+                const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+                wrapped = wrappedError;
+              }
+              reply.reply(wrapped.convertToArray());
+            }
+          }
+        );
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      const channel: BasicMessageChannel<ESObject> =
+      new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setPaymentRequestEnabled",
+        WebSettingsHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          {
+            onMessage: (message: ESObject, reply: Reply<ESObject>) => {
+              let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+              const args: Array<ESObject> = message;
+              const instanceIdArg: number = args[0];
+              const enabledArg: boolean = args[1];
+              try {
+                api.setPaymentRequestEnabled(
+                  instanceIdArg, enabledArg
+                );
+                wrapped.insert(null, 0);
+              } catch (err) {
+                const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+                wrapped = wrappedError;
+              }
+              reply.reply(wrapped.convertToArray());
+            }
+          }
+        );
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      const channel: BasicMessageChannel<ESObject> =
+      new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setMixedContentMode",
+        WebSettingsHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          {
+            onMessage: (message: ESObject, reply: Reply<ESObject>) => {
+              let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+              const args: Array<ESObject> = message;
+              const instanceIdArg: number = args[0];
+              const modeArg: number = args[1];
+              try {
+                api.setMixedContentMode(
+                  instanceIdArg, modeArg
+                );
+                wrapped.insert(null, 0);
+              } catch (err) {
+                const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+                wrapped = wrappedError;
+              }
+              reply.reply(wrapped.convertToArray());
+            }
+          }
+        );
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+  }
+}
+
+export abstract class WebViewFeatureHostApi {
+  abstract isFeatureSupported(feature: string): boolean;
+
+  static getCodec(): MessageCodec<ESObject> {
+    return new StandardMessageCodec();
+  }
+
+  static setup(binaryMessenger: BinaryMessenger, api: WebViewFeatureHostApi) {
+    {
+      const channel: BasicMessageChannel<ESObject> =
+      new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.WebViewFeatureHostApi.isFeatureSupported",
+        WebViewFeatureHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          {
+            onMessage: (message: ESObject, reply: Reply<ESObject>) => {
+              let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+              const args: Array<ESObject> = message;
+              const featureArg: string = args[0];
+              try {
+                const output = api.isFeatureSupported(featureArg);
+                wrapped.insert(output, 0);
               } catch (err) {
                 const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
                 wrapped = wrappedError;

@@ -1,85 +1,111 @@
-/*
- * Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2013 The Flutter Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:webview_flutter_ohos/src/ohos_webview.dart';
-import 'package:webview_flutter_ohos/src/instance_manager.dart';
-import 'package:webview_flutter_ohos/src/ohos_webview_cookie_manager.dart';
+import 'package:webview_flutter_ohos/src/ohos_webkit.g.dart'
+    as ohos_webview;
+import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
 import 'ohos_webview_cookie_manager_test.mocks.dart';
-import 'test_ohos_webview.g.dart';
 
-@GenerateMocks(<Type>[
-  TestCookieManagerHostApi,
-  TestInstanceManagerHostApi,
-])
+@GenerateMocks(<Type>[ohos_webview.CookieManager, OhosWebViewController])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  setUp(() {
-    TestInstanceManagerHostApi.setup(MockTestInstanceManagerHostApi());
+  test('clearCookies should call ohos_webview.clearCookies', () async {
+    final ohos_webview.CookieManager mockCookieManager = MockCookieManager();
+
+    when(
+      mockCookieManager.removeAllCookies(),
+    ).thenAnswer((_) => Future<bool>.value(true));
+
+    final params =
+        OhosWebViewCookieManagerCreationParams.fromPlatformWebViewCookieManagerCreationParams(
+          const PlatformWebViewCookieManagerCreationParams(),
+        );
+
+    final bool hasClearedCookies = await OhosWebViewCookieManager(
+      params,
+      cookieManager: mockCookieManager,
+    ).clearCookies();
+
+    expect(hasClearedCookies, true);
+    verify(mockCookieManager.removeAllCookies());
   });
 
-  group('OhosWebViewCookieManager', () {
-    late MockTestCookieManagerHostApi mockCookieManagerHostApi;
-    late InstanceManager instanceManager;
-    late CookieManager mockCookieManager;
+  test('setCookie should throw ArgumentError for cookie with invalid path', () {
+    final params =
+        OhosWebViewCookieManagerCreationParams.fromPlatformWebViewCookieManagerCreationParams(
+          const PlatformWebViewCookieManagerCreationParams(),
+        );
 
-    setUp(() {
-      mockCookieManagerHostApi = MockTestCookieManagerHostApi();
-      TestCookieManagerHostApi.setup(mockCookieManagerHostApi);
+    final ohosCookieManager = OhosWebViewCookieManager(
+      params,
+      cookieManager: MockCookieManager(),
+    );
 
-      instanceManager = InstanceManager(onWeakReferenceRemoved: (_) {});
-      mockCookieManager =
-          CookieManager.detached(instanceManager: instanceManager);
-      instanceManager.addDartCreatedInstance(mockCookieManager);
-    });
+    expect(
+      () => ohosCookieManager.setCookie(
+        const WebViewCookie(
+          name: 'foo',
+          value: 'bar',
+          domain: 'flutter.dev',
+          path: 'invalid;path',
+        ),
+      ),
+      throwsA(const TypeMatcher<ArgumentError>()),
+    );
+  });
 
-    test('setCookie', () async {
-      final OhosWebViewCookieManager cookieManager = OhosWebViewCookieManager(
-        const PlatformWebViewCookieManagerCreationParams(),
+  test(
+    'setCookie should call ohos_webview.setCookie with properly formatted cookie value',
+    () {
+      final ohos_webview.CookieManager mockCookieManager =
+          MockCookieManager();
+      final params =
+          OhosWebViewCookieManagerCreationParams.fromPlatformWebViewCookieManagerCreationParams(
+            const PlatformWebViewCookieManagerCreationParams(),
+          );
+
+      OhosWebViewCookieManager(
+        params,
         cookieManager: mockCookieManager,
+      ).setCookie(
+        const WebViewCookie(name: 'foo&', value: 'bar@', domain: 'flutter.dev'),
       );
 
-      await cookieManager.setCookie(
-        WebViewCookie(name: 'test', value: 'value', domain: 'flutter.dev'),
+      verify(
+        mockCookieManager.setCookie('flutter.dev', 'foo%26=bar%40; path=/'),
       );
+    },
+  );
 
-      verify(mockCookieManagerHostApi.setCookie(
-        argThat(isA<int>()),
-        'flutter.dev',
-        argThat(contains('test=value')),
-      ));
-    });
+  test('setAcceptThirdPartyCookies', () async {
+    final mockController = MockOhosWebViewController();
 
-    test('clearCookies', () async {
-      when(mockCookieManagerHostApi.removeAllCookies(any))
-          .thenAnswer((_) async => true);
+    final webView = ohos_webview.WebView.pigeon_detached();
 
-      final OhosWebViewCookieManager cookieManager = OhosWebViewCookieManager(
-        const PlatformWebViewCookieManagerCreationParams(),
-        cookieManager: mockCookieManager,
-      );
+    final int webViewIdentifier = ohos_webview.PigeonInstanceManager.instance
+        .addDartCreatedInstance(webView);
 
-      final bool cleared = await cookieManager.clearCookies();
+    when(mockController.webViewIdentifier).thenReturn(webViewIdentifier);
 
-      expect(cleared, true);
-      verify(mockCookieManagerHostApi.removeAllCookies(any));
-    });
+    final params =
+        OhosWebViewCookieManagerCreationParams.fromPlatformWebViewCookieManagerCreationParams(
+          const PlatformWebViewCookieManagerCreationParams(),
+        );
+
+    final mockCookieManager = MockCookieManager();
+
+    await OhosWebViewCookieManager(
+      params,
+      cookieManager: mockCookieManager,
+    ).setAcceptThirdPartyCookies(mockController, false);
+
+    verify(mockCookieManager.setAcceptThirdPartyCookies(webView, false));
   });
 }
