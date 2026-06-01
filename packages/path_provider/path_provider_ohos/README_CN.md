@@ -2,7 +2,7 @@
   <h1 align="center"> <code>path_provider</code> </h1>
 </p>
 
-本项目基于 [path_provider@2.1.2](https://pub.dev/packages/path_provider/versions/2.1.2) 开发。
+本项目基于 [path_provider@2.1.5](https://pub.dev/packages/path_provider/versions/2.1.5) 开发。
 
 ## 简介
 
@@ -118,6 +118,7 @@ Future<void> logPathsFromExample() async {
 | getExternalCachePaths()     | Future<List<String?>> | 获取应用程序的缓存数据可以存储在外部的目录路径，这些路径通常位于外部存储上，如单独的分区或SD卡。手机可能有多个可用的存储目录  | function       | yes               |
 | getExternalStoragePath()    |   Future<String?>         |       获取应用程序顶级存储路径的方法，应用程序可以在其中访问顶级存储的目录路径。     |        function       | yes               |
 | getExternalStoragePaths([StorageDirectory](#StorageDirectory) arg_directory)   | Future<List<String?>> |   获取应用程序顶级存储路径的方法，应用程序特定的数据可以存储在外部目录的路径，这些路径通常位于外部存储上，如单独的分区或SD卡。手机可能有多个可用的存储目录。 | function       | yes               |
+| getDownloadsPath()   | Future<String?>       | 获取下载文件目录路径的方法；OHOS 上基于 `getExternalStoragePaths(StorageDirectory.downloads)` 实现，无可用路径时返回 null。 | function | yes               |
 
 ### 属性
 
@@ -125,7 +126,6 @@ Future<void> logPathsFromExample() async {
 
 | 名称              | 说明                                                | 类型                                        | OHOS 支持 |
 | ----------------- | ---------------------------------------------------------- | ------------------------------------------- | ------------ |
-|  StorageDirectory.root  | 存储目录的根目录类型 |  enum | yes   |
 |  StorageDirectory.music  | 存储目录的音乐文件类型 |  enum | yes   |
 |  StorageDirectory.podcasts  | 存储目录的音频文件类型 |  enum | yes   |
 |  StorageDirectory.ringtones  | 存储目录的铃声文件类型 |  enum | yes   |
@@ -139,6 +139,7 @@ Future<void> logPathsFromExample() async {
 
 ## 不支持的能力
 
+- `StorageDirectory.root`：公开 API 的 `StorageDirectory` 枚举**不包含** `root`，**不支持** `StorageDirectory.root` 写法。获取根目录请使用 `getExternalStoragePaths(type: null)`。
 - `getLibraryPath()`：OHOS 不提供与 iOS/macOS 等价的 Library 目录概念，本实现会抛出 `UnsupportedError('getLibraryPath is not supported on OHOS')`（行为与 Android 实现一致）。示例应用 [`example/lib/main.dart`](./example/lib/main.dart) 中仍保留 **Get Library Directory** 按钮，点击后可通过 `FutureBuilder` 查看上述错误信息。
 
 ## 与 Android 的差异
