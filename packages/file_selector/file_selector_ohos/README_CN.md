@@ -114,7 +114,7 @@ Future<void> pickTextFile() async {
 | ------------------------------------------------------------ | ------------------- | ------------------------------------------------------------ | -------- | ------------ |
 | openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<XFile?>      | 打开一个用于加载文件的文件对话框，并返回用户选择的文件响应列表。 | function | partially          |
 | openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<List<XFile>> | 打开一个文件对话框以加载文件，并返回用户选择的文件响应列表。 | function | partially          |
-| getDirectoryPath({String? initialDirectory, String? confirmButtonText,}) | Future<String?>     | 打开一个文件对话框以选择目录，并返回所选的目录路径。         | function | no           |
+| getDirectoryPath({String? initialDirectory, String? confirmButtonText, bool? canCreateDirectories,}) | Future<String?>     | 打开一个文件对话框以选择目录，并返回所选的目录路径。         | function | no           |
 
 ### Parameters 
 
