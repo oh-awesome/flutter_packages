@@ -97,7 +97,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
   void _requestLibraryDirectory() {
     setState(() {
-      _libraryDirectory = provider.getLibraryPath();
+      try {
+        _libraryDirectory = provider.getLibraryPath();
+      } catch (error) {
+        _libraryDirectory = Future<String?>.error(error);
+      }
     });
   }
 
@@ -113,7 +117,7 @@ class _MyHomePageState extends State<MyHomePage> {
     });
   }
 
-  void _requestExternalStorageDirectories(StorageDirectory type) {
+  void _requestExternalStorageDirectories(StorageDirectory? type) {
     setState(() {
       _externalStorageDirectories =
           provider.getExternalStoragePaths(type: type);

@@ -2,7 +2,7 @@
   <h1 align="center"> <code>path_provider</code> </h1>
 </p>
 
-This project is developed based on [path_provider@2.1.2](https://pub.dev/packages/path_provider/versions/2.1.2).
+This project is developed based on [path_provider@2.1.5](https://pub.dev/packages/path_provider/versions/2.1.5).
 
 ## Introduction
 
@@ -118,6 +118,7 @@ The following table lists support status in this OHOS implementation for path ca
 | getExternalCachePaths()     | Future<List<String?>> | Gets directory paths where the application's cache data can be stored externally; these paths are typically on external storage, such as separate partitions or SD cards. A phone may have multiple available storage directories.  | function       | yes               |
 | getExternalStoragePath()    |   Future<String?>         | Method to get the application's top-level storage path—the directory path where the application can access top-level storage.     |        function       | yes               |
 | getExternalStoragePaths([StorageDirectory](#StorageDirectory) arg_directory)   | Future<List<String?>> | Method to get top-level storage paths for the application—paths to external directories where application-specific data can be stored; these paths are typically on external storage, such as separate partitions or SD cards. A phone may have multiple available storage directories. | function       | yes               |
+| getDownloadsPath()   | Future<String?>       | Gets the directory path where downloaded files can be stored; on OHOS this is implemented via `getExternalStoragePaths(StorageDirectory.downloads)`, returning null when no path is available. | function | yes               |
 
 ### Properties
 
@@ -125,7 +126,6 @@ The following table lists support status in this OHOS implementation for path ca
 
 | Name              | Description                                                | Type                                        | OHOS support |
 | ----------------- | ---------------------------------------------------------- | ------------------------------------------- | ------------ |
-|  StorageDirectory.root  | Root directory type in the storage directory |  enum | yes   |
 |  StorageDirectory.music  | Music file type in the storage directory |  enum | yes   |
 |  StorageDirectory.podcasts  | Audio file type in the storage directory |  enum | yes   |
 |  StorageDirectory.ringtones  | Ringtone file type in the storage directory |  enum | yes   |
@@ -139,6 +139,7 @@ The following table lists support status in this OHOS implementation for path ca
 
 ## Unsupported capabilities
 
+- `StorageDirectory.root`: The public `StorageDirectory` enum **does not include** `root`; **`StorageDirectory.root` is not supported**. Use `getExternalStoragePaths(type: null)` for the root directory.
 - `getLibraryPath()`: OHOS has no Library directory equivalent to iOS/macOS. This implementation throws `UnsupportedError('getLibraryPath is not supported on OHOS')` (same behavior as the Android implementation). The example app [`example/lib/main.dart`](./example/lib/main.dart) still includes a **Get Library Directory** button so you can trigger the call and see the error via `FutureBuilder`.
 
 ## Differences from Android
