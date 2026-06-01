@@ -35,8 +35,14 @@ const FORMAT_OTHER: String = 'other';
 const OPERATE_ERROR: number = 801;
 const AVPLAYER_STATE_ERROR: number = 5400102;
 const AVPLAYER_IO_ERROR: number = 5400103;
+const BUFFER_INFO_POLL_INTERVAL: number = 500;
+const PLAYBACK_INFO_MIN_SDK: number = 12;
+const PLAYBACK_INFO_BUFFER_DURATION_KEY: string = 'buffer_duration';
 
 const TAG = 'VideoPlayer'
+interface AVPlayerWithPlaybackInfo {
+  getPlaybackInfo(): Promise<Record<string, Object>>;
+}
 export class VideoPlayer {
   private avPlayer: media.AVPlayer | null = null;
   public playerModel: PlayerModel | null = null;
@@ -58,6 +64,12 @@ export class VideoPlayer {
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
+  private isSeeking: boolean = false;
+  private isBuffering: boolean = false;
+  private isSystemBuffering: boolean = false;
+  private isSeekBuffering: boolean = false;
+  private bufferingInfoTimer: number = -1;
+  private isPollingPlaybackInfo: boolean = false;
  	private isWindowKeepScreenOn: boolean = false;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
@@ -153,6 +165,7 @@ export class VideoPlayer {
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
+          this.startBufferingInfoTimer();
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -192,6 +205,10 @@ export class VideoPlayer {
     });
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
+      if (this.isSeeking) {
+        this.isSeeking = false;
+        this.endSeekBuffering();
+      }
       this.initProgress(time);
       this.playTime = time;
     });
@@ -209,6 +226,7 @@ export class VideoPlayer {
         return;
       }
       Log.e(TAG, "avPlayer Events.ERROR: " + JSON.stringify(err));
+      this.resetBufferingState();
       this.avPlayer?.reset();
       this.sendError(err);
     })
@@ -242,6 +260,8 @@ setAudioFocus(mixWithOthers: boolean): void {
    * Release the video player.
    */
   release() {
+    this.stopBufferingInfoTimer();
+    this.resetBufferingState();
     if (this.avPlayer !== null) {
       this.avPlayer.release();
       this.eventChannel?.setStreamHandler(null);
@@ -269,8 +289,16 @@ setAudioFocus(mixWithOthers: boolean): void {
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      this.prepareSeek();
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
+  }
+
+  private prepareSeek(): void {
+    if (this.status === CommonConstants.STATUS_START) {
+      this.startSeekBuffering();
+    }
+    this.isSeeking = true;
   }
 
   getPosition(): number {
@@ -396,6 +424,7 @@ setAudioFocus(mixWithOthers: boolean): void {
     if (mode === Number(SliderMode.END) || mode === Number(SliderMode.CLICK)) {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
       if (this.avPlayer !== null) {
+        this.prepareSeek();
         this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
       }
     }
@@ -597,12 +626,109 @@ setAudioFocus(mixWithOthers: boolean): void {
     this.eventSink?.success(event);
   }
 
+  resetBufferingState(): void {
+    let wasBuffering = this.isBuffering;
+    this.isSystemBuffering = false;
+    this.isSeekBuffering = false;
+    this.isSeeking = false;
+    this.bufferTimeTemp = 0;
+    if (wasBuffering) {
+      this.syncBufferingState();
+    } else {
+      this.isBuffering = false;
+    }
+  }
+
+  syncBufferingState(): void {
+    let shouldBuffering = this.isSystemBuffering || this.isSeekBuffering;
+    if (shouldBuffering == this.isBuffering) {
+      return;
+    }
+    this.isBuffering = shouldBuffering;
+    let event: HashMap<string, Object> = new HashMap<string, Object>();
+    event.set("event", shouldBuffering ? "bufferingStart" : "bufferingEnd");
+    this.eventSink?.success(event);
+  }
+
+  startSystemBuffering(): void {
+    this.isSystemBuffering = true;
+    this.syncBufferingState();
+  }
+
+  endSystemBuffering(): void {
+    this.isSystemBuffering = false;
+    this.syncBufferingState();
+  }
+
+  startSeekBuffering(): void {
+    this.isSeekBuffering = true;
+    this.syncBufferingState();
+  }
+
+  endSeekBuffering(): void {
+    if (!this.isSeekBuffering) {
+      return;
+    }
+    this.isSeekBuffering = false;
+    this.syncBufferingState();
+  }
+
+  startBufferingInfoTimer(): void {
+    if (deviceInfo.sdkApiVersion < PLAYBACK_INFO_MIN_SDK) {
+      return;
+    }
+    if (this.bufferingInfoTimer !== -1 || this.avPlayer == null) {
+      return;
+    }
+    this.bufferingInfoTimer = setInterval(() => {
+      this.reportBufferedPositionFromPlaybackInfo();
+    }, BUFFER_INFO_POLL_INTERVAL);
+  }
+
+  stopBufferingInfoTimer(): void {
+    if (this.bufferingInfoTimer === -1) {
+      return;
+    }
+    clearInterval(this.bufferingInfoTimer);
+    this.bufferingInfoTimer = -1;
+    this.isPollingPlaybackInfo = false;
+  }
+
+  async reportBufferedPositionFromPlaybackInfo(): Promise<void> {
+    if (this.avPlayer == null || this.isPollingPlaybackInfo) {
+      return;
+    }
+    this.isPollingPlaybackInfo = true;
+    try {
+      let avPlayer = this.avPlayer as AVPlayerWithPlaybackInfo;
+      let playbackInfo = await avPlayer.getPlaybackInfo();
+      let bufferDurationObject = playbackInfo[PLAYBACK_INFO_BUFFER_DURATION_KEY];
+      if (typeof bufferDurationObject === 'number') {
+        this.sendBufferingUpdate(media.BufferingInfoType.CACHED_DURATION, bufferDurationObject * CommonConstants.A_THOUSAND);
+      }
+    } catch (e) {
+      console.error(TAG, "reportBufferedPositionFromPlaybackInfo error:" + JSON.stringify(e))
+    } finally {
+      this.isPollingPlaybackInfo = false;
+    }
+  }
+
+  sendBufferingStart(): void {
+    this.startSystemBuffering();
+  }
+
+  sendBufferingEnd(): void {
+    this.endSystemBuffering();
+  }
+
   sendBufferingUpdate(infoType: media.BufferingInfoType, bufferingPosition: number): void {
     let event: HashMap<string, Object> = new HashMap<string, Object>();
     if (infoType == media.BufferingInfoType.BUFFERING_START) {
-      event.set("event", "bufferingStart");
+      this.sendBufferingStart();
+      return;
     } else if (infoType == media.BufferingInfoType.BUFFERING_END) {
-      event.set("event", "bufferingEnd");
+      this.sendBufferingEnd();
+      return;
     } else if (infoType == media.BufferingInfoType.CACHED_DURATION) {
       event.set("event", "bufferingUpdate");
       let bufferedDuration = this.playTime + bufferingPosition;
