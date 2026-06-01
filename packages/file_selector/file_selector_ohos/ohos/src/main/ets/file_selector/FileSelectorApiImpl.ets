@@ -344,17 +344,19 @@ export class FileSelectorApiImpl {
   static async toFileResponse(uri: string, name: string): Promise<FileResponse> {
     const mimeType: string = getMimeTypeFromPath(uri, name);
     let file = fs.openSync(uri);
-    let stream = fs.fdopenStreamSync(file.fd, "r");
-    let stat = fs.statSync(file.fd);
-    let size = stat.size;
-    let buffer = new ArrayBuffer(size);
-    stream.readSync(buffer, {offset: 0, length: size});
-    let byteArray = new Uint8Array(buffer);
-    let response = new FileResponse(uri, mimeType, name, size, byteArray);
-    stream.closeSync();
-    return new Promise((resolve) => {
-      resolve(response);
-    })
+    try {
+      let stat = fs.statSync(file.fd);
+      let size = stat.size;
+      let buffer = new ArrayBuffer(size);
+      fs.readSync(file.fd, buffer, {offset: 0, length: size});
+      let byteArray = new Uint8Array(buffer);
+      let response = new FileResponse(uri, mimeType, name, size, byteArray);
+      return new Promise((resolve) => {
+        resolve(response);
+      })
+    } finally {
+      fs.closeSync(file);
+    }
   }
 
   static async toFileListResponse(uris: string[]): Promise<Array<FileResponse>> {
@@ -366,18 +368,13 @@ export class FileSelectorApiImpl {
         const mimeType: string = getMimeTypeFromPath(uri, name);
         let file = fs.openSync(uri);
         try {
-          let stream = fs.fdopenStreamSync(file.fd, "r");
-          try {
-            let stat = fs.statSync(file.fd);
-            let size = stat.size;
-            let buffer = new ArrayBuffer(size);
-            stream.readSync(buffer, {offset: 0, length: size});
-            let byteArray = new Uint8Array(buffer);
-            let response = new FileResponse(uri, mimeType, name, size, byteArray);
-            files.push(response);
-          } finally {
-            stream.closeSync();
-          }
+          let stat = fs.statSync(file.fd);
+          let size = stat.size;
+          let buffer = new ArrayBuffer(size);
+          fs.readSync(file.fd, buffer, {offset: 0, length: size});
+          let byteArray = new Uint8Array(buffer);
+          let response = new FileResponse(uri, mimeType, name, size, byteArray);
+          files.push(response);
         } finally {
           fs.closeSync(file);
         }
