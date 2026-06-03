@@ -332,6 +332,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -397,6 +398,9 @@ class SampleMenu extends StatelessWidget {
             break;
           case MenuOptions.videoExample:
             _onVideoExample(context);
+            break;
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreen(context);
             break;
           case MenuOptions.logExample:
             _onLogExample();
@@ -470,6 +474,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video fullscreen example'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -574,7 +582,29 @@ class SampleMenu extends StatelessWidget {
     ));
   }
 
-  Future<void> _onVideoExample(BuildContext context) async {
+  Future<void> _onVideoExample(BuildContext context) {
+    final OhosWebViewController ohosController =
+        webViewController as OhosWebViewController;
+    ohosController.setCustomWidgetCallbacks(
+      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => widget,
+          fullscreenDialog: true,
+        ));
+      },
+      onHideCustomWidget: () {
+        Navigator.of(context).pop();
+      },
+    );
+
+    return ohosController.loadRequest(
+      LoadRequestParams(
+        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
+      ),
+    );
+  }
+
+  Future<void> _onVideoFullScreen(BuildContext context) async {
     final OhosWebViewController videoController = OhosWebViewController(
       OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
     )
