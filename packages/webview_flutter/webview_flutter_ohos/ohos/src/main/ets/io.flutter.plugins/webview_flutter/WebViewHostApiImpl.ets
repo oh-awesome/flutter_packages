@@ -372,6 +372,12 @@ export class WebViewPlatformView extends PlatformView {
     }
   }
 
+  onHttpErrorReceive = (event: ESObject) => {
+    if (this.webViewClint) {
+      this.webViewClint.onReceivedHttpError(this, event.request, event.response);
+    }
+  }
+
   onOverrideUrlLoading = (request: WebResourceRequest) => {
     Log.i(TAG, "onOverrideUrlLoading request = " + JSON.stringify(request))
     if(request.getRequestUrl() == 'loaded:///'){
@@ -508,9 +514,8 @@ export class WebViewPlatformView extends PlatformView {
     let windowClass = context.windowStage.getMainWindowSync();
     windowClass.setWindowSystemBarEnable([]);
     this.rotation = windowClass.getPreferredOrientation();
-    let orientation: number = display.getDefaultDisplaySync().orientation;
     let isAllowFullScreenRotate = this.getWebSettings()?.getAllowFullScreenRotate();
-    if (isAllowFullScreenRotate && (orientation == display.Orientation.PORTRAIT || orientation == display.Orientation.PORTRAIT_INVERTED)) {
+    if (isAllowFullScreenRotate) {
       windowClass.setPreferredOrientation(window.Orientation.LANDSCAPE);
     }
   }
