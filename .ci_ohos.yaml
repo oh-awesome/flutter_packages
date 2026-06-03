@@ -47,7 +47,7 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.27.4-dev,oh-3.35.7-dev"]
+    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.41.9-dev"]
     required: true
 
   - name: Prepare Packages
