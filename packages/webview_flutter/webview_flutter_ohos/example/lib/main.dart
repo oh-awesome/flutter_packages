@@ -385,6 +385,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -438,6 +439,8 @@ class SampleMenu extends StatelessWidget {
             _onSetCookie();
           case MenuOptions.videoExample:
             _onVideoExample(context);
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreen(context);
           case MenuOptions.logExample:
             _onLogExample();
           case MenuOptions.basicAuthentication:
@@ -509,6 +512,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video full screen'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -617,7 +624,31 @@ class SampleMenu extends StatelessWidget {
     ));
   }
 
-  Future<void> _onVideoExample(BuildContext context) async {
+  Future<void> _onVideoExample(BuildContext context) {
+    final OhosWebViewController ohosController =
+        webViewController as OhosWebViewController;
+    // #docregion fullscreen_example
+    ohosController.setCustomWidgetCallbacks(
+      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => widget,
+          fullscreenDialog: true,
+        ));
+      },
+      onHideCustomWidget: () {
+        Navigator.of(context).pop();
+      },
+    );
+    // #enddocregion fullscreen_example
+
+    return ohosController.loadRequest(
+      LoadRequestParams(
+        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
+      ),
+    );
+  }
+
+  Future<void> _onVideoFullScreen(BuildContext context) async {
     final OhosWebViewController videoController = OhosWebViewController(
       OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
     )

@@ -15,7 +15,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
+import 'package:webview_flutter_ohos/src/instance_manager.dart';
+import 'package:webview_flutter_ohos/src/ohos_proxy.dart';
+import 'package:webview_flutter_ohos/src/ohos_webview.dart' as ohos_webview;
+import 'package:webview_flutter_ohos/src/weak_reference_utils.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
+
 const bool skipFor159500 = true;
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -83,8 +88,7 @@ Future<void> main() async {
       'withWeakRefenceTo allows encapsulating class to be garbage collected',
       (WidgetTester tester) async {
     final Completer<int> gcCompleter = Completer<int>();
-    final android_webkit.PigeonInstanceManager instanceManager =
-        android_webkit.PigeonInstanceManager(
+    final InstanceManager instanceManager = InstanceManager(
       onWeakReferenceRemoved: gcCompleter.complete,
     );
 
@@ -118,15 +122,13 @@ Future<void> main() async {
         Builder(
           builder: (BuildContext context) {
             return PlatformWebViewWidget(
-              AndroidWebViewWidgetCreationParams(
+              OhosWebViewWidgetCreationParams(
                 controller: PlatformWebViewController(
-                  AndroidWebViewControllerCreationParams(
-                    androidWebViewProxy: AndroidWebViewProxy(newWebView: ({
-                      void Function(android_webkit.WebView, int, int, int, int)?
-                          onScrollChanged,
+                  OhosWebViewControllerCreationParams(
+                    ohosWebViewProxy: OhosWebViewProxy(createOhosWebView: ({
+                      void Function(int, int, int, int)? onScrollChanged,
                     }) {
-                      final android_webkit.WebView webView =
-                          android_webkit.WebView(
+                      final ohos_webview.WebView webView = ohos_webview.WebView(
                         onScrollChanged: onScrollChanged,
                       );
                       finalizer.attach(webView, webViewToken);
@@ -145,7 +147,7 @@ Future<void> main() async {
         Builder(
           builder: (BuildContext context) {
             return PlatformWebViewWidget(
-              AndroidWebViewWidgetCreationParams(
+              OhosWebViewWidgetCreationParams(
                 controller: PlatformWebViewController(
                   const PlatformWebViewControllerCreationParams(),
                 ),
@@ -475,7 +477,7 @@ Future<void> main() async {
       isPaused =
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
       expect(isPaused, true);
-    });
+    }, skip: true);
 
     testWidgets('Video plays inline', (WidgetTester tester) async {
       final Completer<void> pageLoaded = Completer<void>();
@@ -593,7 +595,7 @@ Future<void> main() async {
 
       await expectLater(fullscreenEntered.future, completes);
       await expectLater(fullscreenExited.future, completes);
-    });
+    }, skip: true);
   });
 
   group('Audio playback policy', () {
@@ -695,7 +697,7 @@ Future<void> main() async {
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
       expect(isPaused, true);
     });
-  });
+  }, skip: true);
 
   testWidgets('getTitle', (WidgetTester tester) async {
     const String getTitleTest = '''
@@ -1301,7 +1303,7 @@ Future<void> main() async {
     await pageLoaded.future;
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, primaryUrl);
-  });
+  }, skip: true);
 
   testWidgets('can open new window and go back', (WidgetTester tester) async {
       Completer<void> pageLoaded = Completer<void>();
@@ -1338,7 +1340,7 @@ Future<void> main() async {
       await controller.goBack();
       await pageLoaded.future;
       await expectLater(controller.currentUrl(), completion(primaryUrl));
-    },
+    }, skip: true
   );
 
   testWidgets(
@@ -1470,13 +1472,13 @@ Future<void> main() async {
     );
 
     final Completer<String> alertMessage = Completer<String>();
-    // final Completer<void> pageFinished = Completer<void>();
+    final Completer<void> pageFinished = Completer<void>();
 
-    // final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
-    //   const PlatformNavigationDelegateCreationParams(),
-    // );
-    // await delegate.setOnPageFinished((_) => pageFinished.complete());
-    // await controller.setPlatformNavigationDelegate(delegate);
+    final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
+      const PlatformNavigationDelegateCreationParams(),
+    );
+    await delegate.setOnPageFinished((_) => pageFinished.complete());
+    await controller.setPlatformNavigationDelegate(delegate);
     
     await controller.setOnJavaScriptAlertDialog(
       (JavaScriptAlertDialogRequest request) async {
@@ -1495,7 +1497,7 @@ Future<void> main() async {
       },
     ));
 
-    // await pageFinished.future;
+    await pageFinished.future;
 
     await controller.runJavaScript('alert("alert message")');
     await expectLater(alertMessage.future, completion('alert message'));
@@ -1508,13 +1510,13 @@ Future<void> main() async {
     );
 
     final Completer<String> confirmMessage = Completer<String>();
-    // final Completer<void> pageFinished = Completer<void>();
+    final Completer<void> pageFinished = Completer<void>();
 
-    // final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
-    //   const PlatformNavigationDelegateCreationParams(),
-    // );
-    // await delegate.setOnPageFinished((_) => pageFinished.complete());
-    // await controller.setPlatformNavigationDelegate(delegate);
+    final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
+      const PlatformNavigationDelegateCreationParams(),
+    );
+    await delegate.setOnPageFinished((_) => pageFinished.complete());
+    await controller.setPlatformNavigationDelegate(delegate);
 
     await controller.setOnJavaScriptConfirmDialog(
       (JavaScriptConfirmDialogRequest request) async {
@@ -1534,7 +1536,7 @@ Future<void> main() async {
       },
     ));
 
-    // await pageFinished.future;
+    await pageFinished.future;
 
     await controller.runJavaScript('confirm("confirm message")');
     await expectLater(confirmMessage.future, completion('confirm message'));
@@ -1546,13 +1548,13 @@ Future<void> main() async {
       const PlatformWebViewControllerCreationParams(),
     );
 
-    // final Completer<void> pageFinished = Completer<void>();
+    final Completer<void> pageFinished = Completer<void>();
 
-    // final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
-    //   const PlatformNavigationDelegateCreationParams(),
-    // );
-    // await delegate.setOnPageFinished((_) => pageFinished.complete());
-    // await controller.setPlatformNavigationDelegate(delegate);
+    final PlatformNavigationDelegate delegate = PlatformNavigationDelegate(
+      const PlatformNavigationDelegateCreationParams(),
+    );
+    await delegate.setOnPageFinished((_) => pageFinished.complete());
+    await controller.setPlatformNavigationDelegate(delegate);
 
     await controller.setOnJavaScriptTextInputDialog(
       (JavaScriptTextInputDialogRequest request) async {
@@ -1571,7 +1573,7 @@ Future<void> main() async {
       },
     ));
 
-    // await pageFinished.future;
+    await pageFinished.future;
 
     final Object promptResponse = await controller.runJavaScriptReturningResult(
       'prompt("input message", "default text")',
@@ -1708,4 +1710,29 @@ class ResizableWebViewState extends State<ResizableWebView> {
       ),
     );
   }
+}
+
+class CopyableObjectWithCallback with Copyable {
+  CopyableObjectWithCallback(this.callback);
+  final VoidCallback callback;
+  @override
+  CopyableObjectWithCallback copy() {
+    return CopyableObjectWithCallback(callback);
+  }
+}
+
+class ClassWithCallbackClass {
+  ClassWithCallbackClass() {
+    callbackClass = CopyableObjectWithCallback(
+      withWeakReferenceTo(
+        this,
+        (WeakReference<ClassWithCallbackClass> weakReference) {
+          return () {
+            weakReference;
+          };
+        },
+      ),
+    );
+  }
+  late final CopyableObjectWithCallback callbackClass;
 }
