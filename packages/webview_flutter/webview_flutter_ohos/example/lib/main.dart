@@ -331,6 +331,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -396,6 +397,9 @@ class SampleMenu extends StatelessWidget {
             break;
           case MenuOptions.videoExample:
             _onVideoExample(context);
+            break;
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreen(context);
             break;
           case MenuOptions.logExample:
             _onLogExample();
@@ -469,6 +473,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video fullscreen example'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -589,6 +597,25 @@ class SampleMenu extends StatelessWidget {
       },
     );
     // #enddocregion fullscreen_example
+
+    return ohosController.loadRequest(
+      LoadRequestParams(
+        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
+      ),
+    );
+  }
+
+  Future<void> _onVideoFullScreen(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
 
     return ohosController.loadRequest(
       LoadRequestParams(
