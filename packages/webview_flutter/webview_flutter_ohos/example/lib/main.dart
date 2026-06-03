@@ -347,6 +347,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -399,6 +400,8 @@ class SampleMenu extends StatelessWidget {
             _onSetCookie();
           case MenuOptions.videoExample:
             _onVideoExample(context);
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreenExample(context);
           case MenuOptions.logExample:
             _onLogExample();
           case MenuOptions.basicAuthentication:
@@ -468,6 +471,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video full screen'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -574,7 +581,7 @@ class SampleMenu extends StatelessWidget {
 
   Future<void> _onVideoExample(BuildContext context) async {
     final OhosWebViewController videoController = OhosWebViewController(
-      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+      OhosWebViewControllerCreationParams(),
     )
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setPlatformNavigationDelegate(
@@ -584,7 +591,56 @@ class SampleMenu extends StatelessWidget {
       )
       ..loadFlutterAsset('assets/www/video.html');
 
+    videoController.setCustomWidgetCallbacks(
+      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
+        Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (BuildContext context) => widget,
+          ),
+        );
+      },
+      onHideCustomWidget: () {
+        SystemChrome.setPreferredOrientations([
+          DeviceOrientation.landscapeLeft,
+          DeviceOrientation.landscapeRight,
+          DeviceOrientation.portraitUp,
+        ]);
+        SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+        Navigator.of(context).pop();
+      },
+    );
 
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+    ]);
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => Scaffold(
+          body: PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: videoController),
+          ).build(context),
+        ),
+      ),
+    );
+
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
+  Future<void> _onVideoFullScreenExample(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
 
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
