@@ -6,9 +6,9 @@ This repository is an extension of the Flutter community’s official plugin lib
 
 [OpenHarmony Compatible Packages](#packages)
 
-[OpenHarmony Compatible Third-Party Libraries](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.en.md)
+[OpenHarmony Compatible Third-Party Libraries](https://gitcode.com/CPF-Flutter/docs/blob/main/ThirdpartyLibrarites.en.md)
 
-> *For third-party library issues, please submit an issue to the corresponding repository. For third-party library adaptation requests, please submit an issue to the* [OpenHarmony-Flutter](https://gitcode.com/org/openharmony-flutter/issues) *organization.*
+> *For third-party library issues, please submit an issue to the corresponding repository. For third-party library adaptation requests, please submit an issue to the* [CPF-Flutter](https://gitcode.com/CPF-Flutter/docs/issues) *organization.*
 
 ## Contribution Guidelines
 
@@ -166,4 +166,4 @@ Open the `Git Bash` or `cmd.exe`(you need to have git as an environment variable
 
 ## Communication
 
-- **Issue Feedback:** Submit issues to the [Flutter Framework Repository](https://gitcode.com/openharmony-tpc/flutter_flutter/issues) or related third-party libraries.
+- **Issue Feedback:** Submit issues to the [Flutter Framework Repository](https://gitcode.com/CPF-Flutter/flutter_flutter/issues) or related third-party libraries.

@@ -6,9 +6,9 @@
 
 [OpenHarmony平台已适配packages三方库](#packages)
 
-[OpenHarmony平台已适配三方库列表](https://gitcode.com/OpenHarmony-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
+[OpenHarmony平台已适配三方库列表](https://gitcode.com/CPF-Flutter/docs/blob/main/ThirdpartyLibrarites.md)
 
-> 三方库问题请在对应仓库提交 issue；三方库适配请求请至 [OpenHarmony-Flutter](https://gitcode.com/org/openharmony-flutter/issues) 组织提交 issue。
+> 三方库问题请在对应仓库提交 issue；三方库适配请求请至 [CPF-Flutter](https://gitcode.com/CPF-Flutter/docs/issues) 组织提交 issue。
 
 ## 贡献指南
 
@@ -163,4 +163,5 @@ dev_dependencies:
 
 ## 问题交流
 
-- 问题反馈：欢迎在 [Flutter框架仓库](https://gitcode.com/openharmony-tpc/flutter_flutter/issues) 以及各个Flutter三方库提交issue。
+- 问题反馈：欢迎在 [Flutter框架仓库](https://gitcode.com/CPF-Flutter/flutter_flutter/issues) 以及各个Flutter三方库提交issue。
+
