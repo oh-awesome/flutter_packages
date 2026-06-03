@@ -47,21 +47,13 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-<<<<<<< HEAD
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.44.9-dev"]
-=======
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.35.7-dev"]
->>>>>>> 9b9240c5f9 (新增br_video_player-v2.11.1_ohos_dev流水线门禁)
+    args: ["https://gitcode.com/CPF-Flutter/flutter_flutter.git", "oh-3.44.9-dev"]
     required: true
 
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
-<<<<<<< HEAD
     args: ["flutter_packages", "oh-3.44.9-dev"]
-=======
-    args: ["flutter_packages", "br_video_player-v2.11.1_ohos_dev"]
->>>>>>> 9b9240c5f9 (新增br_video_player-v2.11.1_ohos_dev流水线门禁)
     required: true
 
 # Compilation steps - executed in order
