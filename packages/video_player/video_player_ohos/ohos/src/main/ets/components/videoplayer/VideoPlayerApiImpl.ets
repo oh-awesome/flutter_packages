@@ -28,30 +28,38 @@ import { image } from '@kit.ImageKit';
 const TAG: string = "VideoPlayerApiImpl";
 const BLACK_COLOR = 0xFF000000;
 
-function mapPlaybackSpeed(speed: number): media.PlaybackSpeed | null {
-  if (speed === 0.75) {
-    return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
-  } else if (speed === 1.0) {
-    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
-  } else if (speed === 1.25) {
-    return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
-  } else if (speed === 1.75) {
-    return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
-  } else if (speed === 2.0) {
-    return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
-  } else if (speed === 0.5) {
-    return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
-  } else if (speed === 1.5) {
-    return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
-  } else if (speed === 3.0) {
-    return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
-  } else if (speed === 0.25) {
-    return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
-  } else if (speed === 0.125) {
+function mapPlaybackSpeed(speed: number): media.PlaybackSpeed {
+  if (speed > 0 && speed <= 0.125) {
+    //x0.125
     return media.PlaybackSpeed.SPEED_FORWARD_0_125_X;
-  } else {
-    return null;
+  } else if (speed > 0.125 && speed <= 0.4) {
+    //x0.25
+    return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
+  } else if (speed > 0.4 && speed <= 0.6) {
+    //x0.5
+    return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
+  } else if (speed > 0.6 && speed <= 0.8) {
+    //x0.75
+    return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
+  } else if (speed > 0.8 && speed <= 1.1) {
+    //x1
+    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+  } else if (speed > 1.1 && speed <= 1.4) {
+    //x1.25
+    return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
+  } else if (speed > 1.4 && speed <= 1.6) {
+    //x1.5
+    return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
+  } else if (speed > 1.6 && speed <= 1.8) {
+    //x1.75
+    return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
+  } else if (speed > 1.8 && speed <= 2.0) {
+    //x2.0
+    return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
+  } else if (speed > 2.0) {
+    return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
   }
+  return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
 }
 
 export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
@@ -267,7 +275,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       return position;
     }
     Log.w(TAG, `The player does not exist: ${playerId}`);
-    return 0;
+    throw new Error(`VideoError: No player found with playerId <${playerId}>`);
   }
 
   seekTo(playerId: number, position: number) {
