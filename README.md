@@ -1,5 +1,7 @@
 # Flutter Packages
 
+> **仓库迁移公告**：本仓库（`openharmony-tpc/flutter_packages`）计划于 **2026年6月10日** 迁移至 [CPF-Flutter/flutter_packages](https://gitcode.com/CPF-Flutter/flutter_packages)，届时旧仓库地址将自动重定向至新地址。迁移后请及时更新 Git 远程地址及项目中的依赖引用。详情参见：[迁移公告](https://gitcode.com/openharmony-tpc/flutter_flutter/wiki/Flutter%20%E9%B8%BF%E8%92%99%E5%8C%96%E4%BB%93%E5%BA%93%E8%BF%81%E7%A7%BB%E5%85%AC%E5%91%8A%EF%BC%9A%E5%85%A8%E6%96%B0%20CPF-Flutter%20%E7%BB%84%E7%BB%87%E4%B8%8A%E7%BA%BF)
+
 ## 仓库介绍
 
 本仓库基于 Flutter 社区官方插件库（[flutter/packages](https://github.com/flutter/packages/)）进行扩展，新增对 OpenHarmony 平台的兼容适配。通过本仓库，开发者可在 Flutter 应用中无缝集成常用插件，通过最小化业务改动获得完整的OpenHarmony原生能力支持。
