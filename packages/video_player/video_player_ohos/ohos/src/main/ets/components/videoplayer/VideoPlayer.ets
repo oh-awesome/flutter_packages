@@ -82,6 +82,7 @@ export class VideoPlayer {
   private isSeekBuffering: boolean = false;
   private bufferingInfoTimer: number = -1;
   private isPollingPlaybackInfo: boolean = false;
+  private cachedRotationCorrection: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -166,6 +167,13 @@ export class VideoPlayer {
           this.pendingPlay = false;
           this.pendingSeekPosition = null;
           this.resetProgress();
+          // Extract rotation before setting data source to avoid fd conflict with AVPlayer
+          try {
+            this.cachedRotationCorrection = await this.getRotationCorrection();
+            Log.i(TAG, 'cachedRotationCorrection=' + this.cachedRotationCorrection);
+          } catch (e) {
+            Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
+          }
           if (this.url) {
             const iUri = this.getIUri();
             if (iUri) {
@@ -544,7 +552,8 @@ export class VideoPlayer {
 
   setVolume(volume: number) {
     if (this.avPlayer != null) {
-      this.avPlayer.setVolume(volume);
+      const clampedVolume = Math.max(0.0, Math.min(1.0, volume));
+      this.avPlayer.setVolume(clampedVolume);
     }
   }
 
@@ -841,7 +850,45 @@ export class VideoPlayer {
     event.set("duration", this.avPlayer?.duration);
     event.set("width", this.avPlayer?.width);
     event.set("height", this.avPlayer?.height);
+    event.set("rotationCorrection", this.cachedRotationCorrection);
     this.eventSink?.success(event);
+  }
+
+  private async getRotationCorrection(): Promise<number> {
+    let extractor: media.AVMetadataExtractor | null = null;
+    let fd: fs.File | null = null;
+    try {
+      extractor = await media.createAVMetadataExtractor();
+      if (this.url?.startsWith("file://")) {
+        fd = fs.openSync(this.url.substring(7), fs.OpenMode.READ_ONLY);
+        extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
+      } else if (this.url) {
+        if (deviceInfo.sdkApiVersion < 20) {
+          return 0;
+        }
+        extractor.setUrlSource(this.url, this.headers ?? undefined);
+      } else if (this.rawFile) {
+        extractor.fdSrc = this.rawFile;
+      } else {
+        return 0;
+      }
+      const metadata = await extractor.fetchMetadata();
+      const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
+      orientation
+      if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
+        return orientation;
+      }
+      return 0;
+    } catch (e) {
+      Log.w(TAG, 'getRotationCorrection error: ' + JSON.stringify(e));
+      return 0;
+    } finally {
+      if (fd) {
+        fs.closeSync(fd);
+      }
+      extractor?.release();
+      extractor = null;
+    }
   }
 
   sendCompleted(): void {
@@ -975,7 +1022,8 @@ export class VideoPlayer {
   }
 
   sendError(error: Object): void {
-    this.eventSink?.error("videoError", "video player had error！", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    this.eventSink?.error("VideoError", `Video player had error: ${errorMessage}`, error);
   }
 
   getIUri(): string {
