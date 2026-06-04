@@ -60,6 +60,66 @@ class UrlLauncherOhos extends UrlLauncherPlatform {
     return _hostApi.closeWebView();
   }
 
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    final bool inApp;
+    switch (options.mode) {
+      case PreferredLaunchMode.inAppWebView:
+      case PreferredLaunchMode.inAppBrowserView:
+        inApp = true;
+      case PreferredLaunchMode.externalApplication:
+      case PreferredLaunchMode.externalNonBrowserApplication:
+        inApp = false;
+      case PreferredLaunchMode.platformDefault:
+      default:
+        inApp = url.startsWith('http:') || url.startsWith('https:');
+    }
+
+    final bool succeeded;
+    if (inApp) {
+      succeeded = await _hostApi.openUrlInWebView(
+          url,
+          WebViewOptions(
+              enableJavaScript: options.webViewConfiguration.enableJavaScript,
+              enableDomStorage: options.webViewConfiguration.enableDomStorage,
+              headers: options.webViewConfiguration.headers),
+          BrowserOptions(
+              showTitle: options.browserConfiguration.showTitle));
+    } else {
+      succeeded =
+          await _hostApi.launchUrl(url, options.webViewConfiguration.headers);
+    }
+
+    if (!succeeded) {
+      throw PlatformException(
+          code: 'ACTIVITY_NOT_FOUND',
+          message: 'No Activity found to handle intent { $url }');
+    }
+
+    return succeeded;
+  }
+
+  @override
+  Future<bool> supportsMode(PreferredLaunchMode mode) async {
+    switch (mode) {
+      case PreferredLaunchMode.platformDefault:
+      case PreferredLaunchMode.inAppWebView:
+      case PreferredLaunchMode.inAppBrowserView:
+      case PreferredLaunchMode.externalApplication:
+        return true;
+      case PreferredLaunchMode.externalNonBrowserApplication:
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  @override
+  Future<bool> supportsCloseForMode(PreferredLaunchMode mode) async {
+    return mode == PreferredLaunchMode.inAppWebView ||
+        mode == PreferredLaunchMode.inAppBrowserView;
+  }
+
   // TODO(stuartmorgan): Implement launchUrl, and make this a passthrough
   // to launchUrl. See also https://github.com/flutter/flutter/issues/66721
   @override
@@ -73,26 +133,16 @@ class UrlLauncherOhos extends UrlLauncherPlatform {
     required Map<String, String> headers,
     String? webOnlyWindowName,
   }) async {
-    final bool succeeded;
-    if (useWebView) {
-      succeeded = await _hostApi.openUrlInWebView(
-          url,
-          WebViewOptions(
-              enableJavaScript: enableJavaScript,
-              enableDomStorage: enableDomStorage,
-              headers: headers));
-    } else {
-      succeeded = await _hostApi.launchUrl(url, headers);
-    }
-    // TODO(stuartmorgan): Remove this special handling as part of a
-    // breaking change to rework failure handling across all platform. The
-    // current behavior is backwards compatible with the previous Java error.
-    if (!succeeded) {
-      throw PlatformException(
-          code: 'ACTIVITY_NOT_FOUND',
-          message: 'No Activity found to handle intent { $url }');
-    }
-    return succeeded;
+    return launchUrl(
+        url,
+        LaunchOptions(
+            mode: useWebView
+                ? PreferredLaunchMode.inAppWebView
+                : PreferredLaunchMode.externalApplication,
+            webViewConfiguration: InAppWebViewConfiguration(
+                enableDomStorage: enableDomStorage,
+                enableJavaScript: enableJavaScript,
+                headers: headers)));
   }
 
   // Returns the part of [url] up to the first ':', or an empty string if there

@@ -127,6 +127,8 @@ export class UrlLauncherApiCodec extends StandardMessageCodec {
     switch (type) {
       case 128:
         return WebViewOptions.fromList(super.readValue(buffer) as Array<Object>);
+      case 129:
+        return BrowserOptions.fromList(super.readValue(buffer) as Array<Object>);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -136,10 +138,51 @@ export class UrlLauncherApiCodec extends StandardMessageCodec {
     if (value instanceof WebViewOptions) {
       stream.writeInt8(128);
       this.writeValue(stream, (value as WebViewOptions).toList());
+    } else if (value instanceof BrowserOptions) {
+      stream.writeInt8(129);
+      this.writeValue(stream, (value as BrowserOptions).toList());
     } else {
       super.writeValue(stream, value);
     }
   }
+}
+
+/**
+ * Configuration options for a browser view.
+ *
+ */
+export class BrowserOptions {
+  private showTitle: boolean = false;
+
+  public getShowTitle(): boolean {
+    return this.showTitle;
+  }
+
+  public setShowTitle(setterArg: boolean): void {
+    if (setterArg == null) {
+      throw new ReferenceError("Nonnull field \"showTitle\" is null.");
+    }
+    this.showTitle = setterArg;
+  }
+
+  toList(): Array<ESObject> {
+    let toListResult = new Array<Object>();
+    toListResult.push(this.showTitle);
+    return toListResult;
+  }
+
+  static fromList(list: Array<Object>): BrowserOptions {
+    if (!list || list.length < 1) {
+      throw new FlutterError("INVALID_DATA", "BrowserOptions list is empty", null);
+    }
+    let result = new BrowserOptions();
+    let showTitle = list[0] as boolean;
+    result.setShowTitle(showTitle);
+    return result;
+  }
+
+  /** Constructor is non-public to enforce null safety; use Builder. */
+  private BrowserOptions() {}
 }
 
 export interface UrlLauncherApi {
@@ -150,7 +193,7 @@ export interface UrlLauncherApi {
   launchUrl(url: string, headers: Map<string, string>): boolean;
 
   /** Opens the URL in an in-app WebView, returning true if it opens successfully. */
-  openUrlInWebView(url: string, options: WebViewOptions): boolean;
+  openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): boolean;
 
   /** Closes the view opened by [openUrlInSafariViewController]. */
   closeWebView(): boolean;

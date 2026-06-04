@@ -53,6 +53,8 @@ class _MyHomePageState extends State<MyHomePage> {
   Future<void>? _launched;
   String _phone = '';
   String? _launchAppGalleryLog = null;
+  Map<PreferredLaunchMode, bool> _supportsModeResults = {};
+  Map<PreferredLaunchMode, bool> _supportsCloseForModeResults = {};
 
   @override
   void initState() {
@@ -194,6 +196,43 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Future<void> _checkSupportsMode() async {
+    final modes = PreferredLaunchMode.values;
+    final Map<PreferredLaunchMode, bool> results = {};
+    for (final mode in modes) {
+      results[mode] = await launcher.supportsMode(mode);
+    }
+    setState(() {
+      _supportsModeResults = results;
+    });
+  }
+
+  Future<void> _checkSupportsCloseForMode() async {
+    final modes = PreferredLaunchMode.values;
+    final Map<PreferredLaunchMode, bool> results = {};
+    for (final mode in modes) {
+      results[mode] = await launcher.supportsCloseForMode(mode);
+    }
+    setState(() {
+      _supportsCloseForModeResults = results;
+    });
+  }
+
+  String _modeName(PreferredLaunchMode mode) {
+    switch (mode) {
+      case PreferredLaunchMode.platformDefault:
+        return 'platformDefault';
+      case PreferredLaunchMode.inAppWebView:
+        return 'inAppWebView';
+      case PreferredLaunchMode.inAppBrowserView:
+        return 'inAppBrowserView';
+      case PreferredLaunchMode.externalApplication:
+        return 'externalApplication';
+      case PreferredLaunchMode.externalNonBrowserApplication:
+        return 'externalNonBrowserApplication';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     // onPressed calls using this URL are not gated on a 'canLaunch' check
@@ -290,6 +329,26 @@ class _MyHomePageState extends State<MyHomePage> {
               ),
               if (_launchAppGalleryLog?.isNotEmpty ?? false)
                 Text(_launchAppGalleryLog!),
+              const Padding(padding: EdgeInsets.all(16.0)),
+              const Divider(),
+              const Text('supportsMode', style: TextStyle(fontWeight: FontWeight.bold)),
+              ElevatedButton(
+                onPressed: _checkSupportsMode,
+                child: const Text('Check supportsMode'),
+              ),
+              if (_supportsModeResults.isNotEmpty)
+                ..._supportsModeResults.entries.map((entry) => Text(
+                    '${_modeName(entry.key)}: ${entry.value ? "Supported" : "Not supported"}')),
+              const Padding(padding: EdgeInsets.all(16.0)),
+              const Divider(),
+              const Text('supportsCloseForMode', style: TextStyle(fontWeight: FontWeight.bold)),
+              ElevatedButton(
+                onPressed: _checkSupportsCloseForMode,
+                child: const Text('Check supportsCloseForMode'),
+              ),
+              if (_supportsCloseForModeResults.isNotEmpty)
+                ..._supportsCloseForModeResults.entries.map((entry) => Text(
+                    '${_modeName(entry.key)}: ${entry.value ? "Can close" : "Cannot close"}')),
               const Padding(padding: EdgeInsets.all(16.0)),
               FutureBuilder<void>(future: _launched, builder: _launchStatus),
             ],
