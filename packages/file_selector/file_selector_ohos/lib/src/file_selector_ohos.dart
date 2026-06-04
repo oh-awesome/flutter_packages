@@ -19,8 +19,9 @@ import 'package:file_selector_platform_interface/file_selector_platform_interfac
 import 'package:flutter/cupertino.dart';
 
 import 'file_selector_api.g.dart';
+import 'types/native_illegal_argument_exception.dart';
 
-/// An implementation of [FileSelectorPlatform] for Android.
+/// An implementation of [FileSelectorPlatform] for OHOS.
 class FileSelectorOhos extends FileSelectorPlatform {
   FileSelectorOhos({@visibleForTesting FileSelectorApi? api})
       : _api = api ?? FileSelectorApi();
@@ -70,6 +71,9 @@ class FileSelectorOhos extends FileSelectorPlatform {
   }
 
   XFile _xFileFromFileResponse(FileResponse file) {
+    if (file.fileSelectorNativeException != null) {
+      _resolveErrorCodeAndMaybeThrow(file.fileSelectorNativeException!);
+    }
     return XFile.fromData(
       file.bytes,
       // Note: The name parameter is not used by XFile. The XFile.name returns
@@ -95,8 +99,8 @@ class FileSelectorOhos extends FileSelectorPlatform {
           group.extensions == null) {
         throw ArgumentError(
           'Provided type group $group does not allow all files, but does not '
-          'set any of the Android supported filter categories. At least one of '
-          '"extensions" or "mimeTypes" must be non-empty for Android.',
+          'set any supported filter categories. At least one of '
+          '"extensions" or "mimeTypes" must be non-empty.',
         );
       }
 
@@ -108,5 +112,20 @@ class FileSelectorOhos extends FileSelectorPlatform {
       mimeTypes: mimeTypes.toList(),
       extensions: extensions.toList(),
     );
+  }
+
+  void _resolveErrorCodeAndMaybeThrow(
+    FileSelectorNativeException fileSelectorNativeException,
+  ) {
+    switch (fileSelectorNativeException.fileSelectorExceptionCode) {
+      case FileSelectorExceptionCode.illegalArgumentException:
+        throw NativeIllegalArgumentException(
+          fileSelectorNativeException.message,
+        );
+      case FileSelectorExceptionCode.illegalStateException:
+      case FileSelectorExceptionCode.ioException:
+      case FileSelectorExceptionCode.securityException:
+        break;
+    }
   }
 }

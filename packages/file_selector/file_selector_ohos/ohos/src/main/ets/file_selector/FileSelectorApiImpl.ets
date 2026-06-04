@@ -15,24 +15,74 @@
 */
 
 import fs from '@ohos.file.fs';
-import picker from '@ohos.file.picker';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
-import { Result, FileTypes, FileResponse, FileSelectorApiCodec, wrapError } from './GeneratedFileSelectorApi'
+import {
+  Result,
+  FileTypes,
+  FileResponse,
+  FileSelectorApiCodec,
+  FileSelectorNativeException,
+  FileSelectorExceptionCode,
+  FILE_SELECTOR_EXCEPTION_PLACEHOLDER_PATH
+} from './GeneratedFileSelectorApi'
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
 import common from '@ohos.app.ability.common';
-import { photoPickerSelect, documentPickerSelect, filePicker, getMimeTypeFromPath } from './FIleSelectorUtil'
+import {
+  filePicker,
+  getMimeTypeFromPath
+} from './FIleSelectorUtil'
 import ArrayList from '@ohos.util.ArrayList';
-import List from '@ohos.util.List';
 
 const TAG = "FileSelectorApiImpl";
-const DOCUMENT = "Document";
-const TEXT_MIME_TYPE = "text/*";
-const MIME_TYPE = "*/*";
-const PICTURE = "Picture";
-const TEXT = "Text";
+
+class PathTraversalException extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'PathTraversalException';
+  }
+}
+
+class FileContent {
+  mimeType: string;
+  size: number;
+  byteArray: Uint8Array;
+
+  constructor(mimeType: string, size: number, byteArray: Uint8Array) {
+    this.mimeType = mimeType;
+    this.size = size;
+    this.byteArray = byteArray;
+  }
+}
+
+function sanitizeFileName(displayName: string): string {
+  const badCharacters: Array<string> = ['..', '/'];
+  const segments: Array<string> = displayName.split('/');
+  let fileName: string = segments[segments.length - 1];
+  // Use literal split/join (aligned with Android FileUtils.sanitizeFilename), not regex.
+  for (const suspString of badCharacters) {
+    fileName = fileName.split(suspString).join('_');
+  }
+  return fileName;
+}
+
+function verifyPathWithinDirectory(filePath: string, expectedDir: string): void {
+  if (filePath.indexOf('..') >= 0) {
+    throw new PathTraversalException(
+      'Trying to open path outside of the expected directory. File: ' + filePath +
+      ' was expected to be within directory: ' + expectedDir + '.'
+    );
+  }
+  if (!filePath.startsWith(expectedDir)) {
+    throw new PathTraversalException(
+      'Trying to open path outside of the expected directory. File: ' + filePath +
+      ' was expected to be within directory: ' + expectedDir + '.'
+    );
+  }
+}
+
 export class FileSelectorApiImpl {
 
   binding: AbilityPluginBinding;
@@ -56,24 +106,16 @@ export class FileSelectorApiImpl {
         return;
       }
       try {
-        let fileUris = await this.getUrisForPaths(uris);
-        if (fileUris.length !== uris.length || fileUris.length === 0) {
-          result.error(new Error('Failed to copy selected file to cache directory.'));
+        const file: FileResponse | null =
+          await FileSelectorApiImpl.buildFileResponseFromSelectedUri(uris[0], () => this.getUrisForPaths([uris[0]]));
+        if (file == null) {
+          result.error(new Error('Failed to read file: ' + uris[0]));
           return;
         }
-        let uri: string = fileUris[0];
-        const fileName: string = uri.substring(uri.lastIndexOf('/') + 1);
-        Log.i(TAG, 'documentPickerSelect select file successfully, documentPicker uri: ' + uri);
-        FileSelectorApiImpl.toFileResponse(uri, fileName)
-          .then((file) => {
-            result.success(file);
-          }).catch((err: ESObject) => {
-          Log.e(TAG, 'documentPickerSelect select file failed with err: ' + err);
-          result.error(err);
-        });
+        result.success(file);
       } catch (err) {
         Log.e(TAG, 'Failed to prepare selected file: ' + JSON.stringify(err));
-        result.error(new Error('Failed to prepare selected file.'));
+        result.error(err instanceof Error ? err : new Error('Failed to prepare selected file.'));
       }
     }).catch((err: ESObject) => {
       Log.e(TAG, 'filePicker failed with err: ' + JSON.stringify(err));
@@ -85,7 +127,7 @@ export class FileSelectorApiImpl {
     Log.d(TAG, 'openFiles mimeTypes:' + allowedTypes.mimeTypes
       + ' extensions:' + allowedTypes.extensions + ' dir:' + initialDirectory);
 
-    filePicker(initialDirectory, allowedTypes).then((filePickerResult: ESObject) => {
+    filePicker(initialDirectory, allowedTypes).then(async (filePickerResult: ESObject) => {
       if (filePickerResult == undefined) {
         Log.i(TAG, 'documentPickerSelect cancelled or no files selected');
         result.success([]);
@@ -97,155 +139,32 @@ export class FileSelectorApiImpl {
         result.success([]);
         return;
       }
-      Log.i(TAG, 'documentPickerSelect select files successfully, documentPicker uris: ' + filePickerResult);
-      FileSelectorApiImpl.toFileListResponse(uris)
-        .then((file) => {
-          result.success(file);
-        }).catch((err: ESObject) => {
-        Log.e(TAG, 'documentPickerSelect select files failed with err: ' + err);
-        result.error(err);
-      });
+      try {
+        const files: Array<FileResponse> = [];
+        for (let i = 0; i < uris.length; i++) {
+          const uri: string = uris[i];
+          const file: FileResponse | null =
+            await FileSelectorApiImpl.buildFileResponseFromSelectedUri(uri, () => this.getUrisForPaths([uri]));
+          if (file == null) {
+            result.error(new Error('Failed to read file: ' + uri));
+            return;
+          }
+          files.push(file);
+        }
+        Log.i(TAG, 'documentPickerSelect select files successfully, count: ' + files.length);
+        result.success(files);
+      } catch (err) {
+        Log.e(TAG, 'documentPickerSelect select files failed with err: ' + JSON.stringify(err));
+        result.error(err instanceof Error ? err : new Error('Failed to read selected files.'));
+      }
     }).catch((err: ESObject) => {
       Log.e(TAG, 'filePicker failed with err: ' + JSON.stringify(err));
       result.error(new Error('Failed to open file picker.'));
     });
   }
 
-  openFile(initialDirectory: string, allowedTypes: FileTypes, result: Result<FileResponse>): void {
-    if (allowedTypes.getMimeTypes().length == 0) {
-      allowedTypes.setMimeTypes(tryConvertExtensionsToMimetypes(allowedTypes.getExtensions()));
-    }
-    Log.d(TAG, 'openFile types:' + allowedTypes.mimeTypes + ' dir:' + initialDirectory)
-    for (let type of allowedTypes.getMimeTypes()) {
-      Log.d(TAG, 'openFile type:' + type)
-      switch (type) {
-        case picker.PhotoViewMIMETypes.IMAGE_TYPE:
-        case picker.PhotoViewMIMETypes.VIDEO_TYPE:
-        case picker.PhotoViewMIMETypes.IMAGE_VIDEO_TYPE:
-          try {
-            let PhotoSelectOptions = new picker.PhotoSelectOptions();
-            PhotoSelectOptions.MIMEType = type;
-            PhotoSelectOptions.maxSelectNumber = 1;
-            photoPickerSelect(PhotoSelectOptions, this.getContext()).then((PhotoSelectResult: picker.PhotoSelectResult) => {
-              console.info('PhotoViewPicker.select successfully, PhotoSelectResult uri: ' + JSON.stringify(PhotoSelectResult));
-              let res: picker.PhotoSelectResult = PhotoSelectResult;
-              const photoUri: string = res.photoUris[0];
-              const photoName: string = photoUri.substring(photoUri.lastIndexOf('/') + 1);
-              FileSelectorApiImpl.toFileResponse(photoUri, photoName)
-                .then((file) => {
-                  result.success(file);
-              }).catch((err: ESObject) => {
-                  Log.e(TAG, 'PhotoViewPicker.select failed with err: ' + err);
-                  result.error(err);
-              });
-            }).catch((err: ESObject) => {
-              Log.e(TAG, 'PhotoViewPicker.select failed with err: ' + err);
-              result.error(new Error("Failed to read file, err: " + err));
-            });
-          } catch (err) {
-            console.error('PhotoViewPicker failed with err: ' + err);
-            result.error(new Error("Failed to read file: " + initialDirectory));
-          }
-          break;
-        case DOCUMENT:
-          try {
-            let documentSelectOptions = new picker.DocumentSelectOptions();
-            documentSelectOptions.maxSelectNumber = 1;
-            documentPickerSelect(documentSelectOptions, this.getContext()).then((documentPickerResult: ESObject) => {
-              if (Number.isNaN(Number(documentPickerResult))) {
-                let uri: string = documentPickerResult[0];
-                const docName: string = uri.substring(uri.lastIndexOf('/') + 1);
-                Log.i(TAG,'documentPickerSelect select successfully, documentPicker uri: ' + uri);
-                FileSelectorApiImpl.toFileResponse(uri, docName)
-                  .then((file) => {
-                    result.success(file);
-                  }).catch((err: ESObject) => {
-                  Log.e(TAG, 'documentPickerSelect select failed with err: ' + err);
-                  result.error(err);
-                });
-              } else {
-                Log.e(TAG, 'documentPickerSelect select failed with errCode: ' + documentPickerResult);
-                result.error(new Error("Failed to select file with errCode: " + documentPickerResult))
-              }
-            });
-          } catch (err) {
-            Log.e(TAG, 'documentPickerSelect select failed with err: ' + err);
-            result.error(new Error("Failed to read file: " + initialDirectory));
-          }
-          break;
-        default :
-          break;
-      }
-    }
-  }
-
   getContext(): common.UIAbilityContext {
     return this.binding.getAbility().context;
-  }
-
-  openFiles(initialDirectory: string, allowedTypes: FileTypes, result: Result<Array<FileResponse>>): void {
-    if (allowedTypes.getMimeTypes().length == 0) {
-      allowedTypes.setMimeTypes(tryConvertExtensionsToMimetypes(allowedTypes.getExtensions()));
-    }
-    for (let type of allowedTypes.getMimeTypes()) {
-      Log.d(TAG, 'openFiles type:' + type)
-      switch (type) {
-        case picker.PhotoViewMIMETypes.IMAGE_TYPE:
-        case picker.PhotoViewMIMETypes.VIDEO_TYPE:
-        case picker.PhotoViewMIMETypes.IMAGE_VIDEO_TYPE:
-          try {
-            let PhotoSelectOptions = new picker.PhotoSelectOptions();
-            PhotoSelectOptions.MIMEType = type;
-            PhotoSelectOptions.maxSelectNumber = 5;
-            photoPickerSelect(PhotoSelectOptions, this.getContext()).then((PhotoSelectResult: picker.PhotoSelectResult) => {
-              Log.i(TAG, 'PhotoViewPicker.select successfully, PhotoSelectResult uri: ' + JSON.stringify(PhotoSelectResult));
-              const res: picker.PhotoSelectResult = PhotoSelectResult;
-              FileSelectorApiImpl.toFileListResponse(res.photoUris)
-                .then((files) => {
-                  Log.i(TAG, 'PhotoViewPicker.select successfully, uri: ' + JSON.stringify(PhotoSelectResult));
-                  result.success(files);
-                }).catch((err: ESObject) => {
-                  Log.e(TAG, 'PhotoViewPicker.select failed with err: ' + err);
-                  result.error(err);
-              });
-            }).catch((err: ESObject) => {
-              Log.e(TAG, 'PhotoViewPicker.select failed with err: ' + err);
-              result.error(new Error("Failed to read file, err: " + err));
-            });
-          } catch (err) {
-            Log.e(TAG, 'PhotoViewPicker failed with err: ' + err);
-            result.error(new Error("Failed to read file: " + initialDirectory));
-          }
-          break;
-        case DOCUMENT:
-          try {
-            let documentSelectOptions = new picker.DocumentSelectOptions();
-            documentSelectOptions.maxSelectNumber = 5;
-            documentPickerSelect(documentSelectOptions, this.getContext()).then((documentPickerResult: ESObject) => {
-              if (Number.isNaN(Number(documentPickerResult))) {
-                let pickerResult = documentPickerResult as Array<string>;
-                Log.i(TAG,'documentPickerSelect select successfully, documentPicker uris: ' + pickerResult.toString());
-                FileSelectorApiImpl.toFileListResponse(pickerResult)
-                  .then((files) => {
-                    result.success(files);
-                  }).catch((err: ESObject) => {
-                  Log.e(TAG, 'documentPickerSelect select failed with err: ' + err);
-                  result.error(err);
-                });
-              } else {
-                Log.e(TAG, 'documentPickerSelect select failed with errCode: ' + documentPickerResult);
-                result.error(new Error("Failed to select file with errCode: " + documentPickerResult))
-              }
-            });
-          } catch (err) {
-            Log.e(TAG, 'documentPickerSelect select failed with err: ' + err);
-            result.error(new Error("Failed to read file: " + initialDirectory));
-          }
-          break;
-        default :
-          break;
-      }
-    }
   }
 
   getDirectoryPath(initialDirectory: string, result: Result<string>): void {
@@ -267,7 +186,11 @@ export class FileSelectorApiImpl {
         const path: string = paths[i];
         const oldFile: fs.File = fs.openSync(path);
         try {
-          const newFile: string = folder + '/' + oldFile.name;
+          const sanitizedName: string = sanitizeFileName(oldFile.name);
+          // Align with Android {cacheDir}/{uuid}/{fileName}; use system mkdtemp for unique subdir.
+          const targetDir: string = fs.mkdtempSync(folder + '/file_selector-XXXXXX');
+          const newFile: string = targetDir + '/' + sanitizedName;
+          verifyPathWithinDirectory(newFile, targetDir);
           fs.copyFileSync(oldFile.fd, newFile);
           uris.push(newFile);
         } finally {
@@ -276,7 +199,6 @@ export class FileSelectorApiImpl {
       }
       return uris;
     } catch (err) {
-      Log.e(TAG, 'Failed to getUrisForPaths: ' + JSON.stringify(err));
       for (let i = 0; i < uris.length; i++) {
         const copiedUri: string = uris[i];
         try {
@@ -285,6 +207,10 @@ export class FileSelectorApiImpl {
           Log.w(TAG, 'Failed to cleanup copied file: ' + copiedUri + ', err: ' + JSON.stringify(cleanupErr));
         }
       }
+      if (err instanceof PathTraversalException) {
+        throw err;
+      }
+      Log.e(TAG, 'Failed to getUrisForPaths: ' + JSON.stringify(err));
       throw new Error('Failed to copy selected files to cache directory.');
     }
   }
@@ -341,79 +267,71 @@ export class FileSelectorApiImpl {
     }
   }
 
-  static async toFileResponse(uri: string, name: string): Promise<FileResponse> {
-    const mimeType: string = getMimeTypeFromPath(uri, name);
-    let file = fs.openSync(uri);
+  static readFileContent(uri: string, name: string): FileContent | null {
     try {
-      let stat = fs.statSync(file.fd);
-      let size = stat.size;
-      let buffer = new ArrayBuffer(size);
-      fs.readSync(file.fd, buffer, {offset: 0, length: size});
-      let byteArray = new Uint8Array(buffer);
-      let response = new FileResponse(uri, mimeType, name, size, byteArray);
-      return new Promise((resolve) => {
-        resolve(response);
-      })
-    } finally {
-      fs.closeSync(file);
+      const mimeType: string = getMimeTypeFromPath(uri, name);
+      const file: fs.File = fs.openSync(uri);
+      try {
+        const stat: fs.Stat = fs.statSync(file.fd);
+        const size: number = stat.size;
+        // Align with Android: unknown/invalid size cannot be read reliably.
+        if (size < 0) {
+          Log.w(TAG, 'File size is unknown or invalid: ' + size);
+          return null;
+        }
+        const buffer: ArrayBuffer = new ArrayBuffer(size);
+        fs.readSync(file.fd, buffer, { offset: 0, length: size });
+        const byteArray: Uint8Array = new Uint8Array(buffer);
+        return new FileContent(mimeType, size, byteArray);
+      } finally {
+        fs.closeSync(file);
+      }
+    } catch (err) {
+      Log.e(TAG, 'Failed to read file: ' + JSON.stringify(err));
+      return null;
     }
   }
 
-  static async toFileListResponse(uris: string[]): Promise<Array<FileResponse>> {
-    let files = new Array<FileResponse>();
-    for (let i = 0; i < uris.length; i++) {
-      const uri: string = uris[i];
-      const name: string = uri.substring(uri.lastIndexOf('/') + 1);
-      try {
-        const mimeType: string = getMimeTypeFromPath(uri, name);
-        let file = fs.openSync(uri);
-        try {
-          let stat = fs.statSync(file.fd);
-          let size = stat.size;
-          let buffer = new ArrayBuffer(size);
-          fs.readSync(file.fd, buffer, {offset: 0, length: size});
-          let byteArray = new Uint8Array(buffer);
-          let response = new FileResponse(uri, mimeType, name, size, byteArray);
-          files.push(response);
-        } finally {
-          fs.closeSync(file);
-        }
-      } catch (err) {
-        Log.e(TAG, 'Skip unreadable file uri: ' + uri + ', err: ' + JSON.stringify(err));
+  static async buildFileResponseFromSelectedUri(
+    selectedUri: string,
+    copyToCache: () => Promise<Array<string>>
+  ): Promise<FileResponse | null> {
+    const fileName: string = selectedUri.substring(selectedUri.lastIndexOf('/') + 1);
+    const content: FileContent | null = FileSelectorApiImpl.readFileContent(selectedUri, fileName);
+    if (content == null) {
+      return null;
+    }
+
+    // Align with Android: path is only set when copy to cache succeeds.
+    let responsePath: string = '';
+    let nativeException: FileSelectorNativeException | null = null;
+    try {
+      const cachedUris: Array<string> = await copyToCache();
+      if (cachedUris.length > 0) {
+        responsePath = cachedUris[0];
+      }
+    } catch (err) {
+      if (err instanceof PathTraversalException) {
+        responsePath = FILE_SELECTOR_EXCEPTION_PLACEHOLDER_PATH;
+        nativeException = new FileSelectorNativeException(
+          FileSelectorExceptionCode.ILLEGAL_ARGUMENT_EXCEPTION,
+          err.message
+        );
+      } else {
+        Log.w(TAG, 'Failed to copy selected file to cache: ' + JSON.stringify(err));
+        responsePath = '';
       }
     }
 
-    return new Promise((resolve) => {
-      resolve(files);
-    })
+    return new FileResponse(
+      responsePath,
+      content.mimeType,
+      fileName,
+      content.size,
+      content.byteArray,
+      nativeException
+    );
   }
-}
-
-function tryConvertExtensionsToMimetypes(list: Array<string>): Array<string> | null {
-  if (list == undefined || list.length == 0) {
-    Log.w(TAG, 'list is empty')
-    return null;
-  }
-  let mimeTypes = new Array<string>()
-  for (let str of list) {
-    switch (str) {
-      case 'png':
-      case 'jpg':
-      case 'jpeg':
-        if (mimeTypes.indexOf(picker.PhotoViewMIMETypes.IMAGE_TYPE) == -1) {
-          mimeTypes.push(picker.PhotoViewMIMETypes.IMAGE_TYPE)
-        }
-        break;
-      case 'txt':
-      case 'json':
-      default :
-        if (mimeTypes.indexOf(DOCUMENT) == -1) {
-          mimeTypes.push(DOCUMENT);
-        }
-        break;
-    }
-  }
-  return mimeTypes;
 }
 
 class ResultBuilder{

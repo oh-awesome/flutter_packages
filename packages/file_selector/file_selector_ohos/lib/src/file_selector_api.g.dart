@@ -19,6 +19,40 @@ import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
 import 'package:flutter/services.dart';
 
+enum FileSelectorExceptionCode {
+  securityException,
+  ioException,
+  illegalArgumentException,
+  illegalStateException,
+}
+
+class FileSelectorNativeException {
+  FileSelectorNativeException({
+    required this.fileSelectorExceptionCode,
+    required this.message,
+  });
+
+  FileSelectorExceptionCode fileSelectorExceptionCode;
+
+  String message;
+
+  Object encode() {
+    return <Object?>[
+      fileSelectorExceptionCode.index,
+      message,
+    ];
+  }
+
+  static FileSelectorNativeException decode(Object result) {
+    result as List<Object?>;
+    return FileSelectorNativeException(
+      fileSelectorExceptionCode:
+          FileSelectorExceptionCode.values[result[0]! as int],
+      message: result[1]! as String,
+    );
+  }
+}
+
 class FileResponse {
   FileResponse({
     required this.path,
@@ -26,6 +60,7 @@ class FileResponse {
     this.name,
     required this.size,
     required this.bytes,
+    this.fileSelectorNativeException,
   });
 
   String path;
@@ -38,6 +73,8 @@ class FileResponse {
 
   Uint8List bytes;
 
+  FileSelectorNativeException? fileSelectorNativeException;
+
   Object encode() {
     return <Object?>[
       path,
@@ -45,6 +82,7 @@ class FileResponse {
       name,
       size,
       bytes,
+      fileSelectorNativeException,
     ];
   }
 
@@ -56,6 +94,9 @@ class FileResponse {
       name: result[2] as String?,
       size: result[3]! as int,
       bytes: result[4]! as Uint8List,
+      fileSelectorNativeException: result.length > 5
+          ? result[5] as FileSelectorNativeException?
+          : null,
     );
   }
 }
@@ -96,6 +137,9 @@ class _FileSelectorApiCodec extends StandardMessageCodec {
     } else if (value is FileTypes) {
       buffer.putUint8(129);
       writeValue(buffer, value.encode());
+    } else if (value is FileSelectorNativeException) {
+      buffer.putUint8(130);
+      writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
     }
@@ -108,6 +152,8 @@ class _FileSelectorApiCodec extends StandardMessageCodec {
         return FileResponse.decode(readValue(buffer)!);
       case 129:
         return FileTypes.decode(readValue(buffer)!);
+      case 130:
+        return FileSelectorNativeException.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }

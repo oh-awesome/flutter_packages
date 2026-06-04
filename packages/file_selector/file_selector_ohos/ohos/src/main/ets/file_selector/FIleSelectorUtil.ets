@@ -20,6 +20,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Log } from '@ohos/flutter_ohos';
 
 const TAG = "FileSelectorUtil";
+
 enum PhotoViewMIMETypes {
   IMAGE_TYPE = 'image/*',
   VIDEO_TYPE = 'video/*',
@@ -289,7 +290,10 @@ export async function filePicker(initialDirectory: string, allowedTypes: FileTyp
       file_suffix_set.add(normalizeFileSuffix(extensionType));
     }
   }
-  documentSelectOptions.fileSuffixFilters = Array.from(file_suffix_set);
+  // Omit fileSuffixFilters when empty to allow all types, aligned with setType("*/*").
+  if (file_suffix_set.size > 0) {
+    documentSelectOptions.fileSuffixFilters = Array.from(file_suffix_set);
+  }
   try {
     const documentViewPicker = new picker.DocumentViewPicker();
     let documentSelectResult = await documentViewPicker.select(documentSelectOptions);
