@@ -14,8 +14,9 @@
   },
   "overrides": {
     "@ohos/flutter_ohos": "file:./har/flutter.har",
-    "image_picker_ohos": "../../ohos",
+    "image_picker_ohos": "file:./har/image_picker_ohos.har",
     "@ohos/flutter_module": "file:./entry",
-    "video_player_ohos": "../../../../../../PUB/git/flutter_packages-4b714ff0cb8df6a502b66c180272ea4082a7e7c0/packages/video_player/video_player_ohos/ohos"
+    "video_player_ohos": "file:./har/video_player_ohos.har",
+    "integration_test": "file:./har/integration_test.har"
   }
 }
