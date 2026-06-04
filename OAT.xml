@@ -147,6 +147,15 @@
                 <filteritem type="filepath" name="packages/animations/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/animations/example/screenshots/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/animations/example/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/test_driver/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>	 
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
@@ -185,6 +194,7 @@
                 <filteritem type="filepath" name="packages/local_auth/local_auth_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/local_auth/local_auth_ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/local_auth/local_auth_platform_interface/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/local_auth/local_auth_darwin/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
@@ -215,6 +225,7 @@
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_platform_interface/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_web/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_tool/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/url_launcher/url_launcher_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/url_launcher/url_launcher_ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/url_launcher/url_launcher_linux/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
