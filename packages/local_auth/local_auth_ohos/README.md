@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/local_auth/local_auth
-      ref: br_local_auth-v2.3.0_ohos
+      ref: br_local_auth-v2.3.0_ohos_dev
 ```
 
 Execute Command
