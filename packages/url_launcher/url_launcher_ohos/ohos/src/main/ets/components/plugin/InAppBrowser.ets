@@ -16,6 +16,20 @@ import web_webview from '@ohos.web.webview';
 import router from '@ohos.router';
 import { ValueType } from '@kit.ArkData';
 import { emitter } from '@kit.BasicServicesKit';
+import window from '@ohos.window';
+import common from '@ohos.app.ability.common';
+
+class WebHeaderItem {
+  headerKey: string = '';
+  headerValue: string = '';
+}
+
+class BrowserRouterParams {
+  url: string = '';
+  options: Record<string, ValueType> = {};
+  headers: Record<string, string> = {};
+  browserOptions: Record<string, ValueType> = {};
+}
 
 @Entry
 @Component
@@ -23,44 +37,88 @@ export struct InAppBrowser {
   webviewController: web_webview.WebviewController = new web_webview.WebviewController()
 
   private url?: string;
-  private my_header_value?: string;
+  private headers: Record<string, string> = {};
   private enableJavaScript: boolean = true;
   private enableDomStorage: boolean = true;
-  private flage: boolean = false;
+  private showTitle: boolean = false;
+  private pageTitle: string = '';
+  @State statusBarHeight: number = 32;
 
   aboutToDisappear() {
     emitter.off("closeWebView");
   }
 
   aboutToAppear(){
-    let params = router.getParams() as Map<string, ValueType>
-    this.url = params['url'] as string;
-    let options = params['options'] as Map<string, ValueType>;
-    this.enableJavaScript = options['enableJavaScript'] as boolean;
-    this.enableDomStorage = options['enableDomStorage'] as boolean;
-    this.my_header_value=  params ['my_header_key'] as string;
+    let params = router.getParams() as BrowserRouterParams;
+    this.url = params.url ?? '';
+    this.enableJavaScript = (params.options?.['enableJavaScript'] as boolean) ?? true;
+    this.enableDomStorage = (params.options?.['enableDomStorage'] as boolean) ?? true;
+    if (params.headers !== undefined && params.headers !== null) {
+      this.headers = params.headers;
+    }
+    this.showTitle = (params.browserOptions?.['showTitle'] as boolean) ?? false;
     emitter.once("closeWebView", () => {
       console.info('closeWebView');
       router.back();
     });
+    try {
+      let context = getContext(this) as common.UIAbilityContext;
+      window.getLastWindow(context).then((win) => {
+        let avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+        let height = px2vp(avoidArea.topRect.height);
+        if (height > 0) {
+          this.statusBarHeight = height;
+        }
+      });
+    } catch (e) {
+      console.error('InAppBrowser: Failed to get status bar height: ' + JSON.stringify(e));
+    }
   }
   build() {
-    Row() {
-      Web({ src: this.url, controller: this.webviewController })
+    Column() {
+      Row() {  
+        if (this.showTitle) {
+          Text(this.pageTitle || 'Loading...')
+            .fontSize(16)
+            .fontWeight(FontWeight.Medium)
+            .margin({ left: 16 })
+        }
+      }
+      .width('100%')
+      .justifyContent(FlexAlign.Start)
+
+      Web({ src: '', controller: this.webviewController })
         .javaScriptAccess(this.enableJavaScript)
         .domStorageAccess(this.enableDomStorage)
-        .onRefreshAccessedHistory((event) => {
-          if (event &&  !this.flage) {
-            if (this.my_header_value != undefined) {
-              this.webviewController.loadUrl(this.url, [{ headerKey: "my_header_key", headerValue: this.my_header_value }]);
-              this.flage = true;
-            } else {
-              this.webviewController.loadUrl(this.url);
-              this.flage = true;
-            }
+        .layoutWeight(1)
+        .width('100%')
+        .onTitleReceive((event) => {
+          if (this.showTitle) {
+            this.pageTitle = event.title;
           }
         })
-
-    }.width('100%').height('100%')
+        .onControllerAttached(() => {
+          if (!this.url || this.url.length === 0) {
+            console.error('InAppBrowser: url is empty, skip loadUrl');
+            return;
+          }
+          let headerKeys = Object.keys(this.headers);
+          if (headerKeys.length > 0) {
+            let headerArray: Array<WebHeaderItem> = [];
+            headerKeys.forEach((key: string) => {
+              let item = new WebHeaderItem();
+              item.headerKey = key;
+              item.headerValue = this.headers[key];
+              headerArray.push(item);
+            });
+            this.webviewController.loadUrl(this.url, headerArray);
+          } else {
+            this.webviewController.loadUrl(this.url);
+          }
+        })
+    }
+    .width('100%')
+    .height('100%')
+    .padding({ top: this.statusBarHeight })
   }
 }
