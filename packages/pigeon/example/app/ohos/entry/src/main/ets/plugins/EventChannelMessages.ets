@@ -38,8 +38,8 @@ export class PlatformEvent {
   constructor() {
   }
 
-  toList(): (Object | undefined)[] {
-    let arr: (Object | undefined)[] = [];
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
     return arr;
   }
 
@@ -65,9 +65,9 @@ export class IntEvent {
     this.data = data;
   }
 
-  toList(): (Object | undefined)[] {
-    let arr: (Object | undefined)[] = [];
-    arr.push(this.data);
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
@@ -95,9 +95,9 @@ export class StringEvent {
     this.data = data;
   }
 
-  toList(): (Object | undefined)[] {
-    let arr: (Object | undefined)[] = [];
-    arr.push(this.data);
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 

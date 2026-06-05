@@ -113,17 +113,17 @@ export class MessageData {
     this.data = data;
   }
 
-  toList(): (Object | undefined)[] {
-    let arr: (Object | undefined)[] = [];
-    arr.push(this.name);
-    arr.push(this.description);
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.name !== undefined ? this.name : null);
+    arr.push(this.description !== undefined ? this.description : null);
     if (this.code !== undefined) {
       const codeStr = Code[this.code as number];
       arr.push(new CodeEnum(codeStr));
     } else {
-      arr.push(undefined);
+      arr.push(null);
     }
-    arr.push(this.data);
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
