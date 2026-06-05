@@ -1,52 +1,3 @@
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 # Copyright (c) 2025 Huawei Device Co., Ltd. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE_HW file.
@@ -96,13 +47,13 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.27.4-dev,oh-3.35.7-dev"]
+    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.41.9-dev"]
     required: true
 
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
-    args: ["flutter_packages", "br_webview_flutter-v4.13.0_ohos_dev"]
+    args: ["flutter_packages", "br_webview_flutter-v4.13.1_ohos_dev"]
     required: true
 
 # Compilation steps - executed in order
