@@ -324,9 +324,9 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('toList(): (Object | undefined)[] ');
+    indent.write('toList(): (Object | null)[] ');
     indent.addScoped('{', '}', () {
-      indent.writeln('let arr: (Object | undefined)[] = [];');
+      indent.writeln('let arr: (Object | null)[] = [];');
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         final String fieldName = field.name;
         if (field.type.isEnum) {
@@ -337,10 +337,11 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                 'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));');
           });
           indent.addScoped(null, '}', () {
-            indent.writeln('arr.push(undefined);');
+            indent.writeln('arr.push(null);');
           });
         } else {
-          indent.writeln('arr.push(this.$fieldName);');
+          indent.writeln(
+              'arr.push(this.$fieldName !== undefined ? this.$fieldName : null);');
         }
       }
       indent.writeln('return arr;');
