@@ -493,23 +493,16 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                       'let arrSecond:string = listReply[1] as string;');
                   indent
                       .writeln('let arrThird:string = listReply[2] as string;');
-                  String replyArr =
-                      '\'FlutterError:{"code":\'+arrFirst+\',"name":\'+arrSecond+\',"message":\'+arrThird+\'}\';';
-                  if (func.returnType.isVoid) {
-                    indent.writeln('let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
-                  } else {
-                    indent.writeln('let replyArr:$returnType = $replyArr');
-                  }
+                  indent.writeln(
+                      'let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
                   indent.writeln('callback.reply(replyArr);');
                 }, addTrailingNewline: false);
 
                 if (!func.returnType.isVoid) {
                   indent.addScoped('else if (listReply[0] == null) {', '} ',
                       () {
-                    String replyNull =
-                        'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}';
-                    indent
-                        .writeln('let replyNull:$returnType = \'$replyNull\'');
+                    indent.writeln(
+                        'let replyNull:ESObject = new FlutterError("null-error", "Flutter api returned null value for non-null return value.", "")');
                     indent.writeln('callback.reply(replyNull);');
                   }, addTrailingNewline: false);
                 }
@@ -534,13 +527,10 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                 });
               }, addTrailingNewline: false);
               indent.addScoped(' else {', '} ', () {
-                if (func.returnType.isVoid) {
-                  String connErr = 'let connErr:ESObject = new FlutterError('+"'channel-error'" + ', "Unable to establish connection on channel: " + channelName + ".", "")';
-                  indent.writeln(connErr);
-                } else {
-                  String connErr = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}';
-                  indent.writeln('let connErr:$returnType = \'$connErr\'');
-                }
+                indent.writeln(
+                    'let connErr:ESObject = new FlutterError(' +
+                        "'channel-error'" +
+                        ', "Unable to establish connection on channel: " + channelName + ".", "")');
                 indent.writeln('callback.reply(connErr);');
               });
             });
