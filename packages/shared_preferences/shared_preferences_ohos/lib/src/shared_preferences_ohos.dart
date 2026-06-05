@@ -15,10 +15,12 @@
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
 
 import 'messages.g.dart';
+import 'shared_preferences_async_ohos.dart';
 
 /// The Ohos implementation of [SharedPreferencesStorePlatform].
 ///
@@ -34,6 +36,8 @@ class SharedPreferencesOhos extends SharedPreferencesStorePlatform {
   /// Registers this class as the default instance of [SharedPreferencesStorePlatform].
   static void registerWith() {
     SharedPreferencesStorePlatform.instance = SharedPreferencesOhos();
+    // A temporary work-around for having two plugins contained in a single package.
+    SharedPreferencesAsyncOhos.registerWith();
   }
 
   static const String _defaultPrefix = 'flutter.';
