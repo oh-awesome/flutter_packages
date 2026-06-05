@@ -440,6 +440,11 @@ class CameraController extends ValueNotifier<CameraValue> {
     value = value.copyWith(focusMode: mode);
   }
 
+  /// Sets the image file format for taking pictures.
+  Future<void> setImageFileFormat(ImageFileFormat format) async {
+    await CameraPlatform.instance.setImageFileFormat(_cameraId, format);
+  }
+
   /// Sets the video stabilization mode.
   Future<void> setVideoStabilizationMode(VideoStabilizationMode mode) async {
     try {

@@ -6,6 +6,8 @@ import 'dart:typed_data';
 
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 
+import 'messages.g.dart';
+
 /// Converts method channel call [data] for `receivedImageStreamData` to a
 /// [CameraImageData].
 CameraImageData cameraImageFromPlatformData(Map<dynamic, dynamic> data) {
@@ -13,9 +15,9 @@ CameraImageData cameraImageFromPlatformData(Map<dynamic, dynamic> data) {
       format: _cameraImageFormatFromPlatformData(data['format']),
       height: data['height'] as int,
       width: data['width'] as int,
-      lensAperture: double.parse(data['lensAperture'].toString()),
+      lensAperture: (data['lensAperture'] as num?)?.toDouble(),
       sensorExposureTime: data['sensorExposureTime'] as int?,
-      sensorSensitivity: double.parse(data['sensorSensitivity'].toString()),
+      sensorSensitivity: (data['sensorSensitivity'] as num?)?.toDouble(),
       planes: List<CameraImagePlane>.unmodifiable(
           (data['planes'] as List<dynamic>).map<CameraImagePlane>(
               (dynamic planeData) => _cameraImagePlaneFromPlatformData(
@@ -46,4 +48,14 @@ CameraImagePlane _cameraImagePlaneFromPlatformData(Map<dynamic, dynamic> data) {
       bytesPerRow: data['bytesPerRow'] as int,
       height: data['height'] as int?,
       width: data['width'] as int?);
+}
+
+/// Converts a [ImageFileFormat] to its pigeon equivalent.
+PlatformImageFileFormat imageFileFormatToPlatform(ImageFileFormat format) {
+  switch (format) {
+    case ImageFileFormat.jpeg:
+      return PlatformImageFileFormat.jpeg;
+    case ImageFileFormat.heif:
+      return PlatformImageFileFormat.heif;
+  }
 }
