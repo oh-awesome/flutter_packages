@@ -528,6 +528,102 @@ void main() {
         // FlutterError fallback is emitted on connection failures.
         expect(collapsed, contains("new FlutterError('channel-error',"));
       });
+
+      test('nullable enum flutter method uses | undefined in signature', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[EnumMember(name: 'ADMIN')],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[],
+              fields: <ApiField>[],
+              methods: <Method>[
+                Method(
+                  name: 'flutterEchoNullableRole',
+                  location: ApiLocation.flutter,
+                  parameters: <Parameter>[
+                    Parameter(
+                      type: TypeDeclaration(
+                        baseName: 'ProxyRole',
+                        isNullable: true,
+                        associatedEnum: proxyRole,
+                      ),
+                      name: 'value',
+                    ),
+                  ],
+                  returnType: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: true,
+                    associatedEnum: proxyRole,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        expect(
+          collapsed,
+          contains(
+            'flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void',
+          ),
+        );
+      });
+
+      test('nullable enum host method uses | undefined in abstract signature', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[EnumMember(name: 'ADMIN')],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[],
+              fields: <ApiField>[],
+              methods: <Method>[
+                Method(
+                  name: 'echoNullableRole',
+                  location: ApiLocation.host,
+                  parameters: <Parameter>[
+                    Parameter(
+                      type: TypeDeclaration(
+                        baseName: 'ProxyRole',
+                        isNullable: true,
+                        associatedEnum: proxyRole,
+                      ),
+                      name: 'value',
+                    ),
+                  ],
+                  returnType: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: true,
+                    associatedEnum: proxyRole,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        expect(
+          collapsed,
+          contains(
+            'abstract echoNullableRole(pigeon_instance: ESObject, value: ProxyRole | undefined): ProxyRole | undefined;',
+          ),
+        );
+      });
     });
 
     group('pigeon_newInstance', () {
@@ -562,6 +658,12 @@ void main() {
         expect(
           collapsed,
           contains(
+            "new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '')",
+          ),
+        );
+        expect(
+          collapsed,
+          contains(
             'if (this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance))',
           ),
         );
@@ -574,6 +676,127 @@ void main() {
         expect(
           collapsed,
           contains("'dev.flutter.pigeon.test_package.Api.pigeon_newInstance'"),
+        );
+      });
+
+      test(
+        'returns new-instance-error when callback constructor is unavailable',
+        () {
+          final root = Root(
+            apis: <Api>[
+              AstProxyApi(
+                name: 'Api',
+                constructors: <Constructor>[],
+                fields: <ApiField>[
+                  ApiField(
+                    name: 'aValue',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: false,
+                    ),
+                    isAttached: false,
+                  ),
+                ],
+                methods: <Method>[
+                  Method(
+                    name: 'aCallbackMethod',
+                    returnType: const TypeDeclaration.voidDeclaration(),
+                    parameters: <Parameter>[],
+                    location: ApiLocation.flutter,
+                  ),
+                ],
+              ),
+            ],
+            classes: <Class>[],
+            enums: <Enum>[],
+          );
+          final code = _generate(root);
+          final collapsed = _collapseWhitespace(code);
+
+          expect(
+            collapsed,
+            isNot(contains('abstract aValue(pigeon_instance: ESObject): number;')),
+          );
+          expect(
+            collapsed,
+            contains(
+              "new FlutterError('new-instance-error', 'Attempting to create a new Dart instance of Api, but the class has a nonnull callback method.', '')",
+            ),
+          );
+          expect(
+            collapsed,
+            isNot(contains('addHostCreatedInstance(pigeon_instance)')),
+          );
+        },
+      );
+
+      test('surfaces Dart-side and connection errors from channel reply', () {
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[
+                Constructor(name: '', parameters: <Parameter>[]),
+              ],
+              fields: <ApiField>[],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        // Mirrors _writeProxyApiFlutterMethod / Kotlin newInstance error handling.
+        expect(
+          collapsed,
+          contains(
+            "channel.send([pigeon_identifier], channelReply => { if (Array.isArray(channelReply)) { let listReply: ESObject[] = channelReply as ESObject[]; if (listReply.length > 1) { let arrFirst: string = listReply[0] as string; let arrSecond: string = listReply[1] as string; let arrThird: string = listReply[2] as string; callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject); } else { callback.reply(); } } else { callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject); } });",
+          ),
+        );
+      });
+
+      test('encodes unattached enum fields in newInstance send list', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[
+            EnumMember(name: 'ADMIN'),
+            EnumMember(name: 'GUEST'),
+          ],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[
+                Constructor(name: '', parameters: <Parameter>[]),
+              ],
+              fields: <ApiField>[
+                ApiField(
+                  name: 'storedRole',
+                  type: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: false,
+                    associatedEnum: proxyRole,
+                  ),
+                  isAttached: false,
+                ),
+              ],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        expect(
+          collapsed,
+          contains(
+            'channel.send([pigeon_identifier, (storedRoleArg === null || storedRoleArg === undefined ? null : new ProxyRoleEnum(ProxyRole[storedRoleArg as number]))],',
+          ),
         );
       });
     });
@@ -611,6 +834,29 @@ void main() {
             reason: 'PigeonInstanceManager missing public method `$method`',
           );
         }
+      });
+
+      test('remove unregisters FinalizationRegistry tracking', () {
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[],
+              fields: <ApiField>[],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[],
+        );
+        final collapsed = _collapseWhitespace(_generate(root));
+
+        expect(
+          collapsed,
+          contains(
+            'remove(identifier: number): ESObject | null { const instance: ESObject | undefined = this.strongInstances.get(identifier); if (instance === undefined) { return null; } this.strongInstances.delete(identifier); this.weakInstances.delete(identifier); this.instancesHeldForFinalization.delete(instance); this.finalizationRegistry.unregister(instance); return instance; }',
+          ),
+        );
       });
 
       test(
@@ -756,6 +1002,12 @@ void main() {
             'PigeonApiLogger.setUpMessageHandlers(this.binaryMessenger, null);',
           ),
         );
+        expect(
+          collapsed,
+          contains('this.instanceManager.stopFinalizationListener();'),
+        );
+        expect(collapsed, contains('this.instanceManager.clear();'));
+        expect(collapsed, contains('this.ignoreCallsToDart = true;'));
       });
     });
   });
