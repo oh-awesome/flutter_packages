@@ -27,5 +27,9 @@ abstract class Counter {
 
   /// Pure Flutter-side callback: invoked from the host whenever `increment`
   /// completes.  Demonstrates the per-instance flutter callback path.
+  ///
+  /// Pigeon ProxyApi convention (see pigeons/proxy_api_tests.dart): Flutter
+  /// callback fields are declared `late`; the trailing `?` marks the callback
+  /// as optional. A non-nullable declaration (no `?`) would make it required.
   late void Function(int value)? onChanged;
 }

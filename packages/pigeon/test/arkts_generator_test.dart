@@ -4,6 +4,7 @@
 
 import 'package:pigeon/src/ast.dart';
 import 'package:pigeon/src/arkts/arkts_generator.dart';
+import 'package:pigeon/src/types/task_queue.dart';
 import 'package:test/test.dart';
 
 const String DEFAULT_PACKAGE_NAME = 'test_package';
@@ -51,7 +52,7 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: number;'));
-    expect(code, contains('toList(): Object[]'));
+    expect(code, contains('toList(): Array<Object | null>'));
     expect(code, contains('static fromList(arr: Object[]): Foobar'));
   });
 
@@ -146,7 +147,12 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export abstract class Api'));
     expect(code, contains('abstract doSomething(: Input ): Output;'));
-    expect(code, contains('static setup(binaryMessenger: BinaryMessenger, api: Api | null): void'));
+    expect(
+      code,
+      contains(
+        'static setup(binaryMessenger: BinaryMessenger, api: Api | null, messageChannelSuffix: string = \'\')',
+      ),
+    );
     expect(code, contains('channel.setMessageHandler(null)'));
     expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
   });
@@ -213,7 +219,12 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export class Api'));
     expect(code, contains('binaryMessenger: BinaryMessenger;'));
-    expect(code, contains('constructor(binaryMessenger: BinaryMessenger)'));
+    expect(
+      code,
+      contains(
+        'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\')',
+      ),
+    );
     expect(code, contains('doSomething'));
     expect(code, contains('Input'));
     expect(code, contains('Output'));
@@ -263,7 +274,10 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'input',
                 ),
               ],
@@ -299,7 +313,10 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.host,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -331,7 +348,10 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.flutter,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -519,7 +539,10 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('export interface Result<T>'));
-    expect(code, contains('abstract doSomething(: Input , result: Result<Output>): void;'));
+    expect(
+      code,
+      contains('abstract doSomething(: Input , result: Result<Output>): void;'),
+    );
     expect(code, contains('success( result: T ): void;'));
     expect(code, contains('error( error: Error): void;'));
   });
@@ -762,19 +785,31 @@ void main() {
               location: ApiLocation.host,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   name: 'arg2',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'bool', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'bool',
+                    isNullable: false,
+                  ),
                   name: 'arg3',
                 ),
               ],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -810,15 +845,24 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   name: 'arg2',
                 ),
               ],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -843,10 +887,7 @@ void main() {
   });
 
   test('copyright header', () {
-    final classDefinition = Class(
-      name: 'Foobar',
-      fields: <NamedType>[],
-    );
+    final classDefinition = Class(name: 'Foobar', fields: <NamedType>[]);
     final root = Root(
       apis: <Api>[],
       classes: <Class>[classDefinition],
@@ -872,11 +913,7 @@ void main() {
   });
 
   test('imports', () {
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[],
-      enums: <Enum>[],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
@@ -887,21 +924,41 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains("import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';"));
-    expect(code, contains("import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';"));
-    expect(code, contains("import { BinaryMessenger,TaskQueue } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';"));
-    expect(code, contains("import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';"));
-    expect(code, contains("import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';"));
+    expect(
+      code,
+      contains(
+        "import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';",
+      ),
+    );
   });
 
   test('codec class', () {
     final root = Root(
-      apis: <Api>[
-        AstHostApi(
-          name: 'Api',
-          methods: <Method>[],
-        ),
-      ],
+      apis: <Api>[AstHostApi(name: 'Api', methods: <Method>[])],
       classes: <Class>[],
       enums: <Enum>[],
       containsHostApi: true,
@@ -917,9 +974,18 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
-    expect(code, contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'));
-    expect(code, contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'));
-    expect(code, contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'));
+    expect(
+      code,
+      contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'),
+    );
+    expect(
+      code,
+      contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'),
+    );
+    expect(
+      code,
+      contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'),
+    );
   });
 
   test('error class', () {
@@ -931,7 +997,10 @@ void main() {
             Method(
               name: 'test',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
               parameters: <Parameter>[],
             ),
           ],
@@ -955,6 +1024,170 @@ void main() {
     expect(code, contains('public code: string;'));
     expect(code, contains('public name: string;'));
     expect(code, contains('public message: string;'));
-    expect(code, contains('function wrapError(error: Error): Array<Object>'));
+    expect(
+      code,
+      contains('function wrapError(error: Error): Array<Object | null>'),
+    );
+  });
+
+  test('messageChannelSuffix on HostApi and FlutterApi', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Host',
+          methods: <Method>[
+            Method(
+              name: 'doit',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'Flutter',
+          methods: <Method>[
+            Method(
+              name: 'callback',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+      containsFlutterApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(
+      code,
+      contains(
+        'static setup(binaryMessenger: BinaryMessenger, api: Host | null, messageChannelSuffix: string = \'\')',
+      ),
+    );
+    expect(code, contains('separatedMessageChannelSuffix'));
+    expect(
+      code,
+      contains(
+        'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\')',
+      ),
+    );
+    expect(code, contains('this.messageChannelSuffix'));
+  });
+
+  test('TaskQueue serialBackgroundThread uses 3-arg BasicMessageChannel', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'doit',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+              taskQueueType: TaskQueueType.serialBackgroundThread,
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, isNot(contains('makeBackgroundTaskQueue()')));
+    expect(code, contains('Api.getCodec())'));
+  });
+
+  test('EventChannelApi scaffold', () {
+    final root = Root(
+      apis: <Api>[
+        AstEventChannelApi(
+          name: 'Events',
+          methods: <Method>[
+            Method(
+              name: 'streamInts',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsEventChannel: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('import StandardMethodCodec'));
+    expect(code, contains('EventChannel'));
+    expect(code, contains('PigeonMethodChannelCodec'));
+    expect(code, contains('StreamIntsStreamHandler'));
+    expect(code, contains('static register(binaryMessenger: BinaryMessenger'));
+  });
+
+  test('Float32List maps to number[]', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'send',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'Float32List',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('send(): number[]'));
   });
 }
