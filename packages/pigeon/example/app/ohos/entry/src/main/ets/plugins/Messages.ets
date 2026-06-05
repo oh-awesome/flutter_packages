@@ -113,21 +113,17 @@ export class MessageData {
     this.data = data;
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
-    if(this.name !==undefined){
-      arr.push(this.name);
-    }
-    if(this.description !==undefined){
-      arr.push(this.description);
-    }
-    if(this.code !==undefined){
+  toList(): (Object | undefined)[] {
+    let arr: (Object | undefined)[] = [];
+    arr.push(this.name);
+    arr.push(this.description);
+    if (this.code !== undefined) {
       const codeStr = Code[this.code as number];
       arr.push(new CodeEnum(codeStr));
+    } else {
+      arr.push(undefined);
     }
-    if(this.data !==undefined){
-      arr.push(this.data);
-    }
+    arr.push(this.data);
     return arr;
   }
 
@@ -137,8 +133,11 @@ export class MessageData {
     pigeonResult.setName(name as string);
     let description: Object = arr[1];
     pigeonResult.setDescription(description as string);
-    const codeStr: string = arr[2]! as string;
-    pigeonResult.setCode(Code[codeStr]);
+    let code: Object = arr[2];
+    if (code != null) {
+      const codeStr: string = code as string;
+      pigeonResult.setCode(Code[codeStr]);
+    }
     let data: Object = arr[3];
     pigeonResult.setData(data as Map<string, string>);
     return pigeonResult;
@@ -300,7 +299,7 @@ export class MessageFlutterApi {
         [aStringArg],
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: Object[] = channelReply as Object[] ;
+            let listReply: ESObject[] = channelReply as ESObject[] ;
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
