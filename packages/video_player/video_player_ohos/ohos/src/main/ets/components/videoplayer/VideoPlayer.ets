@@ -65,12 +65,14 @@ export class VideoPlayer {
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private isSeeking: boolean = false;
+  private seekPosition: number = 0;
   private isBuffering: boolean = false;
   private isSystemBuffering: boolean = false;
   private isSeekBuffering: boolean = false;
   private bufferingInfoTimer: number = -1;
   private isPollingPlaybackInfo: boolean = false;
  	private isWindowKeepScreenOn: boolean = false;
+  private cachedRotationCorrection: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -149,6 +151,13 @@ export class VideoPlayer {
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
           this.resetProgress();
+          // Extract rotation before setting data source to avoid fd conflict with AVPlayer
+          try {
+            this.cachedRotationCorrection = await this.getRotationCorrection();
+            Log.i(TAG, 'cachedRotationCorrection=' + this.cachedRotationCorrection);
+          } catch (e) {
+            Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
+          }
           if (this.url) {
             this.avPlayer.url = this.getIUri();
           } else {
@@ -206,11 +215,18 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
       if (this.isSeeking) {
-        this.isSeeking = false;
-        this.endSeekBuffering();
+        this.playTime = time;
+        return;
       }
       this.initProgress(time);
       this.playTime = time;
+    });
+
+    this.avPlayer.on(Events.SEEK_DONE, (time: number) => {
+      if (this.isSeeking) {
+        this.isSeeking = false;
+        this.endSeekBuffering();
+      }
     });
 
     this.avPlayer.on(Events.BUFFER_UPDATE, (infoType: media.BufferingInfoType, value: number) => {
@@ -289,21 +305,23 @@ setAudioFocus(mixWithOthers: boolean): void {
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
-      this.prepareSeek();
+      this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
-  private prepareSeek(): void {
-    if (this.status === CommonConstants.STATUS_START) {
-      this.startSeekBuffering();
-    }
+  private prepareSeek(position: number): void {
+    this.startSeekBuffering();
     this.isSeeking = true;
+    this.seekPosition = position;
   }
 
   getPosition(): number {
+    if (this.isSeeking) {
+      return this.seekPosition;
+    }
     if (this.avPlayer !== null) {
-      return this.avPlayer.currentTime;
+      return Math.max(0, this.avPlayer.currentTime);
     } else {
       return 0;
     }
@@ -326,7 +344,8 @@ setAudioFocus(mixWithOthers: boolean): void {
 
   setVolume(volume: number) {
     if (this.avPlayer != null) {
-      this.avPlayer.setVolume(volume);
+      const clampedVolume = Math.max(0.0, Math.min(1.0, volume));
+      this.avPlayer.setVolume(clampedVolume);
     }
   }
 
@@ -424,7 +443,7 @@ setAudioFocus(mixWithOthers: boolean): void {
     if (mode === Number(SliderMode.END) || mode === Number(SliderMode.CLICK)) {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
       if (this.avPlayer !== null) {
-        this.prepareSeek();
+        this.prepareSeek(this.seekTime);
         this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
       }
     }
@@ -617,7 +636,45 @@ setAudioFocus(mixWithOthers: boolean): void {
     event.set("duration", this.avPlayer?.duration);
     event.set("width", this.avPlayer?.width);
     event.set("height", this.avPlayer?.height);
+    event.set("rotationCorrection", this.cachedRotationCorrection);
     this.eventSink?.success(event);
+  }
+
+  private async getRotationCorrection(): Promise<number> {
+    let extractor: media.AVMetadataExtractor | null = null;
+    let fd: fs.File | null = null;
+    try {
+      extractor = await media.createAVMetadataExtractor();
+      if (this.url?.startsWith("file://")) {
+        fd = fs.openSync(this.url.substring(7), fs.OpenMode.READ_ONLY);
+        extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
+      } else if (this.url) {
+        if (deviceInfo.sdkApiVersion < 20) {
+          return 0;
+        }
+        extractor.setUrlSource(this.url, this.headers ?? undefined);
+      } else if (this.rawFile) {
+        extractor.fdSrc = this.rawFile;
+      } else {
+        return 0;
+      }
+      const metadata = await extractor.fetchMetadata();
+      const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
+      orientation
+      if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
+        return orientation;
+      }
+      return 0;
+    } catch (e) {
+      Log.w(TAG, 'getRotationCorrection error: ' + JSON.stringify(e));
+      return 0;
+    } finally {
+      if (fd) {
+        fs.closeSync(fd);
+      }
+      extractor?.release();
+      extractor = null;
+    }
   }
 
   sendCompleted(): void {
@@ -631,6 +688,7 @@ setAudioFocus(mixWithOthers: boolean): void {
     this.isSystemBuffering = false;
     this.isSeekBuffering = false;
     this.isSeeking = false;
+    this.seekPosition = 0;
     this.bufferTimeTemp = 0;
     if (wasBuffering) {
       this.syncBufferingState();
@@ -751,7 +809,8 @@ setAudioFocus(mixWithOthers: boolean): void {
   }
 
   sendError(error: Object): void {
-    this.eventSink?.error("videoError", "video player had error！", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+ 	  this.eventSink?.error("VideoError", `Video player had error: ${errorMessage}`, error);
   }
 
   getIUri(): string {
