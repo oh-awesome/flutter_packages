@@ -130,6 +130,22 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 - `formatHint` 当前支持：`VideoFormat.hls`、`VideoFormat.dash`。其中 ArkTS 原生层会把它们映射到 `MediaSource.setMimeType`。
 - `VideoFormat.ss` 当前为“尽力而为”：插件不会主动拦截，但若系统侧不存在可用的 MIME 映射或协议解析能力，播放可能失败并返回媒体不支持相关错误。
 - `setPlaybackSpeed` 在 OHOS 支持倍速：`0.125x`、`0.25x`、`0.5x`、`0.75x`、`1.0x`、`1.25x`、`1.5x`、`1.75x`、`2.0x`、`3.0x`。
+  - **与 Android 的差异**：Android 的 `ExoPlayer` 对播放速率的容忍度更高，通常支持 `0.25x ~ 4.0x` 的连续范围；而 OHOS 的 `AVPlayer` 仅支持离散的预设档位。若传入值不在 OHOS 支持列表中，插件会将其**就近映射**到支持的最接近档位。
+  - **OHOS 播放速率映射表**：
+
+    | 传入值范围 | 实际生效速率 | 说明 |
+    | :--- | :--- | :--- |
+    | `< 0.125` | `0.125x` | 低于最小档位时取最小值 |
+    | `0.125 ~ 0.25` | `0.25x` | 就近映射到 `0.25x` |
+    | `0.25 ~ 0.5` | `0.5x` | 就近映射到 `0.5x` |
+    | `0.5 ~ 0.75` | `0.75x` | 就近映射到 `0.75x` |
+    | `0.75 ~ 1.0` | `1.0x` | 正常速率 |
+    | `1.0 ~ 1.25` | `1.25x` | 就近映射到 `1.25x` |
+    | `1.25 ~ 1.5` | `1.5x` | 就近映射到 `1.5x` |
+    | `1.5 ~ 1.75` | `1.75x` | 就近映射到 `1.75x` |
+    | `1.75 ~ 2.0` | `2.0x` | 就近映射到 `2.0x` |
+    | `2.0 ~ 3.0` | `3.0x` | 高于 `2.0x` 时取 `3.0x` |
+    | `> 3.0` | `3.0x` | 超过最大档位时取最大值 |
 - 支持音轨能力查询与切换：`getAudioTracks`、`selectAudioTrack`、`isAudioTrackSupportAvailable`。
 - `selectAudioTrack` 当前会等待 AVPlayer `trackChange` 事件确认后再完成 `Future<void>`；若 5 秒内未收到确认事件，则会显式超时失败。
 - `setMixWithOthers` 在 OHOS 映射为 AVPlayer 的 `audioInterruptMode`。这更接近播放器实例级中断模式，而不是 Android/iOS 的系统级音频焦点/共享会话语义；同应用与跨应用场景可能存在行为差异。

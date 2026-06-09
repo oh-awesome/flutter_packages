@@ -119,6 +119,7 @@ export enum AvplayerStatus {
 export enum Events {
   STATE_CHANGE = 'stateChange',
   TIME_UPDATE = 'timeUpdate',
+  SEEK_DONE = 'seekDone',
   BUFFER_UPDATE = 'bufferingUpdate',
   ERROR = 'error'
 }
