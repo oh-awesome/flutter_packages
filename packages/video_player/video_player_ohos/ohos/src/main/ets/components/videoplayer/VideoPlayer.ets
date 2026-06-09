@@ -77,6 +77,7 @@ export class VideoPlayer {
   private pendingPlay: boolean = false;
   private pendingSeekPosition: number | null = null;
   private isSeeking: boolean = false;
+  private seekPosition: number = 0;
   private isBuffering: boolean = false;
   private isSystemBuffering: boolean = false;
   private isSeekBuffering: boolean = false;
@@ -256,11 +257,18 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
       if (this.isSeeking) {
-        this.isSeeking = false;
-        this.endSeekBuffering();
+        this.playTime = time;
+        return;
       }
       this.initProgress(time);
       this.playTime = time;
+    });
+
+    this.avPlayer.on(Events.SEEK_DONE, (time: number) => {
+      if (this.isSeeking) {
+        this.isSeeking = false;
+        this.endSeekBuffering();
+      }
     });
 
     this.avPlayer.on(Events.BUFFER_UPDATE, (infoType: media.BufferingInfoType, value: number) => {
@@ -350,19 +358,21 @@ export class VideoPlayer {
         this.pendingSeekPosition = position;
         return;
       }
-      this.prepareSeek();
+      this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
-  private prepareSeek(): void {
-    if (this.status === CommonConstants.STATUS_START) {
-      this.startSeekBuffering();
-    }
+  private prepareSeek(position: number): void {
+    this.startSeekBuffering();
     this.isSeeking = true;
+    this.seekPosition = position;
   }
 
   getPosition(): number {
+    if (this.isSeeking) {
+      return this.seekPosition;
+    }
     if (this.avPlayer !== null) {
       return Math.max(0, this.avPlayer.currentTime);
     } else {
@@ -657,7 +667,7 @@ export class VideoPlayer {
     if (mode === Number(SliderMode.END) || mode === Number(SliderMode.CLICK)) {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
       if (this.avPlayer !== null) {
-        this.prepareSeek();
+        this.prepareSeek(this.seekTime);
         this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
       }
     }
@@ -902,6 +912,7 @@ export class VideoPlayer {
     this.isSystemBuffering = false;
     this.isSeekBuffering = false;
     this.isSeeking = false;
+    this.seekPosition = 0;
     this.bufferTimeTemp = 0;
     if (wasBuffering) {
       this.syncBufferingState();
