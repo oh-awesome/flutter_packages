@@ -1,7 +1,7 @@
 
 # webview_flutter
 
-本项目基于 [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.0) 开发。
+本项目基于 [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.1) 开发。
 
 ## 简介
 
