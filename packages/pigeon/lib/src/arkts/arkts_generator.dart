@@ -315,22 +315,24 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('toList(): Object[] ');
+    indent.write('toList(): (Object | null)[] ');
     indent.addScoped('{', '}', () {
-      indent.writeln('let arr: Object[] = new Array();');
+      indent.writeln('let arr: (Object | null)[] = [];');
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         final String fieldName = field.name;
         if (field.type.isEnum) {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+          indent.writeScoped('if (this.$fieldName !== undefined) {', '} else {', () {
             indent.writeln(
                 'const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];');
             indent.writeln(
                 'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));');
           });
-        } else {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
-            indent.writeln('arr.push(this.$fieldName);');
+          indent.addScoped(null, '}', () {
+            indent.writeln('arr.push(null);');
           });
+        } else {
+          indent.writeln(
+              'arr.push(this.$fieldName !== undefined ? this.$fieldName : null);');
         }
       }
       indent.writeln('return arr;');
@@ -356,10 +358,13 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
         final String fieldVariable = field.name;
         final String setter = _makeSetter(field);
         if (field.type.isEnum) {
-          indent.writeln(
-              'const $fieldVariable$_string_Param_Suffix: string = arr[$index]! as string;');
-          indent.writeln(
-              '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
+          indent.writeln('let $fieldVariable: Object = arr[$index];');
+          indent.writeScoped('if ($fieldVariable != null) {', '}', () {
+            indent.writeln(
+                'const $fieldVariable$_string_Param_Suffix: string = $fieldVariable as string;');
+            indent.writeln(
+                '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
+          });
         } else {
           indent.writeln('let $fieldVariable: Object = arr[$index];');
           indent.writeln(
@@ -1004,7 +1009,7 @@ getByte(n: number): number {
       );
     }
     indent.newln();
-    indent.write('class $_codecName extends StandardMessageCodec ');
+    indent.write('export class $_codecName extends StandardMessageCodec ');
     indent.addScoped('{', '}', () {
       indent.writeln(
           'static readonly INSTANCE: $_codecName  = new $_codecName();');
