@@ -304,17 +304,17 @@ export class MessageFlutterApi {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
               let arrThird:string = listReply[2] as string;
-              let replyArr:string = 'FlutterError:{"code":'+arrFirst+',"name":'+arrSecond+',"message":'+arrThird+'}';
+              let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull:string = 'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}'
+              let replyNull:ESObject = new FlutterError("null-error", "Flutter api returned null value for non-null return value.", "")
               callback.reply(replyNull);
             } else {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
           }  else {
-            let connErr:string = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}'
+            let connErr:ESObject = new FlutterError('channel-error', "Unable to establish connection on channel: " + channelName + ".", "")
             callback.reply(connErr);
           } 
         });
