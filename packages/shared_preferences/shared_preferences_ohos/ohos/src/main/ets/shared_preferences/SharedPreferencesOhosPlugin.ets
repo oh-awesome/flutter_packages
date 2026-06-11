@@ -403,6 +403,30 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
       channel.setMessageHandler(null);
     }
   }
+
+  // setEncodedStringList
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setEncodedStringList", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as string;
+          let wrapped: Array<Object> = [true];
+
+          api.setEncodedStringList(keyArg, valueArg).then(() => {
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
   
   // clear
   {
@@ -552,6 +576,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     Log.w(TAG, "setStringList :" + value);
     Log.w(TAG, "setStringList encoded:" + (LIST_IDENTIFIER + this.listEncoder.encode(value)));
     return this.put(key, LIST_IDENTIFIER + this.listEncoder.encode(value));
+  }
+
+  async setEncodedStringList(key: string, value: string): Promise<void> {
+    return this.put(key, value);
   }
 
   async clear(prefix: string, allowList: string[]): Promise<void> {
