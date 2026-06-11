@@ -1,6 +1,6 @@
 # webview_flutter
 
-This project is based on [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.0).
+This project is based on [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.1).
 
 ## Introduction
 
