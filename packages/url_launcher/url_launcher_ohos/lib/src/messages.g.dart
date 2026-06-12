@@ -51,12 +51,37 @@ class WebViewOptions {
   }
 }
 
+/// Configuration options for a browser view.
+class BrowserOptions {
+  BrowserOptions({
+    required this.showTitle,
+  });
+
+  bool showTitle;
+
+  Object encode() {
+    return <Object?>[
+      showTitle,
+    ];
+  }
+
+  static BrowserOptions decode(Object result) {
+    result as List<Object?>;
+    return BrowserOptions(
+      showTitle: result[0]! as bool,
+    );
+  }
+}
+
 class _UrlLauncherApiCodec extends StandardMessageCodec {
   const _UrlLauncherApiCodec();
   @override
   void writeValue(WriteBuffer buffer, Object? value) {
     if (value is WebViewOptions) {
       buffer.putUint8(128);
+      writeValue(buffer, value.encode());
+    } else if (value is BrowserOptions) {
+      buffer.putUint8(129);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -68,6 +93,8 @@ class _UrlLauncherApiCodec extends StandardMessageCodec {
     switch (type) {
       case 128:
         return WebViewOptions.decode(readValue(buffer)!);
+      case 129:
+        return BrowserOptions.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -144,12 +171,12 @@ class UrlLauncherApi {
   /// Opens the URL in an in-app WebView, returning true if it opens
   /// successfully.
   Future<bool> openUrlInWebView(
-      String arg_url, WebViewOptions arg_options) async {
+      String arg_url, WebViewOptions arg_options, BrowserOptions arg_browserOptions) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.UrlLauncherApi.openUrlInWebView', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_url, arg_options]) as List<Object?>?;
+        await channel.send(<Object?>[arg_url, arg_options, arg_browserOptions]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
