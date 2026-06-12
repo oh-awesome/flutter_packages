@@ -5,7 +5,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:webview_flutter_ohos/src/ohos_webkit.g.dart'
+import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
 import 'package:webview_flutter_ohos/src/legacy/webview_ohos_cookie_manager.dart';
 import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
