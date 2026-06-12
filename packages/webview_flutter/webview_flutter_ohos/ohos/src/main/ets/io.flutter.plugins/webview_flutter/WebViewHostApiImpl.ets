@@ -830,7 +830,7 @@ class WebSettingsImpl implements WebSettings {
     }
 
     if (typeof (web_webview.WebviewController as ESObject)?.getDefaultUserAgent === 'function') {
-    web_webview.WebviewController.initializeWebEngine();
+      web_webview.WebviewController.initializeWebEngine();
       this.defaultUserAgent = (web_webview.WebviewController as ESObject)?.getDefaultUserAgent();
     }
 

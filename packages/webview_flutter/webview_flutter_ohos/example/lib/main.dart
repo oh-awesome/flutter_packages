@@ -155,7 +155,7 @@ class _WebViewExampleState extends State<WebViewExample> {
 
   Future<String> getUserAgent() async {
     String userAgent = await _controller.getUserAgent() ?? '';
-    if(defaultTargetPlatform != TargetPlatform.ohos){
+    if (defaultTargetPlatform != TargetPlatform.ohos) {
       return userAgent;
     }
     return '$userAgent HuaweiBrower';
@@ -230,7 +230,7 @@ Page resource error:
         ),
       );
 
-    getUserAgent().then((String userAgent){
+    getUserAgent().then((String userAgent) {
       _controller.setUserAgent(userAgent);
     });
   }
@@ -582,7 +582,32 @@ class SampleMenu extends StatelessWidget {
     ));
   }
 
-  Future<void> _onVideoExample(BuildContext context) async {
+  Future<void> _onVideoExample(BuildContext context) {
+    final OhosWebViewController ohosController =
+        webViewController as OhosWebViewController;
+    // #docregion fullscreen_example
+    ohosController.setCustomWidgetCallbacks(
+      onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
+        Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (BuildContext context) => widget,
+          fullscreenDialog: true,
+        ));
+      },
+      onHideCustomWidget: () {
+        Navigator.of(context).pop();
+      },
+    );
+    // #enddocregion fullscreen_example
+
+    return ohosController.loadRequest(
+      LoadRequestParams(
+        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
+      ),
+    );
+  }
+
+  /// 处理视频全屏模式，创建一个支持全屏旋转的 WebView 控制器并加载视频资源。
+  Future<void> _onVideoFullScreen(BuildContext context) async {
     final OhosWebViewController videoController = OhosWebViewController(
       OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
     )
@@ -611,25 +636,6 @@ class SampleMenu extends StatelessWidget {
       DeviceOrientation.portraitDown
     ]);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  }
-
-  Future<void> _onVideoFullScreen(BuildContext context) async {
-    final OhosWebViewController videoController = OhosWebViewController(
-      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
-    )
-      ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setPlatformNavigationDelegate(
-        OhosNavigationDelegate(
-          const PlatformNavigationDelegateCreationParams(),
-        ),
-      )
-      ..loadFlutterAsset('assets/www/video.html');
-
-    return ohosController.loadRequest(
-      LoadRequestParams(
-        uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
-      ),
-    );
   }
 
   Future<void> _onDoPostRequest() {

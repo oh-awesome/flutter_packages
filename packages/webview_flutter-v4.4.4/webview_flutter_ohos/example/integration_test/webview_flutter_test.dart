@@ -20,7 +20,6 @@ import 'package:webview_flutter_ohos/src/ohos_webview_api_impls.dart';
 import 'package:webview_flutter_ohos/src/instance_manager.dart';
 import 'package:webview_flutter_ohos/src/weak_reference_utils.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
-import 'package:webview_flutter_ohos/src/instance_manager.dart';
 import 'package:webview_flutter_ohos/src/ohos_proxy.dart';
 import 'package:webview_flutter_ohos/src/ohos_webview.dart' as ohos_webview;
 import 'package:webview_flutter_ohos/src/weak_reference_utils.dart';
