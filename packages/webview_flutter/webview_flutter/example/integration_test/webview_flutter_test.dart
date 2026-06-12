@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:webview_flutter_android/webview_flutter_android.dart';
+import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_wkwebview/webview_flutter_wkwebview.dart';
 
 Future<void> main() async {
@@ -240,6 +241,9 @@ Future<void> main() async {
         if (controller.platform is AndroidWebViewController) {
           await (controller.platform as AndroidWebViewController)
               .setMediaPlaybackRequiresUserGesture(false);
+        } else if (controller.platform is OhosWebViewController) {
+          await (controller.platform as OhosWebViewController)
+              .setMediaPlaybackRequiresUserGesture(false);
         }
 
         await controller.loadRequest(
@@ -253,13 +257,17 @@ Future<void> main() async {
         await pageLoaded.future;
 
         var isPaused =
-            await controller.runJavaScriptReturningResult('isPaused();')
-                as bool;
+            _jsResultToBool(
+                await controller.runJavaScriptReturningResult('isPaused();'));
         expect(isPaused, false);
 
         pageLoaded = Completer<void>();
         controller = WebViewController();
         await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
+        if (controller.platform is OhosWebViewController) {
+          await (controller.platform as OhosWebViewController)
+              .setMediaPlaybackRequiresUserGesture(true);
+        }
 
         await controller.setNavigationDelegate(
           NavigationDelegate(onPageFinished: (_) => pageLoaded.complete()),
@@ -276,8 +284,8 @@ Future<void> main() async {
         await pageLoaded.future;
 
         isPaused =
-            await controller.runJavaScriptReturningResult('isPaused();')
-                as bool;
+            _jsResultToBool(
+                await controller.runJavaScriptReturningResult('isPaused();'));
         expect(isPaused, true);
       });
 
@@ -316,6 +324,9 @@ Future<void> main() async {
         if (controller.platform is AndroidWebViewController) {
           await (controller.platform as AndroidWebViewController)
               .setMediaPlaybackRequiresUserGesture(false);
+        } else if (controller.platform is OhosWebViewController) {
+          await (controller.platform as OhosWebViewController)
+              .setMediaPlaybackRequiresUserGesture(false);
         }
 
         await controller.loadRequest(
@@ -331,13 +342,11 @@ Future<void> main() async {
         await videoPlaying.future;
 
         final fullScreen =
-            await controller.runJavaScriptReturningResult('isFullScreen();')
-                as bool;
+            _jsResultToBool(
+                await controller.runJavaScriptReturningResult('isFullScreen();'));
         expect(fullScreen, false);
       });
     },
-    // TODO(bparrishMines): Stop skipping once https://github.com/flutter/flutter/issues/148487 is resolved
-    skip: true,
   );
 
   group(
@@ -397,6 +406,9 @@ Future<void> main() async {
         if (controller.platform is AndroidWebViewController) {
           await (controller.platform as AndroidWebViewController)
               .setMediaPlaybackRequiresUserGesture(false);
+        } else if (controller.platform is OhosWebViewController) {
+          await (controller.platform as OhosWebViewController)
+              .setMediaPlaybackRequiresUserGesture(false);
         }
 
         await controller.loadRequest(
@@ -409,8 +421,8 @@ Future<void> main() async {
         await pageLoaded.future;
 
         var isPaused =
-            await controller.runJavaScriptReturningResult('isPaused();')
-                as bool;
+            _jsResultToBool(
+                await controller.runJavaScriptReturningResult('isPaused();'));
         expect(isPaused, false);
 
         pageLoaded = Completer<void>();
@@ -420,6 +432,10 @@ Future<void> main() async {
           NavigationDelegate(onPageFinished: (_) => pageLoaded.complete()),
         );
 
+        if (controller.platform is OhosWebViewController) {
+          await (controller.platform as OhosWebViewController)
+              .setMediaPlaybackRequiresUserGesture(true);
+        }
         await controller.loadRequest(
           Uri.parse('data:text/html;charset=utf-8;base64,$audioTestBase64'),
         );
@@ -430,10 +446,10 @@ Future<void> main() async {
         await pageLoaded.future;
 
         isPaused =
-            await controller.runJavaScriptReturningResult('isPaused();')
-                as bool;
+            _jsResultToBool(
+                await controller.runJavaScriptReturningResult('isPaused();'));
         expect(isPaused, true);
-      }, skip: true);
+      });
     },
     // OGG playback is not supported on macOS, so the test data would need
     // to be changed to support macOS.
@@ -545,6 +561,9 @@ Future<void> main() async {
         expect(recordedPosition?.y, isNot(Y_SCROLL));
 
         await controller.scrollTo(X_SCROLL, Y_SCROLL);
+        // OHOS: scrollTo/scrollBy are async on the native side,
+        // need to wait for the actual scroll to complete before reading position.
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         scrollPos = await controller.getScrollPosition();
         expect(scrollPos.dx, X_SCROLL);
         expect(scrollPos.dy, Y_SCROLL);
@@ -553,6 +572,7 @@ Future<void> main() async {
 
         // Check scrollBy() (on top of scrollTo())
         await controller.scrollBy(X_SCROLL, Y_SCROLL);
+        await Future<void>.delayed(const Duration(milliseconds: 500));
         scrollPos = await controller.getScrollPosition();
         expect(scrollPos.dx, X_SCROLL * 2);
         expect(scrollPos.dy, Y_SCROLL * 2);
@@ -880,6 +900,8 @@ Future<void> main() async {
     });
   });
 
+  // OHOS: skip, OHOS 的 onCreateWindow 实现会打开新的 CustomDialog 窗口，
+  // 而不是在当前 WebView 中加载 URL，无法验证 currentUrl 等于 primaryUrl。
   testWidgets('target _blank opens in same window', (
     WidgetTester tester,
   ) async {
@@ -899,6 +921,8 @@ Future<void> main() async {
     expect(currentUrl, primaryUrl);
   }, skip: true);
 
+  // OHOS: skip, 同上，window.open 在 OHOS 上会打开新窗口而非在当前 WebView 中导航，
+  // 新窗口的 URL 不在当前 WebView 的导航栈中，goBack 无法回到 primaryUrl。
   testWidgets('can open new window and go back', (WidgetTester tester) async {
     var pageLoaded = Completer<void>();
 
@@ -1112,4 +1136,15 @@ Future<String> getTestVideoBase64() async {
         </html>
       ''';
   return base64Encode(const Utf8Encoder().convert(videoTest));
+}
+
+// OHOS WebView may return JSON-encoded string values (e.g., '"true"' instead of
+// a native bool). This helper safely converts the result of
+// runJavaScriptReturningResult to bool.
+bool _jsResultToBool(Object result) {
+  if (result is bool) {
+    return result;
+  }
+  final str = result.toString().trim().toLowerCase();
+  return str == 'true';
 }
