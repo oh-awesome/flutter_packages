@@ -518,7 +518,6 @@ export class WebViewPlatformView extends PlatformView {
     let windowClass = context.windowStage.getMainWindowSync();
     windowClass.setWindowSystemBarEnable([]);
     this.rotation = windowClass.getPreferredOrientation();
-    let orientation: number = display.getDefaultDisplaySync().orientation;
     let isAllowFullScreenRotate = this.getWebSettings()?.getAllowFullScreenRotate();
     if (isAllowFullScreenRotate) {
       windowClass.setPreferredOrientation(window.Orientation.LANDSCAPE);
