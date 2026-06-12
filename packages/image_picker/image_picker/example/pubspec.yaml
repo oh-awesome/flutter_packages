@@ -28,6 +28,10 @@ dev_dependencies:
     sdk: flutter
   integration_test:
     sdk: flutter
+  video_player_ohos:
+    git:
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/video_player/video_player_ohos"
 
 flutter:
   uses-material-design: true

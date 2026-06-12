@@ -16,6 +16,7 @@ import 'package:image_picker_platform_interface/image_picker_platform_interface.
 // #enddocregion photo-picker-example
 import 'package:mime/mime.dart';
 import 'package:video_player/video_player.dart';
+import 'legacy_api_demo.dart';
 
 void appMain() {
   enableFlutterDriverExtension();
@@ -466,6 +467,23 @@ class _MyHomePageState extends State<MyHomePage> {
               heroTag: 'video1',
               tooltip: 'Take a Video',
               child: const Icon(Icons.videocam),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 16.0),
+            child: FloatingActionButton(
+              backgroundColor: Colors.red,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                    builder: (_) => const LegacyApiHomePage(),
+                  ),
+                );
+              },
+              heroTag: 'LegacyApi',
+              tooltip: 'LegacyApi',
+              child: const Icon(Icons.assignment_returned_sharp),
             ),
           ),
         ],

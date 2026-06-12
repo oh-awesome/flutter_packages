@@ -5,8 +5,9 @@
 // Copyright 2013 The Flutter Authors.
 
 import bundleManager from '@ohos.bundle.bundleManager';
-import { AsyncCallback } from '@ohos.base';
+import { AsyncCallback, BusinessError } from '@ohos.base';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
+import { abilityAccessCtrl, common, PermissionRequestResult } from '@kit.AbilityKit';
 
 const TAG: string = "ImagePickerUtils";
 const CAMERA_PERMISSION: string = "ohos.permission.CAMERA";
@@ -48,5 +49,28 @@ export default class ImagePickerUtils {
    */
   public static needRequestCameraPermission(callback: AsyncCallback<boolean>): void {
     return ImagePickerUtils.isPermissionPresentInManifest(CAMERA_PERMISSION, callback);
+  }
+
+  // 动态获取请求
+  public static async requestCameraPermission(context: common.Context): Promise<boolean> {
+    const atManager = abilityAccessCtrl.createAtManager();
+   	try {
+   	  const result: PermissionRequestResult = await atManager.requestPermissionsFromUser(
+   	    context,
+   	    ['ohos.permission.CAMERA']
+   	  );
+   	  const grantStatus = result.authResults;
+
+   	  if (!grantStatus || grantStatus.length === 0) {
+   	    Log.e(TAG, 'requestCameraPermission: empty authResults');
+   	    return false;
+   	  }
+
+   	  return grantStatus[0] === 0;
+   	} catch (e) {
+   	  const err = e as BusinessError;
+   	  Log.e(TAG, `requestCameraPermission error: ${err.code}, ${err.message}`);
+   	  return false;
+   	}
   }
 }
