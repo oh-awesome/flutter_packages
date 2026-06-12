@@ -222,35 +222,27 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   }) {
     final HostDatatype hostDatatype = getFieldHostDatatype(
         field, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-    if (field.type.isEnum) {
-      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
-      indent.newln();
-      indent.writeScoped(
-          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
-          '}', () {
-        indent.writeln('this.${field.name} = ${field.name};');
-      });
-      indent.newln();
-      indent.write(
-          '${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
-      indent.addScoped('{', '}', () {
-        indent.writeln('return this.${field.name};');
-      });
-    } else {
-      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
-      indent.newln();
-      indent.writeScoped(
-          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
-          '}', () {
-        indent.writeln('this.${field.name} = ${field.name};');
-      });
-      indent.newln();
-      indent.write(
-          '${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
-      indent.addScoped('{', '}', () {
-        indent.writeln('return this.${field.name};');
-      });
-    }
+    final bool isRequired = !field.type.isNullable;
+    final String optionalMarker = isRequired ? '' : '?';
+    final String getterReturnType = isRequired
+        ? hostDatatype.datatype
+        : '${hostDatatype.datatype} | undefined';
+    final String setterParamType = isRequired
+        ? hostDatatype.datatype
+        : '${hostDatatype.datatype} | undefined';
+    indent.writeln(
+        'private ${field.name}$optionalMarker: ${hostDatatype.datatype};');
+    indent.newln();
+    indent.writeScoped(
+        'public ${_makeSetter(field)}(${field.name}:$setterParamType):void {',
+        '}', () {
+      indent.writeln('this.${field.name} = ${field.name};');
+    });
+    indent.newln();
+    indent.write('${_makeGetter(field)}(): $getterReturnType');
+    indent.addScoped('{', '}', () {
+      indent.writeln('return this.${field.name};');
+    });
   }
 
   void _writeDataClassSignature(
@@ -278,6 +270,21 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   }
 
   // 构造函数
+  /// Returns class fields ordered for constructor signatures: required parameters
+  /// must precede optional parameters in ArkTS.
+  List<NamedType> _getFieldsInConstructorOrder(Class klass) {
+    final List<NamedType> required = <NamedType>[];
+    final List<NamedType> optional = <NamedType>[];
+    for (final NamedType field in klass.fields) {
+      if (field.type.isNullable) {
+        optional.add(field);
+      } else {
+        required.add(field);
+      }
+    }
+    return <NamedType>[...required, ...optional];
+  }
+
   void _writeClassBuilder(
     InternalArkTSOptions generatorOptions,
     Root root,
@@ -287,19 +294,19 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     indent.write('constructor');
     final List<String> argSignature = <String>[];
     if (klass.fields.isNotEmpty) {
-      for (final NamedType element in klass.fields) {
+      for (final NamedType element in _getFieldsInConstructorOrder(klass)) {
         final String type = _arkTSTypeForDartType(element.type);
         final String name = getSafeConstructorArgument(element.name);
-        if (element.type.isEnum) {
+        if (element.type.isNullable) {
           argSignature.add('$name?: $type');
         } else {
-          argSignature.add('$name?: $type');
+          argSignature.add('$name: $type');
         }
       }
     }
     indent.add('(${argSignature.join(', ')}) ');
     indent.addScoped('{', '}', () {
-      for (final NamedType field in getFieldsInSerializationOrder(klass)) {
+      for (final NamedType field in _getFieldsInConstructorOrder(klass)) {
         final String value = getSafeConstructorArgument(field.name);
         indent.writeln('this.${field.name} = $value;');
       }
@@ -339,6 +346,40 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     });
   }
 
+  void _writeDecodedFieldVariable(
+    Indent indent,
+    int index,
+    NamedType field,
+  ) {
+    final String fieldName = getSafeConstructorArgument(field.name);
+    final String arktsType = _arkTSTypeForDartType(field.type);
+    final String listValue = 'arr[$index]';
+    if (field.type.isEnum) {
+      if (field.type.isNullable) {
+        indent.writeln('let $fieldName: $arktsType | undefined;');
+        indent.writeln('let ${fieldName}Raw: Object | null = $listValue;');
+        indent.writeScoped('if (${fieldName}Raw != null) {', '}', () {
+          indent.writeln(
+              'const ${fieldName}$_string_Param_Suffix: string = ${fieldName}Raw as string;');
+          indent.writeln(
+              '$fieldName = ${field.type.baseName}[${fieldName}$_string_Param_Suffix];');
+        });
+      } else {
+        indent.writeln('let ${fieldName}Raw: Object | null = $listValue;');
+        indent.writeln(
+            'const ${fieldName}$_string_Param_Suffix: string = ${fieldName}Raw as string;');
+        indent.writeln(
+            'let $fieldName: $arktsType = ${field.type.baseName}[${fieldName}$_string_Param_Suffix];');
+      }
+    } else if (field.type.isNullable) {
+      indent.writeln(
+          'let $fieldName: $arktsType | undefined = $listValue != null ? ${_castObject(field, listValue)} : undefined;');
+    } else {
+      indent.writeln(
+          'let $fieldName: $arktsType = ${_castObject(field, listValue)};');
+    }
+  }
+
   @override
   void writeClassDecode(
     InternalArkTSOptions generatorOptions,
@@ -348,30 +389,22 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('static fromList(arr: Object[]): ${klass.name} ');
+    indent.write('static fromList(arr: (Object | null)[]): ${klass.name} ');
     indent.addScoped('{', '}', () {
-      const String result = 'pigeonResult';
-      indent.writeln('let $result: ${klass.name} = new ${klass.name}();');
-
       enumerate(getFieldsInSerializationOrder(klass),
           (int index, final NamedType field) {
-        final String fieldVariable = field.name;
-        final String setter = _makeSetter(field);
-        if (field.type.isEnum) {
-          indent.writeln('let $fieldVariable: Object = arr[$index];');
-          indent.writeScoped('if ($fieldVariable != null) {', '}', () {
-            indent.writeln(
-                'const $fieldVariable$_string_Param_Suffix: string = $fieldVariable as string;');
-            indent.writeln(
-                '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
-          });
-        } else {
-          indent.writeln('let $fieldVariable: Object = arr[$index];');
-          indent.writeln(
-              '$result.$setter(${_castObject(field, fieldVariable)});');
-        }
+        _writeDecodedFieldVariable(indent, index, field);
       });
-      indent.writeln('return ${result};');
+
+      final List<NamedType> constructorFields =
+          _getFieldsInConstructorOrder(klass);
+      indent.write('return new ${klass.name}(');
+      for (final NamedType field in constructorFields) {
+        final String comma =
+            constructorFields.last == field ? '' : ', ';
+        indent.add('${getSafeConstructorArgument(field.name)}$comma');
+      }
+      indent.addln(');');
     });
   }
 
@@ -985,7 +1018,7 @@ getByte(n: number): number {
         indent.newln();
         indent.nest(1, () {
           indent.writeln(
-              'return ${customType.name}.fromList(super.readValue(buffer) as Object[]);');
+              'return ${customType.name}.fromList(super.readValue(buffer) as (Object | null)[]);');
         });
       } else if (customType.type == CustomTypes.customEnum) {
         indent.addScoped(' {', '}', () {
