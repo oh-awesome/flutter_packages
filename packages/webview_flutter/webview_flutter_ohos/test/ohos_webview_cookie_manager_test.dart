@@ -5,16 +5,25 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:webview_flutter_ohos/src/ohos_webkit.g.dart'
+import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
+import 'ohos_pigeon_test_mocks.dart';
 import 'ohos_webview_cookie_manager_test.mocks.dart';
 
 @GenerateMocks(<Type>[ohos_webview.CookieManager, OhosWebViewController])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() {
+    OhosPigeonTestMocks.setUpMocks();
+  });
+
+  setUp(() {
+    OhosPigeonTestMocks.clearRecords();
+  });
 
   test('clearCookies should call ohos_webview.clearCookies', () async {
     final ohos_webview.CookieManager mockCookieManager = MockCookieManager();
@@ -87,9 +96,9 @@ void main() {
   test('setAcceptThirdPartyCookies', () async {
     final mockController = MockOhosWebViewController();
 
-    final webView = ohos_webview.WebView.pigeon_detached();
+    final webView = ohos_webview.WebView.detached();
 
-    final int webViewIdentifier = ohos_webview.PigeonInstanceManager.instance
+    final int webViewIdentifier = ohos_webview.OhosObject.globalInstanceManager
         .addDartCreatedInstance(webView);
 
     when(mockController.webViewIdentifier).thenReturn(webViewIdentifier);

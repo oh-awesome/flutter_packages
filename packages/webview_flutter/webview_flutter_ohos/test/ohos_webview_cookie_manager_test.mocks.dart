@@ -7,9 +7,8 @@ import 'dart:async' as _i5;
 import 'dart:ui' as _i4;
 
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:webview_flutter_ohos/src/ohos_webkit.g.dart' as _i2;
-import 'package:webview_flutter_ohos/src/ohos_webview_controller.dart'
-    as _i6;
+import 'package:webview_flutter_ohos/src/ohos_webview.dart' as _i2;
+import 'package:webview_flutter_ohos/src/ohos_webview_controller.dart' as _i6;
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart'
     as _i3;
 
@@ -28,32 +27,26 @@ import 'package:webview_flutter_platform_interface/webview_flutter_platform_inte
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
 
-class _FakePigeonInstanceManager_0 extends _i1.SmartFake
-    implements _i2.PigeonInstanceManager {
-  _FakePigeonInstanceManager_0(Object parent, Invocation parentInvocation)
+class _FakeCookieManager_0 extends _i1.SmartFake implements _i2.CookieManager {
+  _FakeCookieManager_0(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeCookieManager_1 extends _i1.SmartFake implements _i2.CookieManager {
-  _FakeCookieManager_1(Object parent, Invocation parentInvocation)
-    : super(parent, parentInvocation);
-}
-
-class _FakePlatformWebViewControllerCreationParams_2 extends _i1.SmartFake
+class _FakePlatformWebViewControllerCreationParams_1 extends _i1.SmartFake
     implements _i3.PlatformWebViewControllerCreationParams {
-  _FakePlatformWebViewControllerCreationParams_2(
+  _FakePlatformWebViewControllerCreationParams_1(
     Object parent,
     Invocation parentInvocation,
   ) : super(parent, parentInvocation);
 }
 
-class _FakeObject_3 extends _i1.SmartFake implements Object {
-  _FakeObject_3(Object parent, Invocation parentInvocation)
+class _FakeObject_2 extends _i1.SmartFake implements Object {
+  _FakeObject_2(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeOffset_4 extends _i1.SmartFake implements _i4.Offset {
-  _FakeOffset_4(Object parent, Invocation parentInvocation)
+class _FakeOffset_3 extends _i1.SmartFake implements _i4.Offset {
+  _FakeOffset_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -64,17 +57,6 @@ class MockCookieManager extends _i1.Mock implements _i2.CookieManager {
   MockCookieManager() {
     _i1.throwOnMissingStub(this);
   }
-
-  @override
-  _i2.PigeonInstanceManager get pigeon_instanceManager =>
-      (super.noSuchMethod(
-            Invocation.getter(#pigeon_instanceManager),
-            returnValue: _FakePigeonInstanceManager_0(
-              this,
-              Invocation.getter(#pigeon_instanceManager),
-            ),
-          )
-          as _i2.PigeonInstanceManager);
 
   @override
   _i5.Future<void> setCookie(String? url, String? value) =>
@@ -106,12 +88,12 @@ class MockCookieManager extends _i1.Mock implements _i2.CookieManager {
           as _i5.Future<void>);
 
   @override
-  _i2.CookieManager pigeon_copy() =>
+  _i2.CookieManager copy() =>
       (super.noSuchMethod(
-            Invocation.method(#pigeon_copy, []),
-            returnValue: _FakeCookieManager_1(
+            Invocation.method(#copy, []),
+            returnValue: _FakeCookieManager_0(
               this,
-              Invocation.method(#pigeon_copy, []),
+              Invocation.method(#copy, []),
             ),
           )
           as _i2.CookieManager);
@@ -135,21 +117,12 @@ class MockOhosWebViewController extends _i1.Mock
   _i3.PlatformWebViewControllerCreationParams get params =>
       (super.noSuchMethod(
             Invocation.getter(#params),
-            returnValue: _FakePlatformWebViewControllerCreationParams_2(
+            returnValue: _FakePlatformWebViewControllerCreationParams_1(
               this,
               Invocation.getter(#params),
             ),
           )
           as _i3.PlatformWebViewControllerCreationParams);
-
-  @override
-  _i5.Future<void> setAllowFileAccess(bool? allow) =>
-      (super.noSuchMethod(
-            Invocation.method(#setAllowFileAccess, [allow]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
 
   @override
   _i5.Future<void> loadFile(String? absoluteFilePath) =>
@@ -290,7 +263,7 @@ class MockOhosWebViewController extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#runJavaScriptReturningResult, [javaScript]),
             returnValue: _i5.Future<Object>.value(
-              _FakeObject_3(
+              _FakeObject_2(
                 this,
                 Invocation.method(#runJavaScriptReturningResult, [javaScript]),
               ),
@@ -351,7 +324,7 @@ class MockOhosWebViewController extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#getScrollPosition, []),
             returnValue: _i5.Future<_i4.Offset>.value(
-              _FakeOffset_4(this, Invocation.method(#getScrollPosition, [])),
+              _FakeOffset_3(this, Invocation.method(#getScrollPosition, [])),
             ),
           )
           as _i5.Future<_i4.Offset>);
@@ -418,33 +391,6 @@ class MockOhosWebViewController extends _i1.Mock
   _i5.Future<void> setTextZoom(int? textZoom) =>
       (super.noSuchMethod(
             Invocation.method(#setTextZoom, [textZoom]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> setUseWideViewPort(bool? use) =>
-      (super.noSuchMethod(
-            Invocation.method(#setUseWideViewPort, [use]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> setAllowContentAccess(bool? enabled) =>
-      (super.noSuchMethod(
-            Invocation.method(#setAllowContentAccess, [enabled]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> setGeolocationEnabled(bool? enabled) =>
-      (super.noSuchMethod(
-            Invocation.method(#setGeolocationEnabled, [enabled]),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
@@ -567,6 +513,34 @@ class MockOhosWebViewController extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<void> setMixedContentMode(_i6.MixedContentMode? mode) =>
+      (super.noSuchMethod(
+            Invocation.method(#setMixedContentMode, [mode]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
+  _i5.Future<bool> isWebViewFeatureSupported(
+    _i6.WebViewFeatureType? featureType,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#isWebViewFeatureSupported, [featureType]),
+            returnValue: _i5.Future<bool>.value(false),
+          )
+          as _i5.Future<bool>);
+
+  @override
+  _i5.Future<void> setPaymentRequestEnabled(bool? enabled) =>
+      (super.noSuchMethod(
+            Invocation.method(#setPaymentRequestEnabled, [enabled]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<void> setVerticalScrollBarEnabled(bool? enabled) =>
       (super.noSuchMethod(
             Invocation.method(#setVerticalScrollBarEnabled, [enabled]),
@@ -596,34 +570,6 @@ class MockOhosWebViewController extends _i1.Mock
   _i5.Future<void> setOverScrollMode(_i3.WebViewOverScrollMode? mode) =>
       (super.noSuchMethod(
             Invocation.method(#setOverScrollMode, [mode]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<void> setMixedContentMode(_i6.MixedContentMode? mode) =>
-      (super.noSuchMethod(
-            Invocation.method(#setMixedContentMode, [mode]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
-
-  @override
-  _i5.Future<bool> isWebViewFeatureSupported(
-    _i6.WebViewFeatureType? featureType,
-  ) =>
-      (super.noSuchMethod(
-            Invocation.method(#isWebViewFeatureSupported, [featureType]),
-            returnValue: _i5.Future<bool>.value(false),
-          )
-          as _i5.Future<bool>);
-
-  @override
-  _i5.Future<void> setPaymentRequestEnabled(bool? enabled) =>
-      (super.noSuchMethod(
-            Invocation.method(#setPaymentRequestEnabled, [enabled]),
             returnValue: _i5.Future<void>.value(),
             returnValueForMissingStub: _i5.Future<void>.value(),
           )

@@ -8,9 +8,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
-import 'package:webview_flutter_ohos/src/ohos_webkit.g.dart'
+import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
-import 'package:webview_flutter_ohos/src/ohos_webkit_constants.dart';
+import 'package:webview_flutter_ohos/src/ohos_webview.g.dart'
+    as ohos_webview_g; // 导入 WebViewPoint 等类型
+import 'package:webview_flutter_ohos/src/ohos_webview_constants.dart';
 import 'package:webview_flutter_ohos/src/legacy/webview_ohos_widget.dart';
 import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
 
@@ -66,9 +68,7 @@ void main() {
           onReceivedRequestError: anyNamed('onReceivedRequestError'),
           requestLoading: anyNamed('requestLoading'),
           urlLoading: anyNamed('urlLoading'),
-          onReceivedSslError: anyNamed('onReceivedSslError'),
-          onFormResubmission: anyNamed('onFormResubmission'),
-          onReceivedClientCertRequest: anyNamed('onReceivedClientCertRequest'),
+          // OHOS WebViewClient 没有 onReceivedSslError, onFormResubmission, onReceivedClientCertRequest 参数
         ),
       ).thenReturn(mockWebViewClient);
 
@@ -243,11 +243,7 @@ void main() {
               onReceivedRequestError: anyNamed('onReceivedRequestError'),
               requestLoading: anyNamed('requestLoading'),
               urlLoading: anyNamed('urlLoading'),
-              onReceivedSslError: anyNamed('onReceivedSslError'),
-              onFormResubmission: anyNamed('onFormResubmission'),
-              onReceivedClientCertRequest: anyNamed(
-                'onReceivedClientCertRequest',
-              ),
+              // OHOS WebViewClient 没有 onReceivedSslError, onFormResubmission, onReceivedClientCertRequest 参数
             ),
           ).thenReturn(mockWebViewClient);
 
@@ -375,9 +371,10 @@ void main() {
 
         await testController.loadFlutterAsset(assetKey);
 
+        // OHOS URL 格式: 'resources/rawfile/flutter_assets/$assetKey'
         verify(
           mockWebView.loadUrl(
-            'file:///ohos_asset/flutter_assets/$assetKey',
+            'resources/rawfile/flutter_assets/$assetKey',
             <String, String>{},
           ),
         );
@@ -398,9 +395,10 @@ void main() {
 
         await testController.loadFlutterAsset(assetKey);
 
+        // OHOS URL 格式: 'resources/rawfile/flutter_assets/$assetKey'
         verify(
           mockWebView.loadUrl(
-            'file:///ohos_asset/flutter_assets/$assetKey',
+            'resources/rawfile/flutter_assets/$assetKey',
             <String, String>{},
           ),
         );
@@ -444,11 +442,11 @@ void main() {
 
         verify(
           mockWebView.loadDataWithBaseUrl(
-            null,
-            htmlString,
-            'text/html',
-            null,
-            null,
+            baseUrl: null,
+            data: htmlString,
+            mimeType: 'text/html',
+            encoding: null,
+            historyUrl: null,
           ),
         );
       });
@@ -464,11 +462,11 @@ void main() {
 
         verify(
           mockWebView.loadDataWithBaseUrl(
-            'https://flutter.dev',
-            htmlString,
-            'text/html',
-            null,
-            null,
+            baseUrl: 'https://flutter.dev',
+            data: htmlString,
+            mimeType: 'text/html',
+            encoding: null,
+            historyUrl: null,
           ),
         );
       });
@@ -704,8 +702,9 @@ void main() {
 
         await testController.addJavascriptChannels(<String>{'c', 'd'});
         await testController.removeJavascriptChannels(<String>{'c', 'd'});
-        verify(mockWebView.removeJavaScriptChannel('c'));
-        verify(mockWebView.removeJavaScriptChannel('d'));
+        // OHOS removeJavaScriptChannel 需要 JavaScriptChannel 参数而非 String
+        // 使用 called(2) 验证两次调用，而非两次单独的 verify
+        verify(mockWebView.removeJavaScriptChannel(argThat(isA<ohos_webview.JavaScriptChannel>()))).called(2);
       });
 
       testWidgets('getTitle', (WidgetTester tester) async {
@@ -734,10 +733,9 @@ void main() {
       testWidgets('getScrollX', (WidgetTester tester) async {
         await buildWidget(tester);
 
-        when(mockWebView.getScrollPosition()).thenAnswer(
-          (_) => Future<ohos_webview.WebViewPoint>.value(
-            ohos_webview.WebViewPoint.pigeon_detached(x: 23, y: 24),
-          ),
+        // OHOS legacy 实现直接调用 webView.getScrollX()
+        when(mockWebView.getScrollX()).thenAnswer(
+          (_) => Future<int>.value(23),
         );
         expect(testController.getScrollX(), completion(23));
       });
@@ -745,10 +743,9 @@ void main() {
       testWidgets('getScrollY', (WidgetTester tester) async {
         await buildWidget(tester);
 
-        when(mockWebView.getScrollPosition()).thenAnswer(
-          (_) => Future<ohos_webview.WebViewPoint>.value(
-            ohos_webview.WebViewPoint.pigeon_detached(x: 23, y: 25),
-          ),
+        // OHOS legacy 实现直接调用 webView.getScrollY()
+        when(mockWebView.getScrollY()).thenAnswer(
+          (_) => Future<int>.value(25),
         );
         expect(testController.getScrollY(), completion(25));
       });
@@ -757,6 +754,8 @@ void main() {
     group('WebViewPlatformCallbacksHandler', () {
       testWidgets('onPageStarted', (WidgetTester tester) async {
         await buildWidget(tester);
+        // OHOS 回调签名: (WebView, String) => void
+        // Android 回调签名: (WebViewClient, WebView, String) => void
         final onPageStarted =
             verify(
                   mockWebViewProxy.createWebViewClient(
@@ -765,20 +764,14 @@ void main() {
                     onReceivedRequestError: anyNamed('onReceivedRequestError'),
                     requestLoading: anyNamed('requestLoading'),
                     urlLoading: anyNamed('urlLoading'),
-                    onReceivedSslError: anyNamed('onReceivedSslError'),
-                    onFormResubmission: anyNamed('onFormResubmission'),
-                    onReceivedClientCertRequest: anyNamed(
-                      'onReceivedClientCertRequest',
-                    ),
                   ),
                 ).captured.single
                 as void Function(
-                  ohos_webview.WebViewClient,
                   ohos_webview.WebView,
                   String,
                 );
 
-        onPageStarted(MockWebViewClient(), mockWebView, 'https://google.com');
+        onPageStarted(mockWebView, 'https://google.com');
         verify(mockCallbacksHandler.onPageStarted('https://google.com'));
       });
 
@@ -793,20 +786,14 @@ void main() {
                     onReceivedRequestError: anyNamed('onReceivedRequestError'),
                     requestLoading: anyNamed('requestLoading'),
                     urlLoading: anyNamed('urlLoading'),
-                    onReceivedSslError: anyNamed('onReceivedSslError'),
-                    onFormResubmission: anyNamed('onFormResubmission'),
-                    onReceivedClientCertRequest: anyNamed(
-                      'onReceivedClientCertRequest',
-                    ),
                   ),
                 ).captured.single
                 as void Function(
-                  ohos_webview.WebViewClient,
                   ohos_webview.WebView,
                   String,
                 );
 
-        onPageFinished(MockWebViewClient(), mockWebView, 'https://google.com');
+        onPageFinished(mockWebView, 'https://google.com');
         verify(mockCallbacksHandler.onPageFinished('https://google.com'));
       });
 
@@ -825,24 +812,17 @@ void main() {
                     ),
                     requestLoading: anyNamed('requestLoading'),
                     urlLoading: anyNamed('urlLoading'),
-                    onReceivedSslError: anyNamed('onReceivedSslError'),
-                    onFormResubmission: anyNamed('onFormResubmission'),
-                    onReceivedClientCertRequest: anyNamed(
-                      'onReceivedClientCertRequest',
-                    ),
                   ),
                 ).captured.single
                 as void Function(
-                  ohos_webview.WebViewClient,
                   ohos_webview.WebView,
                   ohos_webview.WebResourceRequest,
                   ohos_webview.WebResourceError,
                 );
 
         onReceivedRequestError(
-          MockWebViewClient(),
           mockWebView,
-          ohos_webview.WebResourceRequest.pigeon_detached(
+          ohos_webview.WebResourceRequest(
             url: 'https://google.com',
             isForMainFrame: true,
             isRedirect: false,
@@ -850,8 +830,8 @@ void main() {
             method: 'POST',
             requestHeaders: const <String, String>{},
           ),
-          ohos_webview.WebResourceError.pigeon_detached(
-            errorCode: WebViewClientConstants.errorUnsafeResource,
+          ohos_webview.WebResourceError(
+            errorCode: ohos_webview.WebViewClient.errorUnsafeResource,
             description: 'description',
           ),
         );
@@ -862,7 +842,8 @@ void main() {
                 ).captured.single
                 as WebResourceError;
         expect(error.description, 'description');
-        expect(error.errorCode, -16);
+        // OHOS errorUnsafeResource = -311 (Android = -16)
+        expect(error.errorCode, -311);
         expect(error.failingUrl, 'https://google.com');
         expect(error.domain, isNull);
         expect(error.errorType, WebResourceErrorType.unsafeResource);
@@ -887,20 +868,14 @@ void main() {
                     onReceivedRequestError: anyNamed('onReceivedRequestError'),
                     requestLoading: anyNamed('requestLoading'),
                     urlLoading: captureAnyNamed('urlLoading'),
-                    onReceivedSslError: anyNamed('onReceivedSslError'),
-                    onFormResubmission: anyNamed('onFormResubmission'),
-                    onReceivedClientCertRequest: anyNamed(
-                      'onReceivedClientCertRequest',
-                    ),
                   ),
                 ).captured.single
                 as void Function(
-                  ohos_webview.WebViewClient,
                   ohos_webview.WebView,
                   String,
                 );
 
-        urlLoading(MockWebViewClient(), mockWebView, 'https://google.com');
+        urlLoading(mockWebView, 'https://google.com');
         verify(
           mockCallbacksHandler.onNavigationRequest(
             url: 'https://google.com',
@@ -929,23 +904,16 @@ void main() {
                     onReceivedRequestError: anyNamed('onReceivedRequestError'),
                     requestLoading: captureAnyNamed('requestLoading'),
                     urlLoading: anyNamed('urlLoading'),
-                    onReceivedSslError: anyNamed('onReceivedSslError'),
-                    onFormResubmission: anyNamed('onFormResubmission'),
-                    onReceivedClientCertRequest: anyNamed(
-                      'onReceivedClientCertRequest',
-                    ),
                   ),
                 ).captured.single
                 as void Function(
-                  ohos_webview.WebViewClient,
                   ohos_webview.WebView,
                   ohos_webview.WebResourceRequest,
                 );
 
         requestLoading(
-          MockWebViewClient(),
           mockWebView,
-          ohos_webview.WebResourceRequest.pigeon_detached(
+          ohos_webview.WebResourceRequest(
             url: 'https://google.com',
             isForMainFrame: true,
             isRedirect: false,
@@ -974,7 +942,8 @@ void main() {
                     mockWebView.addJavaScriptChannel(captureAny),
                   ).captured.single
                   as WebViewOhosJavaScriptChannel;
-          javaScriptChannel.postMessage(javaScriptChannel, 'goodbye');
+          // OHOS JavaScriptChannel.postMessage 只接受 message 参数
+          javaScriptChannel.postMessage('goodbye');
           verify(
             mockJavascriptChannelRegistry.onJavascriptChannelMessage(
               'hello',
