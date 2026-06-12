@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:local_auth_android/local_auth_android.dart';
 import 'package:local_auth_ios/local_auth_ios.dart';
+import 'package:local_auth_ohos/local_auth_ohos.dart';
 import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
 import 'package:local_auth_windows/local_auth_windows.dart';
 import 'package:mockito/mockito.dart';
@@ -36,6 +37,7 @@ void main() {
         const IOSAuthMessages(),
         const AndroidAuthMessages(),
         const WindowsAuthMessages(),
+        const OhosAuthMessages(),
       ],
     )).called(1);
   });
