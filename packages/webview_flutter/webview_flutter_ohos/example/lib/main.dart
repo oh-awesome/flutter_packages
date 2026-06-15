@@ -11,6 +11,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
@@ -384,6 +385,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -437,6 +439,8 @@ class SampleMenu extends StatelessWidget {
             _onSetCookie();
           case MenuOptions.videoExample:
             _onVideoExample(context);
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreen(context);
           case MenuOptions.logExample:
             _onLogExample();
           case MenuOptions.basicAuthentication:
@@ -508,6 +512,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video full screen'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -617,10 +625,10 @@ class SampleMenu extends StatelessWidget {
   }
 
   Future<void> _onVideoExample(BuildContext context) {
-    final OhosWebViewController androidController =
+    final OhosWebViewController ohosController =
         webViewController as OhosWebViewController;
     // #docregion fullscreen_example
-    androidController.setCustomWidgetCallbacks(
+    ohosController.setCustomWidgetCallbacks(
       onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
         Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (BuildContext context) => widget,
@@ -633,11 +641,42 @@ class SampleMenu extends StatelessWidget {
     );
     // #enddocregion fullscreen_example
 
-    return androidController.loadRequest(
+    return ohosController.loadRequest(
       LoadRequestParams(
         uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo'),
       ),
     );
+  }
+
+  Future<void> _onVideoFullScreen(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => Scaffold(
+          body: PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: videoController),
+          ).build(context),
+        ),
+      ),
+    );
+
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   }
 
   Future<void> _onDoPostRequest() {
