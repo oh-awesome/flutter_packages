@@ -9,8 +9,9 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';  
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
@@ -154,7 +155,7 @@ class _WebViewExampleState extends State<WebViewExample> {
 
   Future<String> getUserAgent() async {
     String userAgent = await _controller.getUserAgent() ?? '';
-    if(defaultTargetPlatform != TargetPlatform.ohos){
+    if (defaultTargetPlatform != TargetPlatform.ohos) {
       return userAgent;
     }
     return '$userAgent HuaweiBrower';
@@ -229,7 +230,7 @@ Page resource error:
         ),
       );
 
-    getUserAgent().then((String userAgent){
+    getUserAgent().then((String userAgent) {
       _controller.setUserAgent(userAgent);
     });
   }
@@ -331,6 +332,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -396,6 +398,9 @@ class SampleMenu extends StatelessWidget {
             break;
           case MenuOptions.videoExample:
             _onVideoExample(context);
+            break;
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreen(context);
             break;
           case MenuOptions.logExample:
             _onLogExample();
@@ -469,6 +474,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video fullscreen example'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -597,6 +606,38 @@ class SampleMenu extends StatelessWidget {
     );
   }
 
+  /// 处理视频全屏模式，创建一个支持全屏旋转的 WebView 控制器并加载视频资源。
+  Future<void> _onVideoFullScreen(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => Scaffold(
+          body: PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: videoController),
+          ).build(context),
+        ),
+      ),
+    );
+
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitDown
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
   Future<void> _onDoPostRequest() {
     return webViewController.loadRequest(LoadRequestParams(
       uri: Uri.parse('https://httpbin.org/post'),
@@ -676,10 +717,10 @@ class SampleMenu extends StatelessWidget {
   Future<void> _onLogExample() {
     webViewController
         .setOnConsoleMessage((JavaScriptConsoleMessage consoleMessage) {
-      if (kDebugMode) {  
+      if (kDebugMode) {
         debugPrint(
-          '== JS == ${consoleMessage.level.name}: ${consoleMessage.message}');
-      } 
+            '== JS == ${consoleMessage.level.name}: ${consoleMessage.message}');
+      }
     });
     return webViewController.loadHtmlString(kLogExamplePage);
   }
