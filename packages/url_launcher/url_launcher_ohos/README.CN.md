@@ -1,29 +1,21 @@
-<p align="center">
-  <h1 align="center"> <code>url_launcher</code> </h1>
-</p>
+# url_launcher_ohos
 
-本项目基于 [url_launcher@6.1.12](https://pub.dev/packages/url_launcher/versions/6.1.12) 开发。
+本项目基于 [url_launcher](https://pub.dev/packages/url_launcher) 开发。
 
-## 1. 安装与使用
+## 简介
 
-### 1.1 安装方式
+url_launcher_ohos 是 url_launcher 插件的 OpenHarmony 平台实现，用于在 OpenHarmony 应用中启动 URL。支持在系统浏览器或应用内 WebView 中打开网页链接，同时支持拨打电话、发送短信、打开应用商店等系统功能。
+
+## 下载安装
 
 进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
-<!-- tabs:start -->
-
-#### pubspec.yaml
-
 ```yaml
-...
-
 dependencies:
-  url_launcher:
-   git:
-     url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-     path: "packages/url_launcher/url_launcher"
-
-...
+  url_launcher_ohos:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages
+      path: packages/url_launcher/url_launcher_ohos
 ```
 
 执行命令
@@ -32,113 +24,303 @@ dependencies:
 flutter pub get
 ```
 
-<!-- tabs:end -->
+## 约束与限制
 
-### 1.2 使用案例
+### 兼容性
 
-使用案例详见 [packages/url_launcher/url_launcher_ohos/example](./example)
+在以下版本中已测试通过：
 
-## 2. 约束与限制
+1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
 
-### 2.1 兼容性
+### 权限要求
 
-在以下版本中已测试通过
+本插件需要以下权限：
 
-1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
-
-### 2.2 权限要求
-
-以下权限中有`system_basic` 权限，而默认的应用权限是 `normal` ，只能使用 `normal` 等级的权限，所以可能会在安装hap包时报错**9568289**，请参考 [文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/bm-tool-V5#ZH-CN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) 修改应用等级为 `system_basic`
-
-####  在 entry 目录下的module.json5中添加权限
+**在 entry 目录下的 module.json5 中添加权限**
 
 打开 `entry/src/main/module.json5`，添加：
 
-```yaml
+```json
 "requestPermissions": [
   {
     "name": "ohos.permission.INTERNET",
     "reason": "$string:network_reason",
     "usedScene": {
       "abilities": [
-        "EntryAbility"
+        "EntryAbility"  // 请替换为您的应用实际入口 Ability 名称
       ],
-      "when":"inuse"
+      "when": "inuse"
     }
-  },
+  }
 ]
 ```
 
-####  在 entry 目录下添加申请以上权限的原因
+**在 entry 目录下添加申请以上权限的原因**
 
 打开 `entry/src/main/resources/base/element/string.json`，添加：
 
-```yaml
+```json
 {
   "string": [
     {
       "name": "network_reason",
-      "value": "使用网络"
-    },
+      "value": "使用网络访问网页"
+    }
   ]
 }
 ```
 
-## 3. API
+## 使用示例
+
+以下示例展示了如何使用 url_launcher 在浏览器中打开网页链接：
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'URL Launcher Demo',
+      home: const UrlLaunchDemo(),
+    );
+  }
+}
+
+class UrlLaunchDemo extends StatefulWidget {
+  const UrlLaunchDemo({super.key});
+
+  @override
+  State<UrlLaunchDemo> createState() => _UrlLaunchDemoState();
+}
+
+class _UrlLaunchDemoState extends State<UrlLaunchDemo> {
+  final Uri _url = Uri.parse('https://www.openharmony.cn');
+
+  /// 在系统浏览器中打开 URL
+  Future<void> _launchInBrowser() async {
+    if (!await launchUrl(_url, mode: LaunchMode.externalApplication)) {
+      // 显示友好的提示信息
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('无法打开链接: $_url')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('URL Launcher 示例'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: _launchInBrowser,
+          child: const Text('在浏览器中打开'),
+        ),
+      ),
+    );
+  }
+}
+```
+
+## 使用说明
+
+### 1. 在系统浏览器中打开 URL
+
+使用 `launchUrl` 方法，设置 `mode: LaunchMode.externalApplication` 在系统浏览器中打开链接：
+
+```dart
+await launchUrl(
+  Uri.parse('https://www.openharmony.cn'),
+  mode: LaunchMode.externalApplication,
+);
+```
+
+### 2. 在应用内 WebView 中打开 URL
+
+设置 `mode: LaunchMode.inAppWebView` 在应用内 WebView 中打开链接：
+
+```dart
+await launchUrl(
+  Uri.parse('https://www.openharmony.cn'),
+  mode: LaunchMode.inAppWebView,
+  webViewConfiguration: InAppWebViewConfiguration(
+    enableJavaScript: true,
+    enableDomStorage: true,
+    headers: {
+      'harmony_browser_page': 'pages/LaunchInAppPage' // OHOS平台特有配置，指定应用内WebView页面路径
+    },
+  ),
+);
+```
+
+> **注意：** OHOS 平台使用 WebView 模式时，需要在 `headers` 中添加 `harmony_browser_page` 键，指定应用内 WebView 页面路径，并在 OHOS 工程中创建对应的页面并配置路由。
+
+### 3. 检查 URL 是否可启动
+
+在启动 URL 前，可以使用 `canLaunchUrl` 方法检查设备是否支持处理该 URL：
+
+```dart
+if (await canLaunchUrl(Uri.parse('https://www.openharmony.cn'))) {
+  await launchUrl(Uri.parse('https://www.openharmony.cn'));
+}
+```
+
+### 4. 关闭 WebView
+
+当使用 WebView 模式打开 URL 后，可以调用 `closeInAppWebView` 方法关闭 WebView：
+
+```dart
+await closeInAppWebView();
+```
+
+### 5. 拨打电话
+
+使用 `tel:` 协议可以启动系统拨号界面：
+
+```dart
+await launchUrl(Uri(scheme: 'tel', path: '1234567890'));
+```
+
+### 6. 发送短信
+
+使用 `sms:` 协议可以启动短信应用：
+
+```dart
+await launchUrl(Uri(scheme: 'sms', path: '5555555555'));
+```
+
+### 7. 打开应用商店
+
+使用 `store:` 协议可以打开应用商店：
+
+```dart
+await launchUrl(
+  Uri.parse('AppGallery Url'),
+  mode: LaunchMode.externalApplication,
+);
+```
+
+### 8. 发送邮件
+
+使用 `mailto:` 协议可以启动邮件应用：
+
+```dart
+await launchUrl(Uri(scheme: 'mailto', path: 'example@example.com'));
+```
+
+### 支持的 URL Scheme
+
+| Scheme | 说明 |
+|--------|------|
+| `http:` / `https:` | 在系统浏览器中打开网页 |
+| `tel:` | 启动拨号界面 |
+| `sms:` | 启动短信应用 |
+| `mailto:` | 启动邮件应用 |
+| `file:` | 打开本地文件（仅支持沙箱路径） |
+| `store:` | 打开应用商店 |
+| `store://enterprise` | 企业安装方式 |
+
+> 对于自定义 URL Scheme（如 `amapuri://` 等），需要在 `module.json5` 的 `querySchemes` 中添加对应的 scheme，才能通过 `canLaunchUrl` 正确判断。
+
+## 接口说明
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
-| Name | return value | Description  | Type       | ohos Support |
-|-----------|----------|-------|----------|--------------------|
-| canLaunch(String url) | Future<bool> | 检查设备是否可以启动一个特定的URL方案   | function  | yes               |
-| launch(String url, {required bool useSafariVC,required bool useWebView,required bool enableJavaScript,required bool enableDomStorage,required bool universalLinksOnly,required Map<String, String> headers,String? webOnlyWindowName,}) | Future<bool>  | 指定跳转参数Url路径 | function   | yes               |
-| launchUrl(String url, [LaunchOptions](#LaunchOptions) options)  | Future<bool> | 指定跳转浏览器并打开Url  | function  | yes               |
-| closeWebView() | Future<void> | 关闭WebView页面 | function | yes               |
+#### UrlLauncherPlatform
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| canLaunch() | 方法 | String url | Future\<bool\> | yes | 检查设备是否可以启动一个特定的URL方案 |
+| launch | 方法 | String url,<br/>required bool useSafariVC,<br/>required bool useWebView,<br/>required bool enableJavaScript,<br/>required bool enableDomStorage,<br/>required bool universalLinksOnly,<br/>required Map\<String, String\> headers,<br/>String? webOnlyWindowName | Future\<bool\> | yes | 指定跳转参数Url路径 |
+| launchUrl() | 方法 | String url,<br/>[LaunchOptions](#LaunchOptions) options | Future\<bool\> | yes | 指定跳转浏览器并打开Url |
+| closeWebView() | 方法 | / | Future\<void\> | yes | 关闭WebView页面 |
+
+#### LaunchOptions
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| mode | 属性 | / | [PreferredLaunchMode](#PreferredLaunchMode) | yes | 启动 URL 所需的模式 |
+| webViewConfiguration | 属性 | / | [InAppWebViewConfiguration](#InAppWebViewConfiguration) | yes | 在 [PreferredLaunchMode.inAppWebView] 模式下配置 Web 视图 |
+| webOnlyWindowName | 属性 | / | String? | yes | 取消设置时的默认行为应该是在新选项卡中打开 URL |
+
+#### PreferredLaunchMode
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| platformDefault | 枚举值 | / | enum | yes | 启动方式由平台决定 |
+| inAppWebView | 枚举值 | / | enum | yes | 加载到inAppWebView |
+| externalApplication | 枚举值 | / | enum | yes | 将 URL 传递给外部应用程序处理 |
+| externalNonBrowserApplication | 枚举值 | / | enum | yes | 将 URL 传递给外部非浏览器应用程序处理 |
+
+#### InAppWebViewConfiguration
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| enableJavaScript | 属性 | / | bool | yes | 如果设置为true，则在WebView中启用JavaScript |
+| enableDomStorage | 属性 | / | bool | yes | 当该值设置为true，WebView启用DOM存储 |
+| headers | 属性 | / | Map\<String, String\> | yes | 在网页中打开Url时的请求头参数。OHOS平台需通过此参数传入 `harmony_browser_page` 指定WebView页面路径 |
+
+#### launch 方法参数
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| url | 参数 | String | / | yes | 跳转地址 |
+| useSafariVC | 参数 | bool | / | yes | 是否在Safari视图控制器中打开URL |
+| useWebView | 参数 | bool | / | yes | 如果设置为false，则在设备的默认浏览器中打开URL；否则，在WebView中启动URL |
+| enableJavaScript | 参数 | bool | / | yes | 如果设置为true，则在WebView中启用JavaScript |
+| enableDomStorage | 参数 | bool | / | yes | 当该值设置为true，WebView启用DOM存储 |
+| universalLinksOnly | 参数 | bool | / | yes | 用于控制是否仅通过Universal Links打开网页 |
+| headers | 参数 | Map\<String, String\> | / | yes | 在网页中打开Url时的请求头参数 |
+| webOnlyWindowName | 参数 | String? | / | yes | 取消设置时的默认行为应该是在新选项卡中打开URL |
+
+## 遗留问题
+
+无
+
+## 目录结构
+
+```
+flutter_packages/
+└── packages/
+    └── url_launcher/
+        └── url_launcher_ohos/
+            ├── lib/                          # Dart 代码目录
+            │   ├── src/
+            │   │   └── messages.g.dart       # 平台通道消息定义
+            │   └── url_launcher_ohos.dart    # 插件主入口
+            ├── ohos/                         # OpenHarmony 原生代码目录
+            │   ├── index.ets                 # 原生插件导出入口
+            │   └── src/main/ets/components/plugin/
+            │       ├── InAppBrowser.ets      # 应用内浏览器实现
+            │       ├── Messages.ets          # 消息处理
+            │       ├── UrlLauncher.ets       # URL 启动器实现
+            │       └── UrlLauncherPlugin.ets # 插件入口
+            ├── example/                      # 示例应用
+            │   ├── lib/main.dart             # 示例代码
+            │   └── ohos/                     # 示例应用原生代码
+            ├── test/                         # 单元测试
+            ├── test_driver/                  # 集成测试驱动程序
+            ├── integration_test/             # 集成测试
+            ├── pubspec.yaml                  # 包配置文件
+            ├── README_CN.md                  # 中文文档
+            └── README.md                     # 英文文档
+```
+
+## 贡献代码
+
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
 
 
-### Parameters
-| Name  | Description  | Type       | ohos Support |
-|---------------------|-------|----------|--------------------|
-| url                | 跳转地址 | String   | yes      |
-| useSafariVC        | 是否在Safari视图控制器中打开URL   | bool  | yes    |
-| useWebView         | 如果设置为null 或false ，则在设备的默认浏览器中打开URL；否则，在WebView中启动URL | bool     | yes     |
-| enableJavaScript   | 如果设置为true ，则在WebView中启用JavaScript| bool  | yes       | 
-| enableDomStorage   | 当该值设置为true ，WebView启用DOM存储  | bool    | yes       | 
-| universalLinksOnly | 用于控制是否仅通过Universal Links打开网页  | bool                       | yes       |
-| headers            | 在网页中打开Url时的请求头参数 | Map<String, String>   | yes       |
-| webOnlyWindowName  | 取消设置时的默认行为应该是在新选项卡中打开 URL。 | String?            | yes       | 
+## 开源协议
 
-### LaunchOptions
-
-| Name  | Description  | Type       | ohos Support |
-|---------------------|-------|----------|--------------------|
-| mode                | 启动 URL 所需的模式。 | [PreferredLaunchMode](#PreferredLaunchMode)   | yes      |
-| webViewConfiguration | 在 [PreferredLaunchMode.inAppWebView] 模式下配置 Web 视图。 | [InAppWebViewConfiguration](#InAppWebViewConfiguration) | yes       | 
-| webOnlyWindowName    | 取消设置时的默认行为应该是在新选项卡中打开 URL。 | String? | yes       | 
-
-### PreferredLaunchMode
-
-| Name            | Description  | Type | ohos Support |
-|-----------------|--------------|------|-------------|
-| PreferredLaunchMode.platformDefault    | 启动方式由平台决定 | enum | yes  |
-| PreferredLaunchMode.inAppWebView | 加载到inAppWebView | enum | yes  |
-| PreferredLaunchMode.externalApplication  | 将 URL 传递给要由其他应用程序处理的 | enum | yes  |
-| PreferredLaunchMode.externalNonBrowserApplication  | 将 URL 传递给要由另一个非浏览器应用程序处理 | enum | yes  |
-
-### InAppWebViewConfiguration
-
-| Name            | Description  | Type | ohos Support |
-|-----------------|--------------|------|-------------|
-| enableJavaScript   | 如果设置为true ，则在WebView中启用JavaScript| bool  | yes       | 
-| enableDomStorage   | 当该值设置为true ，WebView启用DOM存储  | bool    | yes       | 
-| headers            | 在网页中打开Url时的请求头参数 | Map<String, String>   | yes       |
-
-## 4. 遗留问题
-
-## 5. 其他
-
-## 6. 开源协议
-
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/url_launcher/url_launcher/LICENSE) ，请自由地享受和参与开源。
-
-> 模板版本: v0.0.1
+本项目基于 [BSD-3-Clause](LICENSE) ，请自由地享受和参与开源。
