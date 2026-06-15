@@ -47,7 +47,7 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "3.22.0-ohos"]
+    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.22.3-dev"]
     required: true
 
   - name: Prepare Packages
@@ -58,7 +58,12 @@ preparation_steps:
 
 # Compilation steps - executed in order
 compilation_steps:
-  - name: Build hap for changed packages
+  - name: Build haps
     script: .ci/scripts/build_haps.sh
-    description: Build hap file
+    description: Build haps for changed packages
     required: true
+  
+  - name: Unit Tests
+    script: .ci/scripts/run_tests.sh
+    description: Run unit Tests for changed packages
+    required: false
