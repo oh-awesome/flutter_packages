@@ -36,6 +36,7 @@ class VideoPlayerValue {
     this.isBuffering = false,
     this.playbackSpeed = 1.0,
     this.errorDescription,
+    this.rotationCorrection = 0,
   });
 
   /// Returns an instance for a video that hasn't been loaded.
@@ -80,6 +81,8 @@ class VideoPlayerValue {
   /// Indicates whether or not the video has been loaded and is ready to play.
   final bool isInitialized;
 
+  /// Degrees to rotate the video (clockwise) so it is displayed correctly.
+  final int rotationCorrection;
   /// Indicates whether or not the video is in an error state. If this is true
   /// [errorDescription] should have information about the problem.
   bool get hasError => errorDescription != null;
@@ -113,6 +116,7 @@ class VideoPlayerValue {
     bool? isBuffering,
     double? playbackSpeed,
     String? errorDescription,
+    int? rotationCorrection,
   }) {
     return VideoPlayerValue(
       duration: duration ?? this.duration,
@@ -124,6 +128,7 @@ class VideoPlayerValue {
       isBuffering: isBuffering ?? this.isBuffering,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       errorDescription: errorDescription ?? this.errorDescription,
+      rotationCorrection: rotationCorrection ?? this.rotationCorrection,
     );
   }
 
@@ -140,7 +145,8 @@ class VideoPlayerValue {
           playbackSpeed == other.playbackSpeed &&
           errorDescription == other.errorDescription &&
           size == other.size &&
-          isInitialized == other.isInitialized;
+          isInitialized == other.isInitialized&&
+ 	        rotationCorrection == other.rotationCorrection;
 
   @override
   int get hashCode => Object.hash(
@@ -153,6 +159,7 @@ class VideoPlayerValue {
         errorDescription,
         size,
         isInitialized,
+        rotationCorrection,
       );
 }
 
@@ -250,6 +257,7 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.initialized:
           value = value.copyWith(
             duration: event.duration,
+            rotationCorrection: event.rotationCorrection,
             size: event.size,
             isInitialized: event.duration != null,
           );
@@ -429,7 +437,27 @@ class _VideoPlayerState extends State<VideoPlayer> {
   Widget build(BuildContext context) {
     return _textureId == MiniController.kUninitializedTextureId
         ? Container()
-        : _platform.buildView(_textureId);
+        : _VideoPlayerWithRotation(
+            rotation: widget.controller.value.rotationCorrection,
+            child: _platform.buildViewWithOptions(
+              VideoViewOptions(playerId: _textureId),
+            ),
+          );
+  }
+}
+
+class _VideoPlayerWithRotation extends StatelessWidget {
+  const _VideoPlayerWithRotation({required this.rotation, required this.child});
+
+  final int rotation;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rotation == 0) {
+      return child;
+    }
+    return RotatedBox(quarterTurns: rotation ~/ 90, child: child);
   }
 }
 
