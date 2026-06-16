@@ -21,18 +21,24 @@ import 'messages_test.g.dart';
 
 const String kTemporaryPath = 'temporaryPath';
 const String kApplicationSupportPath = 'applicationSupportPath';
-const String kLibraryPath = 'libraryPath';
 const String kApplicationDocumentsPath = 'applicationDocumentsPath';
+const String kApplicationCachePath = 'applicationCachePath';
 const String kExternalCachePaths = 'externalCachePaths';
 const String kExternalStoragePaths = 'externalStoragePaths';
-const String kDownloadsPath = 'downloadsPath';
 
 class _Api implements TestPathProviderApi {
+  _Api({this.returnsExternalStoragePaths = true});
+
+  final bool returnsExternalStoragePaths;
+
   @override
   String? getApplicationDocumentsPath() => kApplicationDocumentsPath;
 
   @override
   String? getApplicationSupportPath() => kApplicationSupportPath;
+
+  @override
+  String? getApplicationCachePath() => kApplicationCachePath;
 
   @override
   List<String?> getExternalCachePaths() => <String>[kExternalCachePaths];
@@ -41,8 +47,9 @@ class _Api implements TestPathProviderApi {
   String? getExternalStoragePath() => kExternalStoragePaths;
 
   @override
-  List<String?> getExternalStoragePaths(messages.StorageDirectory directory) =>
-      <String>[kExternalStoragePaths];
+  List<String?> getExternalStoragePaths(messages.StorageDirectory directory) {
+    return <String?>[if (returnsExternalStoragePaths) kExternalStoragePaths];
+  }
 
   @override
   String? getTemporaryPath() => kTemporaryPath;
@@ -67,6 +74,11 @@ void main() {
     test('getApplicationSupportPath', () async {
       final String? path = await pathProvider.getApplicationSupportPath();
       expect(path, kApplicationSupportPath);
+    });
+
+    test('getApplicationCachePath', () async {
+      final String? path = await pathProvider.getApplicationCachePath();
+      expect(path, kApplicationCachePath);
     });
 
     test('getLibraryPath fails', () async {
@@ -100,13 +112,18 @@ void main() {
       });
     } // end of for-loop
 
-    test('getDownloadsPath fails', () async {
-      try {
-        await pathProvider.getDownloadsPath();
-        fail('should throw UnsupportedError');
-      } catch (e) {
-        expect(e, isUnsupportedError);
-      }
+    test('getDownloadsPath succeeds', () async {
+      final String? path = await pathProvider.getDownloadsPath();
+      expect(path, kExternalStoragePaths);
+    });
+
+    test(
+        'getDownloadsPath returns null, when getExternalStoragePaths returns '
+        'an empty list', () async {
+      final PathProviderOhos pathProvider = PathProviderOhos();
+      TestPathProviderApi.setup(_Api(returnsExternalStoragePaths: false));
+      final String? path = await pathProvider.getDownloadsPath();
+      expect(path, null);
     });
   });
 }
