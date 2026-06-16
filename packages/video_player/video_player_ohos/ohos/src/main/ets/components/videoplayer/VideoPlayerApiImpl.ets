@@ -40,6 +40,40 @@ import { GlobalContext } from './util/GlobalContext';
 import { window } from '@kit.ArkUI';
 import { image } from '@kit.ImageKit';
 
+function mapPlaybackSpeed(speed: number): media.PlaybackSpeed {
+  if (speed > 0 && speed <= 0.125) {
+    //x0.125
+    return media.PlaybackSpeed.SPEED_FORWARD_0_125_X;
+  } else if (speed > 0.125 && speed <= 0.4) {
+    //x0.25
+    return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
+  } else if (speed > 0.4 && speed <= 0.6) {
+    //x0.5
+    return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
+  } else if (speed > 0.6 && speed <= 0.8) {
+    //x0.75
+    return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
+  } else if (speed > 0.8 && speed <= 1.1) {
+    //x1
+    return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+  } else if (speed > 1.1 && speed <= 1.4) {
+    //x1.25
+    return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
+  } else if (speed > 1.4 && speed <= 1.6) {
+    //x1.5
+    return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
+  } else if (speed > 1.6 && speed <= 1.8) {
+    //x1.75
+    return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
+  } else if (speed > 1.8 && speed <= 2.0) {
+    //x2.0
+    return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
+  } else if (speed > 2.0) {
+    return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
+  }
+  return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+}
+
 const TAG: string = "VideoPlayerApiImpl";
 export class VideoPlayerApiImpl {
   private videoPlayers: HashMap<String, VideoPlayer> = new HashMap<String, VideoPlayer>();
@@ -155,9 +189,10 @@ export class VideoPlayerApiImpl {
   setPlaybackSpeed(arg: PlaybackSpeedMessage) {
     let videoPlayer = this.videoPlayers.get(arg.getTextureId().toString());
     Log.d(TAG, "setPlaybackSpeed, id=" + arg.getTextureId() + ", videoPlayer=" + videoPlayer);
-    let speed: media.PlaybackSpeed | null = arg.getSpeed();
-    if (speed != null) {
-      videoPlayer?.setSpeed(speed);
+    let speed: number | null = arg.getSpeed();
+    if (videoPlayer && speed) {
+      const enumSpeed = mapPlaybackSpeed(speed);
+      videoPlayer.setSpeed(enumSpeed);
     } else {
       Log.w(TAG, "unsupported playBackSpeed!");
     }
