@@ -211,12 +211,9 @@ void main() {
     );
 
     test(
-      'onNavigationRequest from requestLoading should also be called when request is not for main frame (OHOS behavior)',
+      'onNavigationRequest from requestLoading should not be called when request is not for main frame',
       () {
-        // OHOS 实现差异：与 Android 不同，OHOS 的 _handleNavigation 方法
-        // 对所有请求都触发 onNavigationRequest 回调，不检查 isForMainFrame
-        // 这是 OHOS 的实际实现机制，测试需要反映这个行为
-
+        // 与 Android 保持一致：只拦截主框架导航，因为 loadUrl 无法加载子框架
         final ohosNavigationDelegate = OhosNavigationDelegate(
           OhosNavigationDelegateCreationParams
               .fromPlatformNavigationDelegateCreationParams(
@@ -246,9 +243,8 @@ void main() {
           ),
         );
 
-        // OHOS 行为：非主框架请求也会触发回调
-        expect(callbackNavigationRequest, isNotNull);
-        expect(callbackNavigationRequest!.isMainFrame, false);
+        // 非主框架请求不触发回调，直接放行
+        expect(callbackNavigationRequest, isNull);
       },
     );
 

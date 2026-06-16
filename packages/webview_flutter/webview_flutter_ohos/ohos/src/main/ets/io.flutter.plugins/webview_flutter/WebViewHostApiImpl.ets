@@ -711,6 +711,7 @@ class WebSettingsImpl implements WebSettings {
   isAllowFullScreenRotate: boolean = false;
   paymentRequestEnabled: boolean = false;
   mixedMode: number = 0; // Default: MixedMode.All (allow all mixed content)
+  overScrollMode: number = 0; // Default: OverScrollMode.NEVER
 
   constructor(webView: WebViewPlatformView) {
     this.webView = webView;
@@ -868,6 +869,14 @@ class WebSettingsImpl implements WebSettings {
 
   getMixedMode(): number {
     return this.mixedMode;
+  }
+
+  setOverScrollMode(mode: number) {
+    this.overScrollMode = mode;
+  }
+
+  getOverScrollMode(): number {
+    return this.overScrollMode;
   }
 }
 
