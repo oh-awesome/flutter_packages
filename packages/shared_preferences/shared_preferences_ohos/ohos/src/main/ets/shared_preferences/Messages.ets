@@ -7,7 +7,7 @@
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 
-class FlutterError extends Error {
+export class FlutterError extends Error {
   /** The error code. */
   public code: string;
 
@@ -53,17 +53,17 @@ export interface SharedPreferencesApi {
   /** Adds property to shared preferences data set of type double. */
   setDouble(key: string, value: number): Promise<void>;
 
-  /** Adds property to shared preferences data set of type String. */
-  setStringList(key: string, value: Array<string>): Promise<void>;
+  /** Adds property to shared preferences data set of type deprecated platform encoded List<String>. */
+  setDeprecatedStringList(key: string, value: Array<string>): Promise<void>;
 
   /** Adds property to shared preferences data set of type List<String> encoded as String. */
   setEncodedStringList(key: string, value: string): Promise<void>;
 
   /** Removes all properties from shared preferences data set with matching prefix. */
-  clear(prefix: string, allowList: Array<string>): Promise<void>;
+  clear(prefix: string, allowList: Array<string> | null): Promise<void>;
 
   /** Gets all properties from shared preferences data set with matching prefix. */
-  getAll(prefix: string, allowList: Array<string>): Promise<Object>;
+  getAll(prefix: string, allowList: Array<string> | null): Promise<Object>;
 
   /** The codec used by SharedPreferencesApi. */
   getCodec(): MessageCodec<Object>;
