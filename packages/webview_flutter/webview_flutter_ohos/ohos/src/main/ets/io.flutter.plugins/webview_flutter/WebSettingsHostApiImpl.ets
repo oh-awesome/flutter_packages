@@ -73,6 +73,10 @@ export interface WebSettings {
   setMixedContentMode(mode: number): void;
 
   getMixedMode(): number;
+
+  setOverScrollMode(mode: number): void;
+
+  getOverScrollMode(): number;
 }
 
 export class WebSettingsCreator {
@@ -185,5 +189,10 @@ export class WebSettingsHostApiImpl extends WebSettingsHostApi {
   setMixedContentMode(instanceId: number, mode: number) {
     const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
     webSettings.setMixedContentMode(mode);
+  }
+
+  setOverScrollMode(instanceId: number, mode: number) {
+    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    webSettings.setOverScrollMode(mode);
   }
 }

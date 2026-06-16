@@ -73,6 +73,18 @@ export struct OhosWebView {
     }
   }
 
+  getOverScrollModeValue(): OverScrollMode {
+    const mode: number = this.webView.getWebSettings().getOverScrollMode();
+    switch (mode) {
+      case 0:
+        return OverScrollMode.NEVER;
+      case 1:
+        return OverScrollMode.ALWAYS;
+      default:
+        return OverScrollMode.NEVER;
+    }
+  }
+
   build() {
     Column() {
       if (!this.disposed) {
@@ -124,6 +136,7 @@ export struct OhosWebView {
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)
           .mixedMode(this.getMixedModeValue())
+          .overScrollMode(this.getOverScrollModeValue())
           .onOverrideUrlLoading(this.webView.onOverrideUrlLoading)
           .onFullScreenEnter(this.webView.onFullScreenEnter)
           .onFullScreenExit(this.webView.onFullScreenExit)
