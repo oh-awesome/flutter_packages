@@ -760,6 +760,17 @@ class OhosWebViewController extends PlatformWebViewController {
     return _webView.settings.setMixedContentMode(ohosMode);
   }
 
+  @override
+  Future<void> setOverScrollMode(WebViewOverScrollMode mode) {
+    final ohos_webview.OverScrollMode ohosMode = switch (mode) {
+      WebViewOverScrollMode.always => ohos_webview.OverScrollMode.always,
+      WebViewOverScrollMode.ifContentScrolls =>
+        ohos_webview.OverScrollMode.never,
+      WebViewOverScrollMode.never => ohos_webview.OverScrollMode.never,
+    };
+    return _webView.settings.setOverScrollMode(ohosMode);
+  }
+
   /// Checks if a WebView feature is supported on the current device.
   ///
   /// This method uses [ohos_webview.WebViewFeature.isFeatureSupported] to check
@@ -1408,22 +1419,6 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
             isForMainFrame: request.isForMainFrame,
           ));
         }
-        
-        // Handle HTTP errors
-        final HttpResponseErrorCallback? httpErrorCallback =
-            weakThis.target?._onHttpError;
-        if (httpErrorCallback != null) {
-          httpErrorCallback(HttpResponseError(
-            response: WebResourceResponse(
-              uri: Uri.parse(request.url),
-              statusCode: error.errorCode,
-              headers: <String, String>{},
-            ),
-            request: WebResourceRequest(
-              uri: Uri.parse(request.url),
-            ),
-          ));
-        }
       },
       requestLoading: (
         ohos_webview.WebView webView,
@@ -1576,7 +1571,10 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
     final LoadRequestCallback? onLoadRequest = _onLoadRequest;
     final NavigationRequestCallback? onNavigationRequest = _onNavigationRequest;
 
-    if (onNavigationRequest == null || onLoadRequest == null) {
+    //与 Android 保持一致：只拦截主框架导航，因为 loadUrl 无法加载子框架
+    if (!isForMainFrame ||
+        onNavigationRequest == null ||
+        onLoadRequest == null) {
       return;
     }
 

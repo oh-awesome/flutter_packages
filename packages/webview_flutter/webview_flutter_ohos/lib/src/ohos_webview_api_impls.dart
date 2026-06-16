@@ -610,6 +610,17 @@ class WebSettingsHostApiImpl extends WebSettingsHostApi {
       mode.index,
     );
   }
+
+  /// Helper method to convert instances ids to objects.
+  Future<void> setOverScrollModeFromInstance(
+    WebSettings instance,
+    OverScrollMode mode,
+  ) {
+    return setOverScrollMode(
+      instanceManager.getIdentifier(instance)!,
+      mode.index,
+    );
+  }
 }
 
 /// Host api implementation for [JavaScriptChannel].

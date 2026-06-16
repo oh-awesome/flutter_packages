@@ -1716,7 +1716,17 @@ void main() {
     expect(calls.isNotEmpty, true);
   });
 
-  test('setOverScrollMode', () async {}, skip: 'OHOS 不存在 OverScrollMode 类型和 setOverScrollMode 方法');
+  test('setOverScrollMode', () async {
+    OhosPigeonTestMocks.clearRecords();
+    final controller = createControllerWithMocks();
+
+    await controller.setOverScrollMode(WebViewOverScrollMode.never);
+
+    final calls = OhosPigeonTestMocks.getCallsForChannel(
+      'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setOverScrollMode'
+    );
+    expect(calls.isNotEmpty, true);
+  });
 
   test('isWebViewFeatureSupported', () async {
     OhosPigeonTestMocks.clearRecords();

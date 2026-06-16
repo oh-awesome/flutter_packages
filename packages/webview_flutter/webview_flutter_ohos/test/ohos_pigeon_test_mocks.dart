@@ -133,6 +133,7 @@ class OhosPigeonTestMocks {
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setAllowFullScreenRotate');
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setPaymentRequestEnabled');
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setMixedContentMode');
+    _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setOverScrollMode');
 
     // WebViewFeature
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.WebViewFeatureHostApi.isFeatureSupported', returnValue: false);
