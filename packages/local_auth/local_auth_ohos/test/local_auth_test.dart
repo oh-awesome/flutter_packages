@@ -4,33 +4,68 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:local_auth_android/local_auth_android.dart';
+import 'package:local_auth_ohos/local_auth_ohos.dart';
+import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
+
+Map<String, dynamic> _expectedAuthenticateArgs({
+  required String localizedReason,
+  required bool useErrorDialogs,
+  required bool stickyAuth,
+  required bool sensitiveTransaction,
+  required bool biometricOnly,
+  OhosAuthMessages? messages,
+}) {
+  return <String, dynamic>{
+    'localizedReason': localizedReason,
+    'useErrorDialogs': useErrorDialogs,
+    'stickyAuth': stickyAuth,
+    'sensitiveTransaction': sensitiveTransaction,
+    'biometricOnly': biometricOnly,
+  }
+    ..addAll(const OhosAuthMessages().args)
+    ..addAll(messages?.args ?? const <String, String>{});
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('LocalAuth', () {
+  group('LocalAuthOhos', () {
     const MethodChannel channel = MethodChannel(
-      'plugins.flutter.io/local_auth_android',
+      'plugins.flutter.io/local_auth_ohos',
     );
 
     final List<MethodCall> log = <MethodCall>[];
-    late LocalAuthAndroid localAuthentication;
+    late LocalAuthOhos localAuthentication;
 
     setUp(() {
-      _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
-          .defaultBinaryMessenger
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) {
         log.add(methodCall);
         switch (methodCall.method) {
           case 'getEnrolledBiometrics':
-            return Future<List<String>>.value(<String>['weak', 'strong']);
+            return Future<List<String>>.value(
+              <String>['face', 'fingerprint', 'unknown'],
+            );
           default:
             return Future<dynamic>.value(true);
         }
       });
-      localAuthentication = LocalAuthAndroid();
+      localAuthentication = LocalAuthOhos();
       log.clear();
+    });
+
+    tearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    test('registers instance', () {
+      final LocalAuthPlatform original = LocalAuthPlatform.instance;
+      addTearDown(() => LocalAuthPlatform.instance = original);
+
+      LocalAuthOhos.registerWith();
+
+      expect(LocalAuthPlatform.instance, isA<LocalAuthOhos>());
     });
 
     test('deviceSupportsBiometrics calls platform', () async {
@@ -42,7 +77,20 @@ void main() {
           isMethodCall('deviceSupportsBiometrics', arguments: null),
         ],
       );
-      expect(result, true);
+      expect(result, isTrue);
+    });
+
+    test('deviceSupportsBiometrics returns false when channel returns null',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'deviceSupportsBiometrics') {
+          return null;
+        }
+        return true;
+      });
+
+      expect(await localAuthentication.deviceSupportsBiometrics(), isFalse);
     });
 
     test('getEnrolledBiometrics calls platform', () async {
@@ -56,9 +104,22 @@ void main() {
         ],
       );
       expect(result, <BiometricType>[
-        BiometricType.weak,
-        BiometricType.strong,
+        BiometricType.face,
+        BiometricType.fingerprint,
       ]);
+    });
+
+    test('getEnrolledBiometrics returns empty list when channel returns null',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'getEnrolledBiometrics') {
+          return null;
+        }
+        return true;
+      });
+
+      expect(await localAuthentication.getEnrolledBiometrics(), isEmpty);
     });
 
     test('isDeviceSupported calls platform', () async {
@@ -81,104 +142,124 @@ void main() {
       );
     });
 
-    group('With device auth fail over', () {
-      test('authenticate with no args.', () async {
+    group('authenticate', () {
+      test('with biometricOnly and default Ohos messages', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Needs secure',
           options: const AuthenticationOptions(biometricOnly: true),
         );
         expect(
           log,
           <Matcher>[
-            isMethodCall('authenticate',
-                arguments: <String, dynamic>{
-                  'localizedReason': 'Needs secure',
-                  'useErrorDialogs': true,
-                  'stickyAuth': false,
-                  'sensitiveTransaction': true,
-                  'biometricOnly': true,
-                }..addAll(const AndroidAuthMessages().args)),
+            isMethodCall(
+              'authenticate',
+              arguments: _expectedAuthenticateArgs(
+                localizedReason: 'Needs secure',
+                useErrorDialogs: true,
+                stickyAuth: false,
+                sensitiveTransaction: true,
+                biometricOnly: true,
+                messages: const OhosAuthMessages(),
+              ),
+            ),
           ],
         );
       });
 
-      test('authenticate with no sensitive transaction.', () async {
+      test('with custom options and Ohos messages', () async {
+        const OhosAuthMessages customMessages = OhosAuthMessages(
+          biometricHint: 'Hint',
+          cancelButton: 'Cancel',
+          signInTitle: 'Sign in',
+          authType: 'FACE',
+        );
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[customMessages],
           localizedReason: 'Insecure',
           options: const AuthenticationOptions(
             sensitiveTransaction: false,
             useErrorDialogs: false,
+            stickyAuth: true,
             biometricOnly: true,
           ),
         );
         expect(
           log,
           <Matcher>[
-            isMethodCall('authenticate',
-                arguments: <String, dynamic>{
-                  'localizedReason': 'Insecure',
-                  'useErrorDialogs': false,
-                  'stickyAuth': false,
-                  'sensitiveTransaction': false,
-                  'biometricOnly': true,
-                }..addAll(const AndroidAuthMessages().args)),
+            isMethodCall(
+              'authenticate',
+              arguments: _expectedAuthenticateArgs(
+                localizedReason: 'Insecure',
+                useErrorDialogs: false,
+                stickyAuth: true,
+                sensitiveTransaction: false,
+                biometricOnly: true,
+                messages: customMessages,
+              ),
+            ),
           ],
         );
       });
-    });
 
-    group('With biometrics only', () {
-      test('authenticate with no args.', () async {
+      test('with default options', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Needs secure',
         );
         expect(
           log,
           <Matcher>[
-            isMethodCall('authenticate',
-                arguments: <String, dynamic>{
-                  'localizedReason': 'Needs secure',
-                  'useErrorDialogs': true,
-                  'stickyAuth': false,
-                  'sensitiveTransaction': true,
-                  'biometricOnly': false,
-                }..addAll(const AndroidAuthMessages().args)),
+            isMethodCall(
+              'authenticate',
+              arguments: _expectedAuthenticateArgs(
+                localizedReason: 'Needs secure',
+                useErrorDialogs: true,
+                stickyAuth: false,
+                sensitiveTransaction: true,
+                biometricOnly: false,
+                messages: const OhosAuthMessages(),
+              ),
+            ),
           ],
         );
       });
 
-      test('authenticate with no sensitive transaction.', () async {
-        await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
-          localizedReason: 'Insecure',
-          options: const AuthenticationOptions(
-            sensitiveTransaction: false,
-            useErrorDialogs: false,
-          ),
-        );
+      test('returns false when channel returns false', () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+          if (methodCall.method == 'authenticate') {
+            return false;
+          }
+          return true;
+        });
+
         expect(
-          log,
-          <Matcher>[
-            isMethodCall('authenticate',
-                arguments: <String, dynamic>{
-                  'localizedReason': 'Insecure',
-                  'useErrorDialogs': false,
-                  'stickyAuth': false,
-                  'sensitiveTransaction': false,
-                  'biometricOnly': false,
-                }..addAll(const AndroidAuthMessages().args)),
-          ],
+          await localAuthentication.authenticate(
+            localizedReason: 'reason',
+            authMessages: <AuthMessages>[],
+          ),
+          isFalse,
         );
+      });
+
+      test('ignores non-Ohos auth messages', () async {
+        await localAuthentication.authenticate(
+          authMessages: <AuthMessages>[const _UnsupportedAuthMessages()],
+          localizedReason: 'reason',
+        );
+        final Map<dynamic, dynamic> args =
+            log.single.arguments as Map<dynamic, dynamic>;
+        expect(args.containsKey('ignored'), isFalse);
+        expect(args['authType'], '');
       });
     });
   });
 }
 
-/// This allows a value of type T or T? to be treated as a value of type T?.
-///
-/// We use this so that APIs that have become non-nullable can still be used
-/// with `!` and `?` on the stable branch.
-T? _ambiguate<T>(T? value) => value;
+class _UnsupportedAuthMessages extends AuthMessages {
+  const _UnsupportedAuthMessages();
+
+  @override
+  Map<String, String> get args => <String, String>{'ignored': 'ignored'};
+}
