@@ -13,15 +13,16 @@
  * limitations under the License.
  */
 
-// ignore_for_file: public_member_api_docs 
+// ignore_for_file: public_member_api_docs
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';  
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
@@ -346,6 +347,7 @@ enum MenuOptions {
   transparentBackground,
   setCookie,
   videoExample,
+  videoFullScreen,
   logExample,
   basicAuthentication,
   javaScriptAlert,
@@ -398,6 +400,8 @@ class SampleMenu extends StatelessWidget {
             _onSetCookie();
           case MenuOptions.videoExample:
             _onVideoExample(context);
+          case MenuOptions.videoFullScreen:
+            _onVideoFullScreenExample(context);
           case MenuOptions.logExample:
             _onLogExample();
           case MenuOptions.basicAuthentication:
@@ -467,6 +471,10 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.videoExample,
           child: Text('Video example'),
+        ),
+        const PopupMenuItem<MenuOptions>(
+          value: MenuOptions.videoFullScreen,
+          child: Text('Video full screen'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
@@ -595,6 +603,37 @@ class SampleMenu extends StatelessWidget {
     );
   }
 
+  Future<void> _onVideoFullScreenExample(BuildContext context) async {
+    final OhosWebViewController videoController = OhosWebViewController(
+      OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),
+    )
+      ..setJavaScriptMode(JavaScriptMode.unrestricted)
+      ..setPlatformNavigationDelegate(
+        OhosNavigationDelegate(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      )
+      ..loadFlutterAsset('assets/www/video.html');
+
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => Scaffold(
+          body: PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: videoController),
+          ).build(context),
+        ),
+      ),
+    );
+
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  }
+
   Future<void> _onDoPostRequest() {
     return webViewController.loadRequest(LoadRequestParams(
       uri: Uri.parse('https://httpbin.org/post'),
@@ -674,10 +713,10 @@ class SampleMenu extends StatelessWidget {
   Future<void> _onLogExample() {
     webViewController
         .setOnConsoleMessage((JavaScriptConsoleMessage consoleMessage) {
-      if (kDebugMode) {  
+      if (kDebugMode) {
         debugPrint(
-          '== JS == ${consoleMessage.level.name}: ${consoleMessage.message}');
-      } 
+            '== JS == ${consoleMessage.level.name}: ${consoleMessage.message}');
+      }
     });
     return webViewController.loadHtmlString(kLogExamplePage);
   }

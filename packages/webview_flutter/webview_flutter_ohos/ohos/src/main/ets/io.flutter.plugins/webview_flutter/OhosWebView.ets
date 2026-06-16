@@ -85,6 +85,7 @@ export struct OhosWebView {
           .onPageBegin(this.webView.onPageBegin)
           .onPageEnd(this.webView.onPageEnd)
           .onErrorReceive(this.webView.onErrorReceive)
+          .onHttpErrorReceive(this.webView.onHttpErrorReceive)
           .onRefreshAccessedHistory(this.webView.onRefreshAccessedHistory)
           .onProgressChange(this.webView.onProgressChange)
           .onGeolocationShow(this.webView.onGeolocationShow)
@@ -121,6 +122,7 @@ export struct OhosWebView {
               handler.handleCancel();
             }
           })
+          .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)
           .onPrompt(this.webView.onJsPrompt)

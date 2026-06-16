@@ -51,6 +51,8 @@ dev_dependencies:
   espresso: ^0.2.0
   flutter_test:
     sdk: flutter
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
@@ -58,4 +60,5 @@ flutter:
     - assets/sample_audio.ogg
     - assets/sample_video.mp4
     - assets/www/index.html
+    - assets/www/video.html
     - assets/www/styles/style.css
