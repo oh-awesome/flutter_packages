@@ -72,6 +72,9 @@ export class VideoPlayer {
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private isSeeking: boolean = false;
+  private isPrepared: boolean = false;
+  private pendingPlay: boolean = false;
+  private pendingSeekPosition: number | null = null;
   private seekPosition: number = 0;
   private isBuffering: boolean = false;
   private isSystemBuffering: boolean = false;
@@ -159,6 +162,9 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.resetProgress();
           // Extract rotation before setting data source to avoid fd conflict with AVPlayer
           try {
@@ -174,16 +180,26 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.INITIALIZED:
+          this.isPrepared = false;
           this.avPlayer.surfaceId = this.surfaceId;
           this.avPlayer.prepare();
           break;
         case AvplayerStatus.PREPARED:
+          this.isPrepared = true;
           this.avPlayer.videoScaleType = 0;
           this.avPlayer.audioInterruptMode = this.interruptMode;
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
           this.startBufferingInfoTimer();
+          if (this.pendingSeekPosition !== null) {
+            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            this.pendingSeekPosition = null;
+          }
+          if (this.pendingPlay) {
+            this.pendingPlay = false;
+            this.avPlayer.play();
+          }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -219,7 +235,9 @@ export class VideoPlayer {
           this.avPlayer.reset();
           break;
         case AvplayerStatus.RELEASED:
-          this.avPlayer.release();
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
           Log.i(TAG, '[PlayVideoModel] state released called')
@@ -281,6 +299,10 @@ export class VideoPlayer {
 
   play() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = true;
+        return;
+      }
       this.avPlayer.play();
     }
   }
@@ -290,21 +312,27 @@ export class VideoPlayer {
    */
   pause() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = false;
+        return;
+      }
       this.avPlayer.pause();
     }
   }
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingSeekPosition = position;
+        return;
+      }
       this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
   private prepareSeek(position: number): void {
-    if (this.status === CommonConstants.STATUS_START) {
-      this.startSeekBuffering();
-    }
+    this.startSeekBuffering();
     this.isSeeking = true;
     this.seekPosition = position;
   }
@@ -314,7 +342,7 @@ export class VideoPlayer {
       return this.seekPosition;
     }
     if (this.avPlayer !== null) {
-      return this.avPlayer.currentTime;
+      return Math.max(0, this.avPlayer.currentTime);
     } else {
       return 0;
     }
@@ -347,15 +375,14 @@ export class VideoPlayer {
    *
    * @param playSpeed Current playback speed.
    */
-  setSpeed(playSpeed: number) {
+  setSpeed(playSpeed: media.PlaybackSpeed) {
     if (this.avPlayer == null || this.playerModel == null) {
       return;
     }
     if (CommonConstants.OPERATE_STATE.indexOf(this.avPlayer.state) === -1) {
       return;
     }
-    this.playerModel.playSpeed = playSpeed;
-    this.avPlayer.setSpeed(this.playerModel.playSpeed);
+    this.avPlayer.setSpeed(playSpeed);
   }
 
   /**
