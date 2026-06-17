@@ -56,6 +56,9 @@ export interface SharedPreferencesApi {
   /** Adds property to shared preferences data set of type String. */
   setStringList(key: string, value: Array<string>): Promise<void>;
 
+  /** Adds property to shared preferences data set of type Encoded String. */
+  setEncodedStringList(key: string, value: string): Promise<void>;
+
   /** Removes all properties from shared preferences data set with matching prefix. */
   clear(prefix: string, allowList: Array<string>): Promise<void>;
 
