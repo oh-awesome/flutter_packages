@@ -68,7 +68,7 @@ export class CodeEnum {
 export class MessageData {
   private name?: string;
 
-  public setName(name:string):void {
+  public setName(name:string | undefined):void {
     this.name = name;
   }
 
@@ -78,7 +78,7 @@ export class MessageData {
 
   private description?: string;
 
-  public setDescription(description:string):void {
+  public setDescription(description:string | undefined):void {
     this.description = description;
   }
 
@@ -86,31 +86,31 @@ export class MessageData {
     return this.description;
   }
 
-  private code?: Code;
+  private code: Code;
 
   public setCode(code:Code):void {
     this.code = code;
   }
 
-  getCode(): Code | undefined{
+  getCode(): Code{
     return this.code;
   }
 
-  private data?: Map<string, string>;
+  private data: Map<string, string>;
 
   public setData(data:Map<string, string>):void {
     this.data = data;
   }
 
-  getData(): Map<string, string> | undefined{
+  getData(): Map<string, string>{
     return this.data;
   }
 
-  constructor(name?: string, description?: string, code?: Code, data?: Map<string, string>) {
-    this.name = name;
-    this.description = description;
+  constructor(code: Code, data: Map<string, string>, name?: string, description?: string) {
     this.code = code;
     this.data = data;
+    this.name = name;
+    this.description = description;
   }
 
   toList(): (Object | null)[] {
@@ -127,24 +127,18 @@ export class MessageData {
     return arr;
   }
 
-  static fromList(arr: Object[]): MessageData {
-    let pigeonResult: MessageData = new MessageData();
-    let name: Object = arr[0];
-    pigeonResult.setName(name as string);
-    let description: Object = arr[1];
-    pigeonResult.setDescription(description as string);
-    let code: Object = arr[2];
-    if (code != null) {
-      const codeStr: string = code as string;
-      pigeonResult.setCode(Code[codeStr]);
-    }
-    let data: Object = arr[3];
-    pigeonResult.setData(data as Map<string, string>);
-    return pigeonResult;
+  static fromList(arr: (Object | null)[]): MessageData {
+    let name: string | undefined = arr[0] != null ? arr[0] as string : undefined;
+    let description: string | undefined = arr[1] != null ? arr[1] as string : undefined;
+    let codeRaw: Object | null = arr[2];
+    const codeStr: string = codeRaw as string;
+    let code: Code = Code[codeStr];
+    let data: Map<string, string> = arr[3] as Map<string, string>;
+    return new MessageData(code, data, name, description);
   }
 }
 
-class PigeonCodec extends StandardMessageCodec {
+export class PigeonCodec extends StandardMessageCodec {
   static readonly INSTANCE: PigeonCodec  = new PigeonCodec();
 
   getByte(n: number): number {
@@ -163,7 +157,7 @@ class PigeonCodec extends StandardMessageCodec {
         return value == null ? null : Code[value as number];
       }
       case this.getByte(130):
-        return MessageData.fromList(super.readValue(buffer) as Object[]);
+        return MessageData.fromList(super.readValue(buffer) as (Object | null)[]);
       default:
         return super.readValueOfType(type, buffer);
     }
