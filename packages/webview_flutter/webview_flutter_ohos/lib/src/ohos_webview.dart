@@ -721,6 +721,15 @@ class WebSettings extends OhosObject {
     return api.setMixedContentModeFromInstance(this, mode);
   }
 
+  /// Sets the over-scroll mode for the WebView.
+  ///
+  /// The [mode] parameter determines the behavior:
+  /// - `OverScrollMode.always`: Always allow over-scroll
+  /// - `OverScrollMode.never`: Never allow over-scroll
+  Future<void> setOverScrollMode(OverScrollMode mode) {
+    return api.setOverScrollModeFromInstance(this, mode);
+  }
+
   @override
   WebSettings copy() {
     return WebSettings.detached(
@@ -740,6 +749,19 @@ enum MixedContentMode {
 
   /// Block all mixed content.
   neverAllow,
+}
+
+/// Controls over-scroll behavior for the OHOS WebView.
+///
+/// Index values correspond to OHOS native OverScrollMode:
+/// - never (0) = OverScrollMode.NEVER
+/// - always (1) = OverScrollMode.ALWAYS
+enum OverScrollMode {
+  /// Never allow over-scroll.
+  never,
+
+  /// Always allow over-scroll.
+  always,
 }
 
 /// Compatibility helpers for [WebSettings].

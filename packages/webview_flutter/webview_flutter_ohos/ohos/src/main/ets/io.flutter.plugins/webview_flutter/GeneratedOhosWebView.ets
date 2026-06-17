@@ -2204,6 +2204,8 @@ export abstract class WebSettingsHostApi {
 
   abstract setMixedContentMode(instanceId: number, mode: number): void;
 
+  abstract setOverScrollMode(instanceId: number, mode: number): void;
+
   static getCodec(): MessageCodec<ESObject> {
     return new StandardMessageCodec();
   }
@@ -2796,6 +2798,38 @@ export abstract class WebSettingsHostApi {
               const modeArg: number = args[1];
               try {
                 api.setMixedContentMode(
+                  instanceIdArg, modeArg
+                );
+                wrapped.insert(null, 0);
+              } catch (err) {
+                const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+                wrapped = wrappedError;
+              }
+              reply.reply(wrapped.convertToArray());
+            }
+          }
+        );
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      const channel: BasicMessageChannel<ESObject> =
+      new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setOverScrollMode",
+        WebSettingsHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          {
+            onMessage: (message: ESObject, reply: Reply<ESObject>) => {
+              let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+              const args: Array<ESObject> = message;
+              const instanceIdArg: number = args[0];
+              const modeArg: number = args[1];
+              try {
+                api.setOverScrollMode(
                   instanceIdArg, modeArg
                 );
                 wrapped.insert(null, 0);
