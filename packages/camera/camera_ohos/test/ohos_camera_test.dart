@@ -426,10 +426,10 @@ void main() {
 
     // 测试用例：应当停止视频录制并返回文件
     test('Should stop a video recording and return the file', () async {
-      when(
-        mockApi.stopVideoRecording(),
-      ).thenAnswer((_) async => '/test/path.mp4');
+      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.stopVideoRecording()).thenAnswer((_) async => '/test/path.mp4');
 
+      await camera.startVideoRecording(cameraId);
       final XFile file = await camera.stopVideoRecording(cameraId);
 
       verify(mockApi.stopVideoRecording()).called(1);

@@ -59,6 +59,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   bool enableAudio = true;
   static const List<int> _fpsOptions = <int>[24, 30, 60];
   int _requestedFps = 30;
+  ImageFileFormat _currentImageFileFormat = ImageFileFormat.jpeg;
   VideoStabilizationMode _currentVideoStabilizationMode =
       VideoStabilizationMode.off;
   double _minAvailableExposureOffset = 0.0;
@@ -384,6 +385,32 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
               items: _fpsOptions.map<DropdownMenuItem<int>>((int fps) {
                 return DropdownMenuItem<int>(value: fps, child: Text('$fps'));
               }).toList(),
+            ),
+            const SizedBox(width: 24),
+            const Text(
+              'Format:',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(width: 8),
+            DropdownButton<ImageFileFormat>(
+              value: _currentImageFileFormat,
+              onChanged: (ImageFileFormat? newValue) {
+                if (newValue != null &&
+                    newValue != _currentImageFileFormat &&
+                    controller != null) {
+                  unawaited(_onImageFileFormatChanged(newValue));
+                }
+              },
+              items: ImageFileFormat.values
+                  .map<DropdownMenuItem<ImageFileFormat>>((
+                    ImageFileFormat format,
+                  ) {
+                    return DropdownMenuItem<ImageFileFormat>(
+                      value: format,
+                      child: Text(format.name),
+                    );
+                  })
+                  .toList(),
             ),
             const SizedBox(width: 24),
             const Text(
@@ -879,6 +906,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
     try {
       await cameraController.initialize();
+      await cameraController.setImageFileFormat(_currentImageFileFormat);
       await Future.wait(<Future<Object?>>[
         // The exposure mode is currently not supported on the web.
         ...!kIsWeb
@@ -960,6 +988,26 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       return;
     }
     await _initializeCameraController(currentDescription);
+  }
+
+  Future<void> _onImageFileFormatChanged(ImageFileFormat format) async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    try {
+      await cameraController.setImageFileFormat(format);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _currentImageFileFormat = format;
+      });
+      showInSnackBar('Image file format set to ${format.name}');
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    }
   }
 
   Future<void> _onVideoStabilizationModeChanged(

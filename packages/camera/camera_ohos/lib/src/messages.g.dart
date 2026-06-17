@@ -64,6 +64,9 @@ enum PlatformFlashMode {
   torch,
 }
 
+/// Pigeon equivalent of [ImageFileFormat].
+enum PlatformImageFileFormat { jpeg, heif }
+
 /// Pigeon equivalent of [VideoStabilizationMode].
 enum PlatformVideoStabilizationMode {
   off,
@@ -107,14 +110,14 @@ class PlatformCameraDescription {
 /// Data needed for [CameraInitializedEvent].
 class PlatformCameraState {
   PlatformCameraState({
-    required this.previewSize,
+    this.previewSize,
     required this.exposureMode,
     required this.focusMode,
     required this.exposurePointSupported,
     required this.focusPointSupported,
   });
 
-  PlatformSize previewSize;
+  PlatformSize? previewSize;
 
   PlatformExposureMode exposureMode;
 
@@ -126,7 +129,7 @@ class PlatformCameraState {
 
   Object encode() {
     return <Object?>[
-      previewSize.encode(),
+      previewSize?.encode(),
       exposureMode.index,
       focusMode.index,
       exposurePointSupported,
@@ -137,7 +140,7 @@ class PlatformCameraState {
   static PlatformCameraState decode(Object result) {
     result as List<Object?>;
     return PlatformCameraState(
-      previewSize: PlatformSize.decode(result[0]! as List<Object?>),
+      previewSize: result[0] != null ? PlatformSize.decode(result[0]! as List<Object?>) : null,
       exposureMode: PlatformExposureMode.values[result[1]! as int],
       focusMode: PlatformFocusMode.values[result[2]! as int],
       exposurePointSupported: result[3]! as bool,
@@ -587,6 +590,29 @@ class CameraApi {
         'dev.flutter.pigeon.camera_ohos.CameraApi.stopImageStream', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Sets the file format used for captured still images.
+  Future<void> setImageFileFormat(PlatformImageFileFormat arg_format) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.camera_ohos.CameraApi.setImageFileFormat', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_format.index]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -1111,10 +1137,13 @@ abstract class CameraEventApi {
   /// Called when the camera closes.
   void closed();
 
-  static void setUp(CameraEventApi? api, {BinaryMessenger? binaryMessenger}) {
+  String? pigeon_getMessageChannelSuffix() => '';
+
+  static void setUp(CameraEventApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''}) {
+    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized', codec,
+          'dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized$messageChannelSuffix', codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
@@ -1134,7 +1163,7 @@ abstract class CameraEventApi {
     }
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.camera_ohos.CameraEventApi.error', codec,
+          'dev.flutter.pigeon.camera_ohos.CameraEventApi.error$messageChannelSuffix', codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
@@ -1153,7 +1182,7 @@ abstract class CameraEventApi {
     }
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched', codec,
+          'dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched$messageChannelSuffix', codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
@@ -1172,7 +1201,7 @@ abstract class CameraEventApi {
     }
     {
       final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.camera_ohos.CameraEventApi.closed', codec,
+          'dev.flutter.pigeon.camera_ohos.CameraEventApi.closed$messageChannelSuffix', codec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         channel.setMessageHandler(null);
