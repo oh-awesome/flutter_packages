@@ -3,7 +3,14 @@
 // found in the LICENSE_ODID file.
 
 import { iap } from '@kit.IAPKit'
-export const ProductType: Array<iap.ProductType> = [
+import { deviceInfo } from '@kit.BasicServicesKit';
+
+export const ProductType: Array<iap.ProductType> = deviceInfo.sdkApiVersion >= 14 ? [
+  iap.ProductType.CONSUMABLE,
+  iap.ProductType.NONCONSUMABLE,
+  iap.ProductType.AUTORENEWABLE,
+  iap.ProductType.NONRENEWABLE
+] : [
   iap.ProductType.CONSUMABLE,
   iap.ProductType.NONCONSUMABLE,
   iap.ProductType.AUTORENEWABLE
