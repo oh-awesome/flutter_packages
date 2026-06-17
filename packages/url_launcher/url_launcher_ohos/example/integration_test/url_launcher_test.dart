@@ -57,7 +57,7 @@ void main() {
     expect(
         await launcher.launch(primaryUrl,
             useSafariVC: true,
-            useWebView: true,
+            useWebView: false,
             enableJavaScript: false,
             enableDomStorage: false,
             universalLinksOnly: false,
