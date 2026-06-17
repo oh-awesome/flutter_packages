@@ -1,123 +1,160 @@
-<p align="center">
-  <h1 align="center"> <code>file_selector</code> </h1>
-</p>
+<div align="center">
+  <h1>file_selector_ohos</h1>
+</div>
 
-This project is based on [file_selector@1.0.1](https://pub.dev/packages/file_selector/versions/1.0.1).
+This project is developed based on [file_selector@1.0.0](https://pub.dev/packages/file_selector/versions/1.0.0).
 
-## 1. Installation and Usage
+## Introduction
 
-### 1.1 Installation
+`file_selector_ohos` is the OpenHarmony platform implementation of `file_selector`. It provides file selection capabilities for Flutter apps, including single-file selection and multi-file selection.
 
-Go to the project directory and add the following dependencies in pubspec.yaml
+## Installation
+
+Go to your project root directory and add the following dependency in `pubspec.yaml`:
 
 <!-- tabs:start -->
 
-#### pubspec.yaml
 
 ```yaml
-...
-
 dependencies:
-  file_selector:
-    git: 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+  file_selector:	 
+    git: 	 
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git	 
       path: packages/file_selector/file_selector
-
-...
 ```
 
-Execute Command
+Run:
 
 ```bash
 flutter pub get
 ```
 
-<!-- tabs:end -->
+## Constraints and Limitations
 
-### 1.2 Usage
+### Compatibility
 
-For use cases [ohos/example](./example)
+Tested and passed on the following versions:
 
-## 2. Constraints
+1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
 
-### 2.1 Compatibility
+### 2.2 Permission Requirements
 
-This document is verified based on the following versions:
+Some permissions used below require the `system_basic` privilege level. New run with the default `normal` privilege level, so installation may fail with an error if `system_basic` permissions are not properly configured.
 
-1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;            
-### 2.2 **Permission Requirements**
+#### Add permissions in `module.json5` under the `entry` directory
 
-The following permissions include the `system_basic` permission, but the default application permission is `normal`. Only the `normal` permission can be used. Therefore, the error **9568289** may be reported during the installation of the HAP package. For details, see [Document](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V5/bm-tool-V5#EN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) Change the application level to `system_basic`.
+Open `entry/src/main/module.json5` and add:
 
-####  2.2.1 **Add permissions to the module.json5 file in the entry directory.**
-
-Open  `entry/src/main/module.json5` and add the following information:
-
-```diff
+```yaml
+...
 "requestPermissions": [
-      {
-        "name": "ohos.permission.INTERNET",
-        "reason": "$string:network_reason",
-        "usedScene": {
-          "abilities": [
-            "EntryAbility"
-          ],
-          "when": "inuse"
-        }
-      },
-    ]
+  {
+    "name": "ohos.permission.INTERNET",
+    "reason": "$string:network_reason",
+    "usedScene": {
+      "abilities": [
+        "EntryAbility"
+      ],
+      "when":"inuse"
+    }
+  },
+]
 ```
 
-#### 2.2.2 **Add the reason for applying for the preceding permission to the entry directory.**
+#### Add the reason string for the above permission under the `entry` directory
 
-Open  `entry/src/main/resources/base/element/string.json` and add the following information:
+Open `entry/src/main/resources/base/element/string.json` and add:
 
-```diff
+```
+...
 {
   "string": [
     {
       "name": "network_reason",
-      "value": "use network"
-    }
+      "value": "Use network"
+    },
   ]
 }
 ```
 
-## 3. API
+## Usage Example
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+```dart
+import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 
-| Name                                                         | return value                                          | Description                                                  | Type     | ohos Support |
-| ------------------------------------------------------------ | ----------------------------------------------------- | ------------------------------------------------------------ | -------- | ------------ |
-| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,})                                           | Future<XFile?> | Opens a file dialog for loading files and returns a list of file responses chosen by the user.                  | function | yes          |
-| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,})                                           | Future<List<XFile>> | Opens a file dialog for loading files and returns a list of file responses chosen by the user.                  | function | yes          |
-| getDirectoryPath({String? initialDirectory, String? confirmButtonText,})                                           | Future<String?> | Opens a file dialog for loading directories and returns a directory paths.                  | function | yes          |
+Future<void> pickTextFile() async {
+  // Import and define file filter conditions
+  const XTypeGroup typeGroup = XTypeGroup(
+    label: 'text',
+    extensions: <String>['txt', 'json'],
+    uniformTypeIdentifiers: <String>['public.text'],
+  );
 
-### Parameters 
+  // Open file picker through platform interface
+  final XFile? file = await FileSelectorPlatform.instance.openFile(
+    acceptedTypeGroups: <XTypeGroup>[typeGroup],
+  );
+  if (file == null) {
+    return;
+  }
+}
+```
+
+
+## API Reference
+
+
+### API
+
+> [!TIP] In the "ohos Support" column, yes means the property is supported on ohos, no means not supported, and partially means partially supported. Usage is cross-platform consistent, and behavior is aligned with iOS or Android.
+
+| Name                                                         | return value        | Description                                                  | Type     | ohos Support |
+| ------------------------------------------------------------ | ------------------- | ------------------------------------------------------------ | -------- | ------------ |
+| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<XFile?>      | Opens a file dialog for loading files and returns the file response list selected by the user. | function | partially          |
+| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<List<XFile>> | Opens a file dialog for loading files and returns the file response list selected by the user. | function | partially          |
+| getDirectoryPath({String? initialDirectory, String? confirmButtonText,}) | Future<String?>     | Opens a file dialog for selecting a directory and returns the selected directory path. | function | no           |
+
+### Parameters
 
 | Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| acceptedTypeGroups  | a list of file type groups that can be selected in the dialog, How this is displayed depends on the pltaform .selection                                                                                                                                 | List<[XTypeGroup](#XTypeGroup)>?               | yes               |
-| initialDirectory  | the full path to the directory that will be displayed when the dialog is opened. When not provided, the platform will pick an initial location.                                                                                                                                 | String?               | yes               |
-| confirmButtonTex  | the text in the confirmation button of the dialog. When not provided, the default OS label is used (for example, "Open"). location.                                                                                                                                 | String?               | yes               |
+| acceptedTypeGroups  | A list of file type groups that can be selected in the dialog. The display behavior depends on the platform.                                                                                                                                 | List<[XTypeGroup](#XTypeGroup)>?               | yes               |
+| initialDirectory  | The full path of the directory displayed when the dialog opens. If not provided, the platform chooses an initial location.                                                                                                                                | String?               | yes               |
+| confirmButtonText | Text on the dialog confirm button. If not provided, the default OS label is used (for example, "Open").                                                                                                                                 | String?               | no              |
 
 ### XTypeGroup
 
 | Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| label  | The 'name' or reference to this group of types.                                                                                                                                 | String?               | yes               |
-| extensions  | The extensions for this group.                                                                                                                                 | List<String>?               | yes               |
-| mimeTypes  | The MIME types for this group.                                                                                                                                 | List<String>?               | yes               |
-| uniformTypeIdentifiers  | The uniform type identifiers for this group                                                                                                                                 | List<String>?               | yes               |
-| webWildCards  | The web wild cards for this group (ex: image/*, video/*).                                                                                                                                 | List<String>?               | yes               |
+| label  | The "name" or reference of this type group.                                                                                                                                 | String?               | yes               |
+| extensions  | File extensions for this group.                                                                                                                                 | List<String>?               | yes               |
+| mimeTypes  | MIME types for this group.                                                                                                                                 | List<String>?               | yes               |
+| uniformTypeIdentifiers  | Uniform type identifiers for this group.                                                                                                                                 | List<String>?               | no              |
+| webWildCards  | Web wildcards for this group (for example: image/*, video/*).                                                                                                                                 | List<String>?               | no              |
 
 
-## 4. Known Issues
+## Known Issues
 
-## 5. Others
+The confirm button text in the system picker dialog cannot be customized. Directory selection is not supported in picker dialogs on phone devices. `webWildCards` only takes effect on the Web platform. `uniformTypeIdentifiers` is a list of UTIs and only takes effect on iOS/macOS platforms.
 
-## 6. License
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE).
+## Directory Structure
 
-> Template version: v0.0.1
+```text
+file_selector_ohos/
+├─ lib/                         # OpenHarmony platform implementation export and core logic
+├─ ohos/                        # OpenHarmony native implementation
+├─ pigeons/                     # Pigeon interface definitions
+├─ example/                     # Example app
+├─ test/                        # Test code
+├─ pubspec.yaml                 # Package configuration
+└─ README.md                    # Original documentation
+```
+
+## Contributing
+
+If you find any issues during usage, feel free to submit an [Issue](https://gitcode.com/openharmony-sig/flutter_packages/issues). PR contributions are also welcome: [PR](https://gitcode.com/openharmony-sig/flutter_packages/pulls).
+
+## License
+
+This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE). Feel free to use it and contribute to open source.
