@@ -252,6 +252,7 @@
                 <filteritem type="filepath" name="packages/webview_flutter-v4.4.4/webview_flutter_wkwebview/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter-v4.4.4/webview_flutter/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter-v4.4.4/webview_flutter_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+				<filteritem type="filepath" name="packages/video_player/video_player_ohos/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="**/ios/*" desc="所有 iOS 平台代码，不做侵入式修改"/>
                 <filteritem type="filepath" name="**/linux/*" desc="所有 linux 平台代码，不做侵入式修改"/>
  	            <filteritem type="filepath" name="**/windows/*" desc="所有 windows 平台代码，不做侵入式修改"/>

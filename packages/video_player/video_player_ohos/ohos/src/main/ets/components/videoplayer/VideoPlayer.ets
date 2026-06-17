@@ -65,6 +65,9 @@ export class VideoPlayer {
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private isSeeking: boolean = false;
+  private isPrepared: boolean = false;
+  private pendingPlay: boolean = false;
+  private pendingSeekPosition: number | null = null;
   private seekPosition: number = 0;
   private isBuffering: boolean = false;
   private isSystemBuffering: boolean = false;
@@ -150,6 +153,9 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.resetProgress();
           // Extract rotation before setting data source to avoid fd conflict with AVPlayer
           try {
@@ -165,16 +171,26 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.INITIALIZED:
+          this.isPrepared = false;
           this.avPlayer.surfaceId = this.surfaceId;
           this.avPlayer.prepare();
           break;
         case AvplayerStatus.PREPARED:
+          this.isPrepared = true;
           this.avPlayer.videoScaleType = 0;
           this.avPlayer.audioInterruptMode = this.interruptMode;
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
           this.startBufferingInfoTimer();
+          if (this.pendingSeekPosition !== null) {
+            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            this.pendingSeekPosition = null;
+          }
+          if (this.pendingPlay) {
+            this.pendingPlay = false;
+            this.avPlayer.play();
+          }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -202,7 +218,9 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.RELEASED:
-          this.avPlayer.release();
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
           Log.i(TAG, '[PlayVideoModel] state released called')
@@ -290,6 +308,10 @@ setAudioFocus(mixWithOthers: boolean): void {
 
   play() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = true;
+        return;
+      }
       this.avPlayer.play();
     }
   }
@@ -299,12 +321,20 @@ setAudioFocus(mixWithOthers: boolean): void {
    */
   pause() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = false;
+        return;
+      }
       this.avPlayer.pause();
     }
   }
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingSeekPosition = position;
+        return;
+      }
       this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
