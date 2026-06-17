@@ -20,7 +20,7 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 dependencies:
   flutter_plugin_android_lifecycle:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/flutter_plugin_android_lifecycle
       ref: br_flutter_plugin_android_lifecycle-v2.0.29_ohos_dev
 
@@ -48,6 +48,7 @@ This document is verified based on the following versions:
 1. Flutter: 3.7.12-ohos-1.1.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.0.1.251; ROM: 6.0.0.115 SP16;
 2. Flutter: 3.22.1-ohos-1.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.0.1.251; ROM: 6.0.0.115 SP16;
 3. Flutter: 3.27.5-ohos-1.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.0.1.251; ROM: 6.0.0.115 SP16;
+4. Flutter: 3.35.7-ohos-0.0.1; SDK: 6.0.1(21); IDE: DevEco Studio: 6.0.1.260; ROM: 6.0.0.120 SP6;
 
 ## 3. API
 Not involved
