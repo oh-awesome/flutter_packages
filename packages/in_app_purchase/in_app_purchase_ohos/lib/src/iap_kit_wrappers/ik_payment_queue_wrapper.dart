@@ -15,6 +15,21 @@ import '../in_app_purchase_ohos_platform.dart';
 
 part 'ik_payment_queue_wrapper.g.dart';
 
+int? _productTypeToValue(ProductType? productType) {
+  switch (productType) {
+    case ProductType.CONSUMABLE:
+      return 0;
+    case ProductType.NONCONSUMABLE:
+      return 1;
+    case ProductType.AUTORENEWABLE:
+      return 2;
+    case ProductType.NONRENEWABLE:
+      return 3;
+    case null:
+      return null;
+  }
+}
+
 class IKPaymentQueueWrapper {
   /// Returns the default payment queue.
   ///
@@ -31,8 +46,8 @@ class IKPaymentQueueWrapper {
   IKTransactionObserverWrapper? _observer;
 
   Future<List<IKPaymentTransactionWrapper>> transactions() async {
-    return _getTransactionList((await channel
-        .invokeListMethod<dynamic>('iap#transactions'))!);
+    return _getTransactionList(
+        (await channel.invokeListMethod<dynamic>('iap#transactions'))!);
   }
 
   static Future<bool> queryEnvironmentStatus() async =>
@@ -61,7 +76,7 @@ class IKPaymentQueueWrapper {
 
   Future<void> finishTransaction(
       IKPaymentTransactionWrapper transaction) async {
-    final Map<String, String?> requestMap = transaction.toFinishMap();
+    final Map<String, Object?> requestMap = transaction.toFinishMap();
     await channel.invokeMethod<void>(
       'iap#finishPurchase',
       requestMap,
@@ -206,7 +221,7 @@ class IKPaymentWrapper {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'productId': productId,
-      'productType': productType,
+      'productType': _productTypeToValue(productType),
       'developerPayload': developerPayload,
       'reservedInfo': reservedInfo,
       'promotionalOfferId': promotionalOfferId,
