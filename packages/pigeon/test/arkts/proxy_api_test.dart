@@ -45,8 +45,10 @@ void main() {
                 name: 'doSomething',
                 location: ApiLocation.host,
                 parameters: <Parameter>[],
-                returnType:
-                    const TypeDeclaration(baseName: 'String', isNullable: false),
+                returnType: const TypeDeclaration(
+                  baseName: 'String',
+                  isNullable: false,
+                ),
               ),
             ],
           ),
@@ -58,11 +60,15 @@ void main() {
 
       // Core scaffolding.
       expect(code, contains('export class PigeonInstanceManager'));
+      expect(code, contains('WeakRef<ESObject>'));
+      expect(code, contains('FinalizationRegistry'));
       expect(code, contains('export interface PigeonFinalizationListener'));
       expect(code, contains('export class PigeonInstanceManagerApi'));
       expect(code, contains('export abstract class PigeonProxyApiRegistrar'));
-      expect(code,
-          contains('export class PigeonProxyApiBaseCodec extends PigeonCodec'));
+      expect(
+        code,
+        contains('export class PigeonProxyApiBaseCodec extends PigeonCodec'),
+      );
 
       // Per-ProxyApi class is abstract and depends on the registrar.
       expect(code, contains('export abstract class PigeonApiApi'));
@@ -90,8 +96,10 @@ void main() {
 
         // Default constructor is exposed under the pigeon_defaultConstructor
         // name and returns ESObject (host-side opaque instance).
-        expect(collapsed,
-            contains('abstract pigeon_defaultConstructor(): ESObject;'));
+        expect(
+          collapsed,
+          contains('abstract pigeon_defaultConstructor(): ESObject;'),
+        );
         // The channel name is platform-stable and matches Kotlin/Swift.
         expect(
           collapsed,
@@ -124,7 +132,9 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'int'),
+                        isNullable: false,
+                        baseName: 'int',
+                      ),
                       name: 'validType',
                     ),
                     Parameter(
@@ -137,7 +147,9 @@ void main() {
                     ),
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: true, baseName: 'int'),
+                        isNullable: true,
+                        baseName: 'int',
+                      ),
                       name: 'nullableValidType',
                     ),
                   ],
@@ -168,8 +180,10 @@ void main() {
           ),
         );
         // Channel name follows the standard pattern.
-        expect(collapsed,
-            contains('"dev.flutter.pigeon.test_package.Api.named"'));
+        expect(
+          collapsed,
+          contains('"dev.flutter.pigeon.test_package.Api.named"'),
+        );
       });
     });
 
@@ -184,7 +198,9 @@ void main() {
                 ApiField(
                   name: 'aField',
                   type: const TypeDeclaration(
-                      baseName: 'int', isNullable: false),
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   isAttached: true,
                 ),
               ],
@@ -197,10 +213,14 @@ void main() {
         final code = _generate(root);
         final collapsed = _collapseWhitespace(code);
 
-        expect(collapsed,
-            contains('abstract aField(pigeon_instance: ESObject): number;'));
-        expect(collapsed,
-            contains('"dev.flutter.pigeon.test_package.Api.aField"'));
+        expect(
+          collapsed,
+          contains('abstract aField(pigeon_instance: ESObject): number;'),
+        );
+        expect(
+          collapsed,
+          contains('"dev.flutter.pigeon.test_package.Api.aField"'),
+        );
         // Attached fields register the resulting value with the InstanceManager.
         expect(
           collapsed,
@@ -220,7 +240,9 @@ void main() {
                 ApiField(
                   name: 'aStaticField',
                   type: const TypeDeclaration(
-                      baseName: 'int', isNullable: false),
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   isAttached: true,
                   isStatic: true,
                 ),
@@ -243,6 +265,52 @@ void main() {
           ),
         );
       });
+
+      test(
+        'unattached field emits an abstract accessor read by newInstance',
+        () {
+          final root = Root(
+            apis: <Api>[
+              AstProxyApi(
+                name: 'Api',
+                constructors: <Constructor>[
+                  Constructor(name: '', parameters: <Parameter>[]),
+                ],
+                fields: <ApiField>[
+                  ApiField(
+                    name: 'aValue',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: false,
+                    ),
+                    isAttached: false,
+                  ),
+                ],
+                methods: <Method>[],
+              ),
+            ],
+            classes: <Class>[],
+            enums: <Enum>[],
+          );
+          final code = _generate(root);
+          final collapsed = _collapseWhitespace(code);
+
+          // The accessor the host subclass must implement; without it the
+          // newInstance call below would target a method that does not exist.
+          expect(
+            collapsed,
+            contains('abstract aValue(pigeon_instance: ESObject): number;'),
+          );
+          // newInstance reads the unattached field value from the host instance
+          // via that accessor before sending it to Dart.
+          expect(
+            collapsed,
+            contains(
+              'const aValueArg: ESObject = this.aValue(pigeon_instance);',
+            ),
+          );
+        },
+      );
     });
 
     group('Host methods', () {
@@ -260,17 +328,23 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'int'),
+                        isNullable: false,
+                        baseName: 'int',
+                      ),
                       name: 'first',
                     ),
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'String'),
+                        isNullable: false,
+                        baseName: 'String',
+                      ),
                       name: 'second',
                     ),
                   ],
                   returnType: const TypeDeclaration(
-                      isNullable: false, baseName: 'bool'),
+                    isNullable: false,
+                    baseName: 'bool',
+                  ),
                 ),
               ],
             ),
@@ -293,8 +367,10 @@ void main() {
             'let output: ESObject = api!.doSomething(pigeon_instanceArg, firstArg, secondArg);',
           ),
         );
-        expect(collapsed,
-            contains('"dev.flutter.pigeon.test_package.Api.doSomething"'));
+        expect(
+          collapsed,
+          contains('"dev.flutter.pigeon.test_package.Api.doSomething"'),
+        );
       });
 
       test('static host method has no instance parameter', () {
@@ -312,12 +388,16 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'int'),
+                        isNullable: false,
+                        baseName: 'int',
+                      ),
                       name: 'value',
                     ),
                   ],
                   returnType: const TypeDeclaration(
-                      isNullable: false, baseName: 'int'),
+                    isNullable: false,
+                    baseName: 'int',
+                  ),
                 ),
               ],
             ),
@@ -328,8 +408,10 @@ void main() {
         final code = _generate(root);
         final collapsed = _collapseWhitespace(code);
 
-        expect(collapsed,
-            contains('abstract staticEcho(value: number): number;'));
+        expect(
+          collapsed,
+          contains('abstract staticEcho(value: number): number;'),
+        );
         expect(
           collapsed,
           contains('let output: ESObject = api!.staticEcho(valueArg);'),
@@ -351,12 +433,16 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'int'),
+                        isNullable: false,
+                        baseName: 'int',
+                      ),
                       name: 'value',
                     ),
                   ],
                   returnType: const TypeDeclaration(
-                      isNullable: false, baseName: 'int'),
+                    isNullable: false,
+                    baseName: 'int',
+                  ),
                 ),
               ],
             ),
@@ -375,7 +461,10 @@ void main() {
           ),
         );
         // Handler builds a ResultImp that bridges success/error onto reply.reply.
-        expect(collapsed, contains('class ResultImp implements Result<number>'));
+        expect(
+          collapsed,
+          contains('class ResultImp implements Result<number>'),
+        );
         expect(
           collapsed,
           contains(
@@ -400,12 +489,16 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'String'),
+                        isNullable: false,
+                        baseName: 'String',
+                      ),
                       name: 'value',
                     ),
                   ],
                   returnType: const TypeDeclaration(
-                      isNullable: false, baseName: 'String'),
+                    isNullable: false,
+                    baseName: 'String',
+                  ),
                 ),
               ],
             ),
@@ -424,18 +517,111 @@ void main() {
           ),
         );
         // The send list mirrors the signature, prepending the instance handle.
-        expect(collapsed,
-            contains('channel.send([pigeon_instance, valueArg],'));
+        expect(
+          collapsed,
+          contains('channel.send([pigeon_instance, valueArg],'),
+        );
+        expect(
+          collapsed,
+          contains("'dev.flutter.pigeon.test_package.Api.flutterEchoString'"),
+        );
+        // FlutterError fallback is emitted on connection failures.
+        expect(collapsed, contains("new FlutterError('channel-error',"));
+      });
+
+      test('nullable enum flutter method uses | undefined in signature', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[EnumMember(name: 'ADMIN')],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[],
+              fields: <ApiField>[],
+              methods: <Method>[
+                Method(
+                  name: 'flutterEchoNullableRole',
+                  location: ApiLocation.flutter,
+                  parameters: <Parameter>[
+                    Parameter(
+                      type: TypeDeclaration(
+                        baseName: 'ProxyRole',
+                        isNullable: true,
+                        associatedEnum: proxyRole,
+                      ),
+                      name: 'value',
+                    ),
+                  ],
+                  returnType: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: true,
+                    associatedEnum: proxyRole,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
         expect(
           collapsed,
           contains(
-            "'dev.flutter.pigeon.test_package.Api.flutterEchoString'",
+            'flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void',
           ),
         );
-        // FlutterError fallback is emitted on connection failures.
+      });
+
+      test('nullable enum host method uses | undefined in abstract signature', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[EnumMember(name: 'ADMIN')],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[],
+              fields: <ApiField>[],
+              methods: <Method>[
+                Method(
+                  name: 'echoNullableRole',
+                  location: ApiLocation.host,
+                  parameters: <Parameter>[
+                    Parameter(
+                      type: TypeDeclaration(
+                        baseName: 'ProxyRole',
+                        isNullable: true,
+                        associatedEnum: proxyRole,
+                      ),
+                      name: 'value',
+                    ),
+                  ],
+                  returnType: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: true,
+                    associatedEnum: proxyRole,
+                  ),
+                ),
+              ],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
         expect(
           collapsed,
-          contains("new FlutterError('channel-error',"),
+          contains(
+            'abstract echoNullableRole(pigeon_instance: ESObject, value: ProxyRole | undefined): ProxyRole | undefined;',
+          ),
         );
       });
     });
@@ -472,6 +658,12 @@ void main() {
         expect(
           collapsed,
           contains(
+            "new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '')",
+          ),
+        );
+        expect(
+          collapsed,
+          contains(
             'if (this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance))',
           ),
         );
@@ -483,8 +675,127 @@ void main() {
         );
         expect(
           collapsed,
+          contains("'dev.flutter.pigeon.test_package.Api.pigeon_newInstance'"),
+        );
+      });
+
+      test(
+        'returns new-instance-error when callback constructor is unavailable',
+        () {
+          final root = Root(
+            apis: <Api>[
+              AstProxyApi(
+                name: 'Api',
+                constructors: <Constructor>[],
+                fields: <ApiField>[
+                  ApiField(
+                    name: 'aValue',
+                    type: const TypeDeclaration(
+                      baseName: 'int',
+                      isNullable: false,
+                    ),
+                    isAttached: false,
+                  ),
+                ],
+                methods: <Method>[
+                  Method(
+                    name: 'aCallbackMethod',
+                    returnType: const TypeDeclaration.voidDeclaration(),
+                    parameters: <Parameter>[],
+                    location: ApiLocation.flutter,
+                  ),
+                ],
+              ),
+            ],
+            classes: <Class>[],
+            enums: <Enum>[],
+          );
+          final code = _generate(root);
+          final collapsed = _collapseWhitespace(code);
+
+          expect(
+            collapsed,
+            isNot(contains('abstract aValue(pigeon_instance: ESObject): number;')),
+          );
+          expect(
+            collapsed,
+            contains(
+              "new FlutterError('new-instance-error', 'Attempting to create a new Dart instance of Api, but the class has a nonnull callback method.', '')",
+            ),
+          );
+          expect(
+            collapsed,
+            isNot(contains('addHostCreatedInstance(pigeon_instance)')),
+          );
+        },
+      );
+
+      test('surfaces Dart-side and connection errors from channel reply', () {
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[
+                Constructor(name: '', parameters: <Parameter>[]),
+              ],
+              fields: <ApiField>[],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        // Mirrors _writeProxyApiFlutterMethod / Kotlin newInstance error handling.
+        expect(
+          collapsed,
           contains(
-            "'dev.flutter.pigeon.test_package.Api.pigeon_newInstance'",
+            "channel.send([pigeon_identifier], channelReply => { if (Array.isArray(channelReply)) { let listReply: ESObject[] = channelReply as ESObject[]; if (listReply.length > 1) { let arrFirst: string = listReply[0] as string; let arrSecond: string = listReply[1] as string; let arrThird: string = listReply[2] as string; callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject); } else { callback.reply(); } } else { callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject); } });",
+          ),
+        );
+      });
+
+      test('encodes unattached enum fields in newInstance send list', () {
+        final proxyRole = Enum(
+          name: 'ProxyRole',
+          members: <EnumMember>[
+            EnumMember(name: 'ADMIN'),
+            EnumMember(name: 'GUEST'),
+          ],
+        );
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Api',
+              constructors: <Constructor>[
+                Constructor(name: '', parameters: <Parameter>[]),
+              ],
+              fields: <ApiField>[
+                ApiField(
+                  name: 'storedRole',
+                  type: TypeDeclaration(
+                    baseName: 'ProxyRole',
+                    isNullable: false,
+                    associatedEnum: proxyRole,
+                  ),
+                  isAttached: false,
+                ),
+              ],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[proxyRole],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        expect(
+          collapsed,
+          contains(
+            'channel.send([pigeon_identifier, (storedRoleArg === null || storedRoleArg === undefined ? null : new ProxyRoleEnum(ProxyRole[storedRoleArg as number]))],',
           ),
         );
       });
@@ -517,14 +828,15 @@ void main() {
           'remove',
           'clear',
         ]) {
-          expect(collapsed, contains(method),
-              reason: 'PigeonInstanceManager missing public method `$method`');
+          expect(
+            collapsed,
+            contains(method),
+            reason: 'PigeonInstanceManager missing public method `$method`',
+          );
         }
       });
 
-      test(
-          'PigeonInstanceManagerApi wires removeStrongReference / clear handlers',
-          () {
+      test('remove unregisters FinalizationRegistry tracking', () {
         final root = Root(
           apis: <Api>[
             AstProxyApi(
@@ -537,28 +849,54 @@ void main() {
           classes: <Class>[],
           enums: <Enum>[],
         );
-        final code = _generate(root);
+        final collapsed = _collapseWhitespace(_generate(root));
 
         expect(
-          code,
+          collapsed,
           contains(
-            'dev.flutter.pigeon.test_package.PigeonInternalInstanceManager.removeStrongReference',
-          ),
-        );
-        expect(
-          code,
-          contains(
-            'dev.flutter.pigeon.test_package.PigeonInternalInstanceManager.clear',
-          ),
-        );
-        // Flutter direction: removeStrongReference is callable from host.
-        expect(
-          code,
-          contains(
-            'removeStrongReference(identifierArg: number, callback: Reply<void>): void',
+            'remove(identifier: number): ESObject | null { const instance: ESObject | undefined = this.strongInstances.get(identifier); if (instance === undefined) { return null; } this.strongInstances.delete(identifier); this.weakInstances.delete(identifier); this.instancesHeldForFinalization.delete(instance); this.finalizationRegistry.unregister(instance); return instance; }',
           ),
         );
       });
+
+      test(
+        'PigeonInstanceManagerApi wires removeStrongReference / clear handlers',
+        () {
+          final root = Root(
+            apis: <Api>[
+              AstProxyApi(
+                name: 'Api',
+                constructors: <Constructor>[],
+                fields: <ApiField>[],
+                methods: <Method>[],
+              ),
+            ],
+            classes: <Class>[],
+            enums: <Enum>[],
+          );
+          final code = _generate(root);
+
+          expect(
+            code,
+            contains(
+              'dev.flutter.pigeon.test_package.PigeonInternalInstanceManager.removeStrongReference',
+            ),
+          );
+          expect(
+            code,
+            contains(
+              'dev.flutter.pigeon.test_package.PigeonInternalInstanceManager.clear',
+            ),
+          );
+          // Flutter direction: removeStrongReference is callable from host.
+          expect(
+            code,
+            contains(
+              'removeStrongReference(identifierArg: number, callback: Reply<void>): void',
+            ),
+          );
+        },
+      );
 
       test('PigeonProxyApiBaseCodec implements tag 128 instance ref I/O', () {
         final root = Root(
@@ -616,7 +954,9 @@ void main() {
                   parameters: <Parameter>[
                     Parameter(
                       type: const TypeDeclaration(
-                          isNullable: false, baseName: 'String'),
+                        isNullable: false,
+                        baseName: 'String',
+                      ),
                       name: 'msg',
                     ),
                   ],
@@ -662,6 +1002,12 @@ void main() {
             'PigeonApiLogger.setUpMessageHandlers(this.binaryMessenger, null);',
           ),
         );
+        expect(
+          collapsed,
+          contains('this.instanceManager.stopFinalizationListener();'),
+        );
+        expect(collapsed, contains('this.instanceManager.clear();'));
+        expect(collapsed, contains('this.ignoreCallsToDart = true;'));
       });
     });
   });

@@ -48,10 +48,13 @@ flutter pub get
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该注解；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
 
-| Name          | Description                                      | Type       | ohos Support |
-| ------------- | ------------------------------------------------ | ---------- | ------------ |
-| @HostApi()    | 使用 @HostApi() 注解定义接口，这些接口由原生平台实现，供 Flutter 调用    | annotation | yes          |
-| @FlutterApi() | 使用 @FlutterApi() 注解定义接口，这些接口由 Flutter 实现，供原生平台调用 | annotation | yes          |
+| Name               | Description                                      | Type       | ohos Support |
+| ------------------ | ------------------------------------------------ | ---------- | ------------ |
+| @HostApi()         | 使用 @HostApi() 注解定义接口，这些接口由原生平台实现，供 Flutter 调用    | annotation | yes          |
+| @FlutterApi()      | 使用 @FlutterApi() 注解定义接口，这些接口由 Flutter 实现，供原生平台调用 | annotation | yes          |
+| @ProxyApi()        | 定义基于 `InstanceManager`、弱引用 GC、继承与适配器的双向对象引用（详见 §7）。 | annotation | partially    |
+| @EventChannelApi() | 定义事件流 API。ArkTS 生成 `PigeonStreamHandler`、`PigeonEventSink` 及 `*StreamHandler.register(...)`（详见 §7）。 | annotation | yes          |
+| @TaskQueue()       | IDL 可标注 `@TaskQueue`；**`flutter_ohos` 的 `BasicMessageChannel` 目前仅三参数**，队列**尚未绑定**到通道（详见 §7）。 | annotation | partially    |
 
 
 ## 5. 命令
@@ -80,16 +83,19 @@ flutter pub get
 
 ## 7. 其他
 
-Pigeon **ArkTS（OHOS）** 宿主生成结果与典型 **Android（Kotlin）、iOS/macOS（Swift）** 生成路径相比，至少在下列几项上容易存在能力或脚手架程度上的差异；集成时请按业务逐项核对生成的 ArkTS / Kotlin（或 Swift）源码。
+§4 汇总了**注解级别**的鸿蒙支持情况。下表列出 **ArkTS（OHOS）** 宿主生成结果与典型 **Android（Kotlin）、iOS/macOS（Swift）** 生成路径在**代码生成与运行时**上的差异；集成时请按业务逐项核对生成的 ArkTS / Kotlin（或 Swift）源码。
 
 
 | 序号  | 能力项                                 | OHOS ArkTS 与 Kotlin / Swift（参考生成侧）的差异要点                                                                                                                                                |
 | --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | `@TaskQueue` / `TaskQueueType`      | Kotlin 等可将 **`TaskQueue`** 与 **`BasicMessageChannel`** 构造函数绑定。**`flutter_ohos`** 当前的 **`BasicMessageChannel` 一般为三参数**（`binaryMessenger`、频道名、`codec`），生成器通常**无法像 Android 一样传入第四个队列参数**。 |
-| 2   | `@EventChannelApi`                  | Kotlin / Swift 侧可生成 **`EventChannel` / `StreamHandler`** 等与 IDL 配套的一整套宿主代码。**`ArkTSGenerator`** 对部分场景仍可能没有与 Kotlin 同等程度的端到端自动生成；宿主侧常需额外编写 **`EventChannel`** 注册、生命周期与安全卸载等与插件入口的粘合代码。  |
+| 1   | `@TaskQueue` / `TaskQueueType`（**部分**） | Kotlin 将 **`TaskQueue`** 作为 **`BasicMessageChannel` 第四参数**。**`flutter_ohos` 当前仅提供三参数**构造，因此即使 IDL 标注 `@TaskQueue(type: TaskQueueType.serialBackgroundThread)`，ArkTS 仍生成**标准三参数通道**；处理器在默认平台线程执行，待 `flutter_ohos` 支持四参数后再对齐 Kotlin。 |
+| 2   | `@EventChannelApi`                      | ArkTS 生成 **`PigeonStreamHandler`**、**`PigeonEventSink`**、**`PigeonEventChannelWrapper`** 及按方法划分的 **`*StreamHandler.register(binaryMessenger, handler, instanceName?)`**（使用 **`PigeonMethodChannelCodec`**）。宿主插件继承生成的 handler，在 `onAttachedToEngine` 中调用 **`register`**，在 detach 时 **`setStreamHandler(null)`**。  |
 | 3   | **枚举（enum）的伴侣类包装**                 | 除 `export enum` 外，生成器还会为每个 Pigeon 枚举生成 **`<枚举名>Enum` 伴侣类**（如携带 `index` 等），在 **`toList` / `fromList` 与 `PigeonCodec`** 中通过 **`new <枚举名>Enum(...)` 包装** 参与编解码，以契合 `StandardMessageCodec` 对自定义类型的传递。Kotlin / Swift 侧生成物通常更直接地使用 **语言原生 enum**，**形态与手写习惯与 ArkTS 不一致**；宿主侧若混用「裸枚举值」与「包装实例」易导致编解码失败，须按生成代码的 getter/setter 与 codec 分支使用。 |
-| 4   | **`@ProxyApi` 进阶能力**（继承、弱引用 GC 语义等） | Kotlin 侧的 ProxyApi **功能面更宽**。OHOS 路线当前多落在 MVP：例如 **`InstanceManager` 常为强引用模型**，与 JVM 侧的弱引用回收路径语义不一定一致；IDL 中出现多级继承、**`superClass`** 等特点时更需在 Kotlin 与本仓库 ArkTS 生成物两边分别验证。                |
-| 5   | **`sealed` 数据类继承**                  | Kotlin / Swift 普遍支持受限的 sealed 父子类建模与生成。OHOS ArkTS 对「任意 HostApi 或数据结构里的 sealed 继承树」的生成范围可能不完整；使用前应对同一份 pigeon 输出的 Kotlin（或 Swift）与 ArkTS 文件都做编译与联调测试。                                   |
+| 4   | `@ProxyApi`（**部分支持**）              | **已实现：** `PigeonInstanceManager`（**WeakRef + FinalizationRegistry** GC）、`PigeonProxyApiRegistrar`、`PigeonApi<名称>` 适配器、**继承/接口** registrar getter、**`List<某ProxyApi>`** 类型映射、codec **`pigeon_newInstance` 分发**（子类优先于父类拓扑排序）、实例引用标签 128。**`minAndroidApi`** 通过 **`PigeonMinApi.isSatisfied()`** 记录以保持 IDL 跨平台一致，但**不在鸿蒙侧强制执行**。若 ProxyApi 声明**必填** Flutter 回调，Dart 侧可能不生成 `pigeon_newInstance` 处理器。宿主实现类名宜与 **`kotlinOptions.fullClassName`**（或 ProxyApi 名称）一致，以便 codec `instanceof` 分发。 |
+| 5   | **`sealed` 数据类继承**                  | Kotlin / Swift 普遍支持受限的 sealed 父子类建模与生成。ArkTS 生成器在 codec 中设置 **`excludeSealedClasses: true`**，对「任意 HostApi 或数据结构里的 sealed 继承树」的覆盖可能不完整；使用前应对同一份 pigeon 输出的 Kotlin（或 Swift）与 ArkTS 文件都做编译与联调测试。                                   |
+| 6   | `messageChannelSuffix`              | ArkTS **`HostApi.setup(..., messageChannelSuffix: '')`** 与 **`FlutterApi` 构造器**支持与 Dart 相同的后缀，非空时向频道名追加 **`.suffix`**。 |
+| 7   | 类型化二进制数据（`Uint8List`、`Float32List` 等） | `Uint8List`、`Int32List`、`Int64List`、`Float32List`、`Float64List` 在 ArkTS 侧映射为 **`number[]`**，而非 `Uint8Array` 等类型化数组。Kotlin / Swift 使用平台原生字节/浮点缓冲区，codec 支持更丰富。 |
+| 8   | 平台专属注解（`@Swift*`、`@Kotlin*`、`@Objc*` 等） | 这些注解仅影响**其他平台**的生成器，对 **`--arkts_out` 输出会被忽略**。 |
 
 
 ## 8. 开源协议

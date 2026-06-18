@@ -62,17 +62,15 @@ String _proxyApiHostClassName(AstProxyApi api) =>
 /// Documentation comment spec.
 const DocumentCommentSpecification _docCommentSpec =
     DocumentCommentSpecification(
-  _docCommentPrefix,
-  closeCommentToken: _docCommentSuffix,
-  blockContinuationToken: _docCommentContinuation,
-);
+      _docCommentPrefix,
+      closeCommentToken: _docCommentSuffix,
+      blockContinuationToken: _docCommentContinuation,
+    );
 
 /// Options that control how ArkTS code will be generated.
 class ArkTSOptions {
   /// Creates an [ArkTSOptions] object.
-  const ArkTSOptions({
-    this.copyrightHeader,
-  });
+  const ArkTSOptions({this.copyrightHeader});
 
   /// A copyright header that will get prepended to generated code.
   final Iterable<String>? copyrightHeader;
@@ -80,8 +78,7 @@ class ArkTSOptions {
   /// Creates [ArkTSOptions] from a Map representation where:
   /// `x = ArkTSOptions.fromMap(x.toMap())`.
   static ArkTSOptions fromMap(Map<String, Object> map) {
-    final copyrightHeader =
-        map['copyrightHeader'] as Iterable<dynamic>?;
+    final copyrightHeader = map['copyrightHeader'] as Iterable<dynamic>?;
     return ArkTSOptions(copyrightHeader: copyrightHeader?.cast<String>());
   }
 
@@ -104,10 +101,7 @@ class ArkTSOptions {
 /// Internal ArkTS options that extend InternalOptions.
 class InternalArkTSOptions extends InternalOptions {
   /// Creates an [InternalArkTSOptions] object.
-  const InternalArkTSOptions({
-    required this.arkTSOut,
-    this.copyrightHeader,
-  });
+  const InternalArkTSOptions({required this.arkTSOut, this.copyrightHeader});
 
   /// Path to the ArkTS file that will be generated.
   final String arkTSOut;
@@ -135,8 +129,11 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
 
   @override
   void writeFilePrologue(
-      InternalArkTSOptions generatorOptions, Root root, Indent indent,
-      {required String dartPackageName}) {
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
     if (generatorOptions.copyrightHeader != null) {
       indent.writeln('/*');
       addLines(indent, generatorOptions.copyrightHeader!, linePrefix: '* ');
@@ -146,18 +143,34 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
 
   @override
   void writeFileImports(
-      InternalArkTSOptions generatorOptions, Root root, Indent indent,
-      {required String dartPackageName}) {
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
     indent.writeln(
-        "import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';");
+      "import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';",
+    );
     indent.writeln(
-        "import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';");
+      "import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';",
+    );
     indent.writeln(
-        "import { BinaryMessenger,TaskQueue } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';");
+      "import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';",
+    );
     indent.writeln(
-        "import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';");
+      "import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';",
+    );
     indent.writeln(
-        "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';");
+      "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';",
+    );
+    if (root.containsEventChannel) {
+      indent.writeln(
+        "import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';",
+      );
+      indent.writeln(
+        "import { EventChannel, EventSink, StreamHandler } from '@ohos/flutter_ohos';",
+      );
+    }
     indent.newln();
   }
 
@@ -177,30 +190,40 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     }
 
     const generatedEnumMessages = <String>[
-      ' Generated enum from Pigeon that represents data sent in messages.'
+      ' Generated enum from Pigeon that represents data sent in messages.',
     ];
     indent.newln();
     addDocumentationComments(
-        indent, anEnum.documentationComments, _docCommentSpec,
-        generatorComments: generatedEnumMessages);
+      indent,
+      anEnum.documentationComments,
+      _docCommentSpec,
+      generatorComments: generatedEnumMessages,
+    );
     indent.write('export enum ${anEnum.name} ');
     indent.addScoped('{', '}', () {
       enumerate(anEnum.members, (int index, final EnumMember member) {
         addDocumentationComments(
-            indent, member.documentationComments, _docCommentSpec);
+          indent,
+          member.documentationComments,
+          _docCommentSpec,
+        );
         indent.writeln(
-            '${camelToSnake(member.name)}${index == anEnum.members.length - 1 ? '' : ','}');
+          '${camelToSnake(member.name)}${index == anEnum.members.length - 1 ? '' : ','}',
+        );
       });
     });
     const generatedEnumCompanionMessages = <String>[
       '''
  Generated enum Companion class from Pigeon that represents data sent 
-   in messages.Do not delete otherwise enum type data transfer will be failed'''
+   in messages.Do not delete otherwise enum type data transfer will be failed''',
     ];
     indent.newln();
     addDocumentationComments(
-        indent, anEnum.documentationComments, _docCommentSpec,
-        generatorComments: generatedEnumCompanionMessages);
+      indent,
+      anEnum.documentationComments,
+      _docCommentSpec,
+      generatorComments: generatedEnumCompanionMessages,
+    );
     indent.write('export class ${anEnum.name}$_enumCompanionSuffix ');
     indent.addScoped('{', '}', () {
       indent.writeln('index: string|null = null;');
@@ -211,16 +234,23 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   }
 
   @override
-  void writeDataClass(InternalArkTSOptions generatorOptions, Root root,
-      Indent indent, Class klass,
-      {required String dartPackageName}) {
+  void writeDataClass(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    Class klass, {
+    required String dartPackageName,
+  }) {
     const generatedMessages = <String>[
-      ' Generated class from Pigeon that represents data sent in messages.'
+      ' Generated class from Pigeon that represents data sent in messages.',
     ];
     indent.newln();
     addDocumentationComments(
-        indent, klass.documentationComments, _docCommentSpec,
-        generatorComments: generatedMessages);
+      indent,
+      klass.documentationComments,
+      _docCommentSpec,
+      generatorComments: generatedMessages,
+    );
 
     indent.write('export class ${klass.name} ');
     indent.addScoped('{', '}', () {
@@ -255,36 +285,29 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     bool isPrimitive = false,
   }) {
     final HostDatatype hostDatatype = getFieldHostDatatype(
-        field, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-    if (field.type.isEnum) {
-      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
-      indent.newln();
-      indent.writeScoped(
-          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
-          '}', () {
+      field,
+      (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x),
+    );
+    final String fieldType = hostDatatype.datatype;
+    final String optionalMarker = field.type.isNullable ? '?' : '';
+    final String getterReturnType = field.type.isNullable
+        ? '$fieldType | undefined'
+        : fieldType;
+    indent.writeln('private ${field.name}$optionalMarker: $fieldType;');
+    indent.newln();
+    final String setterParamType = _arkTSTypeForDartType(field.type);
+    indent.writeScoped(
+      'public ${_makeSetter(field)}(${field.name}: $setterParamType): void {',
+      '}',
+      () {
         indent.writeln('this.${field.name} = ${field.name};');
-      });
-      indent.newln();
-      indent.write(
-          '${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
-      indent.addScoped('{', '}', () {
-        indent.writeln('return this.${field.name};');
-      });
-    } else {
-      indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
-      indent.newln();
-      indent.writeScoped(
-          'public ${_makeSetter(field)}(${field.name}:${hostDatatype.datatype}):void {',
-          '}', () {
-        indent.writeln('this.${field.name} = ${field.name};');
-      });
-      indent.newln();
-      indent.write(
-          '${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined');
-      indent.addScoped('{', '}', () {
-        indent.writeln('return this.${field.name};');
-      });
-    }
+      },
+    );
+    indent.newln();
+    indent.write('${_makeGetter(field)}(): $getterReturnType');
+    indent.addScoped('{', '}', () {
+      indent.writeln('return this.${field.name};');
+    });
   }
 
   void _writeDataClassSignature(
@@ -295,10 +318,12 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     bool private = false,
   }) {
     indent.write(
-        '${private ? 'private' : 'public'} static final class ${classDefinition.name} ');
+      '${private ? 'private' : 'public'} static final class ${classDefinition.name} ',
+    );
     indent.addScoped('{', '}', () {
-      for (final NamedType field
-          in getFieldsInSerializationOrder(classDefinition)) {
+      for (final NamedType field in getFieldsInSerializationOrder(
+        classDefinition,
+      )) {
         _writeClassField(
           generatorOptions,
           indent,
@@ -311,6 +336,39 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     });
   }
 
+  /// ArkTS requires non-optional constructor parameters before optional ones.
+  /// Serialization order is unchanged; only the public constructor reorders.
+  List<NamedType> _constructorFieldOrder(Class klass) {
+    final List<NamedType> fields = getFieldsInSerializationOrder(
+      klass,
+    ).toList();
+    return <NamedType>[
+      ...fields.where((NamedType f) => !f.type.isNullable),
+      ...fields.where((NamedType f) => f.type.isNullable),
+    ];
+  }
+
+  /// ArkTS optional constructor parameter type for a nullable Pigeon field.
+  ///
+  /// Dart `String? name` is nullable and omit-able in the generated constructor
+  /// (`{this.name}` without `required`). The ArkTS equivalent is `name?: string`:
+  /// `?` marks the parameter optional; the value may be `undefined` when omitted.
+  String _arkTSTypeForOmittableConstructorParam(NamedType field) {
+    if (!field.type.isNullable) {
+      return _arkTSTypeForDartType(field.type);
+    }
+    return _arkTSTypeForDartType(
+      TypeDeclaration(
+        baseName: field.type.baseName,
+        isNullable: false,
+        associatedEnum: field.type.associatedEnum,
+        associatedClass: field.type.associatedClass,
+        associatedProxyApi: field.type.associatedProxyApi,
+        typeArguments: field.type.typeArguments,
+      ),
+    );
+  }
+
   // 构造函数
   void _writeClassBuilder(
     InternalArkTSOptions generatorOptions,
@@ -320,15 +378,14 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   ) {
     indent.write('constructor');
     final argSignature = <String>[];
-    if (klass.fields.isNotEmpty) {
-      for (final NamedType element in klass.fields) {
-        final String type = _arkTSTypeForDartType(element.type);
-        final String name = getSafeConstructorArgument(element.name);
-        if (element.type.isEnum) {
-          argSignature.add('$name?: $type');
-        } else {
-          argSignature.add('$name?: $type');
-        }
+    for (final NamedType element in _constructorFieldOrder(klass)) {
+      final String name = getSafeConstructorArgument(element.name);
+      if (element.type.isNullable) {
+        argSignature.add(
+          '$name?: ${_arkTSTypeForOmittableConstructorParam(element)}',
+        );
+      } else {
+        argSignature.add('$name: ${_arkTSTypeForDartType(element.type)}');
       }
     }
     indent.add('(${argSignature.join(', ')}) ');
@@ -349,23 +406,40 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('toList(): Object[] ');
+    // The list holds a positional slot for every field, including `null` for
+    // absent/nullable ones (see loop below). ArkTS forbids assigning `null` to
+    // a non-nullable `Object`, so the element type must be `Object | null`.
+    indent.write('toList(): Array<Object | null> ');
     indent.addScoped('{', '}', () {
-      indent.writeln('let arr: Object[] = new Array();');
-      for (final NamedType field in getFieldsInSerializationOrder(classDefinition)) {
+      indent.writeln(
+        'let arr: Array<Object | null> = new Array<Object | null>();',
+      );
+      for (final NamedType field in getFieldsInSerializationOrder(
+        classDefinition,
+      )) {
         final String fieldName = field.name;
-        if (field.type.isEnum) {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+        // Every field must occupy its positional slot (null when absent) so the
+        // produced list lines up with fromList() and the Dart side's positional
+        // decode. Conditionally skipping absent fields would shift every later
+        // field's index and corrupt decoding.
+        indent.write(
+          'if (this.$fieldName === undefined || this.$fieldName === null) ',
+        );
+        indent.addScoped('{', '} else {', () {
+          indent.writeln('arr.push(null);');
+        });
+        indent.addScoped(null, '}', () {
+          if (field.type.isEnum) {
             indent.writeln(
-                'const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];');
+              'const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];',
+            );
             indent.writeln(
-                'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));');
-          });
-        } else {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+              'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));',
+            );
+          } else {
             indent.writeln('arr.push(this.$fieldName);');
-          });
-        }
+          }
+        });
       }
       indent.writeln('return arr;');
     });
@@ -382,26 +456,64 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     indent.newln();
     indent.write('static fromList(arr: Object[]): ${classDefinition.name} ');
     indent.addScoped('{', '}', () {
-      const result = 'pigeonResult';
-      indent.writeln('let $result: ${classDefinition.name} = new ${classDefinition.name}();');
-
-      enumerate(getFieldsInSerializationOrder(classDefinition),
-          (int index, final NamedType field) {
-        final String fieldVariable = field.name;
-        final String setter = _makeSetter(field);
-        if (field.type.isEnum) {
-          indent.writeln(
-              'const $fieldVariable$_string_Param_Suffix: string = arr[$index]! as string;');
-          indent.writeln(
-              '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
-        } else {
-          indent.writeln('let $fieldVariable: Object = arr[$index];');
-          indent.writeln(
-              '$result.$setter(${_castObject(field, fieldVariable)});');
-        }
+      final List<NamedType> fields = getFieldsInSerializationOrder(
+        classDefinition,
+      ).toList();
+      enumerate(fields, (int index, final NamedType field) {
+        _writeFromListFieldDecode(indent, index: index, field: field);
       });
-      indent.writeln('return $result;');
+      if (fields.isEmpty) {
+        indent.writeln('return new ${classDefinition.name}();');
+      } else {
+        final String ctorArgs = _constructorFieldOrder(
+          classDefinition,
+        ).map((NamedType f) => f.name).join(', ');
+        indent.writeln('return new ${classDefinition.name}($ctorArgs);');
+      }
     });
+  }
+
+  /// Emits a local decode for one positional [arr] slot in [fromList].
+  void _writeFromListFieldDecode(
+    Indent indent, {
+    required int index,
+    required NamedType field,
+  }) {
+    final String name = field.name;
+    final String arktsType = _arkTSTypeForDartType(field.type);
+    if (field.type.isEnum) {
+      if (field.type.isNullable) {
+        indent.writeln('let $name: $arktsType = undefined;');
+        indent.writeScoped(
+          'if (arr[$index] !== null && arr[$index] !== undefined) {',
+          '}',
+          () {
+            indent.writeln('const ${name}Str: string = arr[$index] as string;');
+            indent.writeln('$name = ${field.type.baseName}[${name}Str];');
+          },
+        );
+      } else {
+        indent.writeln('const ${name}Str: string = arr[$index] as string;');
+        indent.writeln(
+          'const $name: $arktsType = ${field.type.baseName}[${name}Str];',
+        );
+      }
+    } else if (field.type.isNullable) {
+      indent.writeln('let $name: $arktsType = undefined;');
+      indent.writeScoped(
+        'if (arr[$index] !== null && arr[$index] !== undefined) {',
+        '}',
+        () {
+          indent.writeln('let ${name}Object: Object = arr[$index];');
+          indent.writeln('$name = ${_castObject(field, '${name}Object')};');
+        },
+      );
+    } else {
+      indent.writeln('let ${name}Object: Object = arr[$index];');
+      indent.writeln(
+        'const $name: $arktsType = ${_castObject(field, '${name}Object')};',
+      );
+    }
   }
 
   String _makeSetter(NamedType field) {
@@ -415,14 +527,20 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   /// object.
   String _castObject(NamedType field, String varName) {
     final HostDatatype hostDatatype = getFieldHostDatatype(
-        field, (TypeDeclaration x) => _arkTSTypeForDartType(x));
+      field,
+      (TypeDeclaration x) => _arkTSTypeForDartType(x),
+    );
     return _cast(varName, artTSType: hostDatatype.datatype);
   }
 
   @override
   void writeFlutterApi(
-      InternalArkTSOptions generatorOptions, Root root, Indent indent, Api api,
-      {required String dartPackageName}) {
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    Api api, {
+    required String dartPackageName,
+  }) {
     String getSafeArgumentExpression(int count, NamedType argument) {
       return '${_getArgumentName(count, argument)}Arg';
     }
@@ -430,19 +548,29 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     const generatedMessages = <String>[
       ' Generated class from Pigeon that represents Flutter messages that can be called from ArkTS.',
     ];
-    addDocumentationComments(indent, api.documentationComments, _docCommentSpec,
-        generatorComments: generatedMessages);
+    addDocumentationComments(
+      indent,
+      api.documentationComments,
+      _docCommentSpec,
+      generatorComments: generatedMessages,
+    );
 
     indent.write('export class ${api.name} ');
 
     ///MessageFlutterApi
     indent.addScoped('{', '}', () {
       indent.writeln('binaryMessenger: BinaryMessenger;');
+      indent.writeln('private messageChannelSuffix: string;');
       indent.newln();
 
-      indent.write('constructor(binaryMessenger: BinaryMessenger) ');
+      indent.write(
+        'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\') ',
+      );
       indent.addScoped('{', '}', () {
         indent.writeln('this.binaryMessenger = binaryMessenger;');
+        indent.writeln(
+          "this.messageChannelSuffix = messageChannelSuffix !== '' ? '.' + messageChannelSuffix : '';",
+        );
       });
 
       indent.newln();
@@ -462,40 +590,62 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
             : _arkTSTypeForDartType(func.returnType);
         String sendArgument;
         addDocumentationComments(
-            indent, func.documentationComments, _docCommentSpec);
+          indent,
+          func.documentationComments,
+          _docCommentSpec,
+        );
         if (func.parameters.isEmpty) {
           indent.write('${func.name}(callback: Reply<$returnType>):void ');
           sendArgument = 'null';
         } else {
-          final Iterable<String> argTypes = func.parameters
-              .map((NamedType e) => _arkTSTypeForDartType(e.type));
-          final Iterable<String> argNames =
-              indexMap(func.parameters, _getSafeArgumentName);
-          final Iterable<String> enumSafeArgNames =
-              indexMap(func.parameters, getSafeArgumentExpression);
+          final Iterable<String> argTypes = func.parameters.map(
+            (NamedType e) => _arkTSTypeForDartType(e.type),
+          );
+          final Iterable<String> argNames = indexMap(
+            func.parameters,
+            _getSafeArgumentName,
+          );
+          // Enum arguments must be wrapped in the codec's companion type before
+          // being sent; a bare enum value (number) would not match
+          // `instanceof <Enum>Enum` and would be encoded as a plain int without
+          // the enum type tag.
+          final List<String> sendArgParts = indexMap(func.parameters, (
+            int i,
+            NamedType arg,
+          ) {
+            final String argName = getSafeArgumentExpression(i, arg);
+            if (arg.type.isEnum) {
+              final String enumName = _arkTSCustomTypeName(arg.type);
+              return arg.type.isNullable
+                  ? '($argName == null ? null : new $enumName$_enumCompanionSuffix($enumName[$argName as number]))'
+                  : 'new $enumName$_enumCompanionSuffix($enumName[$argName as number])';
+            }
+            return argName;
+          }).toList();
 
-          if (func.parameters.length == 1) {
-            sendArgument = '[${enumSafeArgNames.first}]';
-          } else {
-            sendArgument = '[${enumSafeArgNames.join(', ')}]';
-          }
+          sendArgument = '[${sendArgParts.join(', ')}]';
 
-          final String argsSignature =
-              map2(argTypes, argNames, (String x, String y) => '$y: $x')
-                  .join(',');
+          final String argsSignature = map2(
+            argTypes,
+            argNames,
+            (String x, String y) => '$y: $x',
+          ).join(',');
           indent.write(
-              '${func.name}($argsSignature, callback: Reply<$returnType>) ');
+            '${func.name}($argsSignature, callback: Reply<$returnType>) ',
+          );
         }
         indent.addScoped('{', '}', () {
           const channel = 'channel';
           indent.writeln(
-              "const channelName: string = '${makeChannelName(api, func, dartPackageName)}';");
+            "const channelName: string = '${makeChannelName(api, func, dartPackageName)}' + this.messageChannelSuffix;",
+          );
           indent.writeln('let $channel: BasicMessageChannel<Object> = ');
           indent.nest(2, () {
             indent.writeln('new BasicMessageChannel<Object>(');
             indent.nest(2, () {
               indent.writeln(
-                  'this.binaryMessenger, channelName, ${api.name}.getCodec());');
+                'this.binaryMessenger, channelName, ${api.name}.getCodec());',
+              );
             });
           });
           indent.writeln('$channel.send(');
@@ -505,67 +655,85 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
             indent.write('channelReply => ');
 
             indent.addScoped('{', '});', () {
-              indent.writeScoped('if (Array.isArray(channelReply)) {', '} ',
-                  () {
-                indent.writeln(
-                    'let listReply: ESObject[] = channelReply as ESObject[] ;');
-                indent.writeScoped('if (listReply.length > 1) {', '} ', () {
-                  indent
-                      .writeln('let arrFirst:string = listReply[0] as string;');
+              indent.writeScoped(
+                'if (Array.isArray(channelReply)) {',
+                '} ',
+                () {
                   indent.writeln(
-                      'let arrSecond:string = listReply[1] as string;');
-                  indent
-                      .writeln('let arrThird:string = listReply[2] as string;');
-                  const replyArr =
-                      '\'FlutterError:{"code":\'+arrFirst+\',"name":\'+arrSecond+\',"message":\'+arrThird+\'}\';';
-                  if (func.returnType.isVoid) {
-                    indent.writeln('let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
-                  } else {
-                    indent.writeln('let replyArr:$returnType = $replyArr');
-                  }
-                  indent.writeln('callback.reply(replyArr);');
-                }, addTrailingNewline: false);
-
-                if (!func.returnType.isVoid) {
-                  indent.addScoped('else if (listReply[0] == null) {', '} ',
-                      () {
-                    const replyNull =
-                        'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}';
-                    indent
-                        .writeln("let replyNull:$returnType = '$replyNull'");
-                    indent.writeln('callback.reply(replyNull);');
+                    'let listReply: ESObject[] = channelReply as ESObject[] ;',
+                  );
+                  indent.writeScoped('if (listReply.length > 1) {', '} ', () {
+                    indent.writeln(
+                      'let arrFirst:string = listReply[0] as string;',
+                    );
+                    indent.writeln(
+                      'let arrSecond:string = listReply[1] as string;',
+                    );
+                    indent.writeln(
+                      'let arrThird:string = listReply[2] as string;',
+                    );
+                    // A 3-element reply is an error envelope; reconstruct a real
+                    // FlutterError object (not a string assigned to the return
+                    // type, which never matched the declared type).
+                    indent.writeln(
+                      'let replyArr: ESObject = new FlutterError(arrFirst, arrSecond, arrThird);',
+                    );
+                    indent.writeln('callback.reply(replyArr);');
                   }, addTrailingNewline: false);
-                }
 
-                indent.addScoped('else {', '}', () {
-                  if (func.returnType.isVoid) {
-                    indent.writeln('callback.reply();');
-                  } else {
-                    const output = 'output';
-                    final String outputExpression;
-                    if (func.returnType.baseName == 'number') {
-                      outputExpression =
-                          'listReply[0] == null ? null : (listReply[0] as number).valueOf();';
-                    } else {
-                      outputExpression =
-                          '${_cast('listReply[0]', artTSType: returnType)};';
-                    }
-                    indent
-                        .writeln('let $output:$returnType = $outputExpression');
-                    indent.writeln('callback.reply($output);');
+                  // Only a NON-nullable return treats a null payload as a
+                  // contract violation. For a nullable return, null is a valid
+                  // value and must fall through to the decode branch below
+                  // (matches the Kotlin/Swift FlutterApi and the ProxyApi path).
+                  if (!func.returnType.isVoid && !func.returnType.isNullable) {
+                    indent.addScoped(
+                      'else if (listReply[0] == null) {',
+                      '} ',
+                      () {
+                        indent.writeln(
+                          "let replyNull: ESObject = new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');",
+                        );
+                        indent.writeln('callback.reply(replyNull);');
+                      },
+                      addTrailingNewline: false,
+                    );
                   }
-                });
-              }, addTrailingNewline: false);
+
+                  indent.addScoped('else {', '}', () {
+                    if (func.returnType.isVoid) {
+                      indent.writeln('callback.reply();');
+                    } else {
+                      const output = 'output';
+                      if (func.returnType.isEnum) {
+                        // Decoded enum arrives as its member-name string; convert
+                        // back to the enum value the callback expects (mirrors the
+                        // data-class fromList enum handling).
+                        indent.writeln(
+                          'let $output: ESObject = listReply[0] == null ? null : ${_arkTSCustomTypeName(func.returnType)}[listReply[0] as string];',
+                        );
+                      } else {
+                        final String outputExpression;
+                        if (func.returnType.baseName == 'number') {
+                          outputExpression =
+                              'listReply[0] == null ? null : (listReply[0] as number).valueOf();';
+                        } else {
+                          outputExpression =
+                              '${_cast('listReply[0]', artTSType: returnType)};';
+                        }
+                        indent.writeln(
+                          'let $output:$returnType = $outputExpression',
+                        );
+                      }
+                      indent.writeln('callback.reply($output);');
+                    }
+                  });
+                },
+                addTrailingNewline: false,
+              );
               indent.addScoped(' else {', '} ', () {
-                if (func.returnType.isVoid) {
-                  const connErr =
-                      "let connErr:ESObject = new FlutterError('channel-error', "
-                      '"Unable to establish connection on channel: " + channelName + ".", "")';
-                  indent.writeln(connErr);
-                } else {
-                  const connErr = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}';
-                  indent.writeln("let connErr:$returnType = '$connErr'");
-                }
+                indent.writeln(
+                  "let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');",
+                );
                 indent.writeln('callback.reply(connErr);');
               });
             });
@@ -584,8 +752,8 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
   }) {
     if (root.apis.any(
           (Api api) =>
-        api is AstHostApi &&
-            api.methods.any((Method it) => it.isAsynchronous) ||
+              api is AstHostApi &&
+                  api.methods.any((Method it) => it.isAsynchronous) ||
               api is AstFlutterApi,
         ) ||
         root.apis.whereType<AstProxyApi>().any(
@@ -648,11 +816,19 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
       });
 
       indent.writeln(
-          '${_docCommentPrefix}Sets up an instance of `${api.name}` to handle messages through the `binaryMessenger`.$_docCommentSuffix');
+        '${_docCommentPrefix}Sets up an instance of `${api.name}` to handle messages through the `binaryMessenger`.$_docCommentSuffix',
+      );
 
       indent.write(
-          'static setup(binaryMessenger: BinaryMessenger, api: ${api.name} | null): void ');
+        'static setup(binaryMessenger: BinaryMessenger, api: ${api.name} | null, messageChannelSuffix: string = \'\'): void ',
+      );
       indent.addScoped('{', '}', () {
+        indent.writeln(
+          "const separatedMessageChannelSuffix: string = messageChannelSuffix !== '' ? '.' + messageChannelSuffix : '';",
+        );
+        // flutter_ohos BasicMessageChannel currently accepts three arguments
+        // only (binaryMessenger, name, codec). @TaskQueue is honored at the
+        // IDL level but cannot bind a queue into the channel constructor yet.
         for (final Method method in api.methods) {
           _writeMethodSetup(
             generatorOptions,
@@ -661,6 +837,7 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
             api,
             method,
             dartPackageName: dartPackageName,
+            channelNameSuffixExpression: 'separatedMessageChannelSuffix',
           );
         }
       });
@@ -677,16 +854,22 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     Api api,
     final Method method, {
     required String dartPackageName,
+    String channelNameSuffixExpression = "''",
   }) {
-    final String channelName = makeChannelName(api, method, dartPackageName);
+    final String baseChannelName = makeChannelName(
+      api,
+      method,
+      dartPackageName,
+    );
     indent.write('');
     indent.addScoped('{', '}', () {
       indent.writeln('let channel: BasicMessageChannel<Object> =');
       indent.nest(2, () {
         indent.writeln('new BasicMessageChannel(');
         indent.nest(2, () {
-          indent
-              .write('binaryMessenger, "$channelName", ${api.name}.getCodec()');
+          indent.write(
+            'binaryMessenger, \'$baseChannelName\' + $channelNameSuffixExpression, ${api.name}.getCodec()',
+          );
           indent.addln(');');
         });
       });
@@ -706,30 +889,44 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                 method.parameters.length,
               );
               enumerate(method.parameters, (int index, NamedType arg) {
-                var argExpression =
-                    'args[$index] as ${_arkTSTypeForDartType(arg.type)}';
-                if (method.returnType.isEnum) {
+                String argExpression;
+                if (arg.type.isEnum) {
+                  // The codec decodes an enum to its member-name string; convert
+                  // it back to the enum value the abstract method expects
+                  // (mirrors the data-class fromList enum handling). Keyed off
+                  // the PARAMETER type, not the method return type.
+                  final String enumName = _arkTSCustomTypeName(arg.type);
+                  argExpression = arg.type.isNullable
+                      ? '(args[$index] == null ? null : $enumName[args[$index] as string])'
+                      : '$enumName[args[$index] as string]';
+                } else {
                   argExpression =
-                      'new ${_arkTSTypeForDartType(arg.type)}$_enumCompanionSuffix'
-                      '${'(args[$index] as string)'}';
+                      'args[$index] as ${_arkTSTypeForDartType(arg.type)}';
                 }
                 methodArgument.add(argExpression);
               });
             }
             if (method.isAsynchronous) {
-              final resultValue =
-                  method.returnType.isVoid ? 'null' : 'result';
+              // Encode an enum result into its codec companion before replying,
+              // exactly like the sync path / data-class toList. Without this an
+              // async enum return would push the raw enum value and the codec
+              // (which keys off `instanceof <Enum>Enum`) would mis-serialize it.
+              final resultValue = method.returnType.isVoid
+                  ? 'null'
+                  : (method.returnType.isEnum
+                        ? '(result === null || result === undefined ? null : new ${_arkTSCustomTypeName(method.returnType)}$_enumCompanionSuffix(${_arkTSCustomTypeName(method.returnType)}[result as number]))'
+                        : 'result');
               const resultName = 'resultCallback';
               indent.format('''
 class ResultImp implements Result<$returnType>{
 \t\t\tsuccess(result: $returnType): void {
-\t\t\t\tlet res: Array<Object> = [];
+\t\t\t\tlet res: Array<Object | null> = [];
 \t\t\t\tres.push($resultValue);
 \t\t\t\treply.reply(res);
 \t\t\t}
 
 \t\t\terror(error: Error): void {
-\t\t\t\tlet wrappedError: Array<Object> = wrapError(error);
+\t\t\t\tlet wrappedError: Array<Object | null> = wrapError(error);
 \t\t\t\treply.reply(wrappedError);
 \t\t\t}
 }
@@ -737,13 +934,12 @@ let $resultName: Result<$returnType> = new ResultImp();
 ''');
               methodArgument.add(resultName);
             }
-            final call =
-                'api!.${method.name}(${methodArgument.join(', ')})';
+            final call = 'api!.${method.name}(${methodArgument.join(', ')})';
             // indent.writeln('$call;');
             if (method.isAsynchronous) {
               indent.writeln('$call;');
             } else {
-              indent.writeln('let res: Array<Object> = [];');
+              indent.writeln('let res: Array<Object | null> = [];');
               indent.write('try ');
               indent.addScoped('{', '}', () {
                 if (method.returnType.isVoid) {
@@ -751,10 +947,19 @@ let $resultName: Result<$returnType> = new ResultImp();
                   indent.writeln('res.push(null);');
                 } else {
                   if (method.returnType.isEnum) {
-                    final newCall =
-                        'api!.${method.name}(args[0] as $returnType).toString()';
+                    final String enumName = _arkTSCustomTypeName(
+                      method.returnType,
+                    );
+                    // Encode the returned enum the same way the codec/data-class
+                    // path does: convert the enum value to its member-name
+                    // string and wrap it in the companion type. Uses the full
+                    // argument list (not a hardcoded args[0]).
                     indent.writeln(
-                        'let output: $returnType$_enumCompanionSuffix = new $returnType$_enumCompanionSuffix($newCall);');
+                      'let pigeonEnumResult: $returnType = $call;',
+                    );
+                    indent.writeln(
+                      'let output: ESObject = pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ${enumName}$_enumCompanionSuffix($enumName[pigeonEnumResult as number]);',
+                    );
                   } else {
                     indent.writeln('let output: $returnType = $call;');
                   }
@@ -764,7 +969,8 @@ let $resultName: Result<$returnType> = new ResultImp();
               indent.add(' catch (error) ');
               indent.addScoped('{', '}', () {
                 indent.writeln(
-                    'let wrappedError: Array<Object> = wrapError(error);');
+                  'let wrappedError: Array<Object | null> = wrapError(error);',
+                );
                 if (method.isAsynchronous) {
                   indent.writeln('reply.reply(wrappedError);');
                 } else {
@@ -782,22 +988,30 @@ let $resultName: Result<$returnType> = new ResultImp();
     });
   }
 
-  void _writeInterfaceMethod(InternalArkTSOptions generatorOptions, Root root,
-      Indent indent, Api api, final Method method) {
+  void _writeInterfaceMethod(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    Api api,
+    final Method method,
+  ) {
     final String returnType = method.isAsynchronous
         ? 'void'
         : _arkTSTypeForDartType(method.returnType);
 
     final argSignature = <String>[];
     if (method.parameters.isNotEmpty) {
-      final Iterable<String> argTypes =
-          method.parameters.map((NamedType e) => _arkTSTypeForDartType(e.type));
-      final Iterable<String> argNames =
-          method.parameters.map((NamedType e) => e.name);
-      argSignature
-          .addAll(map2(argTypes, argNames, (String argType, String argName) {
-        return '$argName: $argType ';
-      }));
+      final Iterable<String> argTypes = method.parameters.map(
+        (NamedType e) => _arkTSTypeForDartType(e.type),
+      );
+      final Iterable<String> argNames = method.parameters.map(
+        (NamedType e) => e.name,
+      );
+      argSignature.addAll(
+        map2(argTypes, argNames, (String argType, String argName) {
+          return '$argName: $argType ';
+        }),
+      );
     }
     if (method.isAsynchronous) {
       final String resultType = method.returnType.isVoid
@@ -807,12 +1021,16 @@ let $resultName: Result<$returnType> = new ResultImp();
     }
     if (method.documentationComments.isNotEmpty) {
       addDocumentationComments(
-          indent, method.documentationComments, _docCommentSpec);
+        indent,
+        method.documentationComments,
+        _docCommentSpec,
+      );
     } else {
       indent.newln();
     }
     indent.writeln(
-        'abstract ${method.name}(${argSignature.join(', ')}): $returnType;');
+      'abstract ${method.name}(${argSignature.join(', ')}): $returnType;',
+    );
   }
 
   void _writeResultInterface(Indent indent) {
@@ -826,7 +1044,8 @@ let $resultName: Result<$returnType> = new ResultImp();
 
   void _writeErrorClass(Indent indent) {
     indent.writeln(
-        '/** Error class for passing custom error details to Flutter via a thrown PlatformException. */');
+      '/** Error class for passing custom error details to Flutter via a thrown PlatformException. */',
+    );
     indent.write('export class FlutterError implements Error ');
     indent.addScoped('{', '}', () {
       indent.newln();
@@ -842,7 +1061,8 @@ let $resultName: Result<$returnType> = new ResultImp();
       indent.writeln('public stack?: string;');
       indent.newln();
       indent.writeln(
-          'constructor(code: string, name: string,  message: string, stack?: string) ');
+        'constructor(code: string, name: string,  message: string, stack?: string) ',
+      );
       indent.writeScoped('{', '}', () {
         indent.writeln('this.code = code;');
         indent.writeln('this.name = name;');
@@ -854,8 +1074,8 @@ let $resultName: Result<$returnType> = new ResultImp();
 
   void _writeWrapError(Indent indent) {
     indent.format('''
-function wrapError(error: Error): Array<Object> {
-\tlet errorList: Array<Object> = new Array<Object>(3);
+function wrapError(error: Error): Array<Object | null> {
+\tlet errorList: Array<Object | null> = new Array<Object | null>(3);
 \tif (error instanceof FlutterError) {
 \t\tlet err: FlutterError = error as FlutterError;
 \t\terrorList[0] = err.code;
@@ -886,12 +1106,9 @@ getByte(n: number): number {
     Indent indent, {
     required String dartPackageName,
   }) {
-    final bool hasHostApi = root.apis
-        .whereType<AstHostApi>()
-        .any((Api api) => api.methods.isNotEmpty);
-    final bool hasFlutterApi = root.apis
-        .whereType<AstFlutterApi>()
-        .any((Api api) => api.methods.isNotEmpty);
+    final bool hasHostApi = root.apis.whereType<AstHostApi>().any(
+      (Api api) => api.methods.isNotEmpty,
+    );
 
     indent.newln();
     _writeErrorClass(indent);
@@ -900,31 +1117,27 @@ getByte(n: number): number {
       indent.newln();
       _writeWrapError(indent);
     }
-    if (hasFlutterApi) {
-      indent.newln();
-
-      ///_writeCreateConnectionError(indent);
-    }
   }
 
   /// Converts an expression that evaluates to an nullable int to an expression
   /// that evaluates to a nullable enum.
   String _intToEnum(String expression, String enumName, bool nullable) =>
       nullable
-          ? '$expression == null ? null : $enumName[$expression as number]'
-          : '$enumName[$expression as number]';
+      ? '$expression == null ? null : $enumName[$expression as number]'
+      : '$enumName[$expression as number]';
 
   String _getArgumentName(int count, NamedType argument) =>
       argument.name.isEmpty ? 'arg$count' : argument.name;
 
   String _getSafeArgumentName(int count, NamedType argument) =>
       '${_getArgumentName(count, argument)}Arg';
+
   /// Returns a constructor argument name that is safe to use in generated code.
   String getSafeConstructorArgument(String argument) {
     return (argument == 'arguments') ? 'argumentsArg' : argument;
   }
 
-// get函数
+  // get函数
   String _makeGetter(NamedType field) {
     final String uppercased =
         field.name.substring(0, 1).toUpperCase() + field.name.substring(1);
@@ -963,9 +1176,37 @@ getByte(n: number): number {
     indent.writeln('}');
   }
 
-  String _arkTSTypeForDartType(TypeDeclaration type) {
-    return _arkTSTypeForBuiltinDartType(type) ?? type.baseName;
+  String? _arkTSTypeForProxyApiType(TypeDeclaration type) {
+    // Host ProxyApi instances are user-defined classes (e.g. NativeEnumCounter);
+    // the IDL name (e.g. EnumCounter) is not a compile-time ArkTS type.
+    if (type.isProxyApi) {
+      return 'ESObject';
+    }
+    return null;
   }
+
+  String _arkTSTypeForDartType(TypeDeclaration type) {
+    final String baseType;
+    final String? builtin = _arkTSTypeForBuiltinDartType(type);
+    if (builtin != null) {
+      baseType = builtin;
+    } else {
+      final String? proxyApiType = _arkTSTypeForProxyApiType(type);
+      if (proxyApiType != null) {
+        baseType = proxyApiType;
+      } else {
+        baseType = type.baseName;
+      }
+    }
+    if (type.isNullable) {
+      return '$baseType | undefined';
+    }
+    return baseType;
+  }
+
+  /// Custom enum/class identifier for generated expressions (member lookup,
+  /// companion types). Signatures use [_arkTSTypeForDartType] / [_arkTSTypeOrEsObject].
+  String _arkTSCustomTypeName(TypeDeclaration type) => type.baseName;
 
   /// Converts a [List] of [TypeDeclaration]s to a comma separated [String] to be
   String _flattenTypeArguments(List<TypeDeclaration> args) {
@@ -993,6 +1234,7 @@ getByte(n: number): number {
       'Uint8List': 'number[]',
       'Int32List': 'number[]',
       'Int64List': 'number[]',
+      'Float32List': 'number[]',
       'Float64List': 'number[]',
       'Object': 'Object',
       _forceInt: 'number',
@@ -1015,6 +1257,11 @@ getByte(n: number): number {
     Indent indent, {
     required String dartPackageName,
   }) {
+    // Sealed (parent) classes are not serialized directly -- only their
+    // concrete subclasses are -- so they are excluded from the codec's
+    // enumerated custom types. This intentionally matches the Kotlin and Swift
+    // generators (see writeGeneralCodec in kotlin_generator.dart /
+    // swift_generator.dart), which pass the same flag to getEnumeratedTypes.
     final List<EnumeratedType> enumeratedTypes = getEnumeratedTypes(
       root,
       excludeSealedClasses: true,
@@ -1044,12 +1291,14 @@ getByte(n: number): number {
         indent.addScoped('{', '} else ', () {
           if (customType.enumeration >= maximumCodecFieldKey) {
             indent.writeln(
-                'let wrap:$_overflowClassName = new $_overflowClassName();');
+              'let wrap:$_overflowClassName = new $_overflowClassName();',
+            );
             indent.writeln(
-                'wrap.setType(${customType.enumeration - maximumCodecFieldKey});');
+              'wrap.setType(${customType.enumeration - maximumCodecFieldKey});',
+            );
 
             indent.writeln(
-                'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());',
+              'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());',
             );
           }
           indent.writeln('stream.writeUint8(this.getByte($enumeration));');
@@ -1057,15 +1306,19 @@ getByte(n: number): number {
         }, addTrailingNewline: false);
       } else {
         indent.add(
-            'if (value instanceof ${customType.name}$_enumCompanionSuffix) ');
+          'if (value instanceof ${customType.name}$_enumCompanionSuffix) ',
+        );
         indent.addScoped('{', '} else ', () {
           if (customType.enumeration >= maximumCodecFieldKey) {
             indent.writeln(
-                'let wrap:$_overflowClassName = new $_overflowClassName();');
+              'let wrap:$_overflowClassName = new $_overflowClassName();',
+            );
             indent.writeln(
-                'wrap.setType(${customType.enumeration - maximumCodecFieldKey});');
+              'wrap.setType(${customType.enumeration - maximumCodecFieldKey});',
+            );
             indent.writeln(
-                'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());');
+              'wrap.setWrapped($nullCheck((value as ${customType.name}$_enumCompanionSuffix).index));',
+            );
           }
           indent.writeln('stream.writeUint8(this.getByte($enumeration));');
           indent.writeln('this.writeValue(stream, $valueString);');
@@ -1079,19 +1332,24 @@ getByte(n: number): number {
         indent.newln();
         indent.nest(1, () {
           indent.writeln(
-              'return ${customType.name}.fromList(super.readValue(buffer) as Object[]);');
+            'return ${customType.name}.fromList(super.readValue(buffer) as Object[]);',
+          );
         });
       } else if (customType.type == CustomTypes.customEnum) {
         indent.addScoped(' {', '}', () {
           indent.writeln('let value: Object= super.readValue(buffer);');
-          indent
-              .writeln('return ${_intToEnum('value', customType.name, true)};');
+          indent.writeln(
+            'return ${_intToEnum('value', customType.name, true)};',
+          );
         });
       }
     }
 
     final overflowClass = EnumeratedType(
-        _overflowClassName, maximumCodecFieldKey, CustomTypes.customClass);
+      _overflowClassName,
+      maximumCodecFieldKey,
+      CustomTypes.customClass,
+    );
 
     if (root.requiresOverflowClass) {
       _writeCodecOverflowUtilities(
@@ -1106,36 +1364,47 @@ getByte(n: number): number {
     indent.write('export class $_codecName extends StandardMessageCodec ');
     indent.addScoped('{', '}', () {
       indent.writeln(
-          'static readonly INSTANCE: $_codecName  = new $_codecName();');
+        'static readonly INSTANCE: $_codecName  = new $_codecName();',
+      );
       indent.newln();
       _writeGetByteMethoe(indent);
 
-      ///构造
-      indent.writeScoped('private constructor() {', '}', () {
-        indent.writeln('super();');
-      });
+      // When ProxyApi is present, PigeonProxyApiBaseCodec subclasses $_codecName
+      // and must call super(); ArkTS forbids extending a class whose sole
+      // constructor is private (arkts-subclassing-restrictions).
+      final bool hasProxyApi = root.apis.any((Api api) => api is AstProxyApi);
+      indent.writeScoped(
+        hasProxyApi ? 'constructor() {' : 'private constructor() {',
+        '}',
+        () {
+          indent.writeln('super();');
+        },
+      );
       indent.newln();
       indent.writeScoped(
-          'readValueOfType(type: number,  buffer: ByteBuffer): ESObject {', '}',
-          () {
-        indent.writeScoped('switch (type) {', '}', () {
-          for (final customType in enumeratedTypes) {
-            if (customType.enumeration < maximumCodecFieldKey) {
-              writeDecodeLogic(customType);
+        'readValueOfType(type: number,  buffer: ByteBuffer): ESObject {',
+        '}',
+        () {
+          indent.writeScoped('switch (type) {', '}', () {
+            for (final customType in enumeratedTypes) {
+              if (customType.enumeration < maximumCodecFieldKey) {
+                writeDecodeLogic(customType);
+              }
             }
-          }
-          if (root.requiresOverflowClass) {
-            writeDecodeLogic(overflowClass);
-          }
-          indent.writeln('default:');
-          indent.nest(1, () {
-            indent.writeln('return super.readValueOfType(type, buffer);');
+            if (root.requiresOverflowClass) {
+              writeDecodeLogic(overflowClass);
+            }
+            indent.writeln('default:');
+            indent.nest(1, () {
+              indent.writeln('return super.readValueOfType(type, buffer);');
+            });
           });
-        });
-      });
+        },
+      );
       indent.newln();
-      indent
-          .write('writeValue(stream: ByteBuffer , value: ESObject): ESObject');
+      indent.write(
+        'writeValue(stream: ByteBuffer , value: ESObject): ESObject',
+      );
       indent.addScoped('{', '}', () {
         indent.write('');
         enumeratedTypes.forEach(writeEncodeLogic);
@@ -1145,6 +1414,101 @@ getByte(n: number): number {
       });
     });
     indent.newln();
+    if (root.containsEventChannel) {
+      indent.writeln(
+        'const PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec($_codecName.INSTANCE);',
+      );
+      indent.newln();
+    }
+  }
+
+  @override
+  void writeEventChannelApi(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    AstEventChannelApi api, {
+    required String dartPackageName,
+  }) {
+    indent.newln();
+    indent.format('''
+/**
+ * Internal [StreamHandler] that delegates to a [PigeonEventChannelWrapper].
+ */
+class PigeonStreamHandler<T> implements StreamHandler {
+  private readonly wrapper: PigeonEventChannelWrapper<T>;
+  private pigeonSink: PigeonEventSink<T> | null = null;
+
+  constructor(wrapper: PigeonEventChannelWrapper<T>) {
+    this.wrapper = wrapper;
+  }
+
+  onListen(args: Object, events: EventSink): void {
+    this.pigeonSink = new PigeonEventSink<T>(events);
+    this.wrapper.onListen(args, this.pigeonSink!);
+  }
+
+  onCancel(args: Object): void {
+    this.pigeonSink = null;
+    this.wrapper.onCancel(args);
+  }
+}
+
+export interface PigeonEventChannelWrapper<T> {
+  onListen(args: Object, sink: PigeonEventSink<T>): void;
+  onCancel(args: Object): void;
+}
+
+export class PigeonEventSink<T> {
+  private readonly sink: EventSink;
+
+  constructor(sink: EventSink) {
+    this.sink = sink;
+  }
+
+  success(value: T): void {
+    this.sink.success(value);
+  }
+
+  error(errorCode: string, errorMessage: string | null, errorDetails: Object | null): void {
+    this.sink.error(errorCode, errorMessage, errorDetails);
+  }
+
+  endOfStream(): void {
+    this.sink.endOfStream();
+  }
+}
+''');
+    addDocumentationComments(
+      indent,
+      api.documentationComments,
+      _docCommentSpec,
+    );
+    for (final Method func in api.methods) {
+      final String returnType = _arkTSTypeForDartType(func.returnType);
+      final String handlerName = toUpperCamelCase(func.name);
+      indent.format('''
+export abstract class ${handlerName}StreamHandler implements PigeonEventChannelWrapper<$returnType> {
+  static register(binaryMessenger: BinaryMessenger, streamHandler: ${handlerName}StreamHandler, instanceName: string = ''): void {
+    let channelName: string = '${makeChannelName(api, func, dartPackageName)}';
+    if (instanceName !== '') {
+      channelName += '.' + instanceName;
+    }
+    const internalStreamHandler: PigeonStreamHandler<$returnType> =
+        new PigeonStreamHandler<$returnType>(streamHandler);
+    const channel: EventChannel = new EventChannel(binaryMessenger, channelName, PigeonMethodChannelCodec);
+    channel.setStreamHandler(internalStreamHandler);
+  }
+
+  onListen(args: Object, sink: PigeonEventSink<$returnType>): void {
+  }
+
+  onCancel(args: Object): void {
+  }
+}
+''');
+      indent.newln();
+    }
   }
 
   void _writeCodecOverflowUtilities(
@@ -1155,88 +1519,78 @@ getByte(n: number): number {
     required String dartPackageName,
   }) {
     final overflowInteration = NamedType(
-        name: 'type',
-        type: const TypeDeclaration(baseName: _forceInt, isNullable: false));
+      name: 'type',
+      type: const TypeDeclaration(baseName: _forceInt, isNullable: false),
+    );
     final overflowObject = NamedType(
-        name: 'wrapped',
-        type: const TypeDeclaration(baseName: 'Object', isNullable: true));
-    final overflowFields = <NamedType>[
-      overflowInteration,
-      overflowObject,
-    ];
-    final overflowClass =
-        Class(name: _overflowClassName, fields: overflowFields);
+      name: 'wrapped',
+      type: const TypeDeclaration(baseName: 'Object', isNullable: true),
+    );
+    final overflowFields = <NamedType>[overflowInteration, overflowObject];
+    final overflowClass = Class(
+      name: _overflowClassName,
+      fields: overflowFields,
+    );
 
-    _writeDataClassSignature(
-      generatorOptions,
-      indent,
-      overflowClass,
-      () {
-        writeClassEncode(
-          generatorOptions,
-          root,
-          indent,
-          overflowClass,
-          dartPackageName: dartPackageName,
-        );
+    _writeDataClassSignature(generatorOptions, indent, overflowClass, () {
+      writeClassEncode(
+        generatorOptions,
+        root,
+        indent,
+        overflowClass,
+        dartPackageName: dartPackageName,
+      );
 
-        indent.format('''
-static @Nullable Object fromList(@NonNull ArrayList<Object> ${varNamePrefix}list) {
-  $_overflowClassName wrapper = new $_overflowClassName();
-  wrapper.setType((int) ${varNamePrefix}list.get(0));
-  wrapper.setWrapped(${varNamePrefix}list.get(1));
+      indent.format('''
+static fromList(list: Object[]): Object | null {
+  const wrapper: $_overflowClassName = new $_overflowClassName();
+  wrapper.setType(list[0] as number);
+  wrapper.setWrapped(list[1]);
   return wrapper.unwrap();
 }
 ''');
 
-        indent.writeScoped('@Nullable Object unwrap() {', '}', () {
-          indent.format('''
-if (wrapped == null) {
-  return null;
-}
-    ''');
-          indent.writeScoped('switch (type) {', '}', () {
-            for (int i = totalCustomCodecKeysAllowed; i < types.length; i++) {
-              indent.writeln('case ${i - totalCustomCodecKeysAllowed}:');
-              indent.nest(1, () {
-                if (types[i].type == CustomTypes.customClass) {
-                  indent.writeln(
-                      'return ${types[i].name}.fromList((ArrayList<Object>) wrapped);');
-                } else if (types[i].type == CustomTypes.customEnum) {
-                  indent.writeln(
-                      'return ${types[i].name}.values()[(int) wrapped];');
-                }
-              });
-            }
-          });
+      indent.write('unwrap(): Object | null ');
+      indent.addScoped('{', '}', () {
+        indent.writeln(
+          'if (this.wrapped === null || this.wrapped === undefined) {',
+        );
+        indent.nest(1, () {
           indent.writeln('return null;');
         });
+        indent.writeScoped('switch (this.type) {', '}', () {
+          for (int i = totalCustomCodecKeysAllowed; i < types.length; i++) {
+            indent.writeln('case ${i - totalCustomCodecKeysAllowed}:');
+            indent.nest(1, () {
+              if (types[i].type == CustomTypes.customClass) {
+                indent.writeln(
+                  'return ${types[i].name}.fromList(this.wrapped as Object[]);',
+                );
+              } else if (types[i].type == CustomTypes.customEnum) {
+                indent.writeln(
+                  'return ${types[i].name}[this.wrapped as string];',
+                );
+              }
+            });
+          }
+        });
+        indent.writeln('return null;');
+      });
     }, private: true);
   }
 
   // =====================================================================
-  // ProxyApi support — MVP iteration 1.
+  // ProxyApi support for HarmonyOS ArkTS.
   //
-  // What is implemented in this generator:
-  //   * PigeonInstanceManager           (strong-reference only, no WeakRef yet)
-  //   * PigeonInstanceManagerApi        (removeStrongReference / clear / cb)
-  //   * PigeonProxyApiBaseCodec         (tag 128 instance-ref handling)
-  //   * PigeonProxyApiRegistrar         (per-engine coordinator, abstract)
-  //   * PigeonApi<Name>                 (per-ProxyApi adapter, abstract)
-  //     - constructors (default + named)
-  //     - attached fields (instance + static)
-  //     - host methods (sync + async, instance + static)
-  //     - pigeon_newInstance (callback to register on Dart side)
-  //     - flutter methods (callback-based, instance side)
-  //
-  // Deferred to a follow-up iteration (search "TODO(proxyapi-ohos)"):
-  //   * Inheritance / interfaces between ProxyApis (extends / implements).
-  //   * WeakRef + FinalizationRegistry-driven GC integration.
-  //   * Cross-class containment in collection types
-  //     (List<MyProxyApi> as a method argument or return value).
-  //   * minApi platform gating (HarmonyOS has no analogue today).
-  //
-  // See doc/PROXYAPI_OHOS.md for usage details and known limitations.
+  // Implemented:
+  //   * PigeonInstanceManager (WeakRef + FinalizationRegistry GC)
+  //   * PigeonInstanceManagerApi (removeStrongReference / clear / cb)
+  //   * PigeonProxyApiBaseCodec (tag 128 + pigeon_newInstance dispatch)
+  //   * PigeonProxyApiRegistrar (per-engine coordinator, abstract)
+  //   * PigeonApi<Name> adapters (constructors, fields, host/flutter methods)
+  //   * ProxyApi inheritance/interface registrar getters
+  //   * List<ProxyApi> typing via _arkTSTypeForProxyApiType
+  //   * minApi recorded for IDL parity (not enforced on OHOS — see PigeonMinApi)
   // =====================================================================
 
   @override
@@ -1251,91 +1605,172 @@ if (wrapped == null) {
  * Maintains a 1:1 mapping between native objects and integer identifiers
  * shared with the Dart `InstanceManager`.
  *
- * NOTE (HarmonyOS MVP): Instances are held as strong references on both
- * sides until either side explicitly removes them.  Weak-reference based
- * GC integration is intentionally deferred (see PROXYAPI_OHOS.md).
+ * Memory management mirrors Kotlin/Swift: each instance is tracked with a
+ * [WeakRef] and a strong reference. [remove] drops the strong reference; when
+ * the weak reference is garbage collected, [FinalizationRegistry] notifies the
+ * [finalizationListener]. [getIdentifierForStrongReference] re-creates a strong
+ * reference when needed to pass an identifier to Dart.
+ *
+ * Thread safety: synchronous, single-threaded platform channel thread (see
+ * Kotlin `InstanceManager` rationale).
  */
 export class $_instanceManagerClassName {
-  /** Host-allocated identifiers start at this value; Dart owns [0, $_minHostCreatedIdentifier). */
   private static readonly minHostCreatedIdentifier: number = $_minHostCreatedIdentifier;
 
-  private readonly identifiersToInstances: Map<number, ESObject> = new Map<number, ESObject>();
-  private readonly instancesToIdentifiers: Map<ESObject, number> = new Map<ESObject, number>();
+  private readonly weakInstances: Map<number, WeakRef<ESObject>> = new Map<number, WeakRef<ESObject>>();
+  private readonly strongInstances: Map<number, ESObject> = new Map<number, ESObject>();
+  private readonly finalizationRegistry: FinalizationRegistry<number>;
+  private readonly instancesHeldForFinalization: Set<ESObject> = new Set<ESObject>();
   private nextIdentifier: number = $_instanceManagerClassName.minHostCreatedIdentifier;
   private finalizationListener: $_finalizationListenerInterfaceName | null = null;
+  private finalizationListenerStopped: boolean = false;
+
+  constructor() {
+    this.finalizationRegistry = new FinalizationRegistry<number>((identifier: number) => {
+      if (this.finalizationListenerStopped) {
+        return;
+      }
+      if (this.strongInstances.has(identifier)) {
+        return;
+      }
+      this.weakInstances.delete(identifier);
+      if (this.finalizationListener !== null) {
+        this.finalizationListener.onFinalize(identifier);
+      }
+    });
+  }
 
   setFinalizationListener(listener: $_finalizationListenerInterfaceName | null): void {
     this.finalizationListener = listener;
   }
 
-  /** Adds an instance instantiated from the Dart side with the given identifier. */
-  addDartCreatedInstance(instance: ESObject, identifier: number): void {
+  stopFinalizationListener(): void {
+    this.finalizationListenerStopped = true;
+    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+      this.finalizationRegistry.unregister(instance);
+    });
+    this.instancesHeldForFinalization.clear();
+  }
+
+  hasFinalizationListenerStopped(): boolean {
+    return this.finalizationListenerStopped;
+  }
+
+  private findIdentifierForInstance(instance: ESObject): number | null {
+    let found: number | null = null;
+    this.strongInstances.forEach((strong: ESObject, identifier: number) => {
+      if (found === null && strong === instance) {
+        found = identifier;
+      }
+    });
+    if (found !== null) {
+      return found;
+    }
+    this.weakInstances.forEach((weakRef: WeakRef<ESObject>, identifier: number) => {
+      if (found !== null) {
+        return;
+      }
+      const deref: ESObject | undefined = weakRef.deref();
+      if (deref !== undefined && deref === instance) {
+        found = identifier;
+      }
+    });
+    return found;
+  }
+
+  private addInstance(instance: ESObject, identifier: number): void {
     if (identifier < 0) {
       throw new Error('Identifier must be >= 0: ' + identifier);
     }
-    if (this.identifiersToInstances.has(identifier)) {
+    if (this.weakInstances.has(identifier)) {
       throw new Error('Identifier has already been added: ' + identifier);
     }
-    this.identifiersToInstances.set(identifier, instance);
-    this.instancesToIdentifiers.set(instance, identifier);
+    const weakRef: WeakRef<ESObject> = new WeakRef(instance);
+    this.weakInstances.set(identifier, weakRef);
+    this.strongInstances.set(identifier, instance);
+    this.finalizationRegistry.register(instance, identifier, instance);
+    this.instancesHeldForFinalization.add(instance);
   }
 
-  /** Adds a new instance instantiated on the host side; returns the assigned identifier. */
+  addDartCreatedInstance(instance: ESObject, identifier: number): void {
+    this.addInstance(instance, identifier);
+  }
+
   addHostCreatedInstance(instance: ESObject): number {
-    if (this.instancesToIdentifiers.has(instance)) {
+    if (this.findIdentifierForInstance(instance) !== null) {
       throw new Error('Instance has already been added.');
     }
     const identifier: number = this.nextIdentifier++;
-    this.identifiersToInstances.set(identifier, instance);
-    this.instancesToIdentifiers.set(instance, identifier);
+    this.addInstance(instance, identifier);
     return identifier;
   }
 
-  /** Returns the instance for [identifier], or null if not registered. */
   getInstance(identifier: number): ESObject | null {
-    const value: ESObject | undefined = this.identifiersToInstances.get(identifier);
-    return value === undefined ? null : value;
+    const strong: ESObject | undefined = this.strongInstances.get(identifier);
+    if (strong !== undefined) {
+      return strong;
+    }
+    const weak: WeakRef<ESObject> | undefined = this.weakInstances.get(identifier);
+    if (weak === undefined) {
+      return null;
+    }
+    const deref: ESObject | undefined = weak.deref();
+    return deref === undefined ? null : deref;
   }
 
-  /** Returns the identifier associated with [instance], or null. */
   getIdentifierForStrongReference(instance: ESObject | null): number | null {
     if (instance === null || instance === undefined) {
       return null;
     }
-    const value: number | undefined = this.instancesToIdentifiers.get(instance);
-    return value === undefined ? null : value;
+    const identifier: number | null = this.findIdentifierForInstance(instance);
+    if (identifier !== null) {
+      this.strongInstances.set(identifier, instance);
+    }
+    return identifier;
   }
 
-  /** Whether this manager currently contains [instance]. */
   containsInstance(instance: ESObject | null): boolean {
     if (instance === null || instance === undefined) {
       return false;
     }
-    return this.instancesToIdentifiers.has(instance);
+    return this.findIdentifierForInstance(instance) !== null;
   }
 
-  /** Removes the instance with [identifier] and returns it (or null if absent). */
   remove(identifier: number): ESObject | null {
-    const instance: ESObject | undefined = this.identifiersToInstances.get(identifier);
+    const instance: ESObject | undefined = this.strongInstances.get(identifier);
     if (instance === undefined) {
       return null;
     }
-    this.identifiersToInstances.delete(identifier);
-    this.instancesToIdentifiers.delete(instance);
-    if (this.finalizationListener !== null) {
-      this.finalizationListener.onFinalize(identifier);
-    }
+    this.strongInstances.delete(identifier);
+    this.weakInstances.delete(identifier);
+    this.instancesHeldForFinalization.delete(instance);
+    this.finalizationRegistry.unregister(instance);
     return instance;
   }
 
-  /** Removes all instances from this manager. */
   clear(): void {
-    this.identifiersToInstances.clear();
-    this.instancesToIdentifiers.clear();
+    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+      this.finalizationRegistry.unregister(instance);
+    });
+    this.instancesHeldForFinalization.clear();
+    this.weakInstances.clear();
+    this.strongInstances.clear();
+  }
+
+  getDebugInfo(): string {
+    const idParts: string[] = [];
+    this.weakInstances.forEach((_weakRef: WeakRef<ESObject>, identifier: number) => {
+      idParts.push(identifier.toString());
+    });
+    const registeredIdentifiers: string = idParts.join(', ');
+    return '$_instanceManagerClassName state: instanceCount='
+      + this.weakInstances.size
+      + ', strongCount=' + this.strongInstances.size
+      + ', nextIdentifier=' + this.nextIdentifier
+      + ', registeredIdentifiers=[' + registeredIdentifiers + ']';
   }
 }
 
-/** Listener invoked when an instance is removed from the manager. */
 export interface $_finalizationListenerInterfaceName {
   onFinalize(identifier: number): void;
 }
@@ -1400,7 +1835,7 @@ export class $_instanceManagerApiClassName {
               reply.reply(wrapError(new Error('Invalid Pigeon message: identifier must be a number.')));
               return;
             }
-            let res: Array<Object> = [];
+            let res: Array<Object | null> = [];
             try {
               instanceManager!.remove(identifierArg);
               res.push(null);
@@ -1423,7 +1858,7 @@ export class $_instanceManagerApiClassName {
       if (instanceManager != null) {
         channel.setMessageHandler({
           onMessage(message: Object, reply: Reply<Object>): void {
-            let res: Array<Object> = [];
+            let res: Array<Object | null> = [];
             try {
               instanceManager!.clear();
               res.push(null);
@@ -1458,6 +1893,12 @@ export class $_instanceManagerApiClassName {
     indent.newln();
   }
 
+  // NOTE: despite the `writeProxyApiBaseCodec` name (fixed by the
+  // StructuredGenerator hook), this only emits the ProxyApi *registrar*. The
+  // base codec *class* ($_proxyApiBaseCodecClassName) is emitted later by
+  // `_writeProxyApiBaseCodecClass` from `writeApis`, because ArkTS does not
+  // hoist class declarations and it must appear after `$_codecName` (which it
+  // extends). See the matching comment in `writeApis`.
   @override
   void writeProxyApiBaseCodec(
     InternalArkTSOptions generatorOptions,
@@ -1504,6 +1945,28 @@ export class $_instanceManagerApiClassName {
     }
     indent.format('''
 /**
+ * No-op [Reply] for fire-and-forget InstanceManager callbacks.
+ * ArkTS rejects untyped object literals for interface-typed parameters
+ * (arkts-no-untyped-obj-literals).
+ */
+class PigeonNoOpVoidReply implements Reply<void> {
+  reply(_value: void): void {
+  }
+}
+
+class PigeonRegistrarFinalizationListener implements $_finalizationListenerInterfaceName {
+  private readonly api: $_instanceManagerApiClassName;
+
+  constructor(api: $_instanceManagerApiClassName) {
+    this.api = api;
+  }
+
+  onFinalize(identifier: number): void {
+    this.api.removeStrongReference(identifier, new PigeonNoOpVoidReply());
+  }
+}
+
+/**
  * Provides implementations for each ProxyApi class and shared resources.
  *
  * Subclass this in the host plugin, override each `getXxx()` to return your
@@ -1521,11 +1984,7 @@ export abstract class $_proxyApiRegistrarClassName {
     this.binaryMessenger = binaryMessenger;
     this.instanceManager = new $_instanceManagerClassName();
     const api: $_instanceManagerApiClassName = new $_instanceManagerApiClassName(binaryMessenger);
-    this.instanceManager.setFinalizationListener({
-      onFinalize: (identifier: number): void => {
-        api.removeStrongReference(identifier, { reply: (_value: void): void => {} } as Reply<void>);
-      }
-    } as $_finalizationListenerInterfaceName);
+    this.instanceManager.setFinalizationListener(new PigeonRegistrarFinalizationListener(api));
   }
 
   /** Returns the shared `$_proxyApiBaseCodecClassName`, lazily instantiated. */
@@ -1546,6 +2005,9 @@ ${setUpBody.toString().trimRight()}
 
   /** Tears down all message handlers from the binary messenger. */
   tearDown(): void {
+    this.ignoreCallsToDart = true;
+    this.instanceManager.stopFinalizationListener();
+    this.instanceManager.clear();
     $_instanceManagerApiClassName.setUpMessageHandlers(this.binaryMessenger, null);
 ${tearDownBody.toString().trimRight()}
   }
@@ -1562,69 +2024,80 @@ ${tearDownBody.toString().trimRight()}
     Indent indent, {
     required String dartPackageName,
   }) {
-    indent.format('''
-/**
- * Codec extending `$_codecName` with support for ProxyApi instance
- * references encoded under tag $_proxyApiInstanceTag.
- *
- * Instance refs must be pre-registered with the registrar's
- * `instanceManager`; pass `pigeon_newInstance(instance, callback)` on the
- * relevant `$hostProxyApiPrefix<ApiName>` to register host-side instances
- * before transmitting them to Dart.
- */
-export class $_proxyApiBaseCodecClassName extends $_codecName {
-  registrar: $_proxyApiRegistrarClassName;
-
-  constructor(registrar: $_proxyApiRegistrarClassName) {
-    super();
-    this.registrar = registrar;
-  }
-
-  override readValueOfType(type: number, buffer: ByteBuffer): ESObject {
-    if (type === $_proxyApiInstanceTag) {
-      const identifier: number = super.readValue(buffer) as number;
-      const instance: ESObject | null =
-          this.registrar.instanceManager.getInstance(identifier);
-      if (instance === null) {
-        throw new Error(
-          '$_proxyApiBaseCodecClassName: instance not found for identifier ' +
-            identifier +
-            '. This may indicate a version mismatch, desynchronized InstanceManager state, '
-            +
-            'or corrupted payload.',
+    indent.writeln('/**');
+    indent.writeln(' * Codec extending `$_codecName` with ProxyApi instance');
+    indent.writeln(' * references (tag $_proxyApiInstanceTag). Host-created');
+    indent.writeln(
+      ' * instances must be registered via `pigeon_newInstance` before encoding.',
+    );
+    indent.writeln(' */');
+    indent.write(
+      'export class $_proxyApiBaseCodecClassName extends $_codecName ',
+    );
+    indent.addScoped('{', '}', () {
+      indent.writeln('registrar: $_proxyApiRegistrarClassName;');
+      indent.newln();
+      indent.write('constructor(registrar: $_proxyApiRegistrarClassName) ');
+      indent.addScoped('{', '}', () {
+        indent.writeln('super();');
+        indent.writeln('this.registrar = registrar;');
+      });
+      indent.newln();
+      indent.write(
+        'override readValueOfType(type: number, buffer: ByteBuffer): ESObject ',
+      );
+      indent.addScoped('{', '}', () {
+        indent.writeScoped('if (type === $_proxyApiInstanceTag) {', '}', () {
+          indent.writeln(
+            'const identifier: number = super.readValue(buffer) as number;',
+          );
+          indent.writeln(
+            'const instance: ESObject | null = this.registrar.instanceManager.getInstance(identifier);',
+          );
+          indent.writeScoped('if (instance === null) {', '}', () {
+            indent.writeln(
+              "throw new Error('$_proxyApiBaseCodecClassName: instance not found for identifier ' + identifier + '. ' + this.registrar.instanceManager.getDebugInfo());",
+            );
+          });
+          indent.writeln('return instance;');
+        });
+        indent.writeln('return super.readValueOfType(type, buffer);');
+      });
+      indent.newln();
+      indent.write(
+        'override writeValue(stream: ByteBuffer, value: ESObject): ESObject ',
+      );
+      indent.addScoped('{', '}', () {
+        indent.writeScoped(
+          'if (value === null || typeof value === \'boolean\' || typeof value === \'number\' || typeof value === \'string\' || Array.isArray(value) || value instanceof Map) {',
+          '}',
+          () {
+            indent.writeln('return super.writeValue(stream, value);');
+          },
         );
-      }
-      return instance;
-    }
-    return super.readValueOfType(type, buffer);
-  }
-
-  override writeValue(stream: ByteBuffer, value: ESObject): ESObject {
-    // 1. Built-ins / nulls / collections fall straight through to the parent codec.
-    if (value === null
-        || typeof value === 'boolean'
-        || typeof value === 'number'
-        || typeof value === 'string'
-        || Array.isArray(value)
-        || value instanceof Map) {
-      return super.writeValue(stream, value);
-    }
-
-    // 2. ProxyApi instances are encoded as (tag, identifier).
-    if (this.registrar.instanceManager.containsInstance(value)) {
-      stream.writeInt8($_proxyApiInstanceTag);
-      const identifier: number | null =
-          this.registrar.instanceManager.getIdentifierForStrongReference(value);
-      this.writeValue(stream, identifier as Object);
-      return;
-    }
-
-    // 3. Otherwise let the parent codec attempt to serialize (custom data
-    //    classes, enums) or throw with a clear error.
-    return super.writeValue(stream, value);
-  }
-}
-''');
+        indent.newln();
+        indent.writeScoped(
+          'if (this.registrar.instanceManager.containsInstance(value)) {',
+          '}',
+          () {
+            indent.writeln(
+              'const identifier: number | null = this.registrar.instanceManager.getIdentifierForStrongReference(value);',
+            );
+            indent.writeScoped('if (identifier === null) {', '}', () {
+              indent.writeln(
+                "throw new Error('$_proxyApiBaseCodecClassName: no identifier for registered instance. ' + this.registrar.instanceManager.getDebugInfo());",
+              );
+            });
+            indent.writeln('stream.writeInt8($_proxyApiInstanceTag);');
+            indent.writeln(
+              'return this.writeValue(stream, identifier as Object);',
+            );
+          },
+        );
+        indent.newln();
+        indent.writeln('return super.writeValue(stream, value);');
+      });
+    });
     indent.newln();
   }
 
@@ -1664,6 +2137,9 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
       // ----- Abstract members -----
       _writeProxyApiConstructorAbstractMethods(indent, api);
       _writeProxyApiAttachedFieldAbstractMethods(indent, api);
+      if (api.hasCallbackConstructor()) {
+        _writeProxyApiUnattachedFieldAbstractMethods(indent, api);
+      }
       _writeProxyApiHostMethodAbstractMethods(indent, api);
 
       // ----- setUpMessageHandlers -----
@@ -1685,6 +2161,8 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
         dartPackageName: dartPackageName,
       );
 
+      _writeProxyApiInheritedApiMethods(indent, api);
+
       // ----- Flutter callbacks -----
       for (final Method method in api.flutterMethods) {
         _writeProxyApiFlutterMethod(
@@ -1696,6 +2174,25 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
       }
     });
     indent.newln();
+  }
+
+  void _writeProxyApiInheritedApiMethods(Indent indent, AstProxyApi api) {
+    final inheritedApiNames = <String>{
+      if (api.superClass != null) api.superClass!.baseName,
+      ...api.interfaces.map((TypeDeclaration type) => type.baseName),
+    };
+    for (final name in inheritedApiNames) {
+      final String hostName = '$hostProxyApiPrefix$name';
+      indent.writeln(
+        '/** An implementation of [$hostName] used to access callback methods. */',
+      );
+      indent.format('''
+${classMemberNamePrefix}get$hostName(): $hostName {
+  return this.pigeonRegistrar.get$name();
+}
+''');
+      indent.newln();
+    }
   }
 
   void _writeProxyApiConstructorAbstractMethods(
@@ -1737,6 +2234,29 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
       ];
       indent.writeln(
         'abstract ${field.name}(${sig.join(', ')}): ${_arkTSTypeOrEsObject(field.type)};',
+      );
+      indent.newln();
+    }
+  }
+
+  // Unattached fields are plain (non-ProxyApi) values that Dart's callback-style
+  // constructor expects. `pigeon_newInstance` reads each one from the host
+  // instance via `this.<field>(pigeon_instance)`, so an abstract accessor must
+  // be emitted for the host subclass to implement (mirrors the Kotlin
+  // generator's `_writeProxyApiUnattachedFieldAbstractMethods`). Without this,
+  // generated code would call a method that does not exist.
+  void _writeProxyApiUnattachedFieldAbstractMethods(
+    Indent indent,
+    AstProxyApi api,
+  ) {
+    for (final ApiField field in api.unattachedFields) {
+      addDocumentationComments(
+        indent,
+        field.documentationComments,
+        _docCommentSpec,
+      );
+      indent.writeln(
+        'abstract ${field.name}(${classMemberNamePrefix}instance: ESObject): ${_arkTSTypeOrEsObject(field.type)};',
       );
       indent.newln();
     }
@@ -1808,7 +2328,7 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
             final String ctorArgs = argNames.skip(1).join(', ');
             return 'api!.pigeonRegistrar.instanceManager.addDartCreatedInstance('
                 'api!.$name($ctorArgs), $identifierExpr); res.push(null);';
-      },
+          },
         );
       }
 
@@ -1881,6 +2401,13 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
             if (method.returnType.isVoid) {
               return '$call; res.push(null);';
             }
+            if (method.returnType.isEnum) {
+              // Wrap the enum value in its codec companion before pushing
+              // (matches the data-class toList enum handling).
+              return 'let pigeonEnumResult: ESObject = $call; '
+                  'let output: ESObject = ${_proxyApiEncodeEnum(method.returnType, 'pigeonEnumResult')}; '
+                  'res.push(output);';
+            }
             return 'let output: ESObject = $call; res.push(output);';
           },
         );
@@ -1913,25 +2440,55 @@ export class $_proxyApiBaseCodecClassName extends $_codecName {
           indent.addScoped('{', '} });', () {
             final argNames = <String>[];
             if (parameters.isNotEmpty) {
+              // Type-safety contract (intentionally matches the regular HostApi
+              // handler path and the Kotlin/Swift/Dart generators): the message
+              // shape is validated structurally by the precheck below (it must
+              // be a List of the expected arity), and individual argument types
+              // are guaranteed by the typed Codec plus the matched generated
+              // code on both sides. The `as` casts are NOT erasure like in
+              // TypeScript -- ArkTS checks them at runtime and throws on a
+              // mismatch, which the surrounding try/catch (sync handlers)
+              // surfaces as a wrapped error reply. ProxyApi instance arguments
+              // are resolved by the tag-128 codec, which throws if the
+              // identifier is unknown. Per-parameter `typeof` checks are
+              // therefore not emitted: they would diverge from every other
+              // path, miss most types (enums/lists/maps/custom/instances), and
+              // would have to assign null to non-nullable targets.
               _writeArkTsPigeonListMessagePrecheck(indent, parameters.length);
               for (var i = 0; i < parameters.length; i++) {
                 final Parameter param = parameters[i];
                 final safe = '${_proxyApiSafeName(i, param)}Arg';
                 argNames.add(safe);
-                indent.writeln(
-                  'let $safe: ${_arkTSTypeOrEsObject(param.type)} = args[$i] as ${_arkTSTypeOrEsObject(param.type)};',
-                );
+                if (param.type.isEnum) {
+                  // The codec decodes an enum to its member-name string; convert
+                  // back to the enum value the handler call expects. Held as
+                  // ESObject to stay tolerant of null (nullable enums).
+                  indent.writeln(
+                    'let $safe: ESObject = ${_proxyApiDecodeEnum(param.type, 'args[$i]')};',
+                  );
+                } else {
+                  indent.writeln(
+                    'let $safe: ${_arkTSTypeOrEsObject(param.type)} = args[$i] as ${_arkTSTypeOrEsObject(param.type)};',
+                  );
+                }
               }
             }
             if (isAsync) {
               final String resultType = isVoid
                   ? 'void'
                   : _arkTSTypeOrEsObject(returnType);
+              // Encode an enum result into its codec companion before replying
+              // (matches the data-class toList enum handling).
+              final String successPush = isVoid
+                  ? 'null'
+                  : (returnType.isEnum
+                        ? _proxyApiEncodeEnum(returnType, 'result')
+                        : 'result');
               indent.format('''
 class ResultImp implements Result<$resultType> {
   success(result: $resultType): void {
-    let res: Array<Object> = [];
-    res.push(${isVoid ? 'null' : 'result'});
+    let res: Array<Object | null> = [];
+    res.push($successPush);
     reply.reply(res);
   }
   error(error: Error): void {
@@ -1943,7 +2500,7 @@ let resultCallback: Result<$resultType> = new ResultImp();
               argNames.add('resultCallback');
               indent.writeln(handlerBody(argNames));
             } else {
-              indent.writeln('let res: Array<Object> = [];');
+              indent.writeln('let res: Array<Object | null> = [];');
               indent.write('try ');
               indent.addScoped('{', '}', () {
                 indent.writeln(handlerBody(argNames));
@@ -1973,42 +2530,80 @@ let resultCallback: Result<$resultType> = new ResultImp();
       methodName: '${classMemberNamePrefix}newInstance',
       dartPackageName: dartPackageName,
     );
+    indent.writeln('/**');
     indent.writeln(
-      '/** Creates a Dart proxy of [pigeon_instance] and attaches it via the InstanceManager. */',
+      ' * Creates a Dart proxy of [pigeon_instance] and attaches it via the InstanceManager.',
     );
+    indent.writeln(' *');
+    indent.writeln(
+      ' * Any unattached field values are read synchronously from this host adapter via its',
+    );
+    indent.writeln(
+      ' * own field methods (local calls, not channel round-trips) and are sent together with',
+    );
+    indent.writeln(
+      ' * the identifier in a single newInstance message. Exactly one platform channel message',
+    );
+    indent.writeln(' * is sent regardless of the number of fields.');
+    indent.writeln(' */');
     indent.write(
       '${classMemberNamePrefix}newInstance(pigeon_instance: ESObject, callback: Reply<void>): void ',
     );
     indent.addScoped('{', '}', () {
-      indent.format(
-        '''
+      indent.format('''
 if (this.pigeonRegistrar.ignoreCallsToDart) {
-  callback.reply();
+  callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
   return;
 }
 if (this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
   callback.reply();
   return;
-}
+}''');
+      if (api.hasCallbackConstructor()) {
+        indent.format(
+          '''
 const pigeon_identifier: number = this.pigeonRegistrar.instanceManager.addHostCreatedInstance(pigeon_instance);''',
-      );
-      // Unattached field values are passed alongside the identifier when Dart
-      // has a callback-style constructor.
-      final sendParts = <String>['pigeon_identifier'];
-      for (var i = 0; i < api.unattachedFields.length; i++) {
-        final ApiField field = api.unattachedFields.elementAt(i);
-        indent.writeln(
-          'const ${field.name}Arg: ESObject = this.${field.name}(pigeon_instance);',
         );
-        sendParts.add('${field.name}Arg');
-      }
-      indent.format('''
+        // Unattached field values are passed alongside the identifier when Dart
+        // has a callback-style constructor.
+        final sendParts = <String>['pigeon_identifier'];
+        for (var i = 0; i < api.unattachedFields.length; i++) {
+          final ApiField field = api.unattachedFields.elementAt(i);
+          indent.writeln(
+            'const ${field.name}Arg: ESObject = this.${field.name}(pigeon_instance);',
+          );
+          final String argRef = '${field.name}Arg';
+          sendParts.add(
+            field.type.isEnum
+                ? _proxyApiEncodeEnum(field.type, argRef)
+                : argRef,
+          );
+        }
+        indent.format('''
 const channelName: string = '$channelName';
 let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
   this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
 channel.send([${sendParts.join(', ')}], channelReply => {
-  callback.reply();
+  if (Array.isArray(channelReply)) {
+    let listReply: ESObject[] = channelReply as ESObject[];
+    if (listReply.length > 1) {
+      let arrFirst: string = listReply[0] as string;
+      let arrSecond: string = listReply[1] as string;
+      let arrThird: string = listReply[2] as string;
+      callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject);
+    } else {
+      callback.reply();
+    }
+  } else {
+    callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+  }
 });''');
+      } else {
+        indent.format(
+          '''
+callback.reply(new FlutterError('new-instance-error', 'Attempting to create a new Dart instance of ${api.name}, but the class has a nonnull callback method.', '') as ESObject);''',
+        );
+      }
     });
     indent.newln();
   }
@@ -2035,10 +2630,14 @@ channel.send([${sendParts.join(', ')}], channelReply => {
     ];
     final sendParts = <String>[
       '${classMemberNamePrefix}instance',
-      ...indexMap(
-        method.parameters,
-        (int i, NamedType arg) => '${_proxyApiSafeName(i, arg)}Arg',
-      ),
+      ...indexMap(method.parameters, (int i, NamedType arg) {
+        final String argName = '${_proxyApiSafeName(i, arg)}Arg';
+        // Enum arguments must travel as their codec companion, not the raw
+        // enum value (matches the data-class toList enum handling).
+        return arg.type.isEnum
+            ? _proxyApiEncodeEnum(arg.type, argName)
+            : argName;
+      }),
     ];
 
     addDocumentationComments(
@@ -2063,8 +2662,26 @@ channel.send([${sendParts.join(', ')}], channelReply => {
     } else {''');
       if (method.returnType.isVoid) {
         indent.writeln('      callback.reply();');
+      } else if (!method.returnType.isNullable) {
+        // Non-null return: a null payload from Dart is a contract violation,
+        // so surface it as a FlutterError (matches the Kotlin/Swift ProxyApi
+        // generators and the regular FlutterApi path).
+        final String replyExpr = method.returnType.isEnum
+            ? '${_arkTSCustomTypeName(method.returnType)}[listReply[0] as string]'
+            : 'listReply[0] as $returnType';
+        indent.format('''
+      if (listReply[0] == null) {
+        callback.reply(new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '') as ESObject);
       } else {
-        indent.writeln('      callback.reply(listReply[0] as $returnType);');
+        callback.reply($replyExpr);
+      }''');
+      } else {
+        // Nullable return: decode an enum member-name string back to its value
+        // when applicable (mirrors the data-class fromList enum handling).
+        final String replyExpr = method.returnType.isEnum
+            ? _proxyApiDecodeEnum(method.returnType, 'listReply[0]')
+            : 'listReply[0] as $returnType';
+        indent.writeln('      callback.reply($replyExpr);');
       }
       indent.format('''
     }
@@ -2084,17 +2701,43 @@ channel.send([${sendParts.join(', ')}], channelReply => {
     if (builtin != null) {
       return builtin;
     }
+    final String? proxyApiType = _arkTSTypeForProxyApiType(type);
+    if (proxyApiType != null) {
+      return proxyApiType;
+    }
     // Enums and data classes have concrete ArkTS class names.
     if (type.isEnum || type.isClass) {
+      if (type.isNullable) {
+        return '${type.baseName} | undefined';
+      }
       return type.baseName;
     }
-    // ProxyApi references and unknown types: use ESObject for safety.
     return 'ESObject';
   }
 
   String _proxyApiSafeName(int index, NamedType arg) {
     final String base = arg.name.isEmpty ? 'arg$index' : arg.name;
     return base == 'arguments' ? '${base}Var' : base;
+  }
+
+  /// Converts a codec-decoded enum (a member-name string) back to the enum
+  /// value that generated signatures expect. [valueExpr] yields the raw value.
+  /// Mirrors the data-class `fromList` enum handling (`Enum[str]`).
+  String _proxyApiDecodeEnum(TypeDeclaration type, String valueExpr) {
+    final String enumName = _arkTSCustomTypeName(type);
+    return type.isNullable
+        ? '($valueExpr == null ? null : $enumName[$valueExpr as string])'
+        : '$enumName[$valueExpr as string]';
+  }
+
+  /// Wraps an enum value in its codec companion for encoding, with a null
+  /// guard. [valueExpr] yields the enum value. Mirrors the data-class `toList`
+  /// enum handling (`new <Enum>Enum(<Enum>[value as number])`). Always
+  /// parenthesised so it is safe inside arrays / argument lists.
+  String _proxyApiEncodeEnum(TypeDeclaration type, String valueExpr) {
+    final String enumName = _arkTSCustomTypeName(type);
+    return '($valueExpr === null || $valueExpr === undefined ? null '
+        ': new $enumName$_enumCompanionSuffix($enumName[$valueExpr as number]))';
   }
 
   String _proxyApiParamSig(Parameter p) {
