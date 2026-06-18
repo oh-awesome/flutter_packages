@@ -493,13 +493,8 @@ void main() {
         expect(values[key], null);
       }
     },
-        // Skipped on OHOS: native sync `setString` throws synchronously
-        // (instead of rejecting the Promise) when the value starts with the
-        // LIST_IDENTIFIER prefix, so the pigeon channel never replies and the
-        // Dart side hangs forever. Additionally, the double-identifier prefix
-        // is not rejected at all. Tracked as a native-side bug in
-        // shared_preferences_ohos.
-        skip: true);
+        // [修复] 移除 skip: true，原问题已修复
+        );
   });
 
   group('shared_preferences_async', () {
