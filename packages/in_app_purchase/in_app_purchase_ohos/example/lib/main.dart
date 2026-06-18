@@ -5,6 +5,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:in_app_purchase_ohos/iap_kit_wrappers.dart';
 import 'package:in_app_purchase_ohos/in_app_purchase_ohos.dart';
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 
@@ -24,11 +25,13 @@ const String _kConsumableId = 'consumable';
 const String _kUpgradeId = 'upgrade';
 const String _kSilverSubscriptionId = 'subscription_silver';
 const String _kGoldSubscriptionId = 'subscription_gold';
+const String _kNonrenewableSubscriptionId = 'subscription_nonrenewable';
 const List<String> _kProductIds = <String>[
   _kConsumableId,
   _kUpgradeId,
   _kSilverSubscriptionId,
   _kGoldSubscriptionId,
+  _kNonrenewableSubscriptionId,
 ];
 
 class _MyApp extends StatefulWidget {
@@ -37,6 +40,8 @@ class _MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<_MyApp> {
+  final GlobalKey<ScaffoldMessengerState> _scaffoldMessengerKey =
+      GlobalKey<ScaffoldMessengerState>();
   final InAppPurchaseOhosPlatform _iapStoreKitPlatform =
       InAppPurchasePlatform.instance as InAppPurchaseOhosPlatform;
   late StreamSubscription<List<PurchaseDetails>> _subscription;
@@ -47,6 +52,7 @@ class _MyAppState extends State<_MyApp> {
   bool _isAvailable = false;
   bool _purchasePending = false;
   bool _loading = true;
+  String _countryCode = '';
   String? _queryProductError;
 
   @override
@@ -80,6 +86,9 @@ class _MyAppState extends State<_MyApp> {
       });
       return;
     }
+
+    unawaited(_loadCountryCode());
+
     final ProductDetailsResponse productDetailResponse =
         await _iapStoreKitPlatform.queryProductDetails(_kProductIds.toSet());
     if (productDetailResponse.error != null) {
@@ -137,7 +146,8 @@ class _MyAppState extends State<_MyApp> {
             _buildConnectionCheckTile(),
             _buildProductList(),
             _buildConsumableBox(),
-            // _buildRestoreButton(),
+            _buildRestoreButton(),
+            _buildRefreshReceiptButton(),
           ],
         ),
       );
@@ -148,22 +158,20 @@ class _MyAppState extends State<_MyApp> {
     }
     if (_purchasePending) {
       stack.add(
-        // const Stack(
-        Stack(
+        const Stack(
           children: <Widget>[
             Opacity(
               opacity: 0.3,
               child: ModalBarrier(dismissible: false, color: Colors.grey),
             ),
-            Center(
-              child: CircularProgressIndicator(),
-            ),
+            Center(child: CircularProgressIndicator()),
           ],
         ),
       );
     }
 
     return MaterialApp(
+      scaffoldMessengerKey: _scaffoldMessengerKey,
       home: Scaffold(
         appBar: AppBar(
           title: const Text('IAP Example'),
@@ -188,6 +196,16 @@ class _MyAppState extends State<_MyApp> {
           Text('The store is ${_isAvailable ? 'available' : 'unavailable'}.'),
     );
     final List<Widget> children = <Widget>[storeHeader];
+
+    if (_isAvailable) {
+      children.addAll(<Widget>[
+        const Divider(),
+        ListTile(
+          title: const Text('Country code fallback'),
+          subtitle: Text(_countryCode.isEmpty ? 'Unavailable' : _countryCode),
+        ),
+      ]);
+    }
 
     if (!_isAvailable) {
       children.addAll(<Widget>[
@@ -229,9 +247,7 @@ class _MyAppState extends State<_MyApp> {
     final Map<String, PurchaseDetails> purchases =
         Map<String, PurchaseDetails>.fromEntries(
             _purchases.map((PurchaseDetails purchase) {
-      if (purchase.pendingCompletePurchase) {
-        _iapStoreKitPlatform.completePurchase(purchase);
-      }
+      unawaited(_completePurchaseWithFeedback(purchase));
       return MapEntry<String, PurchaseDetails>(purchase.productID, purchase);
     }));
     productList.addAll(_products.map(
@@ -242,10 +258,10 @@ class _MyAppState extends State<_MyApp> {
               productDetails.title,
             ),
             subtitle: Text(
-              productDetails.description,
+              _buildProductSubtitle(productDetails),
             ),
             trailing: previousPurchase != null
-                ? SizedBox.shrink()
+                ? const SizedBox.shrink()
                 : TextButton(
                     style: TextButton.styleFrom(
                       backgroundColor: Colors.green[800],
@@ -271,6 +287,33 @@ class _MyAppState extends State<_MyApp> {
     return Card(
         child: Column(
             children: <Widget>[productHeader, const Divider()] + productList));
+  }
+
+  String _buildProductSubtitle(ProductDetails productDetails) {
+    if (productDetails is! AppGalleryProductDetails) {
+      return productDetails.description;
+    }
+
+    final StringBuffer description = StringBuffer(productDetails.description);
+    description
+        .write('\nType: ${_productTypeLabel(productDetails.skProduct.type)}');
+    if (productDetails.id == _kNonrenewableSubscriptionId) {
+      description.write('\nExample OHOS NONRENEWABLE entry.');
+    }
+    return description.toString();
+  }
+
+  String _productTypeLabel(ProductType type) {
+    switch (type) {
+      case ProductType.CONSUMABLE:
+        return 'Consumable';
+      case ProductType.NONCONSUMABLE:
+        return 'Non-consumable';
+      case ProductType.AUTORENEWABLE:
+        return 'Auto-renewable subscription';
+      case ProductType.NONRENEWABLE:
+        return 'Non-renewable subscription';
+    }
   }
 
   Card _buildConsumableBox() {
@@ -326,12 +369,121 @@ class _MyAppState extends State<_MyApp> {
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Colors.white,
             ),
-            onPressed: () => _iapStoreKitPlatform.restorePurchases(),
+            onPressed: _restorePurchasesWithFeedback,
             child: const Text('Restore purchases'),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _restorePurchasesWithFeedback() async {
+    if (_loading) {
+      return;
+    }
+    if (!_isAvailable) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Store unavailable. Unable to restore purchases.')));
+      return;
+    }
+    _showSnackBarSafe('Restoring purchases...');
+    try {
+      await _iapStoreKitPlatform.restorePurchases();
+      if (!mounted) {
+        return;
+      }
+      _showSnackBarSafe('Restore request sent.');
+    } catch (error, stackTrace) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBarSafe('Failed to restore purchases.');
+    }
+  }
+
+  Widget _buildRefreshReceiptButton() {
+    if (_loading) {
+      return Container();
+    }
+
+    return Padding(
+      padding: const EdgeInsets.all(4.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: <Widget>[
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.secondary,
+              foregroundColor: Colors.white,
+            ),
+            onPressed: _refreshReceiptData,
+            child: const Text('Refresh verification data'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _refreshReceiptData() async {
+    if (_loading) {
+      return;
+    }
+    if (!_isAvailable) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBarSafe('Store unavailable. Unable to refresh data.');
+      return;
+    }
+    final InAppPurchaseOhosPlatformAddition addition =
+        InAppPurchasePlatformAddition.instance
+            as InAppPurchaseOhosPlatformAddition;
+    try {
+      final PurchaseVerificationData? data =
+          await addition.refreshPurchaseVerificationData();
+      if (!mounted) {
+        return;
+      }
+      final String message = data == null
+          ? 'No verification data available.'
+          : 'Verification data refreshed.';
+      _showSnackBarSafe(message);
+    } catch (error, stackTrace) {
+      if (!mounted) {
+        return;
+      }
+      _showSnackBarSafe('Failed to refresh verification data.');
+    }
+  }
+
+  void _showSnackBarSafe(String message) {
+    if (!mounted) {
+      return;
+    }
+    final ScaffoldMessengerState? messenger =
+        _scaffoldMessengerKey.currentState ??
+            ScaffoldMessenger.maybeOf(context);
+    if (messenger == null) {
+      return;
+    }
+    messenger.showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _completePurchaseWithFeedback(
+      PurchaseDetails purchaseDetails) async {
+    if (!purchaseDetails.pendingCompletePurchase ||
+        purchaseDetails is! AppGalleryPurchaseDetails) {
+      return;
+    }
+
+    purchaseDetails.markCompletePurchaseHandled();
+    await _iapStoreKitPlatform.completePurchase(purchaseDetails);
+    if (mounted) {
+      _showSnackBarSafe('已完成交易');
+    }
   }
 
   Future<void> consume(String id) async {
@@ -340,6 +492,25 @@ class _MyAppState extends State<_MyApp> {
     setState(() {
       _consumables = consumables;
     });
+  }
+
+  Future<void> _loadCountryCode() async {
+    try {
+      final String countryCode = await _iapStoreKitPlatform.countryCode();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _countryCode = countryCode;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _countryCode = '';
+      });
+    }
   }
 
   void showPendingUI() {
@@ -387,7 +558,6 @@ class _MyAppState extends State<_MyApp> {
 
   Future<void> _handleReportedPurchaseState(
       PurchaseDetails purchaseDetails) async {
-    print('InAppPurchasePlugin purchaseDetails.status =$purchaseDetails');
     if (purchaseDetails.status == PurchaseStatus.pending) {
       showPendingUI();
     } else {
@@ -402,13 +572,9 @@ class _MyAppState extends State<_MyApp> {
           _handleInvalidPurchase(purchaseDetails);
           return;
         }
-      }else if(purchaseDetails.status == PurchaseStatus.canceled){
+      } else if (purchaseDetails.status == PurchaseStatus.canceled) {}
 
-      }
-
-      if (purchaseDetails.pendingCompletePurchase) {
-        await _iapStoreKitPlatform.completePurchase(purchaseDetails);
-      }
+      await _completePurchaseWithFeedback(purchaseDetails);
     }
   }
 }
