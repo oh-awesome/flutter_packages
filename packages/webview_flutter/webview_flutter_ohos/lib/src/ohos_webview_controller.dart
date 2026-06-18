@@ -709,6 +709,17 @@ class OhosWebViewController extends PlatformWebViewController {
     _onJavaScriptPrompt = onJavaScriptTextInputDialog;
     return _webChromeClient.setSynchronousReturnValueForOnJsPrompt(true);
   }
+  
+  @override
+  Future<void> setOverScrollMode(WebViewOverScrollMode mode) {
+    final ohos_webview.OverScrollMode ohosMode = switch (mode) {
+      WebViewOverScrollMode.always => ohos_webview.OverScrollMode.always,
+      WebViewOverScrollMode.ifContentScrolls =>
+        ohos_webview.OverScrollMode.never,
+      WebViewOverScrollMode.never => ohos_webview.OverScrollMode.never,
+    };
+    return _webView.settings.setOverScrollMode(ohosMode);
+  }
 }
 
 /// Ohos implementation of [PlatformWebViewPermissionRequest].
@@ -1475,7 +1486,10 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
     final LoadRequestCallback? onLoadRequest = _onLoadRequest;
     final NavigationRequestCallback? onNavigationRequest = _onNavigationRequest;
 
-    if (onNavigationRequest == null || onLoadRequest == null) {
+    //与 Android 保持一致：只拦截主框架导航，因为 loadUrl 无法加载子框架
+    if (!isForMainFrame ||
+        onNavigationRequest == null ||
+        onLoadRequest == null) {
       return;
     }
 
