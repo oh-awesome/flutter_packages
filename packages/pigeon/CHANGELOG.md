@@ -1,5 +1,9 @@
 ## 21.2.0
 
+* [arkts] Ports full OpenHarmony ArkTS code generator from pigeon 26.3.4 OHOS branch,
+  including `@ProxyApi`, `@EventChannelApi`, `messageChannelSuffix`, and `Float32List` support.
+* [arkts] Adds OHOS example app pigeonTest harness for on-device QA (HostApi/FlutterApi/ProxyApi).
+* [arkts] Adds EventChannel example (`event_channel_messages.dart`) and `eventChannelStream` QA button; completes `@EventChannelApi` parsing and Dart code generation on v21.2.0.
 * Removes restriction on number of custom types.
 * [java] Fixes bug with multiple enums.
 * [java] Removes `Object` from generics.

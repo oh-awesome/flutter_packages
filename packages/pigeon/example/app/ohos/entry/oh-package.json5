@@ -6,7 +6,7 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "@ohos/flutter_ohos": "file:../har/flutter.har",
-    "integration_test": "file:..\\har\\integration_test.har"
+    "@ohos/flutter_ohos": "har/flutter.har",
+    "integration_test": "file:../har/integration_test.har"
   }
 }

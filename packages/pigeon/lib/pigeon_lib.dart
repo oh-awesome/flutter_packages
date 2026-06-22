@@ -485,6 +485,35 @@ Iterable<String> _lineReader(String path) sync* {
   }
 }
 
+/// Resolves the copyright header for ArkTS output.
+///
+/// Priority:
+/// 1. [ArkTSOptions.copyrightHeader] from `@ConfigurePigeon`
+/// 2. [PigeonOptions.copyrightHeader] file path (relative to [PigeonOptions.basePath])
+/// 3. `{basePath}/pigeons/copyright.txt` when that file exists
+/// 4. [kDefaultArkTSCopyrightHeader]
+Iterable<String> _resolveArkTSCopyrightHeader(
+  PigeonOptions options,
+  ArkTSOptions arkTSOptions,
+) {
+  if (arkTSOptions.copyrightHeader != null) {
+    return arkTSOptions.copyrightHeader!;
+  }
+  if (options.copyrightHeader != null) {
+    return _lineReader(
+      path.posix.join(options.basePath ?? '', options.copyrightHeader!),
+    );
+  }
+  final String defaultPath = path.posix.join(
+    options.basePath ?? '',
+    defaultArkTSCopyrightHeaderRelativePath,
+  );
+  if (File(defaultPath).existsSync()) {
+    return _lineReader(defaultPath);
+  }
+  return kDefaultArkTSCopyrightHeader;
+}
+
 IOSink? _openSink(String? output, {String basePath = ''}) {
   if (output == null) {
     return null;
@@ -741,14 +770,15 @@ class ArkTSGeneratorAdapter implements GeneratorAdapter {
       StringSink sink, PigeonOptions options, Root root, FileType fileType) {
     ArkTSOptions arkTSOptions = options.arkTSOptions ?? const ArkTSOptions();
     arkTSOptions = arkTSOptions.merge(ArkTSOptions(
-      copyrightHeader: options.copyrightHeader != null
-          ? _lineReader(
-          path.posix.join(options.basePath ?? '', options.copyrightHeader))
-          : null,
+      copyrightHeader: _resolveArkTSCopyrightHeader(options, arkTSOptions),
     ));
     const ArkTSGenerator generator = ArkTSGenerator();
     generator.generate(
-      arkTSOptions,
+      InternalArkTSOptions.fromArkTSOptions(
+        arkTSOptions,
+        arkTSOut: options.arkTSOut ?? '',
+        copyrightHeader: arkTSOptions.copyrightHeader,
+      ),
       root,
       sink,
       dartPackageName: options.getPackageName(),
@@ -1440,13 +1470,46 @@ class _RootBuilder extends dart_ast_visitor.RecursiveAstVisitor<Object?> {
         getReferencedTypes(_apis, _classes);
     final Set<String> referencedTypeNames =
         referencedTypes.keys.map((TypeDeclaration e) => e.baseName).toSet();
+    final Set<String> includedClassNames =
+        Set<String>.from(referencedTypeNames);
+    var addedSubclass = true;
+    while (addedSubclass) {
+      addedSubclass = false;
+      for (final Class classDefinition in _classes) {
+        final String? superClassName = classDefinition.superClassName;
+        if (superClassName != null &&
+            includedClassNames.contains(superClassName) &&
+            includedClassNames.add(classDefinition.name)) {
+          addedSubclass = true;
+        }
+      }
+    }
     final List<Class> referencedClasses = List<Class>.from(_classes);
     referencedClasses
-        .removeWhere((Class x) => !referencedTypeNames.contains(x.name));
+        .removeWhere((Class x) => !includedClassNames.contains(x.name));
 
     final List<Enum> referencedEnums = List<Enum>.from(_enums);
-    final Root completeRoot =
-        Root(apis: _apis, classes: referencedClasses, enums: referencedEnums);
+    var containsHostApi = false;
+    var containsFlutterApi = false;
+    var containsProxyApi = false;
+    for (final Api api in _apis) {
+      switch (api) {
+        case AstHostApi():
+          containsHostApi = true;
+        case AstFlutterApi():
+          containsFlutterApi = true;
+        case AstProxyApi():
+          containsProxyApi = true;
+      }
+    }
+    final Root completeRoot = Root(
+      apis: _apis,
+      classes: referencedClasses,
+      enums: referencedEnums,
+      containsHostApi: containsHostApi,
+      containsFlutterApi: containsFlutterApi,
+      containsProxyApi: containsProxyApi,
+    );
 
     final List<Error> validateErrors = _validateAst(completeRoot, source);
     final List<Error> totalErrors = List<Error>.from(_errors);
@@ -1747,6 +1810,8 @@ class _RootBuilder extends dart_ast_visitor.RecursiveAstVisitor<Object?> {
       _currentClass = Class(
         name: node.name.lexeme,
         fields: <NamedType>[],
+        isSealed: node.sealedKeyword != null,
+        superClassName: node.extendsClause?.superclass.name2.lexeme,
         isSwiftClass: _hasMetadata(node.metadata, 'SwiftClass'),
         documentationComments:
             _documentationCommentsParser(node.documentationComment?.tokens),
