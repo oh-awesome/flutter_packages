@@ -653,6 +653,8 @@ class Class extends Node {
     required this.name,
     required this.fields,
     this.isSwiftClass = false,
+    this.isSealed = false,
+    this.superClassName,
     this.documentationComments = const <String>[],
   });
 
@@ -667,6 +669,12 @@ class Class extends Node {
   ///
   /// Defaults to false, which would represent a struct.
   bool isSwiftClass;
+
+  /// Whether this class is sealed.
+  bool isSealed;
+
+  /// Name of the super class, if any.
+  String? superClassName;
 
   /// List of documentation comments, separated by line.
   ///
@@ -740,6 +748,9 @@ class Root extends Node {
     required this.classes,
     required this.apis,
     required this.enums,
+    this.containsHostApi = false,
+    this.containsFlutterApi = false,
+    this.containsProxyApi = false,
   });
 
   /// Factory function for generating an empty root, usually used when early errors are encountered.
@@ -755,6 +766,15 @@ class Root extends Node {
 
   /// All of the enums contained in the AST.
   List<Enum> enums;
+
+  /// Whether the root has any Host API definitions.
+  bool containsHostApi;
+
+  /// Whether the root has any Flutter API definitions.
+  bool containsFlutterApi;
+
+  /// Whether the root has any Proxy API definitions.
+  bool containsProxyApi;
 
   /// Returns true if the number of custom types would exceed the available enumerations
   /// on the standard codec.
