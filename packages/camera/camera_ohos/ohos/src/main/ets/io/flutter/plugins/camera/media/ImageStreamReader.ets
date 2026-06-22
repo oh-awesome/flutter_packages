@@ -94,10 +94,10 @@ export class ImageStreamReader {
   }
 
   public removeListener(): void {
-    this.imageReceiver.release()
+    this.imageReceiver.off('imageArrival');
   }
 
-  public close(): void {
-    this.imageReceiver.release()
+  public async close(): Promise<void> {
+    await this.imageReceiver.release()
   }
 }
