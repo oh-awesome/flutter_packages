@@ -93,6 +93,8 @@ class RepositoryPackage {
         directoryName = 'web';
       case FlutterPlatform.windows:
         directoryName = 'windows';
+      case FlutterPlatform.ohos:
+        directoryName = 'ohos';
     }
     return directory.childDirectory(directoryName);
   }

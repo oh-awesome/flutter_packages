@@ -291,6 +291,7 @@ String _pluginPlatformSection(
       case platformLinux:
       case platformMacOS:
       case platformWindows:
+      case platformOhos:
         if (support.hasNativeCode) {
           final String className =
               platform == platformIOS ? 'FLTFakePlugin' : 'FakePlugin';

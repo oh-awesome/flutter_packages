@@ -47,13 +47,25 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-    args: ["https://gitcode.com/openharmony-tpc/flutter_flutter.git", "oh-3.35.7-dev"]
+    args: ["https://gitcode.com/CPF-Flutter/flutter_flutter.git", "oh-3.35.7-dev"]
     required: true
 
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
     args: ["flutter_packages", "br_camera-v0.11.3_ohos_dev"]
+    required: true
+
+  - name: Prepare Tests
+    script: .ci/scripts/clone_project.sh
+    description: Prepare testcases
+    args: ["https://gitcode.com/CPF-Flutter/tests.git", "packages"]
+    required: true
+
+  - name: Prepare Integration Test
+    script: .ci/scripts/prepare_integration_test.sh
+    description: Generate PR info and move tests to archive directory for integration test
+    args: ["br_camera-v0.11.3_ohos_dev"]
     required: true
 
 # Compilation steps - executed in order

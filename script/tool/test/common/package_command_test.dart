@@ -525,34 +525,28 @@ packages/plugin1/plugin1/plugin1.dart
     });
 
     group('test run-on-changed-packages', () {
-      test('all plugins should be tested if there are no changes.', () async {
-        final RepositoryPackage plugin1 =
-            createFakePlugin('plugin1', packagesDir);
-        final RepositoryPackage plugin2 =
-            createFakePlugin('plugin2', packagesDir);
+      test('no plugins should be tested if there are no changes.', () async {
+        createFakePlugin('plugin1', packagesDir);
+        createFakePlugin('plugin2', packagesDir);
         await runCapturingPrint(runner,
             <String>['sample', '--base-sha=main', '--run-on-changed-packages']);
 
-        expect(command.plugins,
-            unorderedEquals(<String>[plugin1.path, plugin2.path]));
+        expect(command.plugins, isEmpty);
       });
 
       test(
-          'all plugins should be tested if there are no plugin related changes.',
+          'no plugins should be tested if there are no plugin related changes.',
           () async {
         gitProcessRunner.mockProcessesForExecutable['git-diff'] =
             <FakeProcessInfo>[
           FakeProcessInfo(MockProcess(stdout: 'AUTHORS')),
         ];
-        final RepositoryPackage plugin1 =
-            createFakePlugin('plugin1', packagesDir);
-        final RepositoryPackage plugin2 =
-            createFakePlugin('plugin2', packagesDir);
+        createFakePlugin('plugin1', packagesDir);
+        createFakePlugin('plugin2', packagesDir);
         await runCapturingPrint(runner,
             <String>['sample', '--base-sha=main', '--run-on-changed-packages']);
 
-        expect(command.plugins,
-            unorderedEquals(<String>[plugin1.path, plugin2.path]));
+        expect(command.plugins, isEmpty);
       });
 
       test('all plugins should be tested if .ci.yaml changes', () async {

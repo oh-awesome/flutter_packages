@@ -57,8 +57,9 @@ class Runner:
             if key == 'PATH':
                 # PATH is handled specially below
                 continue
-            os.environ[key] = str(value)
-            Logger.info(f"Set {key}={value}")
+            expanded_value = os.path.expandvars(str(value))
+            os.environ[key] = expanded_value
+            Logger.info(f"Set {key}={expanded_value}")
 
         # Handle PATH specially - it's a list in YAML
         path_components_config = env_vars.get('PATH', [])
