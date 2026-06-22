@@ -11,6 +11,7 @@ import 'home_page.dart';
 import 'open_image_page.dart';
 import 'open_multiple_images_page.dart';
 import 'open_text_page.dart';
+import 'open_with_mime_types_page.dart';
 import 'package:file_selector_ohos/file_selector_ohos.dart';
 
 /// Entry point for integration tests that require espresso.
@@ -43,6 +44,7 @@ class MyApp extends StatelessWidget {
         '/open/images': (BuildContext context) =>
             const OpenMultipleImagesPage(),
         '/open/text': (BuildContext context) => const OpenTextPage(),
+        '/open/mime': (BuildContext context) => const OpenWithMimeTypesPage(),
       },
     );
   }
