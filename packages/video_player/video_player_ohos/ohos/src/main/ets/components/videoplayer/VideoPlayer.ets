@@ -67,6 +67,9 @@ export class VideoPlayer {
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private isSeeking: boolean = false;
+  private isPrepared: boolean = false;
+  private pendingPlay: boolean = false;
+  private pendingSeekPosition: number | null = null;
   private seekPosition: number = 0;
   private isBuffering: boolean = false;
   private isSystemBuffering: boolean = false;
@@ -74,6 +77,7 @@ export class VideoPlayer {
   private bufferingInfoTimer: number = -1;
   private isPollingPlaybackInfo: boolean = false;
   private isWindowKeepScreenOn: boolean = false;
+  private cachedRotationCorrection: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
@@ -151,7 +155,17 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.resetProgress();
+          // Extract rotation before setting data source to avoid fd conflict with AVPlayer
+          try {
+            this.cachedRotationCorrection = await this.getRotationCorrection();
+            Log.i(TAG, 'cachedRotationCorrection=' + this.cachedRotationCorrection);
+          } catch (e) {
+            Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
+          }
           if (this.url) {
             this.avPlayer.url = this.getIUri();
           } else {
@@ -159,16 +173,48 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.INITIALIZED:
+          this.isPrepared = false;
           this.avPlayer.surfaceId = this.surfaceId;
-          this.avPlayer.prepare();
+          this.avPlayer.prepare((e: BusinessError) => {
+            if (e || this.avPlayer === null || this.isPrepared) {
+              return;
+            }
+            this.isPrepared = true;
+            this.avPlayer.videoScaleType = 0;
+            this.avPlayer.audioInterruptMode = this.interruptMode;
+            this.setVideoSize();
+            this.sendInitialized();
+            this.duration = this.avPlayer.duration;
+            this.startBufferingInfoTimer();
+            if (this.pendingSeekPosition !== null) {
+              this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+              this.pendingSeekPosition = null;
+            }
+            if (this.pendingPlay) {
+              this.pendingPlay = false;
+              this.avPlayer.play();
+            }
+          });
           break;
         case AvplayerStatus.PREPARED:
+          if (this.isPrepared) {
+            break;
+          }
+          this.isPrepared = true;
           this.avPlayer.videoScaleType = 0;
           this.avPlayer.audioInterruptMode = this.interruptMode;
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
           this.startBufferingInfoTimer();
+          if (this.pendingSeekPosition !== null) {
+            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            this.pendingSeekPosition = null;
+          }
+          if (this.pendingPlay) {
+            this.pendingPlay = false;
+            this.avPlayer.play();
+          }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -202,7 +248,9 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.RELEASED:
-          this.avPlayer.release();
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
           Log.i(TAG, '[PlayVideoModel] state released called')
@@ -215,11 +263,18 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
       if (this.isSeeking) {
-        this.isSeeking = false;
-        this.endSeekBuffering();
+        this.playTime = time;
+        return;
       }
       this.initProgress(time);
       this.playTime = time;
+    });
+
+    this.avPlayer.on(Events.SEEK_DONE, (time: number) => {
+      if (this.isSeeking) {
+        this.isSeeking = false;
+        this.endSeekBuffering();
+      }
     });
 
     this.avPlayer.on(Events.BUFFER_UPDATE, (infoType: media.BufferingInfoType, value: number) => {
@@ -259,6 +314,10 @@ export class VideoPlayer {
 
   play() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = true;
+        return;
+      }
       this.avPlayer.play();
     }
   }
@@ -268,21 +327,27 @@ export class VideoPlayer {
    */
   pause() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = false;
+        return;
+      }
       this.avPlayer.pause();
     }
   }
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingSeekPosition = position;
+        return;
+      }
       this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
   private prepareSeek(position: number): void {
-    if (this.status === CommonConstants.STATUS_START) {
-      this.startSeekBuffering();
-    }
+    this.startSeekBuffering();
     this.isSeeking = true;
     this.seekPosition = position;
   }
@@ -292,7 +357,7 @@ export class VideoPlayer {
       return this.seekPosition;
     }
     if (this.avPlayer !== null) {
-      return this.avPlayer.currentTime;
+      return Math.max(0, this.avPlayer.currentTime);
     } else {
       return 0;
     }
@@ -315,7 +380,8 @@ export class VideoPlayer {
 
   setVolume(volume: number) {
     if (this.avPlayer != null) {
-      this.avPlayer.setVolume(volume);
+      const clampedVolume = Math.max(0.0, Math.min(1.0, volume));
+      this.avPlayer.setVolume(clampedVolume);
     }
   }
 
@@ -606,7 +672,45 @@ export class VideoPlayer {
     event.set("duration", this.avPlayer?.duration);
     event.set("width", this.avPlayer?.width);
     event.set("height", this.avPlayer?.height);
+    event.set("rotationCorrection", this.cachedRotationCorrection);
     this.eventSink?.success(event);
+  }
+
+  private async getRotationCorrection(): Promise<number> {
+    let extractor: media.AVMetadataExtractor | null = null;
+    let fd: fs.File | null = null;
+    try {
+      extractor = await media.createAVMetadataExtractor();
+      if (this.url?.startsWith("file://")) {
+        fd = fs.openSync(this.url.substring(7), fs.OpenMode.READ_ONLY);
+        extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
+      } else if (this.url) {
+        if (deviceInfo.sdkApiVersion < 20) {
+          return 0;
+        }
+        extractor.setUrlSource(this.url, this.headers ?? undefined);
+      } else if (this.rawFile) {
+        extractor.fdSrc = this.rawFile;
+      } else {
+        return 0;
+      }
+      const metadata = await extractor.fetchMetadata();
+      const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
+      orientation
+      if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
+        return orientation;
+      }
+      return 0;
+    } catch (e) {
+      Log.w(TAG, 'getRotationCorrection error: ' + JSON.stringify(e));
+      return 0;
+    } finally {
+      if (fd) {
+        fs.closeSync(fd);
+      }
+      extractor?.release();
+      extractor = null;
+    }
   }
 
   sendCompleted(): void {
@@ -620,6 +724,7 @@ export class VideoPlayer {
     this.isSystemBuffering = false;
     this.isSeekBuffering = false;
     this.isSeeking = false;
+    this.seekPosition = 0;
     this.bufferTimeTemp = 0;
     if (wasBuffering) {
       this.syncBufferingState();
@@ -720,8 +825,7 @@ export class VideoPlayer {
       return;
     } else if (infoType == media.BufferingInfoType.CACHED_DURATION) {
       event.set("event", "bufferingUpdate");
-      let bufferedBase = this.playTime;
-      let bufferedDuration = bufferedBase + bufferingPosition;
+      let bufferedDuration = this.playTime + bufferingPosition;
       if (bufferedDuration > this.bufferTimeTemp) {
         this.bufferTimeTemp = bufferedDuration;
       }
@@ -741,7 +845,8 @@ export class VideoPlayer {
   }
 
   sendError(error: Object): void {
-    this.eventSink?.error("videoError", "video player had error！", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+ 	  this.eventSink?.error("VideoError", `Video player had error: ${errorMessage}`, error);
   }
 
   getIUri(): string {

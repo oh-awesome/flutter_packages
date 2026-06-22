@@ -31,6 +31,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  integration_test:
+    sdk: flutter
   video_player_ohos:
     path: ../
   video_player_platform_interface: ">=6.1.0 <7.0.0"
