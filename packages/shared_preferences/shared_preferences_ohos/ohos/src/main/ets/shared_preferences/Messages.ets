@@ -15,7 +15,7 @@
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 
-class FlutterError extends Error {
+export class FlutterError extends Error {
   /** The error code. */
   public code: string;
 

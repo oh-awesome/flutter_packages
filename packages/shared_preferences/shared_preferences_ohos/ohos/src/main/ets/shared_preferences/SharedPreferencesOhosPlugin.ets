@@ -18,7 +18,7 @@ import {
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
-import { SharedPreferencesApi, wrapError } from './Messages';
+import { FlutterError, SharedPreferencesApi, wrapError } from './Messages';
 import {
   SharedPreferencesAsyncApi,
   SharedPreferencesPigeonOptions,
@@ -33,6 +33,9 @@ import buffer  from '@ohos.buffer';
 const TAG = "SharedPreferencesOhosPlugin"
 const PREFERENCES_NAME = "FlutterSharedPreferences";
 const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
+// 与 Android 对齐，增加 BIG_INTEGER_PREFIX 和 DOUBLE_PREFIX 特殊前缀常量
+const BIG_INTEGER_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy";
+const DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu";
 
 export default class SharedPreferencesOhosPlugin implements FlutterPlugin, SharedPreferencesApi {
 
@@ -253,28 +256,29 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     }
   }
 
+  // 确保删除并持久化后再返回，与 Android commit() 行为一致
   remove(key: string): boolean {
     try {
-      let result = true
-      this.preferences?.delete(key,async (err: ESObject) => {
-        if (err) {
-          Log.w(TAG, "Failed to delete.  message =" + err.message);
-          result =  false;
-        }
-        Log.i(TAG, "Succeeded in deleting.");
-        await this.preferences?.flush();
-      })
-      return result;
+      if (this.preferences == null) {
+        return false;
+      }
+      this.preferences.deleteSync(key);
+      this.preferences.flushSync();
+      Log.i(TAG, "Succeeded in deleting key: " + key);
+      return true;
     } catch (err) {
       Log.e(TAG, "Failed to delete. " + JSON.stringify(err));
       return false;
     }
   }
 
+  // 与 Android 对齐，增加三种特殊前缀的检查
   setString(key: string, value: string): Promise<void> {
-    if (value.startsWith(LIST_IDENTIFIER)) {
-      throw new Error(
-        "StorageError: This string cannot be stored as it clashes with special identifier prefixes");
+    if (value.startsWith(LIST_IDENTIFIER) ||
+        value.startsWith(BIG_INTEGER_PREFIX) ||
+        value.startsWith(DOUBLE_PREFIX)) {
+      return Promise.reject(new Error(
+        "StorageError: This string cannot be stored as it clashes with special identifier prefixes"));
     }
     return this.put(key, value);
   }
@@ -286,23 +290,19 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   put(key: string, value: ESObject): Promise<void> {
     try {
       if (this.preferences == null) {
-        return new Promise((reject) => {
-          reject();
-        });
-      } else {
-        this.preferences.put(key, value);
-        return this.preferences.flush();
+        return Promise.reject(new Error("Preferences not initialized"));
       }
+      this.preferences.putSync(key, value);
+      return this.preferences.flush();
     } catch(err) {
       Log.w(TAG, "Failed to put value of 'startup'. " + JSON.stringify(err));
-      return new Promise((reject) => {
-        reject();
-      });
+      return Promise.reject(err);
     }
   }
 
+  // 读取时通过 transformPref() 解码还原为 double
   setDouble(key: string, value: number): Promise<void> {
-    return this.put(key, value);
+    return this.put(key, DOUBLE_PREFIX + value.toString());
   }
 
   setStringList(key: string, value: string[]): Promise<void> {
@@ -311,25 +311,24 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     return this.put(key, LIST_IDENTIFIER + this.listEncoder.encode(value));
   }
 
-  clear(prefix: string, allowList: string[]): Promise<void> {
+  // 等待所有删除和 flush 完成后再返回，与 Android commit() 行为一致
+  async clear(prefix: string, allowList: string[]): Promise<void> {
     try {
-      this.preferences?.getAll().then((value: object) => {
-        let allKeys = Object.keys(value);
-        for (let key of allKeys) {
-          if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
-            this.preferences?.delete(key);
-          }
+      if (this.preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const allData = await this.preferences.getAll() as Record<string, ESObject>;
+      const allKeys = Object.keys(allData);
+      for (let key of allKeys) {
+        if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
+          this.preferences.deleteSync(key);
         }
-        return this.preferences?.flush();
-      }).catch((err: ESObject) => {
-        Log.w(TAG, "Failed to clear." + JSON.stringify(err));
-      });
+      }
+      await this.preferences.flush();
     } catch (err) {
       Log.w(TAG, "Failed to clear." + JSON.stringify(err));
+      return Promise.reject(err);
     }
-    return new Promise((reject) => {
-      reject();
-    })
   }
 
   filterData(value: [string, Object], prefix: string, allowList: string[]): Map<string, Object> {
@@ -403,11 +402,20 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     return this.put(key, value)
   }
 
+  // 增加 DOUBLE_PREFIX 和 BIG_INTEGER_PREFIX 的解码逻辑
+  // 与 Android Legacy 的 transformPref() 对齐，确保读取时能正确还原编码值
   transformPref(value: Object): Object {
     if (typeof value == "string") {
       let stringValue = (value as string);
       if (stringValue.startsWith(LIST_IDENTIFIER)) {
         return this.listEncoder.decode(stringValue.substring(LIST_IDENTIFIER.length));
+      } else if (stringValue.startsWith(DOUBLE_PREFIX)) {
+        // 解码 DOUBLE_PREFIX 编码的 double 值
+        return parseFloat(stringValue.substring(DOUBLE_PREFIX.length));
+      } else if (stringValue.startsWith(BIG_INTEGER_PREFIX)) {
+        // 解码 BIG_INTEGER_PREFIX 编码的 BigInteger 值（确认无跨平台共享场景）
+        let encoded = stringValue.substring(BIG_INTEGER_PREFIX.length);
+        return BigInt(encoded);
       }
     }
     if (typeof value == "bigint") {
@@ -440,7 +448,13 @@ class ListEncoderImpl implements ListEncoder {
   decode(encoded: string): string[] {
     try {
       const buf = buffer.from(encoded, 'base64');
-      return JSON.parse(buf.toString()) as string[];
+      const parsed = JSON.parse(buf.toString()) as string[];
+      // Return a mutable array (JSON.parse returns fixed-length array)
+      const result: string[] = [];
+      for (let i = 0; i < parsed.length; i++) {
+        result.push(parsed[i]);
+      }
+      return result;
     } catch (err) {
       Log.e(TAG, "Failed decode." + JSON.stringify(err));
       return [];
@@ -456,16 +470,33 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     this.plugin = plugin;
   }
 
+  private typeMismatch(key: string, expectedType: string, actualValue: ExtendedPreferenceValue): FlutterError {
+    const actualType = actualValue === null ? 'null' : typeof actualValue;
+    return new FlutterError(
+      'ClassCastException',
+      `Expected ${expectedType} for key "${key}", but found ${actualType}.`,
+      `key=${key}, expectedType=${expectedType}, actualType=${actualType}`
+    );
+  }
+
+  // 读取字符串时需排除所有特殊前缀编码的值（LIST/DOUBLE/BIG_INTEGER），
+  // 这些值不应作为普通字符串返回，而应触发类型不匹配错误
   async getString(key: string, options: SharedPreferencesPigeonOptions): Promise<string | null> {
     try {
       if (this.plugin.preferences == null) {
         return null;
       }
       const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
-      if (typeof value === 'string' && !(value as string).startsWith(LIST_IDENTIFIER)) {
+      if (value == null) {
+        return null;
+      }
+      if (typeof value === 'string' &&
+          !(value as string).startsWith(LIST_IDENTIFIER) &&
+          !(value as string).startsWith(DOUBLE_PREFIX) &&
+          !(value as string).startsWith(BIG_INTEGER_PREFIX)) {
         return value as string;
       }
-      return null;
+      return Promise.reject(this.typeMismatch(key, 'string', value));
     } catch (err) {
       Log.w(TAG, "Failed to getString: " + JSON.stringify(err));
       return Promise.reject(err);
@@ -478,25 +509,38 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
         return null;
       }
       const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
-      return typeof value === 'boolean' ? value as boolean : null;
+      if (value == null) {
+        return null;
+      }
+      if (typeof value === 'boolean') {
+        return value as boolean;
+      }
+      return Promise.reject(this.typeMismatch(key, 'boolean', value));
     } catch (err) {
       Log.w(TAG, "Failed to getBool: " + JSON.stringify(err));
       return Promise.reject(err);
     }
   }
 
+  // 增加 DOUBLE_PREFIX 字符串编码值的解码，与 Legacy setDouble 编码方式保持一致
   async getDouble(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null> {
     try {
       if (this.plugin.preferences == null) {
         return null;
       }
       const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value == null) {
+        return null;
+      }
       if (typeof value === 'number') {
         return value as number;
+      } else if (typeof value === 'string' && (value as string).startsWith(DOUBLE_PREFIX)) {
+        // 解码 DOUBLE_PREFIX 编码的 double 值
+        return parseFloat((value as string).substring(DOUBLE_PREFIX.length));
       } else if (typeof value === 'bigint') {
         return Number(value);
       }
-      return null;
+      return Promise.reject(this.typeMismatch(key, 'number', value));
     } catch (err) {
       Log.w(TAG, "Failed to getDouble: " + JSON.stringify(err));
       return Promise.reject(err);
@@ -508,11 +552,14 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       if (this.plugin.preferences == null) {
         return null;
       }
-      const value = await this.plugin.preferences.get(key, BigInt(0)) as ExtendedPreferenceValue;
+      const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value == null) {
+        return null;
+      }
       if (typeof value === 'bigint' || typeof value === 'number') {
         return BigInt(value);
       }
-      return null;
+      return Promise.reject(this.typeMismatch(key, 'int', value));
     } catch (err) {
       Log.w(TAG, "Failed to getInt: " + JSON.stringify(err));
       return Promise.reject(err);
@@ -525,10 +572,13 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
         return null;
       }
       const value = await this.plugin.preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value == null) {
+        return null;
+      }
       if (typeof value === 'string' && (value as string).startsWith(LIST_IDENTIFIER)) {
         return this.plugin.listEncoder.decode((value as string).substring(LIST_IDENTIFIER.length));
       }
-      return null;
+      return Promise.reject(this.typeMismatch(key, 'StringList', value));
     } catch (err) {
       Log.w(TAG, "Failed to getStringList: " + JSON.stringify(err));
       return Promise.reject(err);
@@ -617,16 +667,18 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     return this.plugin.setBool(key, value);
   }
 
+  // 复用 Legacy setString 的前缀检查逻辑，防止通过 Async API 存入特殊前缀字符串
   async setString(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void> {
-    return this.plugin.put(key, value);
+    return this.plugin.setString(key, value);
   }
 
   async setInt(key: string, value: bigint, options: SharedPreferencesPigeonOptions): Promise<void> {
     return this.plugin.setInt(key, value);
   }
 
+  // Async API 对应 Android DataStore，直接存储 number，不使用 DOUBLE_PREFIX 编码
   async setDouble(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void> {
-    return this.plugin.setDouble(key, value);
+    return this.plugin.put(key, value);
   }
 
   async setStringList(key: string, value: Array<string>, options: SharedPreferencesPigeonOptions): Promise<void> {
