@@ -633,6 +633,35 @@ class JavaGeneratorAdapter implements GeneratorAdapter {
   List<Error> validate(PigeonOptions options, Root root) => <Error>[];
 }
 
+/// Resolves the copyright header for ArkTS generation.
+///
+/// Priority:
+/// 1. [ArkTSOptions.copyrightHeader]
+/// 2. [PigeonOptions.copyrightHeader] file
+/// 3. [defaultArkTSCopyrightHeaderRelativePath] under [PigeonOptions.basePath]
+/// 4. [kDefaultArkTSCopyrightHeader]
+Iterable<String> _resolveArkTSCopyrightHeader(
+  PigeonOptions options,
+  ArkTSOptions arkTSOptions,
+) {
+  if (arkTSOptions.copyrightHeader != null) {
+    return arkTSOptions.copyrightHeader!;
+  }
+  if (options.copyrightHeader != null) {
+    return _lineReader(
+      path.posix.join(options.basePath ?? '', options.copyrightHeader!),
+    );
+  }
+  final String defaultPath = path.posix.join(
+    options.basePath ?? '',
+    defaultArkTSCopyrightHeaderRelativePath,
+  );
+  if (File(defaultPath).existsSync()) {
+    return _lineReader(defaultPath);
+  }
+  return kDefaultArkTSCopyrightHeader;
+}
+
 /// A [GeneratorAdapter] that generates ArkTS source code.
 class ArkTSGeneratorAdapter implements GeneratorAdapter {
   @override
@@ -643,10 +672,7 @@ class ArkTSGeneratorAdapter implements GeneratorAdapter {
       StringSink sink, PigeonOptions options, Root root, FileType fileType) {
     ArkTSOptions arkTSOptions = options.arkTSOptions ?? const ArkTSOptions();
     arkTSOptions = arkTSOptions.merge(ArkTSOptions(
-      copyrightHeader: options.copyrightHeader != null
-          ? _lineReader(
-              path.posix.join(options.basePath ?? '', options.copyrightHeader))
-          : null,
+      copyrightHeader: _resolveArkTSCopyrightHeader(options, arkTSOptions),
     ));
     const ArkTSGenerator generator = ArkTSGenerator();
     generator.generate(
