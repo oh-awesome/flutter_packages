@@ -47,8 +47,8 @@ class OhosCamera extends CameraPlatform {
   /// Stream controller for camera-switched events (e.g., automatic switch to
   /// rear camera in tri-fold dual-screen mode).
   @visibleForTesting
-  final StreamController<String> cameraSwitchedStreamController =
-      StreamController<String>.broadcast();
+  final StreamController<CameraSwitchedEvent> cameraSwitchedStreamController =
+      StreamController<CameraSwitchedEvent>.broadcast();
 
   /// Handler for device-level callbacks from the native side.
   @visibleForTesting
@@ -66,13 +66,18 @@ class OhosCamera extends CameraPlatform {
   // The stream for vending frames to platform interface clients.
   StreamController<CameraImageData>? _frameStreamController;
 
+  // Map of camera IDs to recording state, preventing duplicate recording per camera.
+  final Map<int, bool> _isRecordingMap = <int, bool>{};
+
   Stream<CameraEvent> _cameraEvents(int cameraId) =>
       cameraEventStreamController.stream
           .where((CameraEvent event) => event.cameraId == cameraId);
 
   /// Returns a stream of camera-switched event names.
   Stream<String> onCameraSwitched(int cameraId) =>
-      cameraSwitchedStreamController.stream;
+      cameraSwitchedStreamController.stream
+          .where((CameraSwitchedEvent event) => event.cameraId == cameraId)
+          .map((CameraSwitchedEvent event) => event.newCameraName);
 
   @override
   Future<List<CameraDescription>> availableCameras() async {
@@ -131,18 +136,21 @@ class OhosCamera extends CameraPlatform {
             cameraSwitchedStreamController));
 
     final Completer<void> completer = Completer<void>();
+    bool completed = false;
 
     unawaited(onCameraInitialized(cameraId)
         .first
         .then((CameraInitializedEvent value) {
-      if (!completer.isCompleted) {
+      if (!completed) {
+        completed = true;
         completer.complete();
       }
     }));
 
     StreamSubscription<CameraErrorEvent>? errorSub;
     errorSub = onCameraError(cameraId).listen((CameraErrorEvent event) {
-      if (!completer.isCompleted) {
+      if (!completed) {
+        completed = true;
         completer
             .completeError(CameraException('CameraError', event.description));
         errorSub?.cancel();
@@ -152,6 +160,7 @@ class OhosCamera extends CameraPlatform {
     try {
       await _hostApi.initialize(imageFormatGroupToPlatform(imageFormatGroup));
     } on PlatformException catch (e, s) {
+      completed = true;
       unawaited(errorSub.cancel());
       completer.completeError(CameraException(e.code, e.message), s);
     }
@@ -165,6 +174,7 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<void> dispose(int cameraId) async {
+    _isRecordingMap.remove(cameraId);
     final HostCameraMessageHandler? handler =
         hostCameraHandlers.remove(cameraId);
     handler?.dispose();
@@ -236,8 +246,14 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<void> startVideoCapturing(VideoCaptureOptions options) async {
-    await _hostApi.startVideoRecording(options.streamCallback != null);
-
+    if (_isRecordingMap[options.cameraId] == true) return;
+    _isRecordingMap[options.cameraId] = true;
+    try {
+      await _hostApi.startVideoRecording(options.streamCallback != null);
+    } catch (e) {
+      _isRecordingMap[options.cameraId] = false;
+      rethrow;
+    }
     if (options.streamCallback != null) {
       _installStreamController().stream.listen(options.streamCallback);
       _startStreamListener();
@@ -246,8 +262,15 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<XFile> stopVideoRecording(int cameraId) async {
-    final String path = await _hostApi.stopVideoRecording();
-    return XFile(path);
+    if (_isRecordingMap[cameraId] != true) {
+      throw CameraException('videoRecordingFailed', 'No recording in progress');
+    }
+    try {
+      final String path = await _hostApi.stopVideoRecording();
+      return XFile(path);
+    } finally {
+      _isRecordingMap[cameraId] = false;
+    }
   }
 
   @override
@@ -289,12 +312,17 @@ class OhosCamera extends CameraPlatform {
   }
 
   void _startStreamListener() {
+    if (_platformImageStreamSubscription != null) return;
     const EventChannel cameraEventChannel =
         EventChannel('plugins.flutter.io/camera_ohos/imageStream');
     _platformImageStreamSubscription =
         cameraEventChannel.receiveBroadcastStream().listen((dynamic imageData) {
       _frameStreamController!
           .add(cameraImageFromPlatformData(imageData as Map<dynamic, dynamic>));
+    }, onError: (Object error) {
+      _platformImageStreamSubscription = null;
+    }, onDone: () {
+      _platformImageStreamSubscription = null;
     });
   }
 
@@ -388,9 +416,25 @@ class OhosCamera extends CameraPlatform {
   }
 
   @override
+  Future<void> setImageFileFormat(int cameraId, ImageFileFormat format) async {
+    try {
+      await _hostApi.setImageFileFormat(imageFileFormatToPlatform(format));
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
+  @override
   Future<void> setDescriptionWhileRecording(
       CameraDescription description) async {
-    await _hostApi.setDescriptionWhileRecording(description.name);
+    try {
+      await _hostApi.setDescriptionWhileRecording(description.name);
+    } on PlatformException catch (e) {
+      throw CameraException(
+        e.code,
+        e.message,
+      );
+    }
   }
 
   @override
@@ -417,18 +461,28 @@ class HostDeviceMessageHandler implements CameraGlobalEventApi {
   }
 }
 
+/// An event fired when the camera is switched.
+@visibleForTesting
+class CameraSwitchedEvent extends CameraEvent {
+  /// Builds a CameraSwitchedEvent for camera with [cameraId] and [newCameraName].
+  const CameraSwitchedEvent(super.cameraId, this.newCameraName);
+
+  /// The name of the new camera.
+  final String newCameraName;
+}
+
 /// Handles camera-specific callbacks from the platform host.
 @visibleForTesting
 class HostCameraMessageHandler implements CameraEventApi {
   /// Creates a new handler and registers it to listen to its camera's platform channel.
   HostCameraMessageHandler(this.cameraId, this.cameraEventStreamController,
       this.cameraSwitchedStreamController) {
-    CameraEventApi.setUp(this);
+    CameraEventApi.setUp(this, messageChannelSuffix: '$cameraId');
   }
 
   /// Removes this handler from its platform channel.
   void dispose() {
-    CameraEventApi.setUp(null);
+    CameraEventApi.setUp(null, messageChannelSuffix: '$cameraId');
   }
 
   /// The ID of the camera for which this handler listens for events.
@@ -438,27 +492,31 @@ class HostCameraMessageHandler implements CameraEventApi {
   final StreamController<CameraEvent> cameraEventStreamController;
 
   /// The controller which broadcasts camera-switched events from the host platform.
-  final StreamController<String> cameraSwitchedStreamController;
+  final StreamController<CameraSwitchedEvent> cameraSwitchedStreamController;
   @override
   void error(String message) {
     cameraEventStreamController.add(CameraErrorEvent(cameraId, message));
   }
 
+  /// Called when a camera is switched (e.g., on tri-fold devices).
+  @override
+  void cameraSwitched(String newCameraName) {
+    cameraSwitchedStreamController.add(CameraSwitchedEvent(cameraId, newCameraName));
+  }
+
+  @override
+  String? pigeon_getMessageChannelSuffix() => '$cameraId';
+
   @override
   void initialized(PlatformCameraState initialState) {
     cameraEventStreamController.add(CameraInitializedEvent(
         cameraId,
-        initialState.previewSize.width,
-        initialState.previewSize.height,
+        initialState.previewSize?.width ?? 0,
+        initialState.previewSize?.height ?? 0,
         exposureModeFromPlatform(initialState.exposureMode),
         initialState.exposurePointSupported,
         focusModeFromPlatform(initialState.focusMode),
         initialState.focusPointSupported));
-  }
-
-  @override
-  void cameraSwitched(String newCameraName) {
-    cameraSwitchedStreamController.add(newCameraName);
   }
 
   @override
