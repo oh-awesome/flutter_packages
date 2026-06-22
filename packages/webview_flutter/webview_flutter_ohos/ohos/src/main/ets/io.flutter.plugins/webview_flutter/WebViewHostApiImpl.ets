@@ -804,6 +804,7 @@ class WebSettingsImpl implements WebSettings {
   textZoomRatio : number = 0;
   textZoomRatioCallback?: (ratio: number) => void;
   isAllowFullScreenRotate: boolean = false;
+  overScrollMode: number = 0; // Default: OverScrollMode.NEVER
 
   constructor(webView: WebViewPlatformView) {
     this.webView = webView;
@@ -949,6 +950,14 @@ class WebSettingsImpl implements WebSettings {
 
   getAllowFullScreenRotate() : boolean {
     return this.isAllowFullScreenRotate;
+  }
+  
+  setOverScrollMode(mode: number) {
+    this.overScrollMode = mode;
+  }
+
+  getOverScrollMode(): number {
+    return this.overScrollMode;
   }
 }
 
