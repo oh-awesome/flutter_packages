@@ -463,12 +463,74 @@ abstract class NestorApi {
   test('Java generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     const PigeonOptions options = PigeonOptions(
-        javaOut: 'Foo.java', copyrightHeader: './copyright_header.txt');
+        input: 'foo.dart',
+        javaOut: 'Foo.java',
+        copyrightHeader: './copyright_header.txt');
     final JavaGeneratorAdapter javaGeneratorAdapter = JavaGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     javaGeneratorAdapter.generate(buffer,
         InternalPigeonOptions.fromPigeonOptions(options), root, FileType.na);
     expect(buffer.toString(), startsWith('// Copyright 2013'));
+  });
+
+  test('ArkTS generator uses pigeons/copyright.txt by default', () {
+    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    final InternalPigeonOptions options =
+        InternalPigeonOptions.fromPigeonOptions(
+      PigeonOptions(
+        input: 'foo.dart',
+        arkTSOut: 'Foo.ets',
+        basePath: 'example/app',
+      ),
+    );
+    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final StringBuffer buffer = StringBuffer();
+    adapter.generate(buffer, options, root, FileType.na);
+    expect(
+      buffer.toString(),
+      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    );
+  });
+
+  test('ArkTS generator uses built-in copyright when file missing', () {
+    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    final InternalPigeonOptions options =
+        InternalPigeonOptions.fromPigeonOptions(
+      PigeonOptions(
+        input: 'foo.dart',
+        arkTSOut: 'Foo.ets',
+        basePath: 'nonexistent/path',
+      ),
+    );
+    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final StringBuffer buffer = StringBuffer();
+    adapter.generate(buffer, options, root, FileType.na);
+    expect(
+      buffer.toString(),
+      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    );
+  });
+
+  test('@ConfigurePigeon ArkTSOptions.copyrightHeader', () {
+    const String code = '''
+@ConfigurePigeon(PigeonOptions(
+  input: 'foo.dart',
+  arkTSOptions: ArkTSOptions(copyrightHeader: <String>['Custom', 'Header']),
+))
+class Message {
+  int? id;
+}
+''';
+
+    final ParseResults results = parseSource(code);
+    final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
+    final InternalPigeonOptions internalOptions =
+        InternalPigeonOptions.fromPigeonOptions(options);
+    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final StringBuffer buffer = StringBuffer();
+    adapter.generate(buffer, internalOptions, root, FileType.na);
+    expect(buffer.toString(), startsWith('/*\n* Custom\n* Header'));
   });
 
   test('Objc header generator copyright flag', () {
