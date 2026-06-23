@@ -284,7 +284,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as boolean;
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.setBool(keyArg, valueArg).then(() => {
             reply.reply(wrapped);
@@ -308,7 +308,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as string;
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.setString(keyArg, valueArg).then(() => {
             reply.reply(wrapped);
@@ -332,7 +332,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = BigInt(args[1] as bigint);
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.setInt(keyArg, valueArg).then(() => {
             reply.reply(wrapped);
@@ -356,9 +356,33 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as number;
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.setDouble(keyArg, valueArg).then(() => {
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+
+  // setEncodedStringList
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setEncodedStringList", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as string;
+          const wrapped: Array<Object> = [true];
+          
+          api.setEncodedStringList(keyArg, valueArg).then(() => {
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -380,7 +404,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as Array<string>;
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.setStringList(keyArg, valueArg).then(() => {
             reply.reply(wrapped);
@@ -404,7 +428,7 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const prefixArg = args[0] as string;
           const allowListArg = args[1] as Array<string>;
-          let wrapped: Array<Object> = [];
+          let wrapped: Array<Object> = [true];
           
           api.clear(prefixArg, allowListArg).then(() => {
             reply.reply(wrapped);
@@ -547,6 +571,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     Log.w(TAG, "setStringList :" + value);
     Log.w(TAG, "setStringList encoded:" + (LIST_IDENTIFIER + this.listEncoder.encode(value)));
     return this.put(key, LIST_IDENTIFIER + this.listEncoder.encode(value));
+  }
+
+  async setEncodedStringList(key: string, value: string): Promise<void> {
+    return this.put(key, value);
   }
 
   async clear(prefix: string, allowList: string[]): Promise<void> {
