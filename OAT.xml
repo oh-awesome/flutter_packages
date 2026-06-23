@@ -183,6 +183,7 @@
                 <filteritem type="filepath" name="packages/local_auth/local_auth_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/local_auth/local_auth_ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/local_auth/local_auth_platform_interface/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/local_auth/local_auth_darwin/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/path_provider/path_provider_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
