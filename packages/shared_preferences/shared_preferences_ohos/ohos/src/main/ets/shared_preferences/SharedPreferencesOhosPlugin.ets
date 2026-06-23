@@ -21,6 +21,7 @@ import buffer  from '@ohos.buffer';
 const TAG = "SharedPreferencesOhosPlugin"
 const PREFERENCES_NAME = "FlutterSharedPreferences";
 const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
+const BIG_INTEGER_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy";
 
 export default class SharedPreferencesOhosPlugin implements FlutterPlugin, SharedPreferencesApi {
 
@@ -74,7 +75,6 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
             let allowListArg = args[1] as Array<string>;
             api.getAll(prefixArg, allowListArg).then((res) => {
               wrapped.push(res);
-              Log.w(TAG, "getAll res=" + JSON.stringify(res));
               reply.reply(wrapped)
             }).catch((err: ESObject) => {
               Log.w(TAG, "Failed to getAll. code =" + err.code +", message =" + err.message);
@@ -243,16 +243,12 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
 
   remove(key: string): boolean {
     try {
-      let result = true
-      this.preferences?.delete(key,async (err: ESObject) => {
-        if (err) {
-          Log.w(TAG, "Failed to delete.  message =" + err.message);
-          result =  false;
-        }
-        Log.i(TAG, "Succeeded in deleting.");
-        await this.preferences?.flush();
-      })
-      return result;
+      if (this.preferences == null) {
+        return false;
+      }
+      this.preferences.deleteSync(key);
+      this.preferences.flushSync();
+      return true;
     } catch (err) {
       Log.e(TAG, "Failed to delete. " + JSON.stringify(err));
       return false;
@@ -260,9 +256,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 
   setString(key: string, value: string): Promise<void> {
-    if (value.startsWith(LIST_IDENTIFIER)) {
-      throw new Error(
-        "StorageError: This string cannot be stored as it clashes with special identifier prefixes");
+    if (value.startsWith(LIST_IDENTIFIER) ||
+        value.startsWith(BIG_INTEGER_PREFIX)) {
+      return Promise.reject(new Error(
+        "StorageError: This string cannot be stored as it clashes with special identifier prefixes"));
     }
     return this.put(key, value);
   }
@@ -274,18 +271,14 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   put(key: string, value: ESObject): Promise<void> {
     try {
       if (this.preferences == null) {
-        return new Promise((reject) => {
-          reject();
-        });
-      } else {
-        this.preferences.put(key, value);
-        return this.preferences.flush();
+        return Promise.reject(new Error("Preferences is not initialized"));
       }
+      this.preferences.putSync(key, value);
+      this.preferences.flushSync();
+      return Promise.resolve();
     } catch(err) {
-      Log.w(TAG, "Failed to put value of 'startup'. " + JSON.stringify(err));
-      return new Promise((reject) => {
-        reject();
-      });
+      Log.w(TAG, "Failed to put value. " + JSON.stringify(err));
+      return Promise.reject(new Error("Failed to put value for key: " + key));
     }
   }
 
@@ -301,23 +294,22 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
 
   clear(prefix: string, allowList: string[]): Promise<void> {
     try {
-      this.preferences?.getAll().then((value: object) => {
-        let allKeys = Object.keys(value);
-        for (let key of allKeys) {
-          if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
-            this.preferences?.delete(key);
-          }
+      if (this.preferences == null) {
+        return Promise.reject(new Error("Preferences is not initialized"));
+      }
+      const value: Object = this.preferences.getAllSync();
+      const allKeys = Object.keys(value);
+      for (const key of allKeys) {
+        if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
+          this.preferences.deleteSync(key);
         }
-        return this.preferences?.flush();
-      }).catch((err: ESObject) => {
-        Log.w(TAG, "Failed to clear." + JSON.stringify(err));
-      });
+      }
+      this.preferences.flushSync();
+      return Promise.resolve();
     } catch (err) {
       Log.w(TAG, "Failed to clear." + JSON.stringify(err));
+      return Promise.reject(new Error("Failed to clear"));
     }
-    return new Promise((reject) => {
-      reject();
-    })
   }
 
   filterData(value: [string, Object], prefix: string, allowList: string[]): Map<string, Object> {
@@ -331,7 +323,6 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
         Log.w(TAG, "filterData00：key:" + key + " val:" + (this.transformPref(v)));
       }
     }
-    Log.w(TAG, "filterData1：" + JSON.stringify(filteredPrefs));
     return filteredPrefs;
   }
 

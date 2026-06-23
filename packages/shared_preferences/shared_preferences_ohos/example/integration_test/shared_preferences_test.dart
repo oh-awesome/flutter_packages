@@ -480,7 +480,7 @@ void main() {
         // Prefix for big integers:
         'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy',
         // Prefix for doubles:
-        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu',
+        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4',
       ];
       for (final String prefix in specialPrefixes) {
         expect(preferences.setValue('String', key, prefix + value),
