@@ -31,6 +31,8 @@ abstract class TestPathProviderApi {
 
   String? getApplicationDocumentsPath();
 
+  String? getApplicationCachePath();
+
   String? getExternalStoragePath();
 
   List<String?> getExternalCachePaths();
@@ -87,6 +89,23 @@ abstract class TestPathProviderApi {
                 (Object? message) async {
           // ignore message
           final String? output = api.getApplicationDocumentsPath();
+          return <Object?>[output];
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.PathProviderApi.getApplicationCachePath', codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel, null);
+      } else {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel,
+                (Object? message) async {
+          // ignore message
+          final String? output = api.getApplicationCachePath();
           return <Object?>[output];
         });
       }
