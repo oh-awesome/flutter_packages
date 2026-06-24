@@ -12,10 +12,12 @@ import 'package:video_player_platform_interface/video_player_platform_interface.
 import 'video_player_ohos_channel.dart';
 import 'messages.g.dart';
 
-/// An Android implementation of [VideoPlayerPlatform] that uses the
-/// Pigeon-generated [VideoPlayerApi].
+/// An OHOS implementation of [VideoPlayerPlatform] that uses the
+/// Pigeon-generated [OhosVideoPlayerApi].
 class OhosVideoPlayer extends VideoPlayerPlatform {
-  final OhosVideoPlayerApi _api = OhosVideoPlayerApi();
+  OhosVideoPlayer({OhosVideoPlayerApi? pluginApi})
+    : _api = pluginApi ?? OhosVideoPlayerApi();
+  final OhosVideoPlayerApi _api;
 
   /// Registers this class as the default instance of [PathProviderPlatform].
   static void registerWith() {

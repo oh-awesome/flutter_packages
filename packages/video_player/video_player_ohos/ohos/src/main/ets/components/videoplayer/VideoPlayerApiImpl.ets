@@ -66,13 +66,14 @@ export class VideoPlayerApiImpl {
     return this.binding.getAbility().context;
   }
 
-  async createBlackPixelMap(width: number, height: number): Promise<image.PixelMap> {
-    const pixels32 = new Uint32Array(width * height);
+  async createBlackPixelMap(): Promise<image.PixelMap> {
+    const size = 1;  // 1x1像素足够，Texture会自动缩放
+    const pixels32 = new Uint32Array(size * size);
     pixels32.fill(BLACK_COLOR);
     const opts: image.InitializationOptions = {
       editable: true,
       pixelFormat: image.PixelMapFormat.RGBA_8888,
-      size: { width, height }
+      size: { width: size, height: size }
     };
     return image.createPixelMap(pixels32.buffer, opts);
   }
@@ -101,7 +102,7 @@ export class VideoPlayerApiImpl {
     let windowProperties = windowClass.getWindowProperties();
     const width = windowProperties.windowRect.width;
     const height = windowProperties.windowRect.height;
-    flutterRenderer.setTextureBackGroundPixelMap(textureId, await this.createBlackPixelMap(width, height));
+    flutterRenderer.setTextureBackGroundPixelMap(textureId, await this.createBlackPixelMap());
     if (asset != null) {
       Log.i(TAG, "asset create called, asset is" + asset);
       let avMetaExtractor = await media.createAVMetadataExtractor();
@@ -115,9 +116,9 @@ export class VideoPlayerApiImpl {
           width: -1,
           height: -1
         });
-        this.pixelMaps.set(JSON.stringify(arg), pixelMap);
+        this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
       }
       avMetaExtractor.release();
     } else if (uri != null && uri.startsWith("fd://")) {
@@ -137,9 +138,9 @@ export class VideoPlayerApiImpl {
           width: -1,
           height: -1
         });
-        this.pixelMaps.set(JSON.stringify(arg), pixelMap);
+        this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
       }
       avMetaExtractor.release();
     }

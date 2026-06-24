@@ -215,28 +215,28 @@ export class PlaybackSpeedMessage {
   private speed: Number= 1.0;
 
   public getSpeed(): media.PlaybackSpeed | null {
-    if (this.speed == 0.75) {
-      return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
-    } else if (this.speed == 1.0) {
-      return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
-    } else if (this.speed == 1.25) {
-      return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
-    } else if (this.speed == 1.75) {
-      return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
-    } else if (this.speed == 2.0) {
-      return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
-    } else if (this.speed == 0.5) {
-      return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
-    } else if (this.speed == 1.5) {
-      return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
-    } else if (this.speed == 3.0) {
-      return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
-    } else if (this.speed == 0.25) {
-      return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
-    } else if (this.speed == 0.125) {
+    if (this.speed > 0 && this.speed <= 0.125) {
       return media.PlaybackSpeed.SPEED_FORWARD_0_125_X;
+    } else if (this.speed > 0.125 && this.speed <= 0.4) {
+      return media.PlaybackSpeed.SPEED_FORWARD_0_25_X;
+    } else if (this.speed > 0.4 && this.speed <= 0.6) {
+      return media.PlaybackSpeed.SPEED_FORWARD_0_50_X;
+    } else if (this.speed > 0.6 && this.speed <= 0.8) {
+      return media.PlaybackSpeed.SPEED_FORWARD_0_75_X;
+    } else if (this.speed > 0.8 && this.speed <= 1.1) {
+      return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+    } else if (this.speed > 1.1 && this.speed <= 1.4) {
+      return media.PlaybackSpeed.SPEED_FORWARD_1_25_X;
+    } else if (this.speed > 1.4 && this.speed <= 1.6) {
+      return media.PlaybackSpeed.SPEED_FORWARD_1_50_X;
+    } else if (this.speed > 1.6 && this.speed <= 1.8) {
+      return media.PlaybackSpeed.SPEED_FORWARD_1_75_X;
+    } else if (this.speed > 1.8 && this.speed <= 2.0) {
+      return media.PlaybackSpeed.SPEED_FORWARD_2_00_X;
+    } else if (this.speed > 2.0) {
+      return media.PlaybackSpeed.SPEED_FORWARD_3_00_X;
     } else {
-      return null;
+      return media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
     }
   }
 
