@@ -17,10 +17,12 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 
 ```yaml
 dependencies:
-  webview_flutter:
+  image_picker:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      path: packages/webview_flutter
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/image_picker/image_picker
+      # ref: image_picker-v1.1.2-ohos-1.0.0
+      ref: TAG  #   Please select the TAG according to the TAG version table below
 ```
 
 Execute Command
@@ -28,6 +30,16 @@ Execute Command
 ```bash
 flutter pub get
 ```
+
+**TAG Version Table**
+
+| Flutter Version | TAG | Branch |
+| :--- | :--- | :--- |
+| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `master` |
+| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
+| 3.41 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
 
 <!-- tabs:end -->
 
@@ -53,7 +65,7 @@ This document is verified based on the following versions:
 | pickMultiImage({double? maxWidth, double? maxHeight, int? imageQuality, bool requestFullMetadata = true}) | Future<List<XFile>>     | Returns a [List<XFile>] object wrapping the images that were picked. | function | yes          |
 | pickMedia({double? maxWidth, double? maxHeight, int? imageQuality, bool requestFullMetadata = true}) | Future<XFile?>          | Returns an [XFile] of the image or video that was picked.    | function | yes          |
 | pickMultipleMedia({double? maxWidth, double? maxHeight, int? imageQuality, bool requestFullMetadata = true}) | Future<List<XFile>>     | Returns a [List<XFile>] with the images and/or videos that were picked. | function | yes          |
-| pickVideo({[ImageSource](#ImageSource ) source，[CameraDevice](#CameraDevice ) preferredCameraDevice = CameraDevice.rear, Duration? maxDuration }) | Future<XFile?>          | Returns an [XFile] object wrapping the video that was picked. | function | yes          |
+| pickVideo({[ImageSource](#ImageSource ) source, [CameraDevice](#CameraDevice ) preferredCameraDevice = CameraDevice.rear, Duration? maxDuration }) | Future<XFile?>          | Returns an [XFile] object wrapping the video that was picked. | function | yes          |
 | retrieveLostData()                                           | Future<LostDataResponse | Retrieve the lost [XFile] when [pickImage], [pickMultiImage] or [pickVideo] failed because the MainActivity <br />is destroyed. (Android only) | function | no           |
 | supportsImageSource([ImageSource](#ImageSource) source)      | bool                    | Returns true if the current platform implementation supports [source]. | function | no           |
 
@@ -79,12 +91,10 @@ This document is verified based on the following versions:
 
 ## 5. Known Issues
 
-not
+None
 
-## 6. Others
+## 6. License
 
-## 7. License
-
-This project is licensed under  [Apache License 2.0](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/image_picker/image_picker/LICENSE) .
+This project is licensed under [Apache License 2.0](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/image_picker/image_picker/LICENSE).
 
 > Template version: v0.0.1
