@@ -4,22 +4,22 @@
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:image_picker_android/image_picker_android.dart';
-import 'package:image_picker_android/src/messages.g.dart';
+import 'package:image_picker_ohos/image_picker_ohos.dart';
+import 'package:image_picker_ohos/src/messages.g.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 
 void main() {
-  late ImagePickerAndroid picker;
+  late ImagePickerOhos picker;
   late _FakeImagePickerApi api;
 
   setUp(() {
     api = _FakeImagePickerApi();
-    picker = ImagePickerAndroid(api: api);
+    picker = ImagePickerOhos(api: api);
   });
 
   test('registers instance', () async {
-    ImagePickerAndroid.registerWith();
-    expect(ImagePickerPlatform.instance, isA<ImagePickerAndroid>());
+    ImagePickerOhos.registerWith();
+    expect(ImagePickerPlatform.instance, isA<ImagePickerOhos>());
   });
 
   group('#pickImage', () {
@@ -129,7 +129,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.pickImage(source: ImageSource.gallery);
 
       expect(api.passedPhotoPickerFlag, true);
@@ -207,7 +207,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.pickMultiImage();
 
       expect(api.passedPhotoPickerFlag, true);
@@ -283,7 +283,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.pickVideo(source: ImageSource.gallery);
 
       expect(api.passedPhotoPickerFlag, true);
@@ -438,7 +438,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.getImage(source: ImageSource.gallery);
 
       expect(api.passedPhotoPickerFlag, true);
@@ -517,7 +517,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.getMultiImage();
 
       expect(api.passedPhotoPickerFlag, true);
@@ -592,7 +592,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.getVideo(source: ImageSource.gallery);
 
       expect(api.passedPhotoPickerFlag, true);
@@ -766,7 +766,7 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.getMedia(
         options: const MediaOptions(
           allowMultiple: true,
@@ -906,8 +906,110 @@ void main() {
     });
 
     test('allows using Android Photo Picker', () async {
-      picker.useAndroidPhotoPicker = true;
+      picker.useOhosPhotoPicker = true;
       await picker.getImageFromSource(source: ImageSource.gallery);
+
+      expect(api.passedPhotoPickerFlag, true);
+    });
+  });
+
+  // Test cases added specifically for OHOS
+  group('#getMultiImageWithOptions', () {
+    test('calls the method correctly', () async {
+      const List<String> fakePaths = <String>['/foo.jpg', '/bar.jpg'];
+      api.returnValue = fakePaths;
+
+      final List<XFile> files = await picker.getMultiImageWithOptions(
+        options: const MultiImagePickerOptions(),
+      );
+
+      expect(api.lastCall, _LastPickType.image);
+      expect(api.passedAllowMultiple, true);
+      expect(files.length, 2);
+      expect(files[0].path, fakePaths[0]);
+      expect(files[1].path, fakePaths[1]);
+    });
+
+    test('passes default image options', () async {
+      await picker.getMultiImageWithOptions();
+
+      expect(api.passedImageOptions?.maxWidth, null);
+      expect(api.passedImageOptions?.maxHeight, null);
+      expect(api.passedImageOptions?.quality, 100);
+    });
+
+    test('passes image option arguments correctly', () async {
+      await picker.getMultiImageWithOptions(
+        options: const MultiImagePickerOptions(
+          imageOptions: ImageOptions(
+            maxWidth: 10.0,
+            maxHeight: 20.0,
+            imageQuality: 70,
+          ),
+          limit: 5,
+        ),
+      );
+
+      expect(api.passedImageOptions?.maxWidth, 10.0);
+      expect(api.passedImageOptions?.maxHeight, 20.0);
+      expect(api.passedImageOptions?.quality, 70);
+    });
+
+    test('does not accept a negative width or height argument', () {
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(maxWidth: -1.0),
+          ),
+        ),
+        throwsArgumentError,
+      );
+
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(maxHeight: -1.0),
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('does not accept an invalid imageQuality argument', () {
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(imageQuality: -1),
+          ),
+        ),
+        throwsArgumentError,
+      );
+
+      expect(
+            () => picker.getMultiImageWithOptions(
+          options: const MultiImagePickerOptions(
+            imageOptions: ImageOptions(imageQuality: 101),
+          ),
+        ),
+        throwsArgumentError,
+      );
+    });
+
+    test('handles an empty path response gracefully', () async {
+      api.returnValue = <String>[];
+
+      expect(await picker.getMultiImageWithOptions(), <XFile>[]);
+    });
+
+    test('defaults to not using Android Photo Picker', () async {
+      await picker.getMultiImageWithOptions();
+
+      expect(api.passedPhotoPickerFlag, false);
+    });
+
+    test('allows using Android Photo Picker', () async {
+      picker.useOhosPhotoPicker = true;
+      await picker.getMultiImageWithOptions();
 
       expect(api.passedPhotoPickerFlag, true);
     });
