@@ -13,7 +13,7 @@ import { systemDateTime } from '@kit.BasicServicesKit';
 const TAG = "FileUtils";
 
 export default class FileUtils {
-  static getPathFromUri(context: common.Context | null, uri: string, defExtension?: string) {
+  static getPathFromUri(context: common.Context | null, uri: string, defExtension?: string): string | null {
     Log.i(TAG, "getPathFromUri : " + uri);
     let inputFile: fs.File;
     try {
@@ -32,13 +32,23 @@ export default class FileUtils {
     }
     {
       const targetDirectoryPath = context.cacheDir + "/" + uuid;
+      let dirCreated = false;
       try {
         fs.mkdirSync(targetDirectoryPath);
+        dirCreated = true;
         let targetDir = fs.openSync(targetDirectoryPath);
         Log.i(TAG, "mkdirSync success targetDirectoryPath:" + targetDirectoryPath + " fd: " + targetDir.fd);
         fs.closeSync(targetDir);
       } catch (err) {
         Log.e(TAG, "mkdirSync failed err:" + err);
+        if (dirCreated) {
+          try {
+            fs.rmdirSync(targetDirectoryPath);
+          } catch (e) {
+            Log.e(TAG, "rmdirSync failed err:" + e);
+          }
+        }
+        fs.closeSync(inputFile);
         return null;
       }
 
@@ -71,15 +81,29 @@ export default class FileUtils {
       let timeStamp: string = systemDateTime.getTime().toString();
       const outputFilePath = targetDirectoryPath + "/" + outputFileName + timeStamp + "." + extension;
       const outputFile = fs.openSync(outputFilePath, fs.OpenMode.CREATE);
+      let copySuccess = false;
       try {
         Log.i(TAG, "copyFileSync inputFile fd:" + inputFile.fd + " outputFile fd:" + outputFile.fd);
         fs.copyFileSync(inputFile.fd, outputFilePath);
+        copySuccess = true;
       } catch (err) {
         Log.e(TAG, "copyFileSync failed err:" + err);
-        return null;
       } finally {
         fs.closeSync(inputFile);
         fs.closeSync(outputFile);
+        if (!copySuccess) {
+          try {
+            fs.unlinkSync(outputFilePath);
+          } catch (e) {
+            Log.e(TAG, "unlinkSync failed err:" + e);
+          }
+          try {
+            fs.rmdirSync(targetDirectoryPath);
+          } catch (e) {
+            Log.e(TAG, "rmdirSync failed err:" + e);
+          }
+          return null;
+        }
       }
       return outputFilePath;
     }
