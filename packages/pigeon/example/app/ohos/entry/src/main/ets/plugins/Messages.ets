@@ -68,7 +68,7 @@ export class CodeEnum {
 export class MessageData {
   private name?: string;
 
-  public setName(name:string):void {
+  public setName(name:string | undefined):void {
     this.name = name;
   }
 
@@ -78,7 +78,7 @@ export class MessageData {
 
   private description?: string;
 
-  public setDescription(description:string):void {
+  public setDescription(description:string | undefined):void {
     this.description = description;
   }
 
@@ -86,62 +86,55 @@ export class MessageData {
     return this.description;
   }
 
-  private code?: Code;
+  private code: Code;
 
   public setCode(code:Code):void {
     this.code = code;
   }
 
-  getCode(): Code | undefined{
+  getCode(): Code{
     return this.code;
   }
 
-  private data?: Map<string, string>;
+  private data: Map<string, string>;
 
   public setData(data:Map<string, string>):void {
     this.data = data;
   }
 
-  getData(): Map<string, string> | undefined{
+  getData(): Map<string, string>{
     return this.data;
   }
 
-  constructor(name?: string, description?: string, code?: Code, data?: Map<string, string>) {
-    this.name = name;
-    this.description = description;
+  constructor(code: Code, data: Map<string, string>, name?: string, description?: string) {
     this.code = code;
     this.data = data;
+    this.name = name;
+    this.description = description;
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
-    if(this.name !==undefined){
-      arr.push(this.name);
-    }
-    if(this.description !==undefined){
-      arr.push(this.description);
-    }
-    if(this.code !==undefined){
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.name !== undefined ? this.name : null);
+    arr.push(this.description !== undefined ? this.description : null);
+    if (this.code !== undefined) {
       const codeStr = Code[this.code as number];
       arr.push(new CodeEnum(codeStr));
+    } else {
+      arr.push(null);
     }
-    if(this.data !==undefined){
-      arr.push(this.data);
-    }
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
-  static fromList(arr: Object[]): MessageData {
-    let pigeonResult: MessageData = new MessageData();
-    let name: Object = arr[0];
-    pigeonResult.setName(name as string);
-    let description: Object = arr[1];
-    pigeonResult.setDescription(description as string);
-    const codeStr: string = arr[2]! as string;
-    pigeonResult.setCode(Code[codeStr]);
-    let data: Object = arr[3];
-    pigeonResult.setData(data as Map<string, string>);
-    return pigeonResult;
+  static fromList(arr: (Object | null)[]): MessageData {
+    let name: string | undefined = arr[0] != null ? arr[0] as string : undefined;
+    let description: string | undefined = arr[1] != null ? arr[1] as string : undefined;
+    let codeRaw: Object | null = arr[2];
+    const codeStr: string = codeRaw as string;
+    let code: Code = Code[codeStr];
+    let data: Map<string, string> = arr[3] as Map<string, string>;
+    return new MessageData(code, data, name, description);
   }
 }
 
@@ -164,7 +157,7 @@ export class PigeonCodec extends StandardMessageCodec {
         return value == null ? null : Code[value as number];
       }
       case this.getByte(130):
-        return MessageData.fromList(super.readValue(buffer) as Object[]);
+        return MessageData.fromList(super.readValue(buffer) as (Object | null)[]);
       default:
         return super.readValueOfType(type, buffer);
     }
@@ -300,22 +293,22 @@ export class MessageFlutterApi {
         [aStringArg],
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: Object[] = channelReply as Object[] ;
+            let listReply: ESObject[] = channelReply as ESObject[] ;
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
               let arrThird:string = listReply[2] as string;
-              let replyArr:string = 'FlutterError:{"code":'+arrFirst+',"name":'+arrSecond+',"message":'+arrThird+'}';
+              let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull:string = 'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}'
+              let replyNull:ESObject = new FlutterError("null-error", "Flutter api returned null value for non-null return value.", "")
               callback.reply(replyNull);
             } else {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
           }  else {
-            let connErr:string = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}'
+            let connErr:ESObject = new FlutterError('channel-error', "Unable to establish connection on channel: " + channelName + ".", "")
             callback.reply(connErr);
           } 
         });
