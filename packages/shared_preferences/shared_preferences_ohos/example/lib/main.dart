@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
+import 'pages/functional_test_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -121,6 +122,18 @@ class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('SharedPreferences Demo'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.science),
+            tooltip: 'OHOS 功能测试',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const FunctionalTestPage()),
+              );
+            },
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
