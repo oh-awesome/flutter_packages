@@ -110,21 +110,17 @@ export class MessageData {
     this.data = data;
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
-    if (this.name !== undefined) {
-      arr.push(this.name);
-    }
-    if (this.description !== undefined) {
-      arr.push(this.description);
-    }
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.name !== undefined ? this.name : null);
+    arr.push(this.description !== undefined ? this.description : null);
     if (this.code !== undefined) {
       const codeStr = Code[this.code as number];
       arr.push(new CodeEnum(codeStr));
+    } else {
+      arr.push(null);
     }
-    if (this.data !== undefined) {
-      arr.push(this.data);
-    }
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
@@ -134,8 +130,11 @@ export class MessageData {
     pigeonResult.setName(name as string);
     let description: Object = arr[1];
     pigeonResult.setDescription(description as string);
-    const codeStr: string = arr[2]! as string;
-    pigeonResult.setCode(Code[codeStr]);
+    let code: Object = arr[2];
+    if (code != null) {
+      const codeStr: string = code as string;
+      pigeonResult.setCode(Code[codeStr]);
+    }
     let data: Object = arr[3];
     pigeonResult.setData(data as Map<string, string>);
     return pigeonResult;
@@ -303,30 +302,27 @@ export class MessageFlutterApi {
       new BasicMessageChannel<Object>(
         this.binaryMessenger, channelName, MessageFlutterApi.getCodec());
     channel.send(
-      [aStringArg],
-      channelReply => {
-        if (Array.isArray(channelReply)) {
-          let listReply: Object[] = channelReply as Object[];
-          if (listReply.length > 1) {
-            let arrFirst: string = listReply[0] as string;
-            let arrSecond: string = listReply[1] as string;
-            let arrThird: string = listReply[2] as string;
-            let replyArr: string =
-              'FlutterError:{"code":' + arrFirst + ',"name":' + arrSecond + ',"message":' + arrThird + '}';
-            callback.reply(replyArr);
-          } else if (listReply[0] == null) {
-            let replyNull: string =
-              'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}'
-            callback.reply(replyNull);
-          } else {
-            let output: string = listReply[0] as string;
-            callback.reply(output);
-          }
-        } else {
-          let connErr: string =
-            'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}'
-          callback.reply(connErr);
-        }
-      });
+        [aStringArg],
+        channelReply => {
+          if (Array.isArray(channelReply)) {
+            let listReply: ESObject[] = channelReply as ESObject[] ;
+            if (listReply.length > 1) {
+              let arrFirst:string = listReply[0] as string;
+              let arrSecond:string = listReply[1] as string;
+              let arrThird:string = listReply[2] as string;
+              let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)
+              callback.reply(replyArr);
+            } else if (listReply[0] == null) {
+              let replyNull:ESObject = new FlutterError("null-error", "Flutter api returned null value for non-null return value.", "")
+              callback.reply(replyNull);
+            } else {
+              let output:string = listReply[0] as string;
+              callback.reply(output);
+            }
+          }  else {
+            let connErr:ESObject = new FlutterError('channel-error', "Unable to establish connection on channel: " + channelName + ".", "")
+            callback.reply(connErr);
+          } 
+        });
   }
 }

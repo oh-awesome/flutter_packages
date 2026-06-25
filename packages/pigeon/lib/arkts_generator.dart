@@ -298,22 +298,24 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('toList(): Object[] ');
+    indent.write('toList(): (Object | null)[] ');
     indent.addScoped('{', '}', () {
-      indent.writeln('let arr: Object[] = new Array();');
+      indent.writeln('let arr: (Object | null)[] = [];');
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         final String fieldName = field.name;
         if (field.type.isEnum) {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
+          indent.writeScoped('if (this.$fieldName !== undefined) {', '} else {', () {
             indent.writeln(
                 'const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];');
             indent.writeln(
                 'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));');
           });
-        } else {
-          indent.writeScoped('if(this.$fieldName !==undefined){', '}', () {
-            indent.writeln('arr.push(this.$fieldName);');
+          indent.addScoped(null, '}', () {
+            indent.writeln('arr.push(null);');
           });
+        } else {
+          indent.writeln(
+ 	               'arr.push(this.$fieldName !== undefined ? this.$fieldName : null);');
         }
       }
       indent.writeln('return arr;');
@@ -339,10 +341,13 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         final String fieldVariable = field.name;
         final String setter = _makeSetter(field);
         if (field.type.isEnum) {
-          indent.writeln(
-              'const $fieldVariable$_string_Param_Suffix: string = arr[$index]! as string;');
-          indent.writeln(
-              '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
+          indent.writeln('let $fieldVariable: Object = arr[$index];');
+          indent.writeScoped('if ($fieldVariable != null) {', '}', () {
+            indent.writeln(
+                'const $fieldVariable$_string_Param_Suffix: string = $fieldVariable as string;');
+            indent.writeln(
+                '$result.$setter(${field.type.baseName}[$fieldVariable$_string_Param_Suffix]);');
+          });
         } else {
           indent.writeln('let $fieldVariable: Object = arr[$index];');
           indent.writeln(
@@ -467,23 +472,16 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
                       'let arrSecond:string = listReply[1] as string;');
                   indent
                       .writeln('let arrThird:string = listReply[2] as string;');
-                  String replyArr =
-                      '\'FlutterError:{"code":\'+arrFirst+\',"name":\'+arrSecond+\',"message":\'+arrThird+\'}\';';
-                  if (func.returnType.isVoid) {
-                    indent.writeln('let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
-                  } else {
-                    indent.writeln('let replyArr:$returnType = $replyArr');
-                  }
+                  indent.writeln(
+                      'let replyArr:ESObject = new FlutterError(arrFirst, arrSecond, arrThird)');
                   indent.writeln('callback.reply(replyArr);');
                 }, addTrailingNewline: false);
 
                 if (!func.returnType.isVoid) {
                   indent.addScoped('else if (listReply[0] == null) {', '} ',
                       () {
-                    String replyNull =
-                        'FlutterError:{"code":null-error,"name":Flutter api returned null value for non-null return value.,"message":}';
-                    indent
-                        .writeln('let replyNull:$returnType = \'$replyNull\'');
+                    indent.writeln(
+                        'let replyNull:ESObject = new FlutterError("null-error", "Flutter api returned null value for non-null return value.", "")');
                     indent.writeln('callback.reply(replyNull);');
                   }, addTrailingNewline: false);
                 }
@@ -508,13 +506,10 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
                 });
               }, addTrailingNewline: false);
               indent.addScoped(' else {', '} ', () {
-                if (func.returnType.isVoid) {
-                  String connErr = 'let connErr:ESObject = new FlutterError('+"'channel-error'" + ', "Unable to establish connection on channel: " + channelName + ".", "")';
-                  indent.writeln(connErr);
-                } else {
-                  String connErr = 'FlutterError:{"code":channel-error,"name":Unable to establish connection on channel:channelName,"message":.}';
-                  indent.writeln('let connErr:$returnType = \'$connErr\'');
-                }
+                indent.writeln(
+                    'let connErr:ESObject = new FlutterError(' +
+                        "'channel-error'" +
+                        ', "Unable to establish connection on channel: " + channelName + ".", "")');
                 indent.writeln('callback.reply(connErr);');
               });
             });
@@ -997,7 +992,7 @@ getByte(n: number): number {
       );
     }
     indent.newln();
-    indent.write('class $_codecName extends StandardMessageCodec ');
+    indent.write('export class $_codecName extends StandardMessageCodec ');
     indent.addScoped('{', '}', () {
       indent.writeln(
           'static readonly INSTANCE: $_codecName  = new $_codecName();');
