@@ -38,8 +38,8 @@ export class PlatformEvent {
   constructor() {
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
     return arr;
   }
 
@@ -65,11 +65,9 @@ export class IntEvent {
     this.data = data;
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
-    if(this.data !==undefined){
-      arr.push(this.data);
-    }
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
@@ -97,11 +95,9 @@ export class StringEvent {
     this.data = data;
   }
 
-  toList(): Object[] {
-    let arr: Object[] = new Array();
-    if(this.data !==undefined){
-      arr.push(this.data);
-    }
+  toList(): (Object | null)[] {
+    let arr: (Object | null)[] = [];
+    arr.push(this.data !== undefined ? this.data : null);
     return arr;
   }
 
@@ -128,8 +124,10 @@ export class PigeonCodec extends StandardMessageCodec {
   readValueOfType(type: number,  buffer: ByteBuffer): ESObject {
     switch (type) {
       case this.getByte(129):
-        return IntEvent.fromList(super.readValue(buffer) as Object[]);
+        return PlatformEvent.fromList(super.readValue(buffer) as Object[]);
       case this.getByte(130):
+        return IntEvent.fromList(super.readValue(buffer) as Object[]);
+      case this.getByte(131):
         return StringEvent.fromList(super.readValue(buffer) as Object[]);
       default:
         return super.readValueOfType(type, buffer);
@@ -137,11 +135,14 @@ export class PigeonCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer , value: ESObject): ESObject{
-    if (value instanceof IntEvent) {
+    if (value instanceof PlatformEvent) {
       stream.writeUint8(this.getByte(129));
+      this.writeValue(stream, (value as PlatformEvent).toList());
+    } else if (value instanceof IntEvent) {
+      stream.writeUint8(this.getByte(130));
       this.writeValue(stream, (value as IntEvent).toList());
     } else if (value instanceof StringEvent) {
-      stream.writeUint8(this.getByte(130));
+      stream.writeUint8(this.getByte(131));
       this.writeValue(stream, (value as StringEvent).toList());
     } else {
       super.writeValue(stream, value);

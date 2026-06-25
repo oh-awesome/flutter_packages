@@ -51,8 +51,57 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: number;'));
-    expect(code, contains('toList(): Object[]'));
-    expect(code, contains('static fromList(arr: Object[]): Foobar'));
+    expect(code, contains('toList(): (Object | null)[]'));
+    expect(code, contains('let arr: (Object | null)[] = [];'));
+    expect(
+      code,
+      contains(
+        'arr.push(this.field1 !== undefined ? this.field1 : null);',
+      ),
+    );
+    expect(code, contains('static fromList(arr: (Object | null)[]): Foobar'));
+  });
+
+  test('gen class with non-nullable and nullable fields', () {
+    final classDefinition = Class(
+      name: 'FDMNFCVerifyResponse',
+      fields: <NamedType>[
+        NamedType(
+          type: const TypeDeclaration(baseName: 'String', isNullable: false),
+          name: 'code',
+        ),
+        NamedType(
+          type: const TypeDeclaration(baseName: 'String', isNullable: true),
+          name: 'message',
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[classDefinition],
+      enums: <Enum>[],
+    );
+    final sink = StringBuffer();
+    const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
+    const generator = ArkTSGenerator();
+    generator.generate(
+      arkTSOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('private code: string;'));
+    expect(code, contains('private message?: string;'));
+    expect(code, contains('setMessage(message:string | undefined):void'));
+    expect(code, contains('getCode(): string'));
+    expect(code, contains('getMessage(): string | undefined'));
+    expect(code, contains('constructor(code: string, message?: string)'));
+    expect(
+      code,
+      contains('static fromList(arr: (Object | null)[]): FDMNFCVerifyResponse'),
+    );
+    expect(code, contains('return new FDMNFCVerifyResponse(code, message);'));
   });
 
   test('gen one enum', () {
@@ -148,7 +197,7 @@ void main() {
     expect(code, contains('abstract doSomething(: Input ): Output;'));
     expect(code, contains('static setup(binaryMessenger: BinaryMessenger, api: Api | null): void'));
     expect(code, contains('channel.setMessageHandler(null)'));
-    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
+    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
   });
 
   test('gen one flutter api', () {
@@ -628,7 +677,17 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export enum Foo'));
     expect(code, contains('export class Bar'));
-    expect(code, contains('private field1?: Foo;'));
+    expect(code, contains('private field1: Foo;'));
+    expect(code, contains('getField1(): Foo'));
+    expect(code, contains('constructor(field1: Foo)'));
+    expect(code, contains('const field1Str = Foo[this.field1 as number];'));
+    expect(code, contains('arr.push(new FooEnum(field1Str));'));
+    expect(code, contains('arr.push(null);'));
+    expect(code, contains('static fromList(arr: (Object | null)[]): Bar'));
+    expect(code, contains('let field1Raw: Object | null = arr[0];'));
+    expect(code, contains('const field1Str: string = field1Raw as string;'));
+    expect(code, contains('let field1: Foo = Foo[field1Str];'));
+    expect(code, contains('return new Bar(field1);'));
     expect(code, contains('export class FooEnum'));
   });
 
@@ -916,7 +975,7 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
+    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
     expect(code, contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'));
     expect(code, contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'));
     expect(code, contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'));
