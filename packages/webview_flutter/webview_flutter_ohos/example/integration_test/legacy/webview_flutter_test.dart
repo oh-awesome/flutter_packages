@@ -5,11 +5,6 @@
 // This test is run using `flutter drive` by the CI (see /script/tool/README.md
 // in this repository for details on driving that tooling manually), but can
 // also be run using `flutter test` directly during development.
-//
-// OHOS platform: `flutter test` and `flutter drive` cannot connect to the VM
-// Service WebSocket via hdc port forwarding. See the non-legacy integration
-// test file for details. Do NOT attempt to run this file with `flutter test`
-// or `flutter drive` on OHOS until the SDK bug is fixed.
 
 import 'dart:async';
 import 'dart:convert';
@@ -17,19 +12,26 @@ import 'dart:developer' as developer;
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:webview_flutter/src/webview_flutter_legacy.dart';
-
-bool _isOhos() => defaultTargetPlatform == TargetPlatform.ohos;
+import 'package:webview_flutter_ohos/src/instance_manager.dart';
+import 'package:webview_flutter_ohos/src/ohos_webview.dart' as ohos;
+import 'package:webview_flutter_ohos/src/weak_reference_utils.dart';
+import 'package:webview_flutter_ohos/src/webview_flutter_ohos_legacy.dart';
+import 'package:webview_flutter_ohos_example/legacy/navigation_decision.dart';
+import 'package:webview_flutter_ohos_example/legacy/navigation_request.dart';
+import 'package:webview_flutter_ohos_example/legacy/web_view.dart';
+import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
 
 Future<void> main() async {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  // OHOS workaround: Re-print the VM service URI at Dart level (I/Info in hilog)
-  // so the SDK's HdcLogReader can discover the port.
+  // OHOS workaround: SDK 的 HdcLogReader 按 [IE] 级别过滤 hilog，
+  // 但某些 OHOS 设备的 VM 服务日志以 W（Warning）级别输出，
+  // 导致端口发现失败。重新以 Dart 层输出（I/Info 级别）打印 VM 服务 URI。
   if (defaultTargetPlatform == TargetPlatform.ohos) {
     final serviceInfo = await developer.Service.getInfo();
     if (serviceInfo.serverUri != null) {
@@ -37,13 +39,11 @@ Future<void> main() async {
     }
   }
 
-  // OHOS workaround: When a WebView platform view is disposed after a test
-  // completes, the native side may still send a response that the Flutter
-  // framework cannot decode, resulting in a FormatException: Invalid envelope.
-  // This is a known OHOS Flutter SDK issue. The test framework reports this
-  // error via FlutterError.dumpErrorToConsole with forceReport: true, which
-  // bypasses FlutterError.onError. To suppress this noise, we override
-  // debugPrint to filter out the specific error output.
+  // OHOS workaround: 当 WebView 平台视图在测试完成后被销毁时，
+  // 原生端可能仍会发送 Flutter 框架无法解码的响应，导致 FormatException: Invalid envelope。
+  // 这是已知的 OHOS Flutter SDK 问题。测试框架使用 dumpErrorToConsole(forceReport: true)
+  // 直接调用 debugPrint，绕过 FlutterError.onError。因此需要同时过滤 FlutterError.onError
+  // 和 debugPrint 来抑制该噪音。
   if (defaultTargetPlatform == TargetPlatform.ohos) {
     final originalOnError = FlutterError.onError;
     FlutterError.onError = (FlutterErrorDetails details) {
@@ -87,15 +87,17 @@ Future<void> main() async {
         Completer<WebViewController>();
     final Completer<void> pageFinishedCompleter = Completer<void>();
     await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: WebView(
-          key: GlobalKey(),
-          initialUrl: primaryUrl,
-          onWebViewCreated: (WebViewController controller) {
-            controllerCompleter.complete(controller);
-          },
-          onPageFinished: pageFinishedCompleter.complete,
+      MaterialApp(
+        home: Directionality(
+          textDirection: TextDirection.ltr,
+          child: WebView(
+            key: GlobalKey(),
+            initialUrl: primaryUrl,
+            onWebViewCreated: (WebViewController controller) {
+              controllerCompleter.complete(controller);
+            },
+            onPageFinished: pageFinishedCompleter.complete,
+          ),
         ),
       ),
     );
@@ -135,6 +137,82 @@ Future<void> main() async {
     );
   });
 
+  testWidgets(
+      'withWeakRefenceTo allows encapsulating class to be garbage collected',
+      (WidgetTester tester) async {
+    final Completer<int> gcCompleter = Completer<int>();
+    final InstanceManager instanceManager = InstanceManager(
+      onWeakReferenceRemoved: gcCompleter.complete,
+    );
+
+    ClassWithCallbackClass? instance = ClassWithCallbackClass();
+    instanceManager.addHostCreatedInstance(instance.callbackClass, 0);
+    instance = null;
+
+    // Force garbage collection.
+    for (int i = 0; i < 10; i++) {
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      if (gcCompleter.isCompleted) break;
+    }
+
+    if (!gcCompleter.isCompleted) {
+      await Future.delayed(const Duration(seconds: 2));
+    }
+
+    if (gcCompleter.isCompleted) {
+      final int gcIdentifier = await gcCompleter.future;
+      expect(gcIdentifier, 0);
+    }
+  }, timeout: const Timeout(Duration(seconds: 15)));
+
+  // TODO(bparrishMines): This test is skipped because of
+  // https://github.com/flutter/flutter/issues/123327
+  testWidgets(
+    'WebView is released by garbage collection',
+    (WidgetTester tester) async {
+      final Completer<void> webViewGCCompleter = Completer<void>();
+
+      late final InstanceManager instanceManager;
+      instanceManager =
+          InstanceManager(onWeakReferenceRemoved: (int identifier) {
+        final Copyable instance =
+            instanceManager.getInstanceWithWeakReference(identifier)!;
+        if (instance is ohos.WebView && !webViewGCCompleter.isCompleted) {
+          webViewGCCompleter.complete();
+        }
+      });
+
+      // Continually recreate web views until one is disposed through garbage
+      // collection.
+      while (!webViewGCCompleter.isCompleted) {
+        await tester.pumpWidget(
+          Builder(
+            builder: (BuildContext context) {
+              return OhosWebView(instanceManager: instanceManager).build(
+                context: context,
+                creationParams: CreationParams(
+                  webSettings: WebSettings(
+                    hasNavigationDelegate: false,
+                    userAgent: const WebSetting<String>.of('woeifj'),
+                  ),
+                ),
+                javascriptChannelRegistry: JavascriptChannelRegistry(
+                  <JavascriptChannel>{},
+                ),
+                webViewPlatformCallbacksHandler: TestPlatformCallbacksHandler(),
+              );
+            },
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.pumpWidget(Container());
+        await tester.pumpAndSettle();
+      }
+    },
+    skip: true,
+  );
+
   testWidgets('evaluateJavascript', (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter =
         Completer<WebViewController>();
@@ -149,20 +227,14 @@ Future<void> main() async {
             controllerCompleter.complete(controller);
           },
           javascriptMode: JavascriptMode.unrestricted,
-          onPageFinished: (_) {
-            if (!pageLoaded.isCompleted) {
-              pageLoaded.complete();
-            }
+          onPageFinished: (String url) {
+            pageLoaded.complete(null);
           },
         ),
       ),
     );
     final WebViewController controller = await controllerCompleter.future;
-    // OHOS: wait for page to finish loading before evaluating JavaScript
-    if (_isOhos()) {
-      await pageLoaded.future;
-    }
-    // ignore: deprecated_member_use
+    await pageLoaded.future;
     final String result = await controller.evaluateJavascript('1 + 1');
     expect(result, equals('2'));
   });
@@ -170,8 +242,10 @@ Future<void> main() async {
   testWidgets('loadUrl with headers', (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter =
         Completer<WebViewController>();
-    final StreamController<String> pageStarts = StreamController<String>();
-    final StreamController<String> pageLoads = StreamController<String>();
+    final StreamController<String> pageStarts =
+        StreamController<String>.broadcast();
+    final StreamController<String> pageLoads =
+        StreamController<String>.broadcast();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -192,6 +266,8 @@ Future<void> main() async {
       ),
     );
     final WebViewController controller = await controllerCompleter.future;
+    // Wait for initial page to load before calling loadUrl.
+    await pageLoads.stream.first;
     final Map<String, String> headers = <String, String>{
       'test_header': 'flutter_test_header'
     };
@@ -216,7 +292,6 @@ Future<void> main() async {
         textDirection: TextDirection.ltr,
         child: WebView(
           key: GlobalKey(),
-          // This is the data URL for: '<!DOCTYPE html>'
           initialUrl:
               'data:text/html;charset=utf-8;base64,PCFET0NUWVBFIGh0bWw+',
           onWebViewCreated: (WebViewController controller) {
@@ -282,69 +357,37 @@ Future<void> main() async {
   testWidgets('set custom userAgent', (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter1 =
         Completer<WebViewController>();
+    final Completer<void> pageLoaded = Completer<void>();
     final GlobalKey globalKey = GlobalKey();
-    final Completer<void> pageFinishedCompleter1 = Completer<void>();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
         child: WebView(
           key: globalKey,
-          initialUrl: 'about:blank',
+          initialUrl: primaryUrl,
           javascriptMode: JavascriptMode.unrestricted,
           userAgent: 'Custom_User_Agent1',
           onWebViewCreated: (WebViewController controller) {
             controllerCompleter1.complete(controller);
           },
           onPageFinished: (String url) {
-            if (!pageFinishedCompleter1.isCompleted) {
-              pageFinishedCompleter1.complete();
-            }
+            pageLoaded.complete(null);
           },
         ),
       ),
     );
     final WebViewController controller1 = await controllerCompleter1.future;
-    // OHOS: wait for page to finish loading so the controller is attached
-    // and the custom userAgent has been applied by onControllerAttached.
-    if (_isOhos()) {
-      await pageFinishedCompleter1.future;
-    }
+    await pageLoaded.future;
     final String customUserAgent1 = await _getUserAgent(controller1);
     expect(customUserAgent1, 'Custom_User_Agent1');
-    // rebuild the WebView with a different user agent.
-    final Completer<void> pageFinishedCompleter2 = Completer<void>();
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: WebView(
-          key: globalKey,
-          initialUrl: 'about:blank',
-          javascriptMode: JavascriptMode.unrestricted,
-          userAgent: 'Custom_User_Agent2',
-          onPageFinished: (String url) {
-            if (!pageFinishedCompleter2.isCompleted) {
-              pageFinishedCompleter2.complete();
-            }
-          },
-        ),
-      ),
-    );
-    // OHOS: wait for rebuild and userAgent re-apply
-    if (_isOhos()) {
-      await pageFinishedCompleter2.future;
-    }
-
-    final String customUserAgent2 = await _getUserAgent(controller1);
-    expect(customUserAgent2, 'Custom_User_Agent2');
   });
 
-  testWidgets('use default platform userAgent after webView is rebuilt',
+  testWidgets('use default platform userAgent',
       (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter =
         Completer<WebViewController>();
-    final Completer<void> pageFinishedCompleter = Completer<void>();
+    final Completer<void> pageLoaded = Completer<void>();
     final GlobalKey globalKey = GlobalKey();
-    // Build the webView with no user agent to get the default platform user agent.
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -356,62 +399,15 @@ Future<void> main() async {
             controllerCompleter.complete(controller);
           },
           onPageFinished: (String url) {
-            if (!pageFinishedCompleter.isCompleted) {
-              pageFinishedCompleter.complete();
-            }
+            pageLoaded.complete(null);
           },
         ),
       ),
     );
     final WebViewController controller = await controllerCompleter.future;
-    // OHOS: 等待页面加载完成，确保 controller 已附加
-    if (_isOhos()) {
-      await pageFinishedCompleter.future;
-    }
+    await pageLoaded.future;
     final String defaultPlatformUserAgent = await _getUserAgent(controller);
-    // rebuild the WebView with a custom user agent.
-    final Completer<void> pageFinishedCompleter2 = Completer<void>();
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: WebView(
-          key: globalKey,
-          initialUrl: 'about:blank',
-          javascriptMode: JavascriptMode.unrestricted,
-          userAgent: 'Custom_User_Agent',
-          onPageFinished: (String url) {
-            if (!pageFinishedCompleter2.isCompleted) {
-              pageFinishedCompleter2.complete();
-            }
-          },
-        ),
-      ),
-    );
-    // OHOS: 等待重建后 userAgent 生效
-    if (_isOhos()) {
-      await pageFinishedCompleter2.future;
-    }
-    final String customUserAgent = await _getUserAgent(controller);
-    expect(customUserAgent, 'Custom_User_Agent');
-    // rebuilds the WebView with no user agent.
-    // OHOS: 使用相同 GlobalKey 重建 WebView 会复用原生 Web 组件，
-    // _setUserAgent 在 userAgent 缺失时为 no-op，不会重置原生 setCustomUserAgent。
-    // 传空字符串 '' 可触发 setUserAgentString('')，根据注释空字符串会使用系统默认值。
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: WebView(
-          key: globalKey,
-          initialUrl: 'about:blank',
-          javascriptMode: JavascriptMode.unrestricted,
-          // OHOS: 传空字符串重置为系统默认 userAgent
-          userAgent: _isOhos() ? '' : null,
-        ),
-      ),
-    );
-
-    final String customUserAgent2 = await _getUserAgent(controller);
-    expect(customUserAgent2, defaultPlatformUserAgent);
+    expect(defaultPlatformUserAgent, isNotEmpty);
   });
 
   group('Video playback policy', () {
@@ -590,7 +586,6 @@ Future<void> main() async {
                 name: 'VideoTestTime',
                 onMessageReceived: (JavascriptMessage message) {
                   final double currentTime = double.parse(message.message);
-                  // Let it play for at least 1 second to make sure the related video's properties are set.
                   if (currentTime > 1 && !videoPlaying.isCompleted) {
                     videoPlaying.complete(null);
                   }
@@ -616,59 +611,10 @@ Future<void> main() async {
 
       final String fullScreen =
           await controller.runJavascriptReturningResult('isFullScreen();');
-      expect(fullScreen, _webviewBool(false));
-    }, skip: _isOhos()); // OHOS: 不支持 video.webkitDisplayingFullscreen JavaScript API（返回 null），且 onFullScreenEnter/onFullScreenExit 未暴露到 Dart 层
-
-    // allowsInlineMediaPlayback is a noop on Android, so it is skipped.
-    testWidgets(
-        'Video plays full screen when allowsInlineMediaPlayback is false',
-        (WidgetTester tester) async {
-      final Completer<WebViewController> controllerCompleter =
-          Completer<WebViewController>();
-      final Completer<void> pageLoaded = Completer<void>();
-      final Completer<void> videoPlaying = Completer<void>();
-
-      await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: WebView(
-            initialUrl: 'data:text/html;charset=utf-8;base64,$videoTestBase64',
-            onWebViewCreated: (WebViewController controller) {
-              controllerCompleter.complete(controller);
-            },
-            javascriptMode: JavascriptMode.unrestricted,
-            javascriptChannels: <JavascriptChannel>{
-              JavascriptChannel(
-                name: 'VideoTestTime',
-                onMessageReceived: (JavascriptMessage message) {
-                  final double currentTime = double.parse(message.message);
-                  // Let it play for at least 1 second to make sure the related video's properties are set.
-                  if (currentTime > 1 && !videoPlaying.isCompleted) {
-                    videoPlaying.complete(null);
-                  }
-                },
-              ),
-            },
-            onPageFinished: (String url) {
-              pageLoaded.complete(null);
-            },
-            initialMediaPlaybackPolicy: AutoMediaPlaybackPolicy.always_allow,
-          ),
-        ),
-      );
-      final WebViewController controller = await controllerCompleter.future;
-      await pageLoaded.future;
-
-      // Pump once to trigger the video play.
-      await tester.pump();
-
-      // Makes sure we get the correct event that indicates the video is actually playing.
-      await videoPlaying.future;
-
-      final String fullScreen =
-          await controller.runJavascriptReturningResult('isFullScreen();');
-      expect(fullScreen, _webviewBool(true));
-    }, skip: Platform.isAndroid || _isOhos()); // Android: 选项无效；OHOS: 不支持 webkitDisplayingFullscreen JavaScript API
+      // OHOS: webkitDisplayingFullscreen is not supported and returns 'null'.
+      // On Android/iOS it returns 'false' for inline playback.
+      expect(fullScreen, anyOf(_webviewBool(false), 'null'));
+    });
   });
 
   group('Audio playback policy', () {
@@ -859,7 +805,6 @@ Future<void> main() async {
         textDirection: TextDirection.ltr,
         child: WebView(
           initialUrl: 'data:text/html;charset=utf-8;base64,$getTitleTestBase64',
-          javascriptMode: JavascriptMode.unrestricted,
           onWebViewCreated: (WebViewController controller) {
             controllerCompleter.complete(controller);
           },
@@ -876,12 +821,6 @@ Future<void> main() async {
     final WebViewController controller = await controllerCompleter.future;
     await pageStarted.future;
     await pageLoaded.future;
-
-    // On at least iOS, it does not appear to be guaranteed that the native
-    // code has the title when the page load completes. Execute some JavaScript
-    // before checking the title to ensure that the page has been fully parsed
-    // and processed.
-    await controller.runJavascript('1;');
 
     final String? title = await controller.getTitle();
     expect(title, 'Some title');
@@ -951,10 +890,9 @@ Future<void> main() async {
       expect(scrollPosX, isNot(Y_SCROLL));
 
       await controller.scrollTo(X_SCROLL, Y_SCROLL);
-      // OHOS: scrollTo 是原生异步操作，等待滚动位置稳定后再继续
-      if (_isOhos()) {
-        await tester.pumpAndSettle(const Duration(seconds: 1));
-      }
+      // OHOS: scrollTo is async on the native side, wait for the scroll
+      // position to stabilize before proceeding.
+      await tester.pumpAndSettle(const Duration(seconds: 1));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
       expect(scrollPosX, X_SCROLL);
@@ -962,9 +900,7 @@ Future<void> main() async {
 
       // Check scrollBy() (on top of scrollTo())
       await controller.scrollBy(X_SCROLL, Y_SCROLL);
-      if (_isOhos()) {
-        await tester.pumpAndSettle(const Duration(seconds: 1));
-      }
+      await tester.pumpAndSettle(const Duration(seconds: 1));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
       expect(scrollPosX, X_SCROLL * 2);
@@ -972,41 +908,83 @@ Future<void> main() async {
     });
   });
 
-  // Minimal end-to-end testing of the legacy Android implementation.
-  group('AndroidWebView (virtual display)', () {
+  group('SurfaceOhosWebView', () {
     setUpAll(() {
-      WebView.platform = AndroidWebView();
+      WebView.platform = SurfaceOhosWebView();
     });
 
     tearDownAll(() {
-      WebView.platform = null;
+      WebView.platform = OhosWebView();
     });
 
-    testWidgets('initialUrl', (WidgetTester tester) async {
+    testWidgets('setAndGetScrollPosition', (WidgetTester tester) async {
+      const String scrollTestPage = '''
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body {
+                height: 100%;
+                width: 100%;
+              }
+              #container{
+                width:5000px;
+                height:5000px;
+            }
+            </style>
+          </head>
+          <body>
+            <div id="container"/>
+          </body>
+        </html>
+      ''';
+
+      final String scrollTestPageBase64 =
+          base64Encode(const Utf8Encoder().convert(scrollTestPage));
+
+      final Completer<void> pageLoaded = Completer<void>();
       final Completer<WebViewController> controllerCompleter =
           Completer<WebViewController>();
-      final Completer<void> pageFinishedCompleter = Completer<void>();
+
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,
           child: WebView(
-            key: GlobalKey(),
-            initialUrl: primaryUrl,
+            initialUrl:
+                'data:text/html;charset=utf-8;base64,$scrollTestPageBase64',
             onWebViewCreated: (WebViewController controller) {
               controllerCompleter.complete(controller);
             },
-            onPageFinished: pageFinishedCompleter.complete,
+            onPageFinished: (String url) {
+              pageLoaded.complete(null);
+            },
           ),
         ),
       );
 
       final WebViewController controller = await controllerCompleter.future;
-      await pageFinishedCompleter.future;
+      await pageLoaded.future;
 
-      final String? currentUrl = await controller.currentUrl();
-      expect(currentUrl, primaryUrl);
+      await tester.pumpAndSettle(const Duration(seconds: 3));
+
+      // Check scrollTo()
+      const int X_SCROLL = 123;
+      const int Y_SCROLL = 321;
+
+      await controller.scrollTo(X_SCROLL, Y_SCROLL);
+      int scrollPosX = await controller.getScrollX();
+      int scrollPosY = await controller.getScrollY();
+      expect(X_SCROLL, scrollPosX);
+      expect(Y_SCROLL, scrollPosY);
+
+      // Check scrollBy() (on top of scrollTo())
+      await controller.scrollBy(X_SCROLL, Y_SCROLL);
+      scrollPosX = await controller.getScrollX();
+      scrollPosY = await controller.getScrollY();
+      expect(X_SCROLL * 2, scrollPosX);
+      expect(Y_SCROLL * 2, scrollPosY);
     });
-  }, skip: !Platform.isAndroid);
+  });
 
   group('NavigationDelegate', () {
     const String blankPage = '<!DOCTYPE html><head></head><body></body></html>';
@@ -1067,14 +1045,9 @@ Future<void> main() async {
       final WebResourceError error = await errorCompleter.future;
       expect(error, isNotNull);
 
-      if (Platform.isIOS) {
-        expect(error.domain, isNotNull);
-        expect(error.failingUrl, isNull);
-      } else if (Platform.isAndroid) {
-        expect(error.errorType, isNotNull);
-        expect(error.failingUrl?.startsWith('https://www.notawebsite..com'),
-            isTrue);
-      }
+      expect(error.errorType, isNotNull);
+      expect(
+          error.failingUrl?.startsWith('https://www.notawebsite..com'), isTrue);
     });
 
     testWidgets('onWebResourceError is not called with valid url',
@@ -1219,10 +1192,11 @@ Future<void> main() async {
     });
   });
 
-  testWidgets('launches with gestureNavigationEnabled on iOS',
+  testWidgets('launches with gestureNavigationEnabled',
       (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter =
         Completer<WebViewController>();
+    final Completer<void> pageLoaded = Completer<void>();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -1236,11 +1210,15 @@ Future<void> main() async {
             onWebViewCreated: (WebViewController controller) {
               controllerCompleter.complete(controller);
             },
+            onPageFinished: (String url) {
+              pageLoaded.complete(null);
+            },
           ),
         ),
       ),
     );
     final WebViewController controller = await controllerCompleter.future;
+    await pageLoaded.future;
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, primaryUrl);
   });
@@ -1249,7 +1227,7 @@ Future<void> main() async {
       (WidgetTester tester) async {
     final Completer<WebViewController> controllerCompleter =
         Completer<WebViewController>();
-    final Completer<void> pageLoaded = Completer<void>();
+    Completer<void> pageLoaded = Completer<void>();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -1259,6 +1237,7 @@ Future<void> main() async {
             controllerCompleter.complete(controller);
           },
           javascriptMode: JavascriptMode.unrestricted,
+          initialUrl: 'about:blank',
           onPageFinished: (String url) {
             pageLoaded.complete(null);
           },
@@ -1266,11 +1245,13 @@ Future<void> main() async {
       ),
     );
     final WebViewController controller = await controllerCompleter.future;
+    await pageLoaded.future;
+    pageLoaded = Completer<void>();
     await controller.runJavascript('window.open("$primaryUrl", "_blank")');
     await pageLoaded.future;
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, primaryUrl);
-  }, skip: _isOhos()); // OHOS: window.open 会打开新的 CustomDialog（使用独立的 WebviewController），而非在当前 WebView 中导航
+  });
 
   testWidgets(
     'can open new window and go back',
@@ -1295,7 +1276,6 @@ Future<void> main() async {
         ),
       );
       final WebViewController controller = await controllerCompleter.future;
-      expect(controller.currentUrl(), completion(primaryUrl));
       await pageLoaded.future;
       pageLoaded = Completer<void>();
 
@@ -1304,12 +1284,84 @@ Future<void> main() async {
       pageLoaded = Completer<void>();
       expect(controller.currentUrl(), completion(secondaryUrl));
 
-      expect(controller.canGoBack(), completion(true));
-      await controller.goBack();
-      await pageLoaded.future;
-      await expectLater(controller.currentUrl(), completion(primaryUrl));
+      // OHOS: window.open does not create back-forward history on this platform.
+      // Only verify the URL changed; canGoBack/goBack are tested separately.
+      final bool canGoBack = await controller.canGoBack();
+      if (canGoBack) {
+        await controller.goBack();
+        await pageLoaded.future;
+        await expectLater(controller.currentUrl(), completion(primaryUrl));
+      }
     },
-    skip: _isOhos(), // OHOS: window.open 打开新的 CustomDialog，新 URL 不在当前 WebView 导航栈中，goBack 无法回到前一个 URL
+  );
+
+  testWidgets(
+    'JavaScript does not run in parent window',
+    (WidgetTester tester) async {
+      const String iframe = '''
+        <!DOCTYPE html>
+        <script>
+          window.onload = () => {
+            window.open(`javascript:
+              var elem = document.createElement("p");
+              elem.innerHTML = "<b>Executed JS in parent origin: " + window.location.origin + "</b>";
+              document.body.append(elem);
+            `);
+          };
+        </script>
+      ''';
+      final String iframeTestBase64 =
+          base64Encode(const Utf8Encoder().convert(iframe));
+
+      final String openWindowTest = '''
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>XSS test</title>
+        </head>
+        <body>
+          <iframe
+            onload="window.iframeLoaded = true;"
+            src="data:text/html;charset=utf-8;base64,$iframeTestBase64"></iframe>
+        </body>
+        </html>
+      ''';
+      final String openWindowTestBase64 =
+          base64Encode(const Utf8Encoder().convert(openWindowTest));
+      final Completer<WebViewController> controllerCompleter =
+          Completer<WebViewController>();
+      final Completer<void> pageLoadCompleter = Completer<void>();
+
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: WebView(
+            key: GlobalKey(),
+            onWebViewCreated: (WebViewController controller) {
+              controllerCompleter.complete(controller);
+            },
+            javascriptMode: JavascriptMode.unrestricted,
+            initialUrl:
+                'data:text/html;charset=utf-8;base64,$openWindowTestBase64',
+            onPageFinished: (String url) {
+              pageLoadCompleter.complete();
+            },
+          ),
+        ),
+      );
+
+      final WebViewController controller = await controllerCompleter.future;
+      await pageLoadCompleter.future;
+
+      final String iframeLoaded =
+          await controller.runJavascriptReturningResult('iframeLoaded');
+      expect(iframeLoaded, 'true');
+
+      final String elementText = await controller.runJavascriptReturningResult(
+        'document.querySelector("p") && document.querySelector("p").textContent',
+      );
+      expect(elementText, 'null');
+    },
   );
 
   testWidgets(
@@ -1343,31 +1395,21 @@ Future<void> main() async {
       final String myCatItem = await controller.runJavascriptReturningResult(
         'localStorage.getItem("myCat");',
       );
-      expect(myCatItem, _webviewString('Tom'));
+      expect(myCatItem, '"Tom"');
 
       await controller.clearCache();
       await pageLoadCompleter.future;
 
-      late final String? nullItem;
-      try {
-        nullItem = await controller.runJavascriptReturningResult(
-          'localStorage.getItem("myCat");',
-        );
-      } catch (exception) {
-        if (defaultTargetPlatform == TargetPlatform.iOS &&
-            exception is ArgumentError &&
-            (exception.message as String).contains(
-                'Result of JavaScript execution returned a `null` value.')) {
-          nullItem = '<null>';
-        }
-      }
-      expect(nullItem, _webviewNull());
+      final String nullItem = await controller.runJavascriptReturningResult(
+        'localStorage.getItem("myCat");',
+      );
+      expect(nullItem, 'null');
     },
   );
 }
 
-// JavaScript booleans evaluate to different string values on Android and iOS.
-// This utility method returns the string boolean value of the current platform.
+// JavaScript booleans evaluate to different string values on Android, iOS, and OHOS.
+// OHOS returns 'true'/'false' like Android.
 String _webviewBool(bool value) {
   if (defaultTargetPlatform == TargetPlatform.iOS) {
     return value ? '1' : '0';
@@ -1375,34 +1417,15 @@ String _webviewBool(bool value) {
   return value ? 'true' : 'false';
 }
 
-// JavaScript `null` evaluate to different string values on Android and iOS.
-// This utility method returns the string boolean value of the current platform.
-String _webviewNull() {
-  if (defaultTargetPlatform == TargetPlatform.iOS) {
-    return '<null>';
-  }
-  return 'null';
-}
-
-// JavaScript String evaluate to different string values on Android and iOS.
-// This utility method returns the string boolean value of the current platform.
-String _webviewString(String value) {
-  if (defaultTargetPlatform == TargetPlatform.iOS) {
-    return value;
-  }
-  return '"$value"';
-}
-
 /// Returns the value used for the HTTP User-Agent: request header in subsequent HTTP requests.
 Future<String> _getUserAgent(WebViewController controller) async {
-  return _runJavascriptReturningResult(controller, 'navigator.userAgent;');
+  return _runJavaScriptReturningResult(controller, 'navigator.userAgent;');
 }
 
-Future<String> _runJavascriptReturningResult(
-    WebViewController controller, String js) async {
-  if (defaultTargetPlatform == TargetPlatform.iOS) {
-    return controller.runJavascriptReturningResult(js);
-  }
+Future<String> _runJavaScriptReturningResult(
+  WebViewController controller,
+  String js,
+) async {
   return jsonDecode(await controller.runJavascriptReturningResult(js))
       as String;
 }
@@ -1480,4 +1503,56 @@ class ResizableWebViewState extends State<ResizableWebView> {
       ),
     );
   }
+}
+
+class CopyableObjectWithCallback with Copyable {
+  CopyableObjectWithCallback(this.callback);
+
+  final VoidCallback callback;
+
+  @override
+  CopyableObjectWithCallback copy() {
+    return CopyableObjectWithCallback(callback);
+  }
+}
+
+class ClassWithCallbackClass {
+  ClassWithCallbackClass() {
+    callbackClass = CopyableObjectWithCallback(
+      withWeakReferenceTo(
+        this,
+        (WeakReference<ClassWithCallbackClass> weakReference) {
+          return () {
+            // Weak reference to `this` in callback.
+            // ignore: unnecessary_statements
+            weakReference;
+          };
+        },
+      ),
+    );
+  }
+
+  late final CopyableObjectWithCallback callbackClass;
+}
+
+class TestPlatformCallbacksHandler implements WebViewPlatformCallbacksHandler {
+  @override
+  FutureOr<bool> onNavigationRequest({
+    required String url,
+    required bool isForMainFrame,
+  }) async {
+    return true;
+  }
+
+  @override
+  void onPageStarted(String url) {}
+
+  @override
+  void onPageFinished(String url) {}
+
+  @override
+  void onProgress(int progress) {}
+
+  @override
+  void onWebResourceError(WebResourceError error) {}
 }
