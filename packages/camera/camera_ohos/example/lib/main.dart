@@ -766,6 +766,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         if (mounted) {
           setState(() {
             _selectedCameraDescription = cameraDescription;
+            // Reset video stabilization mode UI state since the native side
+            // creates a new Camera instance with default stabilization OFF.
+            _currentVideoStabilizationMode = VideoStabilizationMode.off;
           });
         }
         await _cameraErrorSubscription?.cancel();
@@ -830,6 +833,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           CameraLensDirection.front;
       setState(() {
         _selectedCameraDescription = backCamera;
+        // Reset video stabilization mode UI state since the native side
+        // creates a new Camera instance with default stabilization OFF.
+        _currentVideoStabilizationMode = VideoStabilizationMode.off;
       });
       if (wasFront) {
         showInSnackBar(
@@ -852,6 +858,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       if (mounted) {
         setState(() {
           _selectedCameraDescription = backCamera;
+          _currentVideoStabilizationMode = VideoStabilizationMode.off;
         });
       }
       if (!_isRetryingWithRearCamera) {
@@ -894,6 +901,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     if (mounted) {
       setState(() {
         _selectedCameraDescription = cameraDescription;
+        _currentVideoStabilizationMode = VideoStabilizationMode.off;
       });
     }
 
