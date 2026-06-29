@@ -442,7 +442,12 @@ $resultAt != null
                   } else {
                     indent.writeln('final $returnType output = $call;');
                   }
-                  const String returnExpression = 'output';
+                  final String returnExpression =
+                      customEnumNames.contains(func.returnType.baseName)
+                          ? (func.returnType.isNullable
+                              ? 'output?.index'
+                              : 'output.index')
+                          : 'output';
                   final String returnStatement = isMockHandler
                       ? 'return <Object?>[$returnExpression];'
                       : 'return $returnExpression;';

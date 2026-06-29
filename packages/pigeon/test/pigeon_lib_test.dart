@@ -415,6 +415,38 @@ abstract class NestorApi {
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
+  test('ArkTS generator uses pigeons/copyright.txt by default', () {
+    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    final PigeonOptions options = PigeonOptions(
+      input: 'foo.dart',
+      arkTSOut: 'Foo.ets',
+      basePath: 'example/app',
+    );
+    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final StringBuffer buffer = StringBuffer();
+    adapter.generate(buffer, options, root, FileType.na);
+    expect(
+      buffer.toString(),
+      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    );
+  });
+
+  test('ArkTS generator uses built-in copyright when file missing', () {
+    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    final PigeonOptions options = PigeonOptions(
+      input: 'foo.dart',
+      arkTSOut: 'Foo.ets',
+      basePath: 'nonexistent/path',
+    );
+    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final StringBuffer buffer = StringBuffer();
+    adapter.generate(buffer, options, root, FileType.na);
+    expect(
+      buffer.toString(),
+      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    );
+  });
+
   test('Java generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     const PigeonOptions options = PigeonOptions(

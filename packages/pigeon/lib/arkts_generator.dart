@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
+﻿// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -7,6 +7,27 @@ import 'functional.dart';
 import 'generator.dart';
 import 'generator_tools.dart';
 import 'pigeon_lib.dart' show TaskQueueType;
+
+/// Relative path tried under [PigeonOptions.basePath] when no copyright header is
+/// configured for ArkTS generation.
+const String defaultArkTSCopyrightHeaderRelativePath = 'pigeons/copyright.txt';
+
+/// Built-in copyright header for generated ArkTS when no explicit header is
+/// configured and [defaultArkTSCopyrightHeaderRelativePath] is not present.
+const List<String> kDefaultArkTSCopyrightHeader = <String>[
+  'Copyright (C) 2024 Huawei Device Co., Ltd.',
+  'Licensed under the Apache License, Version 2.0 (the "License");',
+  'you may not use this file except in compliance with the License.',
+  'You may obtain a copy of the License at',
+  '',
+  '    http://www.apache.org/licenses/LICENSE-2.0',
+  '',
+  'Unless required by applicable law or agreed to in writing, software',
+  'distributed under the License is distributed on an "AS IS" BASIS,',
+  'WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.',
+  'See the License for the specific language governing permissions and',
+  'limitations under the License.',
+];
 
 /// Documentation open symbol.
 const String _docCommentPrefix = '/*';
@@ -116,7 +137,7 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
         addDocumentationComments(
             indent, member.documentationComments, _docCommentSpec);
         indent.writeln(
-            '${camelToSnake(member.name)}${index == anEnum.members.length - 1 ? '' : ','}');
+            '${camelToSnake(member.name)} = $index${index == anEnum.members.length - 1 ? '' : ','}');
       });
     });
   }
@@ -171,15 +192,52 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
       NamedType field) {
     final HostDatatype hostDatatype = getFieldHostDatatype(field, root.classes,
         root.enums, (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-    indent.writeln('private ${field.name}?: ${hostDatatype.datatype};');
+    final String optionalMarker = field.type.isNullable ? '?' : '';
+    final String getterReturnType = field.type.isNullable
+        ? '${hostDatatype.datatype} | undefined'
+        : hostDatatype.datatype;
+    indent.writeln(
+        'private ${field.name}$optionalMarker: ${hostDatatype.datatype};');
     indent.newln();
-    indent.write('${_makeGetter(field)}(): ${hostDatatype.datatype} | undefined ');
+    indent.write('${_makeGetter(field)}(): $getterReturnType ');
     indent.addScoped('{', '}', () {
       indent.writeln('return this.${field.name};');
     });
   }
 
-  // 构造函数
+  /// ArkTS requires non-optional constructor parameters before optional ones.
+  List<NamedType> _constructorFieldOrder(Class klass) {
+    final List<NamedType> fields =
+        getFieldsInSerializationOrder(klass).toList();
+    return <NamedType>[
+      ...fields.where((NamedType f) => !f.type.isNullable),
+      ...fields.where((NamedType f) => f.type.isNullable),
+    ];
+  }
+
+  /// Nullable Pigeon fields use `name?: type` in the generated constructor.
+  String _arkTSTypeForOmittableConstructorParam(NamedType field) {
+    if (!field.type.isNullable) {
+      return _arkTSTypeForDartType(field.type);
+    }
+    return _arkTSTypeForDartType(
+      TypeDeclaration(
+        baseName: field.type.baseName,
+        isNullable: false,
+        typeArguments: field.type.typeArguments,
+      ),
+    );
+  }
+
+  /// fromList locals for nullable fields may remain undefined before assignment.
+  String _arkTSTypeForFromListLocal(NamedType field) {
+    final String baseType = _arkTSTypeForDartType(field.type);
+    if (field.type.isNullable) {
+      return '$baseType | undefined';
+    }
+    return baseType;
+  }
+
   void _writeClassBuilder(
     ArkTSOptions generatorOptions,
     Root root,
@@ -188,11 +246,14 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
   ) {
     indent.write('constructor');
     final List<String> argSignature = <String>[];
-    if (klass.fields.isNotEmpty) {
-      for (final NamedType element in klass.fields) {
-        final String type = _arkTSTypeForDartType(element.type);
-        final String name = getSafeConstructorArgument(element.name);
-        argSignature.add('$name: $type');
+    for (final NamedType element in _constructorFieldOrder(klass)) {
+      final String name = getSafeConstructorArgument(element.name);
+      if (element.type.isNullable) {
+        argSignature.add(
+          '$name?: ${_arkTSTypeForOmittableConstructorParam(element)}',
+        );
+      } else {
+        argSignature.add('$name: ${_arkTSTypeForDartType(element.type)}');
       }
     }
     indent.add('(${argSignature.join(', ')}) ');
@@ -204,13 +265,6 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     });
   }
 
-  /// 编写dataclass的tolist()方法
-  /// toList(): Object[]{
-  ///	  let arr: Object[] = new Array();
-  ///	  arr.push(field1);
-  ///	  arr.push(field2);
-  ///	  return arr;
-  /// }
   @override
   void writeClassEncode(
     ArkTSOptions generatorOptions,
@@ -222,9 +276,10 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
     required String dartPackageName,
   }) {
     indent.newln();
-    indent.write('toList(): Object[] ');
+    indent.write('toList(): Array<Object | null> ');
     indent.addScoped('{', '}', () {
-      indent.writeln('let arr: Object[] = new Array();');
+      indent.writeln(
+          'let arr: Array<Object | null> = new Array<Object | null>();');
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         final String fieldName = field.name;
         final HostDatatype hostDatatype = getFieldHostDatatype(
@@ -232,30 +287,34 @@ class ArkTSGenerator extends StructuredGenerator<ArkTSOptions> {
             root.classes,
             root.enums,
             (TypeDeclaration x) => _arkTSTypeForBuiltinDartType(x));
-        if (!hostDatatype.isBuiltin &&
-            customClassNames.contains(field.type.baseName)) {
-          indent.writeln('''
+        indent.write(
+          'if (this.$fieldName === undefined || this.$fieldName === null) ',
+        );
+        indent.addScoped('{', '} else {', () {
+          indent.writeln('arr.push(null);');
+        });
+        indent.addScoped(null, '}', () {
+          if (!hostDatatype.isBuiltin &&
+              customClassNames.contains(field.type.baseName)) {
+            indent.writeln('''
 if (this.$fieldName instanceof Array) {
-      arr.push(this.$fieldName);
-    } else {
-      arr.push(this.$fieldName.toList());
-    }''');
-        } else {
-          indent.writeln('''
-if (this.$fieldName !==undefined) {
-      arr.push(this.$fieldName);
-    }''');
-        }
+        arr.push(this.$fieldName);
+      } else {
+        arr.push(this.$fieldName.toList());
+      }''');
+          } else if (!hostDatatype.isBuiltin &&
+              customEnumNames.contains(field.type.baseName)) {
+            indent.writeln(
+                'arr.push(${_enumToWire('this.$fieldName', nullable: field.type.isNullable)});');
+          } else {
+            indent.writeln('arr.push(this.$fieldName);');
+          }
+        });
       }
       indent.writeln('return arr;');
     });
   }
 
-  /// 编写dataclass的fromlist方法
-  /// fromList(arr: Object[]):Class {
-  /// 	let instance: Class = new Class(arr[0] as xxx,arr[1] as  xxx);
-  /// 	return instance;
-  /// }
   @override
   void writeClassDecode(
     ArkTSOptions generatorOptions,
@@ -269,26 +328,79 @@ if (this.$fieldName !==undefined) {
     indent.newln();
     indent.write('static fromList(arr: Object[]): ${klass.name} ');
     indent.addScoped('{', '}', () {
-      indent.write('let instance: ${klass.name} = new ${klass.name}(');
-      for (int i = 0; i < klass.fields.length; i++) {
-        final NamedType field = klass.fields[i];
-        if (customEnumNames.contains(field.type.baseName)) {
-          indent.add(
-              '${field.type.baseName}[${field.type.baseName}[arr[$i] as number]]');
-        } else if (customClassNames.contains(field.type.baseName)) {
-          indent.add('arr[$i] instanceof Array ? ${field.type.baseName}.fromList(arr[$i] as Object[]) : null');
-        } else {
-          final String type = _arkTSTypeForDartType(field.type);
-          indent.add('arr[$i] as $type');
-        }
-        if (i != klass.fields.length - 1) {
-          indent.add(', ');
-        }
+      final List<NamedType> fields =
+          getFieldsInSerializationOrder(klass).toList();
+      enumerate(fields, (int index, NamedType field) {
+        _writeFromListFieldDecode(
+          indent,
+          index: index,
+          field: field,
+          customClassNames: customClassNames,
+          customEnumNames: customEnumNames,
+        );
+      });
+      if (fields.isEmpty) {
+        indent.writeln('return new ${klass.name}();');
+      } else {
+        final String ctorArgs = _constructorFieldOrder(klass)
+            .map((NamedType f) => f.name)
+            .join(', ');
+        indent.writeln('return new ${klass.name}($ctorArgs);');
       }
-      indent.add(');');
-      indent.newln();
-      indent.writeln('return instance;');
     });
+  }
+
+  void _writeFromListFieldDecode(
+    Indent indent, {
+    required int index,
+    required NamedType field,
+    required Set<String> customClassNames,
+    required Set<String> customEnumNames,
+  }) {
+    final String name = field.name;
+    final String arktsType = _arkTSTypeForDartType(field.type);
+    if (customEnumNames.contains(field.type.baseName)) {
+      final String enumName = field.type.baseName;
+      if (field.type.isNullable) {
+        indent.writeln(
+            'let $name: ${_arkTSTypeForFromListLocal(field)} = ${_intToEnum('arr[$index]', enumName, true)};');
+      } else {
+        indent.writeln(
+            'const $name: $arktsType = ${_intToEnum('arr[$index]', enumName, false)};');
+      }
+    } else if (customClassNames.contains(field.type.baseName)) {
+      if (field.type.isNullable) {
+        indent.writeln(
+            'let $name: ${_arkTSTypeForFromListLocal(field)} = undefined;');
+        indent.writeScoped(
+          'if (arr[$index] !== null && arr[$index] !== undefined) {',
+          '}',
+          () {
+            indent.writeln(
+                '$name = ${field.type.baseName}.fromList(arr[$index] as Object[]);');
+          },
+        );
+      } else {
+        indent.writeln(
+            'const $name: $arktsType = ${field.type.baseName}.fromList(arr[$index] as Object[]);');
+      }
+    } else if (field.type.isNullable) {
+      indent.writeln(
+          'let $name: ${_arkTSTypeForFromListLocal(field)} = undefined;');
+      indent.writeScoped(
+        'if (arr[$index] !== null && arr[$index] !== undefined) {',
+        '}',
+        () {
+          indent.writeln('let ${name}Object: Object = arr[$index];');
+          indent.writeln(
+              '$name = ${_cast('${name}Object', artTSType: arktsType)};');
+        },
+      );
+    } else {
+      indent.writeln('let ${name}Object: Object = arr[$index];');
+      indent.writeln(
+          'const $name: $arktsType = ${_cast('${name}Object', artTSType: arktsType)};');
+    }
   }
 
   @override
@@ -309,10 +421,14 @@ if (this.$fieldName !==undefined) {
     indent.write('export class ${api.name} ');
     indent.addScoped('{', '}', () {
       indent.writeln('binaryMessenger: BinaryMessenger;');
+      indent.writeln('private messageChannelSuffix: string;');
       indent.newln();
-      indent.write('constructor(binaryMessenger: BinaryMessenger) ');
+      indent.write(
+          'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\') ');
       indent.addScoped('{', '}', () {
         indent.writeln('this.binaryMessenger = binaryMessenger;');
+        indent.writeln(
+            "this.messageChannelSuffix = messageChannelSuffix !== '' ? '.' + messageChannelSuffix : '';");
       });
 
       indent.newln();
@@ -334,9 +450,8 @@ if (this.$fieldName !==undefined) {
       /// and append `.index` to enums.
       String getEnumSafeArgumentExpression(int count, NamedType argument) {
         if (isEnum(root, argument.type)) {
-          return argument.type.isNullable
-              ? '${_getArgumentName(count, argument)}Arg == null ? null : ${_getArgumentName(count, argument)}Arg.index'
-              : '${_getArgumentName(count, argument)}Arg.index';
+          final String argName = _getArgumentName(count, argument);
+          return _enumToWire('${argName}Arg', nullable: argument.type.isNullable);
         }
         return '${_getArgumentName(count, argument)}Arg';
       }
@@ -345,7 +460,7 @@ if (this.$fieldName !==undefined) {
         final String channelName = makeChannelName(api, func, dartPackageName);
         final String returnType = func.returnType.isVoid
             ? 'void'
-            : _arkTSTypeForDartType(func.returnType);
+            : _arkTSTypeForDartTypeWithNullability(func.returnType);
         String sendArgument;
         addDocumentationComments(
             indent, func.documentationComments, _docCommentSpec);
@@ -353,13 +468,13 @@ if (this.$fieldName !==undefined) {
           indent.write('${func.name}(callback: Reply<$returnType>):void ');
           sendArgument = 'null';
         } else {
-          final Iterable<String> argTypes = func.arguments
-              .map((NamedType e) => _arkTSTypeForDartType(e.type));
+          final Iterable<String> argTypes = func.arguments.map(
+              (NamedType e) => _arkTSTypeForDartTypeWithNullability(e.type));
           final Iterable<String> argNames =
               indexMap(func.arguments, _getSafeArgumentName);
           final Iterable<String> enumSafeArgNames =
               indexMap(func.arguments, getEnumSafeArgumentExpression);
-          sendArgument = '[${argNames.join(', ')}]';
+          sendArgument = '[${enumSafeArgNames.join(', ')}]';
           final String argsSignature =
               map2(argTypes, argNames, (String x, String y) => '$y: $x')
                   .join(',');
@@ -373,7 +488,7 @@ if (this.$fieldName !==undefined) {
             indent.writeln('new BasicMessageChannel<Object>(');
             indent.nest(2, () {
               indent.writeln(
-                  'this.binaryMessenger, "$channelName", ${api.name}.getCodec());');
+                  'this.binaryMessenger, "$channelName" + this.messageChannelSuffix, ${api.name}.getCodec());');
             });
           });
           indent.writeln('$channel.send(');
@@ -385,12 +500,12 @@ if (this.$fieldName !==undefined) {
             } else {
               indent.addScoped('{', '});', () {
                 const String output = 'output';
-                if (func.returnType.baseName == 'number') {
+                if (_isBuiltinNumberType(func.returnType)) {
                   indent.writeln(
-                      'let $output: $returnType = channelReply == null ? null : channelReply as number;');
+                      'let $output: $returnType = ${_numberFromWire('channelReply', func.returnType.isNullable)};');
                 } else if (isEnum(root, func.returnType)) {
                   indent.writeln(
-                      'let $output: $returnType = channelReply == null ? null : $returnType[channelReply as number];');
+                      'let $output: $returnType = ${_intToEnum('channelReply', func.returnType.baseName, func.returnType.isNullable)};');
                 } else {
                   indent.writeln(
                       'let $output: $returnType = ${_cast('channelReply', artTSType: returnType)};');
@@ -455,8 +570,10 @@ if (this.$fieldName !==undefined) {
       indent.writeln(
           '${_docCommentPrefix}Sets up an instance of `${api.name}` to handle messages through the `binaryMessenger`.$_docCommentSuffix');
       indent.write(
-          'static setup(binaryMessenger: BinaryMessenger, api: ${api.name} | null): void ');
+          'static setup(binaryMessenger: BinaryMessenger, api: ${api.name} | null, messageChannelSuffix: string = \'\'): void ');
       indent.addScoped('{', '}', () {
+        indent.writeln(
+            "const separatedMessageChannelSuffix: string = messageChannelSuffix !== '' ? '.' + messageChannelSuffix : '';");
         for (final Method method in api.methods) {
           _writeMethodSetup(
             generatorOptions,
@@ -465,6 +582,7 @@ if (this.$fieldName !==undefined) {
             api,
             method,
             dartPackageName: dartPackageName,
+            channelNameSuffixExpression: 'separatedMessageChannelSuffix',
           );
         }
       });
@@ -481,6 +599,7 @@ if (this.$fieldName !==undefined) {
     Api api,
     final Method method, {
     required String dartPackageName,
+    String channelNameSuffixExpression = "''",
   }) {
     final String channelName = makeChannelName(api, method, dartPackageName);
     indent.write('');
@@ -495,8 +614,8 @@ if (this.$fieldName !==undefined) {
       indent.nest(2, () {
         indent.writeln('new BasicMessageChannel(');
         indent.nest(2, () {
-          indent
-              .write('binaryMessenger, "$channelName", ${api.name}.getCodec()');
+          indent.write(
+              'binaryMessenger, \'$channelName\' + $channelNameSuffixExpression, ${api.name}.getCodec()');
           indent.addln(');');
         });
       });
@@ -504,20 +623,24 @@ if (this.$fieldName !==undefined) {
       indent.addScoped('{', '} else {', () {
         indent.writeln('channel.setMessageHandler({');
         indent.nest(2, () {
-          indent.write('onMessage(message: Object ,reply: Reply<Object> ) ');
+          indent.write('onMessage(message: Object, reply: Reply<Object>) ');
           indent.addScoped('{', '} });', () {
             String enumTag = '';
             final String returnType = method.returnType.isVoid
                 ? 'void'
-                : _arkTSTypeForDartType(method.returnType);
+                : _arkTSTypeForDartTypeWithNullability(method.returnType);
             final List<String> methodArgument = <String>[];
             if (method.arguments.isNotEmpty) {
               indent.writeln(
                   'let args: Array<Object> = message as Array<Object>;');
               enumerate(method.arguments, (int index, NamedType arg) {
-                final String argExpression =
-                    'args[$index] as ${_arkTSTypeForDartType(arg.type)}';
-                methodArgument.add(argExpression);
+                if (isEnum(root, arg.type)) {
+                  methodArgument.add(
+                      _intToEnum('args[$index]', arg.type.baseName, arg.type.isNullable));
+                } else {
+                  methodArgument.add(
+                      'args[$index] as ${_arkTSTypeForDartTypeWithNullability(arg.type)}');
+                }
               });
             }
             if (method.isAsynchronous) {
@@ -525,15 +648,15 @@ if (this.$fieldName !==undefined) {
                   method.returnType.isVoid ? 'null' : 'result';
               if (isEnum(root, method.returnType)) {
                 enumTag = method.returnType.isNullable
-                    ? ' == null ? null : $resultValue.index'
-                    : '.index';
+                    ? ' === undefined || $resultValue === null ? null : ${_enumToWire(resultValue, nullable: false)}'
+                    : ' as number';
               }
               const String resultName = 'resultCallback';
               indent.format('''
 class ResultImp implements Result<$returnType>{
 \t\t\tsuccess(result: $returnType): void {
 \t\t\t\tlet res: Array<Object> = [];
-\t\t\t\tres.push($resultValue);
+\t\t\t\tres.push($resultValue$enumTag);
 \t\t\t\treply.reply(res);
 \t\t\t}
 
@@ -558,18 +681,21 @@ let $resultName: Result<$returnType> = new ResultImp();
               // indent.writeln('reply.reply(res);');
 
               indent.writeln('let res: Array<Object> = [];');
-              indent.write('try ');
-              indent.addScoped('{', '}', () {
+              indent.writeScoped('try {', '} catch (error) {', () {
                 if (method.returnType.isVoid) {
                   indent.writeln('$call;');
                   indent.writeln('res.push(null);');
                 } else {
                   indent.writeln('let output: $returnType = $call;');
-                  indent.writeln('res.push(output);');
+                  if (isEnum(root, method.returnType)) {
+                    indent.writeln(
+                        'res.push(${_enumToWire('output', nullable: method.returnType.isNullable)});');
+                  } else {
+                    indent.writeln('res.push(output);');
+                  }
                 }
               });
-              indent.add(' catch (error) ');
-              indent.addScoped('{', '}', () {
+              indent.addScoped(null, '}', () {
                 indent.writeln(
                     'let wrappedError: Array<Object> = wrapError(error);');
                 if (method.isAsynchronous) {
@@ -622,9 +748,7 @@ let $resultName: Result<$returnType> = new ResultImp();
         });
       });
       indent.newln();
-      // todo 这里的解析，要更精确一点
-      indent
-          .write('writeValue(stream: ByteBuffer, value: ESObject): ESObject ');
+      indent.write('writeValue(stream: ByteBuffer, value: ESObject): ESObject ');
       indent.addScoped('{', '}', () {
         bool firstClass = true;
         for (final EnumeratedClass customClass in codecClasses) {
@@ -655,23 +779,23 @@ let $resultName: Result<$returnType> = new ResultImp();
       Indent indent, Api api, final Method method) {
     final String returnType = method.isAsynchronous
         ? 'void'
-        : _arkTSTypeForDartType(method.returnType);
+        : _arkTSTypeForDartTypeWithNullability(method.returnType);
 
     final List<String> argSignature = <String>[];
     if (method.arguments.isNotEmpty) {
-      final Iterable<String> argTypes =
-          method.arguments.map((NamedType e) => _arkTSTypeForDartType(e.type));
+      final Iterable<String> argTypes = method.arguments
+          .map((NamedType e) => _arkTSTypeForDartTypeWithNullability(e.type));
       final Iterable<String> argNames =
           method.arguments.map((NamedType e) => e.name);
       argSignature
           .addAll(map2(argTypes, argNames, (String argType, String argName) {
-        return '$argName: $argType ';
+        return '$argName: $argType';
       }));
     }
     if (method.isAsynchronous) {
       final String resultType = method.returnType.isVoid
           ? 'void'
-          : _arkTSTypeForDartType(method.returnType);
+          : _arkTSTypeForDartTypeWithNullability(method.returnType);
       argSignature.add('result: Result<$resultType>');
     }
     if (method.documentationComments.isNotEmpty) {
@@ -687,9 +811,9 @@ let $resultName: Result<$returnType> = new ResultImp();
   void _writeResultInterface(Indent indent) {
     indent.write('export interface Result<T> ');
     indent.addScoped('{', '}', () {
-      indent.writeln('success( result: T ): void;');
+      indent.writeln('success(result: T): void;');
       indent.newln();
-      indent.writeln('error( error: Error): void;');
+      indent.writeln('error(error: Error): void;');
     });
   }
 
@@ -711,8 +835,8 @@ let $resultName: Result<$returnType> = new ResultImp();
       indent.writeln('public stack?: string;');
       indent.newln();
       indent.writeln(
-          'constructor(code: string, name: string,  message: string, stack: string) ');
-      indent.writeScoped('{', '}', () {
+          'constructor(code: string, name: string, message: string, stack: string) ');
+      indent.addScoped('{', '}', () {
         indent.writeln('this.code = code;');
         indent.writeln('this.name = name;');
         indent.writeln('this.message = message;');
@@ -764,12 +888,33 @@ getByte(n: number): number {
   /// Calculates the name of the codec that will be generated for [api].
   String _getCodecName(Api api) => '${api.name}Codec';
 
-  /// Converts an expression that evaluates to an nullable int to an expression
-  /// that evaluates to a nullable enum.
+  /// Converts an expression that evaluates to an int on the wire to an enum.
+  ///
+  /// Numeric enums in ArkTS/TypeScript must not use `EnumName[index]` for
+  /// decoding: that reverse-lookup returns the member name string, not the
+  /// enum value. Pigeon sends enum indices on the wire, so cast directly.
   String _intToEnum(String expression, String enumName, bool nullable) =>
       nullable
-          ? '$expression == null ? null : $enumName.values()[$expression]'
-          : '$enumName.values()[$expression]';
+          ? '$expression == null || $expression === undefined ? undefined : $expression as number as $enumName'
+          : '$expression as number as $enumName';
+
+  /// Converts an enum to its int index for the Pigeon wire format.
+  String _enumToWire(String expression, {required bool nullable}) =>
+      nullable
+          ? '$expression === undefined || $expression === null ? null : $expression as number'
+          : '$expression as number';
+
+  /// Whether [type] is a Dart primitive that maps to ArkTS `number`.
+  bool _isBuiltinNumberType(TypeDeclaration type) =>
+      _arkTSTypeForBuiltinDartType(type) == 'number';
+
+  /// Converts a codec reply value to a number for FlutterApi callbacks.
+  ///
+  /// Nullable Dart int/double maps to `number | undefined` in ArkTS; use
+  /// `undefined` rather than `null` for absent values.
+  String _numberFromWire(String expression, bool nullable) => nullable
+      ? '$expression == null || $expression === undefined ? undefined : $expression as number'
+      : '$expression as number';
 
   String _getArgumentName(int count, NamedType argument) =>
       argument.name.isEmpty ? 'arg$count' : argument.name;
@@ -798,6 +943,11 @@ getByte(n: number): number {
 
   String _arkTSTypeForDartType(TypeDeclaration type) {
     return _arkTSTypeForBuiltinDartType(type) ?? type.baseName;
+  }
+
+  String _arkTSTypeForDartTypeWithNullability(TypeDeclaration type) {
+    final String baseType = _arkTSTypeForDartType(type);
+    return type.isNullable ? '$baseType | undefined' : baseType;
   }
 
   /// Converts a [List] of [TypeDeclaration]s to a comma separated [String] to be
@@ -829,6 +979,7 @@ getByte(n: number): number {
       'Int32List': 'number[]',
       'Int64List': 'number[]',
       'Float64List': 'number[]',
+      'Float32List': 'number[]',
       'Object': 'Object',
     };
     if (arkTSTypeForDartTypeMap.containsKey(type.baseName)) {
