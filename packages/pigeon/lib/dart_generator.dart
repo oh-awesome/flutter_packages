@@ -162,8 +162,16 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
     addDocumentationComments(
         indent, classDefinition.documentationComments, _docCommentSpec);
 
-    indent.write('class ${classDefinition.name} ');
+    final String sealed = classDefinition.isSealed ? 'sealed ' : '';
+    final String extendsClause = classDefinition.superClassName != null
+        ? 'extends ${classDefinition.superClassName} '
+        : '';
+
+    indent.write('${sealed}class ${classDefinition.name} $extendsClause');
     indent.addScoped('{', '}', () {
+      if (getFieldsInSerializationOrder(classDefinition).isEmpty) {
+        return;
+      }
       _writeConstructor(indent, classDefinition);
       indent.newln();
       for (final NamedType field
@@ -194,10 +202,15 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
   }
 
   void _writeConstructor(Indent indent, Class classDefinition) {
+    final List<NamedType> fields =
+        getFieldsInSerializationOrder(classDefinition).toList();
+    if (fields.isEmpty) {
+      indent.writeln('${classDefinition.name}();');
+      return;
+    }
     indent.write(classDefinition.name);
     indent.addScoped('({', '});', () {
-      for (final NamedType field
-          in getFieldsInSerializationOrder(classDefinition)) {
+      for (final NamedType field in fields) {
         final String required =
             !field.type.isNullable && field.defaultValue == null
                 ? 'required '
@@ -271,8 +284,8 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
         enumerate(getFieldsInSerializationOrder(classDefinition),
             (int index, final NamedType field) {
           indent.write('${field.name}: ');
-            writeValueDecode(field, index);
-            indent.addln(',');
+          writeValueDecode(field, index);
+          indent.addln(',');
         });
       });
     });
@@ -285,8 +298,12 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
     Indent indent, {
     required String dartPackageName,
   }) {
-    void writeEncodeLogic(EnumeratedType customType) {
-      indent.writeScoped('if (value is ${customType.name}) {', '} else ', () {
+    void writeEncodeLogic(
+      int index,
+      EnumeratedType customType, {
+      required bool isLast,
+    }) {
+      void writeBody() {
         if (customType.enumeration < maximumCodecFieldKey) {
           indent.writeln('buffer.putUint8(${customType.enumeration});');
           if (customType.type == CustomTypes.customClass) {
@@ -303,7 +320,21 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
           indent.writeln('buffer.putUint8($maximumCodecFieldKey);');
           indent.writeln('writeValue(buffer, wrap.encode());');
         }
-      }, addTrailingNewline: false);
+      }
+
+      if (index == 0) {
+        indent.writeScoped('if (value is ${customType.name}) {',
+            isLast ? '} else ' : '} ', () {
+          writeBody();
+        }, addTrailingNewline: false);
+      } else {
+        indent.add('else if (value is ${customType.name}) {');
+        indent.newln();
+        indent.nest(1, () {
+          writeBody();
+        });
+        indent.write(isLast ? '} else ' : '} ');
+      }
     }
 
     void writeDecodeLogic(EnumeratedType customType) {
@@ -330,8 +361,10 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
         _overflowClassName, maximumCodecFieldKey, CustomTypes.customClass);
 
     indent.newln();
-    final List<EnumeratedType> enumeratedTypes =
-        getEnumeratedTypes(root).toList();
+    final List<EnumeratedType> enumeratedTypes = getEnumeratedTypes(
+      root,
+      excludeSealedClasses: true,
+    ).toList();
     if (root.requiresOverflowClass) {
       _writeCodecOverflowUtilities(indent, enumeratedTypes);
     }
@@ -345,7 +378,11 @@ class DartGenerator extends StructuredGenerator<DartOptions> {
         indent.addScoped('{', '}', () {
           enumerate(enumeratedTypes,
               (int index, final EnumeratedType customType) {
-            writeEncodeLogic(customType);
+            writeEncodeLogic(
+              index,
+              customType,
+              isLast: index == enumeratedTypes.length - 1,
+            );
           });
           indent.addScoped('{', '}', () {
             indent.writeln('super.writeValue(buffer, value);');
