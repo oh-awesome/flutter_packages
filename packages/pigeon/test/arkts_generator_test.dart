@@ -4,6 +4,8 @@
 
 import 'package:pigeon/src/ast.dart';
 import 'package:pigeon/src/arkts/arkts_generator.dart';
+import 'package:pigeon/src/generator_tools.dart';
+import 'package:pigeon/src/types/task_queue.dart';
 import 'package:test/test.dart';
 
 const String DEFAULT_PACKAGE_NAME = 'test_package';
@@ -51,35 +53,54 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: number;'));
-    expect(code, contains('toList(): (Object | null)[]'));
-    expect(code, contains('let arr: (Object | null)[] = [];'));
-    expect(
-      code,
-      contains(
-        'arr.push(this.field1 !== undefined ? this.field1 : null);',
-      ),
-    );
-    expect(code, contains('static fromList(arr: (Object | null)[]): Foobar'));
+    expect(code, contains('toList(): Array<Object | null>'));
+    expect(code, contains('static fromList(arr: Object[]): Foobar'));
   });
 
-  test('gen class with non-nullable and nullable fields', () {
+  test('data class distinguishes required and nullable fields', () {
+    final codeEnum = Enum(
+      name: 'Code',
+      members: <EnumMember>[
+        EnumMember(name: 'one'),
+        EnumMember(name: 'two'),
+      ],
+    );
     final classDefinition = Class(
-      name: 'FDMNFCVerifyResponse',
+      name: 'MessageData',
       fields: <NamedType>[
         NamedType(
-          type: const TypeDeclaration(baseName: 'String', isNullable: false),
-          name: 'code',
+          type: const TypeDeclaration(baseName: 'String', isNullable: true),
+          name: 'name',
         ),
         NamedType(
           type: const TypeDeclaration(baseName: 'String', isNullable: true),
-          name: 'message',
+          name: 'description',
+        ),
+        NamedType(
+          type: TypeDeclaration(
+            baseName: 'Code',
+            associatedEnum: codeEnum,
+            isNullable: false,
+          ),
+          name: 'code',
+        ),
+        NamedType(
+          type: const TypeDeclaration(
+            baseName: 'Map',
+            isNullable: false,
+            typeArguments: <TypeDeclaration>[
+              TypeDeclaration(baseName: 'String', isNullable: false),
+              TypeDeclaration(baseName: 'String', isNullable: false),
+            ],
+          ),
+          name: 'data',
         ),
       ],
     );
     final root = Root(
       apis: <Api>[],
       classes: <Class>[classDefinition],
-      enums: <Enum>[],
+      enums: <Enum>[codeEnum],
     );
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
@@ -91,17 +112,263 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains('private code: string;'));
-    expect(code, contains('private message?: string;'));
-    expect(code, contains('setMessage(message:string | undefined):void'));
-    expect(code, contains('getCode(): string'));
-    expect(code, contains('getMessage(): string | undefined'));
-    expect(code, contains('constructor(code: string, message?: string)'));
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(code, contains('private name?: string;'));
+    expect(code, contains('private description?: string;'));
+    expect(code, contains('private code: Code;'));
+    expect(code, contains('private data: Map<string, string>;'));
+    expect(code, contains('getName(): string | undefined {'));
+    expect(code, contains('getCode(): Code {'));
     expect(
       code,
-      contains('static fromList(arr: (Object | null)[]): FDMNFCVerifyResponse'),
+      contains(
+        'constructor(code: Code, data: Map<string, string>, name?: string, description?: string)',
+      ),
     );
-    expect(code, contains('return new FDMNFCVerifyResponse(code, message);'));
+    expect(code, contains('public setName(name: string | undefined): void'));
+    // Nullable fields guard before decode; required fields decode directly.
+    expect(
+      collapsed,
+      contains(
+        'let name: string | undefined = undefined; if (arr[0] !== null && arr[0] !== undefined) { let nameObject: Object = arr[0]; name = nameObject as string | undefined; }',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'const codeStr: string = arr[2] as string; const code: Code = Code[codeStr];',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'let dataObject: Object = arr[3]; const data: Map<string, string> = dataObject as Map<string, string>; return new MessageData(code, data, name, description);',
+      ),
+    );
+    expect(collapsed, isNot(contains('string | undefined | undefined')));
+  });
+
+  test(
+    'Dart String? field maps to omit-able constructor and nullable setter',
+    () {
+      final root = Root(
+        apis: <Api>[],
+        classes: <Class>[
+          Class(
+            name: 'Record',
+            fields: <NamedType>[
+              NamedType(
+                name: 'id',
+                type: const TypeDeclaration(baseName: 'int', isNullable: false),
+              ),
+              NamedType(
+                name: 'label',
+                type: const TypeDeclaration(
+                  baseName: 'String',
+                  isNullable: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+        enums: <Enum>[],
+      );
+      final sink = StringBuffer();
+      const generator = ArkTSGenerator();
+      generator.generate(
+        const InternalArkTSOptions(arkTSOut: ''),
+        root,
+        sink,
+        dartPackageName: DEFAULT_PACKAGE_NAME,
+      );
+      final code = sink.toString();
+
+      // Dart `{this.label}` for `String? label`: omit-able + nullable.
+      expect(code, contains('constructor(id: number, label?: string)'));
+      expect(code, contains('private label?: string;'));
+      expect(code, contains('getLabel(): string | undefined'));
+      expect(
+        code,
+        contains('public setLabel(label: string | undefined): void'),
+      );
+    },
+  );
+
+  test('nullable enum fromList local uses single | undefined', () {
+    final testEnum = Enum(
+      name: 'TestEnum',
+      members: <EnumMember>[EnumMember(name: 'head')],
+    );
+    final classDefinition = Class(
+      name: 'WithEnum',
+      fields: <NamedType>[
+        NamedType(
+          type: TypeDeclaration(
+            baseName: 'TestEnum',
+            associatedEnum: testEnum,
+            isNullable: true,
+          ),
+          name: 'head',
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[classDefinition],
+      enums: <Enum>[testEnum],
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(code, contains('constructor(head?: TestEnum)'));
+    expect(
+      collapsed,
+      contains(
+        'let head: TestEnum | undefined = undefined; if (arr[0] !== null && arr[0] !== undefined) { const headStr: string = arr[0] as string; head = TestEnum[headStr]; }',
+      ),
+    );
+    expect(collapsed, isNot(contains('TestEnum | undefined | undefined')));
+  });
+
+  test('nullable Dart types map to ArkTS optional semantics by API kind', () {
+    final identity = Enum(
+      name: 'Identity',
+      members: <EnumMember>[EnumMember(name: 'student')],
+    );
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'DemoHostApi',
+          methods: <Method>[
+            Method(
+              name: 'sendNull',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'Object',
+                isNullable: true,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: const TypeDeclaration(
+                    baseName: 'Object',
+                    isNullable: true,
+                  ),
+                ),
+              ],
+            ),
+            Method(
+              name: 'sendNullableEnum',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'DemoFlutterApi',
+          methods: <Method>[
+            Method(
+              name: 'platformEchoNullableEnum',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'value',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[
+        Class(
+          name: 'MessageData',
+          fields: <NamedType>[
+            NamedType(
+              name: 'code',
+              type: const TypeDeclaration(baseName: 'int', isNullable: false),
+            ),
+            NamedType(
+              name: 'name',
+              type: const TypeDeclaration(baseName: 'String', isNullable: true),
+            ),
+          ],
+        ),
+      ],
+      enums: <Enum>[identity],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Data class: nullable fields become omit-able constructor params (`?`).
+    expect(code, contains('constructor(code: number, name?: string)'));
+    expect(code, contains('public setName(name: string | undefined): void'));
+    expect(code, isNot(contains('constructor(name?: string, code:')));
+
+    // HostApi / FlutterApi: nullable means `| undefined` on the type; params are
+    // still required at the call site (Pigeon always passes every slot).
+    expect(
+      code,
+      contains(
+        'abstract sendNull(data: Object | undefined): Object | undefined;',
+      ),
+    );
+    expect(
+      code,
+      contains(
+        'abstract sendNullableEnum(data: Identity | undefined): Identity | undefined;',
+      ),
+    );
+    expect(
+      code,
+      contains(
+        'platformEchoNullableEnum(valueArg: Identity | undefined, callback: Reply<Identity | undefined>)',
+      ),
+    );
+    expect(collapsed, isNot(contains('sendNull(data?:')));
+    expect(collapsed, isNot(contains('sendNullableEnum(data?:')));
+    expect(collapsed, isNot(contains('platformEchoNullableEnum(valueArg?:')));
   });
 
   test('gen one enum', () {
@@ -129,7 +396,10 @@ void main() {
     expect(code, contains('TWO_THREE_FOUR,'));
     expect(code, contains('REMOTE_DB'));
     expect(code, contains('export class FoobarEnum'));
-    expect(code, contains('index: string|null = null;'));
+    expect(code, contains('index: string | null = null;'));
+    expect(code, contains('constructor(index: string) {'));
+    expect(code, isNot(contains('string|null')));
+    expect(code, isNot(contains('constructor(index: string){')));
   });
 
   test('gen one host api', () {
@@ -194,10 +464,15 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('export abstract class Api'));
-    expect(code, contains('abstract doSomething(: Input ): Output;'));
-    expect(code, contains('static setup(binaryMessenger: BinaryMessenger, api: Api | null): void'));
+    expect(code, contains('abstract doSomething(: Input): Output;'));
+    expect(
+      code,
+      contains(
+        'static setup(binaryMessenger: BinaryMessenger, api: Api | null, messageChannelSuffix: string = \'\')',
+      ),
+    );
     expect(code, contains('channel.setMessageHandler(null)'));
-    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
+    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
   });
 
   test('gen one flutter api', () {
@@ -262,7 +537,12 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export class Api'));
     expect(code, contains('binaryMessenger: BinaryMessenger;'));
-    expect(code, contains('constructor(binaryMessenger: BinaryMessenger)'));
+    expect(
+      code,
+      contains(
+        'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\')',
+      ),
+    );
     expect(code, contains('doSomething'));
     expect(code, contains('Input'));
     expect(code, contains('Output'));
@@ -312,7 +592,10 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'input',
                 ),
               ],
@@ -348,7 +631,10 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.host,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -380,7 +666,10 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.flutter,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -568,9 +857,12 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('export interface Result<T>'));
-    expect(code, contains('abstract doSomething(: Input , result: Result<Output>): void;'));
-    expect(code, contains('success( result: T ): void;'));
-    expect(code, contains('error( error: Error): void;'));
+    expect(
+      code,
+      contains('abstract doSomething(: Input, result: Result<Output>): void;'),
+    );
+    expect(code, contains('success(result: T): void;'));
+    expect(code, contains('error(error: Error): void;'));
   });
 
   test('gen one async Flutter Api', () {
@@ -678,16 +970,7 @@ void main() {
     expect(code, contains('export enum Foo'));
     expect(code, contains('export class Bar'));
     expect(code, contains('private field1: Foo;'));
-    expect(code, contains('getField1(): Foo'));
     expect(code, contains('constructor(field1: Foo)'));
-    expect(code, contains('const field1Str = Foo[this.field1 as number];'));
-    expect(code, contains('arr.push(new FooEnum(field1Str));'));
-    expect(code, contains('arr.push(null);'));
-    expect(code, contains('static fromList(arr: (Object | null)[]): Bar'));
-    expect(code, contains('let field1Raw: Object | null = arr[0];'));
-    expect(code, contains('const field1Str: string = field1Raw as string;'));
-    expect(code, contains('let field1: Foo = Foo[field1Str];'));
-    expect(code, contains('return new Bar(field1);'));
     expect(code, contains('export class FooEnum'));
   });
 
@@ -821,19 +1104,31 @@ void main() {
               location: ApiLocation.host,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   name: 'arg2',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'bool', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'bool',
+                    isNullable: false,
+                  ),
                   name: 'arg3',
                 ),
               ],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -869,15 +1164,24 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'String',
+                    isNullable: false,
+                  ),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
+                  type: const TypeDeclaration(
+                    baseName: 'int',
+                    isNullable: false,
+                  ),
                   name: 'arg2',
                 ),
               ],
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
             ),
           ],
         ),
@@ -902,10 +1206,7 @@ void main() {
   });
 
   test('copyright header', () {
-    final classDefinition = Class(
-      name: 'Foobar',
-      fields: <NamedType>[],
-    );
+    final classDefinition = Class(name: 'Foobar', fields: <NamedType>[]);
     final root = Root(
       apis: <Api>[],
       classes: <Class>[classDefinition],
@@ -931,11 +1232,7 @@ void main() {
   });
 
   test('imports', () {
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[],
-      enums: <Enum>[],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
@@ -946,21 +1243,41 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains("import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';"));
-    expect(code, contains("import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';"));
-    expect(code, contains("import { BinaryMessenger,TaskQueue } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';"));
-    expect(code, contains("import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';"));
-    expect(code, contains("import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';"));
+    expect(
+      code,
+      contains(
+        "import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';",
+      ),
+    );
+    expect(
+      code,
+      contains(
+        "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';",
+      ),
+    );
   });
 
   test('codec class', () {
     final root = Root(
-      apis: <Api>[
-        AstHostApi(
-          name: 'Api',
-          methods: <Method>[],
-        ),
-      ],
+      apis: <Api>[AstHostApi(name: 'Api', methods: <Method>[])],
       classes: <Class>[],
       enums: <Enum>[],
       containsHostApi: true,
@@ -975,10 +1292,137 @@ void main() {
       dartPackageName: DEFAULT_PACKAGE_NAME,
     );
     final code = sink.toString();
-    expect(code, contains('export class PigeonCodec extends StandardMessageCodec'));
-    expect(code, contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'));
-    expect(code, contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'));
-    expect(code, contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'));
+    expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
+    expect(
+      code,
+      contains('static readonly INSTANCE: PigeonCodec = new PigeonCodec();'),
+    );
+    expect(
+      code,
+      contains('readValueOfType(type: number, buffer: ByteBuffer): ESObject'),
+    );
+    expect(
+      code,
+      contains('writeValue(stream: ByteBuffer, value: ESObject): ESObject'),
+    );
+  });
+
+  test('codec overflow utilities use ArkTS syntax', () {
+    // Enums are enumerated before classes, so use 127 enums + 1 class to
+    // force both enum and class decode paths into unwrap().
+    final List<Enum> enums = List<Enum>.generate(
+      totalCustomCodecKeysAllowed + 1,
+      (int i) => Enum(
+        name: 'OverflowEnum$i',
+        members: <EnumMember>[EnumMember(name: 'one')],
+      ),
+    );
+    final Class overflowClass = Class(
+      name: 'OverflowClass',
+      fields: <NamedType>[
+        NamedType(
+          name: 'value',
+          type: const TypeDeclaration(baseName: 'int', isNullable: false),
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[AstHostApi(name: 'Api', methods: <Method>[])],
+      classes: <Class>[overflowClass],
+      enums: enums,
+      containsHostApi: true,
+    );
+    expect(root.requiresOverflowClass, isTrue);
+
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(
+      code,
+      contains('private static final class PigeonInternalCodecOverflow'),
+    );
+    expect(
+      collapsed,
+      contains(
+        'static fromList(list: Object[]): Object | null { const wrapper: PigeonInternalCodecOverflow = new PigeonInternalCodecOverflow(); wrapper.setType(list[0] as number); wrapper.setWrapped(list[1]); return wrapper.unwrap(); }',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'case 0: return OverflowEnum${totalCustomCodecKeysAllowed}[this.wrapped as string];',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'case 1: return OverflowClass.fromList(this.wrapped as Object[]);',
+      ),
+    );
+    expect(code, isNot(contains('ArrayList<Object>')));
+    expect(code, isNot(contains('@Nullable')));
+    expect(code, isNot(contains('.values()')));
+  });
+
+  test('nullable custom enum types use | undefined in HostApi signatures', () {
+    final identity = Enum(
+      name: 'Identity',
+      members: <EnumMember>[EnumMember(name: 'student')],
+    );
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'sendNullableEnum',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[identity],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(
+      code,
+      contains(
+        'abstract sendNullableEnum(data: Identity | undefined): Identity | undefined;',
+      ),
+    );
   });
 
   test('error class', () {
@@ -990,7 +1434,10 @@ void main() {
             Method(
               name: 'test',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
+              returnType: const TypeDeclaration(
+                baseName: 'String',
+                isNullable: false,
+              ),
               parameters: <Parameter>[],
             ),
           ],
@@ -1014,6 +1461,170 @@ void main() {
     expect(code, contains('public code: string;'));
     expect(code, contains('public name: string;'));
     expect(code, contains('public message: string;'));
-    expect(code, contains('function wrapError(error: Error): Array<Object>'));
+    expect(
+      code,
+      contains('function wrapError(error: Error): Array<Object | null>'),
+    );
+  });
+
+  test('messageChannelSuffix on HostApi and FlutterApi', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Host',
+          methods: <Method>[
+            Method(
+              name: 'doit',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'Flutter',
+          methods: <Method>[
+            Method(
+              name: 'callback',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+      containsFlutterApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(
+      code,
+      contains(
+        'static setup(binaryMessenger: BinaryMessenger, api: Host | null, messageChannelSuffix: string = \'\')',
+      ),
+    );
+    expect(code, contains('separatedMessageChannelSuffix'));
+    expect(
+      code,
+      contains(
+        'constructor(binaryMessenger: BinaryMessenger, messageChannelSuffix: string = \'\')',
+      ),
+    );
+    expect(code, contains('this.messageChannelSuffix'));
+  });
+
+  test('TaskQueue serialBackgroundThread uses 3-arg BasicMessageChannel', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'doit',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[],
+              taskQueueType: TaskQueueType.serialBackgroundThread,
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, isNot(contains('makeBackgroundTaskQueue()')));
+    expect(code, contains('Api.getCodec())'));
+  });
+
+  test('EventChannelApi scaffold', () {
+    final root = Root(
+      apis: <Api>[
+        AstEventChannelApi(
+          name: 'Events',
+          methods: <Method>[
+            Method(
+              name: 'streamInts',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsEventChannel: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('import StandardMethodCodec'));
+    expect(code, contains('EventChannel'));
+    expect(code, contains('PigeonMethodChannelCodec'));
+    expect(code, contains('StreamIntsStreamHandler'));
+    expect(code, contains('static register(binaryMessenger: BinaryMessenger'));
+  });
+
+  test('Float32List maps to number[]', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'send',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'Float32List',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('send(): number[]'));
   });
 }
