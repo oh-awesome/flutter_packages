@@ -1,5 +1,8 @@
 ## 25.5.0
 
+* [arkts] Ports full OpenHarmony ArkTS code generator from pigeon 26.3.4 OHOS branch,
+  including `@ProxyApi`, `@EventChannelApi`, `messageChannelSuffix`, and `Float32List` support.
+* [arkts] Adds OHOS example app pigeonTest harness for on-device QA (HostApi/FlutterApi/ProxyApi).
 * [dart] Changes the default InstanceManager and its initialization to no longer make a message call
   when used in a Flutter unit test.
 
