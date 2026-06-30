@@ -4,7 +4,8 @@
 
 export 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 
-export 'src/arkts/arkts_generator.dart' show ArkTSOptions;
+export 'src/arkts/arkts_generator.dart'
+    show ArkTSEventChannelOptions, ArkTSOptions;
 export 'src/cpp/cpp_generator.dart' show CppOptions;
 export 'src/dart/dart_generator.dart' show DartOptions;
 export 'src/gobject/gobject_generator.dart' show GObjectOptions;

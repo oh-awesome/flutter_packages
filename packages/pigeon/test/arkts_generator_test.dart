@@ -1556,44 +1556,6 @@ void main() {
     expect(code, contains('Api.getCodec())'));
   });
 
-  test('EventChannelApi scaffold', () {
-    final root = Root(
-      apis: <Api>[
-        AstEventChannelApi(
-          name: 'Events',
-          methods: <Method>[
-            Method(
-              name: 'streamInts',
-              location: ApiLocation.host,
-              returnType: const TypeDeclaration(
-                baseName: 'int',
-                isNullable: false,
-              ),
-              parameters: <Parameter>[],
-            ),
-          ],
-        ),
-      ],
-      classes: <Class>[],
-      enums: <Enum>[],
-      containsEventChannel: true,
-    );
-    final sink = StringBuffer();
-    const generator = ArkTSGenerator();
-    generator.generate(
-      const InternalArkTSOptions(arkTSOut: ''),
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
-    final code = sink.toString();
-    expect(code, contains('import StandardMethodCodec'));
-    expect(code, contains('EventChannel'));
-    expect(code, contains('PigeonMethodChannelCodec'));
-    expect(code, contains('StreamIntsStreamHandler'));
-    expect(code, contains('static register(binaryMessenger: BinaryMessenger'));
-  });
-
   test('Float32List maps to number[]', () {
     final root = Root(
       apis: <Api>[
@@ -1626,5 +1588,121 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('send(): number[]'));
+  });
+
+  test('EventChannelApi generates scaffold and shared classes', () {
+    final root = Root(
+      apis: <Api>[
+        AstEventChannelApi(
+          name: 'Events',
+          methods: <Method>[
+            Method(
+              name: 'streamInts',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsEventChannel: true,
+    );
+    final sink = StringBuffer();
+    const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
+    const generator = ArkTSGenerator();
+    generator.generate(
+      arkTSOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('import StandardMethodCodec'));
+    expect(code, contains('PigeonMethodChannelCodec'));
+    expect(code, contains('PigeonStreamHandler'));
+    expect(code, contains('PigeonEventChannelWrapper'));
+    expect(code, contains('class PigeonEventSink'));
+    expect(code, contains('StreamIntsStreamHandler'));
+    expect(code, contains('static register(messenger: BinaryMessenger'));
+  });
+
+  test('EventChannelApi PigeonEventSink.error has nullable params', () {
+    final root = Root(
+      apis: <Api>[
+        AstEventChannelApi(
+          name: 'Events',
+          methods: <Method>[
+            Method(
+              name: 'streamInts',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsEventChannel: true,
+    );
+    final sink = StringBuffer();
+    const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
+    const generator = ArkTSGenerator();
+    generator.generate(
+      arkTSOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('errorMessage: string | null'));
+    expect(code, contains('errorDetails: ESObject | null'));
+  });
+
+  test('EventChannelApi includeSharedClasses false omits PigeonEventSink', () {
+    final root = Root(
+      apis: <Api>[
+        AstEventChannelApi(
+          name: 'Events',
+          arkTSOptions: const ArkTSEventChannelOptions(
+            includeSharedClasses: false,
+          ),
+          methods: <Method>[
+            Method(
+              name: 'streamInts',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'int',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsEventChannel: true,
+    );
+    final sink = StringBuffer();
+    const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
+    const generator = ArkTSGenerator();
+    generator.generate(
+      arkTSOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, isNot(contains('class PigeonEventSink')));
+    expect(code, contains('PigeonStreamHandler'));
   });
 }
