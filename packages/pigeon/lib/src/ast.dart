@@ -5,6 +5,7 @@
 import 'package:collection/collection.dart' show ListEquality;
 import 'package:meta/meta.dart';
 
+import 'arkts/arkts_generator.dart' show ArkTSEventChannelOptions;
 import 'generator_tools.dart';
 import 'kotlin/kotlin_generator.dart'
     show KotlinEventChannelOptions, KotlinProxyApiOptions;
@@ -351,6 +352,7 @@ class AstEventChannelApi extends Api {
     required super.methods,
     this.kotlinOptions,
     this.swiftOptions,
+    this.arkTSOptions,
     super.documentationComments = const <String>[],
   });
 
@@ -359,6 +361,9 @@ class AstEventChannelApi extends Api {
 
   /// Options for Swift generated code for Event Channels.
   final SwiftEventChannelOptions? swiftOptions;
+
+  /// Options for ArkTS generated code for Event Channels.
+  final ArkTSEventChannelOptions? arkTSOptions;
 
   @override
   String toString() {
