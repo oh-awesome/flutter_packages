@@ -946,7 +946,6 @@ void main() {
             maxHeight: 20.0,
             imageQuality: 70,
           ),
-          limit: 5,
         ),
       );
 
