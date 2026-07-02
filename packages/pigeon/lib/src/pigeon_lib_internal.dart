@@ -118,13 +118,7 @@ class InternalPigeonOptions {
               testOut: options.dartTestOut,
               copyrightHeader: copyrightHeader,
             ),
-      arkTSOptions = options.arkTSOut == null
-          ? null
-          : InternalArkTSOptions.fromArkTSOptions(
-              options.arkTSOptions ?? const ArkTSOptions(),
-              arkTSOut: options.arkTSOut!,
-              copyrightHeader: copyrightHeader,
-            ),
+      arkTSOptions = _buildInternalArkTSOptions(options),
       copyrightHeader = options.copyrightHeader != null
           ? _lineReader(
               path.posix.join(options.basePath ?? '', options.copyrightHeader),
@@ -199,6 +193,52 @@ Iterable<String> _lineReader(String path) sync* {
   for (final line in lines) {
     yield line;
   }
+}
+
+/// Resolves the copyright header for ArkTS generation.
+///
+/// Priority:
+/// 1. [ArkTSOptions.copyrightHeader]
+/// 2. [PigeonOptions.copyrightHeader] file
+/// 3. [defaultArkTSCopyrightHeaderRelativePath] under [PigeonOptions.basePath]
+/// 4. [kDefaultArkTSCopyrightHeader]
+Iterable<String> _resolveArkTSCopyrightHeader(
+  PigeonOptions options,
+  ArkTSOptions arkTSOptions,
+) {
+  if (arkTSOptions.copyrightHeader != null) {
+    return arkTSOptions.copyrightHeader!;
+  }
+  if (options.copyrightHeader != null) {
+    return _lineReader(
+      path.posix.join(options.basePath ?? '', options.copyrightHeader!),
+    );
+  }
+  final String defaultPath = path.posix.join(
+    options.basePath ?? '',
+    defaultArkTSCopyrightHeaderRelativePath,
+  );
+  if (File(defaultPath).existsSync()) {
+    return _lineReader(defaultPath);
+  }
+  return kDefaultArkTSCopyrightHeader;
+}
+
+InternalArkTSOptions? _buildInternalArkTSOptions(PigeonOptions options) {
+  if (options.arkTSOut == null) {
+    return null;
+  }
+  final ArkTSOptions arkTSOpts = options.arkTSOptions ?? const ArkTSOptions();
+  final Iterable<String> resolvedHeader =
+      _resolveArkTSCopyrightHeader(options, arkTSOpts);
+  final ArkTSOptions mergedArkTSOpts = arkTSOpts.merge(
+    ArkTSOptions(copyrightHeader: resolvedHeader),
+  );
+  return InternalArkTSOptions.fromArkTSOptions(
+    mergedArkTSOpts,
+    arkTSOut: options.arkTSOut!,
+    copyrightHeader: resolvedHeader,
+  );
 }
 
 IOSink? _openSink(String? output, {String basePath = ''}) {

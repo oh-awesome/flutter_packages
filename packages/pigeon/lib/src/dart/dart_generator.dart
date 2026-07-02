@@ -390,7 +390,7 @@ class DartGenerator extends StructuredGenerator<InternalDartOptions> {
       EnumeratedType customType,
       int nonSerializedClassCount,
     ) {
-      indent.writeScoped('else if (value is ${customType.name}) {', '}', () {
+      indent.addScoped(' else if (value is ${customType.name}) {', '}', () {
         if (customType.offset(nonSerializedClassCount) < maximumCodecFieldKey) {
           indent.writeln(
             'buffer.putUint8(${customType.offset(nonSerializedClassCount)});',
