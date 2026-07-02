@@ -17,6 +17,8 @@ flutter:
         default_package: webview_flutter_wkwebview
       macos:
         default_package: webview_flutter_wkwebview
+      ohos:
+        default_package: webview_flutter_ohos
 
 dependencies:
   flutter:
@@ -24,7 +26,8 @@ dependencies:
   webview_flutter_android: ^4.7.0
   webview_flutter_platform_interface: ^2.13.0
   webview_flutter_wkwebview: ^3.22.0
-
+  webview_flutter_ohos:
+      path: ../webview_flutter_ohos
 dev_dependencies:
   build_runner: ^2.1.5
   flutter_test:

@@ -14,6 +14,7 @@ import 'package:webview_flutter_android/src/webview_flutter_android_legacy.dart'
 import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
 // ignore: implementation_imports
 import 'package:webview_flutter_wkwebview/src/webview_flutter_wkwebview_legacy.dart';
+import 'package:webview_flutter_ohos/src/webview_flutter_ohos_legacy.dart';
 
 /// Optional callback invoked when a web view is first created. [controller] is
 /// the [WebViewController] for the created web view.
@@ -123,6 +124,8 @@ class WebView extends StatefulWidget {
           _platform = SurfaceAndroidWebView();
         case TargetPlatform.iOS:
           _platform = CupertinoWebView();
+        case TargetPlatform.ohos:
+          _platform = SurfaceOhosWebView();
         // ignore: no_default_cases
         default:
           throw UnsupportedError(
