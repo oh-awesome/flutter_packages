@@ -1647,6 +1647,8 @@ class RootBuilder extends dart_ast_visitor.RecursiveAstVisitor<Object?> {
 
         SwiftEventChannelOptions? swiftOptions;
         KotlinEventChannelOptions? kotlinOptions;
+        ArkTSEventChannelOptions? arkTSOptions;
+
         final Map<String, Object?>? swiftOptionsMap =
             annotationMap['swiftOptions'] as Map<String, Object?>?;
         if (swiftOptionsMap != null) {
@@ -1663,11 +1665,20 @@ class RootBuilder extends dart_ast_visitor.RecursiveAstVisitor<Object?> {
                 kotlinOptionsMap['includeSharedClasses'] as bool? ?? true,
           );
         }
+        final arkTSOptionsMap =
+            annotationMap['arkTSOptions'] as Map<String, Object?>?;
+        if (arkTSOptionsMap != null) {
+          arkTSOptions = ArkTSEventChannelOptions(
+            includeSharedClasses:
+                arkTSOptionsMap['includeSharedClasses'] as bool? ?? true,
+          );
+        }
         _currentApi = AstEventChannelApi(
           name: node.name.lexeme,
           methods: <Method>[],
           swiftOptions: swiftOptions,
           kotlinOptions: kotlinOptions,
+          arkTSOptions: arkTSOptions,
           documentationComments:
               _documentationCommentsParser(node.documentationComment?.tokens),
         );

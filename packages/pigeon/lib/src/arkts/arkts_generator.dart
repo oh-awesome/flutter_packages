@@ -91,16 +91,27 @@ const DocumentCommentSpecification _docCommentSpec =
 /// Options that control how ArkTS code will be generated.
 class ArkTSOptions {
   /// Creates an [ArkTSOptions] object.
-  const ArkTSOptions({this.copyrightHeader});
+  const ArkTSOptions({
+    this.copyrightHeader,
+    this.fileSpecificClassNameComponent,
+  });
 
   /// A copyright header that will get prepended to generated code.
   final Iterable<String>? copyrightHeader;
 
+  /// A String to augment class names to avoid cross file collisions.
+  final String? fileSpecificClassNameComponent;
+
   /// Creates [ArkTSOptions] from a Map representation where:
   /// `x = ArkTSOptions.fromMap(x.toMap())`.
   static ArkTSOptions fromMap(Map<String, Object> map) {
-    final copyrightHeader = map['copyrightHeader'] as Iterable<dynamic>?;
-    return ArkTSOptions(copyrightHeader: copyrightHeader?.cast<String>());
+    final Iterable<dynamic>? copyrightHeader =
+        map['copyrightHeader'] as Iterable<dynamic>?;
+    return ArkTSOptions(
+      copyrightHeader: copyrightHeader?.cast<String>(),
+      fileSpecificClassNameComponent:
+          map['fileSpecificClassNameComponent'] as String?,
+    );
   }
 
   /// Converts [ArkTSOptions] to a Map representation where:
@@ -108,6 +119,8 @@ class ArkTSOptions {
   Map<String, Object> toMap() {
     final result = <String, Object>{
       if (copyrightHeader != null) 'copyrightHeader': copyrightHeader!,
+      if (fileSpecificClassNameComponent != null)
+        'fileSpecificClassNameComponent': fileSpecificClassNameComponent!,
     };
     return result;
   }
@@ -119,16 +132,42 @@ class ArkTSOptions {
   }
 }
 
+/// Options for ArkTS EventChannel code generation.
+class ArkTSEventChannelOptions {
+  /// Construct a [ArkTSEventChannelOptions].
+  const ArkTSEventChannelOptions({this.includeSharedClasses = true});
+
+  /// Whether to include shared EventChannel classes like PigeonEventSink.
+  ///
+  /// This should only ever be set to false if you have another generated
+  /// ArkTS file with Event Channels that provides the [PigeonEventSink]
+  /// class definition.
+  ///
+  /// Unlike Kotlin and Swift, ArkTS does not have package or module level
+  /// visibility. When set to false, the generated code will reference
+  /// [PigeonEventSink] without defining or importing it. You must manually
+  /// add an import in the generated file, e.g.
+  /// `import { PigeonEventSink } from './OtherGeneratedFile'`.
+  final bool includeSharedClasses;
+}
+
 /// Internal ArkTS options that extend InternalOptions.
 class InternalArkTSOptions extends InternalOptions {
   /// Creates an [InternalArkTSOptions] object.
-  const InternalArkTSOptions({required this.arkTSOut, this.copyrightHeader});
+  const InternalArkTSOptions({
+    required this.arkTSOut,
+    this.copyrightHeader,
+    this.fileSpecificClassNameComponent,
+  });
 
   /// Path to the ArkTS file that will be generated.
   final String arkTSOut;
 
   /// A copyright header that will get prepended to generated code.
   final Iterable<String>? copyrightHeader;
+
+  /// A String to augment class names to avoid cross file collisions.
+  final String? fileSpecificClassNameComponent;
 
   /// Creates [InternalArkTSOptions] from [ArkTSOptions].
   static InternalArkTSOptions fromArkTSOptions(
@@ -139,7 +178,18 @@ class InternalArkTSOptions extends InternalOptions {
     return InternalArkTSOptions(
       arkTSOut: arkTSOut,
       copyrightHeader: options.copyrightHeader ?? copyrightHeader,
+      fileSpecificClassNameComponent:
+          options.fileSpecificClassNameComponent ??
+          _defaultClassNameComponent(arkTSOut),
     );
+  }
+
+  /// Computes the default class name component from [arkTSOut] path.
+  ///
+  /// Extracts the filename without extension from a path like
+  /// 'path/To/File.ets' -> 'File'.
+  static String? _defaultClassNameComponent(String arkTSOut) {
+    return arkTSOut.split('/').lastOrNull?.split('.').first;
   }
 }
 
@@ -182,15 +232,12 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
       "import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';",
     );
     indent.writeln(
-      "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';",
-    );
+        "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';");
     if (root.containsEventChannel) {
       indent.writeln(
-        "import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';",
-      );
+          "import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';");
       indent.writeln(
-        "import { EventChannel, EventSink, StreamHandler } from '@ohos/flutter_ohos';",
-      );
+          "import EventChannel, { EventSink, StreamHandler } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';");
     }
     indent.newln();
   }
@@ -262,9 +309,13 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     Class klass, {
     required String dartPackageName,
   }) {
-    const generatedMessages = <String>[
-      ' Generated class from Pigeon that represents data sent in messages.',
+    final List<String> generatedMessages = <String>[
+      ' Generated class from Pigeon that represents data sent in messages.'
     ];
+    if (klass.isSealed) {
+      generatedMessages.add(
+          ' This class should not be extended by any user class outside of the generated file.');
+    }
     indent.newln();
     addDocumentationComments(
       indent,
@@ -273,7 +324,15 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
       generatorComments: generatedMessages,
     );
 
-    indent.write('export class ${klass.name} ');
+    if (klass.isSealed) {
+      indent.writeln('export abstract class ${klass.name} {');
+      indent.writeln('}');
+      return;
+    }
+
+    final String extendsClause =
+        klass.superClassName != null ? 'extends ${klass.superClassName} ' : '';
+    indent.write('export class ${klass.name} $extendsClause');
     indent.addScoped('{', '}', () {
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
         //for里面这里不一样，可能需要改造
@@ -413,7 +472,10 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     }
     indent.add('(${argSignature.join(', ')}) ');
     indent.addScoped('{', '}', () {
-      for (final NamedType field in getFieldsInSerializationOrder(klass)) {
+      if (klass.superClassName != null) {
+        indent.writeln('super();');
+      }
+      for (final NamedType field in _constructorFieldOrder(klass)) {
         final String value = getSafeConstructorArgument(field.name);
         indent.writeln('this.${field.name} = $value;');
       }
@@ -1119,6 +1181,91 @@ getByte(n: number): number {
   }
 
   @override
+  void writeEventChannelApi(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    AstEventChannelApi api, {
+    required String dartPackageName,
+  }) {
+    indent.newln();
+    indent.format('''
+class ${generatorOptions.fileSpecificClassNameComponent}PigeonStreamHandler<T> implements StreamHandler {
+  private readonly wrapper: ${generatorOptions.fileSpecificClassNameComponent}PigeonEventChannelWrapper<T>;
+  private pigeonSink: PigeonEventSink<T> | null = null;
+
+  constructor(wrapper: ${generatorOptions.fileSpecificClassNameComponent}PigeonEventChannelWrapper<T>) {
+    this.wrapper = wrapper;
+  }
+
+  onListen(args: Object | undefined, events: EventSink): void {
+    this.pigeonSink = new PigeonEventSink<T>(events);
+    this.wrapper.onListen(args, this.pigeonSink!);
+  }
+
+  onCancel(args: Object | undefined): void {
+    this.pigeonSink = null;
+    this.wrapper.onCancel(args);
+  }
+}
+
+export abstract class ${generatorOptions.fileSpecificClassNameComponent}PigeonEventChannelWrapper<T> {
+  abstract onListen(args: Object | undefined, sink: PigeonEventSink<T>): void;
+  onCancel(args: Object | undefined): void {
+  }
+}
+''');
+
+    if (api.arkTSOptions?.includeSharedClasses ?? true) {
+      indent.format('''
+export class PigeonEventSink<T> {
+  private readonly sink: EventSink;
+
+  constructor(sink: EventSink) {
+    this.sink = sink;
+  }
+
+  success(value: T): void {
+    this.sink.success(value);
+  }
+
+  error(errorCode: string, errorMessage: string | null, errorDetails: ESObject | null): void {
+    this.sink.error(errorCode, errorMessage, errorDetails);
+  }
+
+  endOfStream(): void {
+    this.sink.endOfStream();
+  }
+}
+''');
+    }
+
+    addDocumentationComments(
+        indent, api.documentationComments, _docCommentSpec);
+    for (final Method func in api.methods) {
+      final String returnType = _arkTSTypeForDartType(func.returnType);
+      indent.format('''
+export abstract class ${toUpperCamelCase(func.name)}StreamHandler extends ${generatorOptions.fileSpecificClassNameComponent}PigeonEventChannelWrapper<$returnType> {
+  static register(messenger: BinaryMessenger, streamHandler: ${toUpperCamelCase(func.name)}StreamHandler, instanceName: string = ""): void {
+    let channelName: string = "${makeChannelName(api, func, dartPackageName)}";
+    if (instanceName !== "") {
+      channelName += "." + instanceName;
+    }
+    const internalStreamHandler = new ${generatorOptions.fileSpecificClassNameComponent}PigeonStreamHandler<$returnType>(streamHandler);
+    const channel = new EventChannel(messenger, channelName, ${generatorOptions.fileSpecificClassNameComponent}PigeonMethodChannelCodec);
+    channel.setStreamHandler(internalStreamHandler);
+  }
+
+  abstract onListen(args: Object | undefined, sink: PigeonEventSink<$returnType>): void;
+
+  onCancel(args: Object | undefined): void {
+  }
+}
+''');
+    }
+  }
+
+  @override
   void writeGeneralUtilities(
     InternalArkTSOptions generatorOptions,
     Root root,
@@ -1435,97 +1582,8 @@ getByte(n: number): number {
     indent.newln();
     if (root.containsEventChannel) {
       indent.writeln(
-        'const PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec($_codecName.INSTANCE);',
+        'const ${generatorOptions.fileSpecificClassNameComponent}PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec($_codecName.INSTANCE);',
       );
-      indent.newln();
-    }
-  }
-
-  @override
-  void writeEventChannelApi(
-    InternalArkTSOptions generatorOptions,
-    Root root,
-    Indent indent,
-    AstEventChannelApi api, {
-    required String dartPackageName,
-  }) {
-    indent.newln();
-    indent.format('''
-/**
- * Internal [StreamHandler] that delegates to a [PigeonEventChannelWrapper].
- */
-class PigeonStreamHandler<T> implements StreamHandler {
-  private readonly wrapper: PigeonEventChannelWrapper<T>;
-  private pigeonSink: PigeonEventSink<T> | null = null;
-
-  constructor(wrapper: PigeonEventChannelWrapper<T>) {
-    this.wrapper = wrapper;
-  }
-
-  onListen(args: Object, events: EventSink): void {
-    this.pigeonSink = new PigeonEventSink<T>(events);
-    this.wrapper.onListen(args, this.pigeonSink!);
-  }
-
-  onCancel(args: Object): void {
-    this.pigeonSink = null;
-    this.wrapper.onCancel(args);
-  }
-}
-
-export interface PigeonEventChannelWrapper<T> {
-  onListen(args: Object, sink: PigeonEventSink<T>): void;
-  onCancel(args: Object): void;
-}
-
-export class PigeonEventSink<T> {
-  private readonly sink: EventSink;
-
-  constructor(sink: EventSink) {
-    this.sink = sink;
-  }
-
-  success(value: T): void {
-    this.sink.success(value);
-  }
-
-  error(errorCode: string, errorMessage: string | null, errorDetails: Object | null): void {
-    this.sink.error(errorCode, errorMessage, errorDetails);
-  }
-
-  endOfStream(): void {
-    this.sink.endOfStream();
-  }
-}
-''');
-    addDocumentationComments(
-      indent,
-      api.documentationComments,
-      _docCommentSpec,
-    );
-    for (final Method func in api.methods) {
-      final String returnType = _arkTSTypeForDartType(func.returnType);
-      final String handlerName = toUpperCamelCase(func.name);
-      indent.format('''
-export abstract class ${handlerName}StreamHandler implements PigeonEventChannelWrapper<$returnType> {
-  static register(binaryMessenger: BinaryMessenger, streamHandler: ${handlerName}StreamHandler, instanceName: string = ''): void {
-    let channelName: string = '${makeChannelName(api, func, dartPackageName)}';
-    if (instanceName !== '') {
-      channelName += '.' + instanceName;
-    }
-    const internalStreamHandler: PigeonStreamHandler<$returnType> =
-        new PigeonStreamHandler<$returnType>(streamHandler);
-    const channel: EventChannel = new EventChannel(binaryMessenger, channelName, PigeonMethodChannelCodec);
-    channel.setStreamHandler(internalStreamHandler);
-  }
-
-  onListen(args: Object, sink: PigeonEventSink<$returnType>): void {
-  }
-
-  onCancel(args: Object): void {
-  }
-}
-''');
       indent.newln();
     }
   }
