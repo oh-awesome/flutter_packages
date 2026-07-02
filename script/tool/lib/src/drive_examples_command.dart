@@ -43,6 +43,8 @@ class DriveExamplesCommand extends PackageLoopingCommand {
         help: 'Runs the web implementation of the examples');
     argParser.addFlag(platformWindows,
         help: 'Runs the Windows implementation of the examples');
+    argParser.addFlag(platformOhos,
+        help: 'Runs the OHOS implementation of the examples');
     argParser.addFlag(kWebWasmFlag,
         help: 'Compile to WebAssembly rather than JavaScript');
     argParser.addOption(
@@ -54,9 +56,14 @@ class DriveExamplesCommand extends PackageLoopingCommand {
     argParser.addFlag(_chromeDriverFlag,
         help: 'Runs chromedriver for the duration of the test.\n\n'
             'Requires the correct version of chromedriver to be in your path.');
+    argParser.addOption(kDeviceIdOption,
+        help: 'Specifies the device ID to run tests on. '
+            'If not provided, the first available device for the selected '
+            'platform will be used automatically.');
   }
 
   static const String _chromeDriverFlag = 'run-chromedriver';
+  static const String kDeviceIdOption = 'device-id';
 
   @override
   final String name = 'drive-examples';
@@ -89,6 +96,7 @@ class DriveExamplesCommand extends PackageLoopingCommand {
       platformMacOS,
       platformWeb,
       platformWindows,
+      platformOhos,
     ];
     final int platformCount = platformSwitches
         .where((String platform) => getBoolArg(platform))
@@ -102,6 +110,8 @@ class DriveExamplesCommand extends PackageLoopingCommand {
           'must be specified.');
       throw ToolExit(_exitInvalidArgs);
     }
+
+    final String? explicitDeviceId = getStringArg(kDeviceIdOption);
 
     String? androidDevice;
     if (getBoolArg(platformAndroid)) {
@@ -121,6 +131,20 @@ class DriveExamplesCommand extends PackageLoopingCommand {
         throw ToolExit(_exitNoAvailableDevice);
       }
       iOSDevice = devices.first;
+    }
+
+    String? ohosDevice;
+    if (getBoolArg(platformOhos)) {
+      if (explicitDeviceId != null && explicitDeviceId.isNotEmpty) {
+        ohosDevice = explicitDeviceId;
+      } else {
+        final List<String> devices = await _getDevicesForPlatform('ohos');
+        if (devices.isEmpty) {
+          printError('No OHOS devices available');
+          throw ToolExit(_exitNoAvailableDevice);
+        }
+        ohosDevice = devices.first;
+      }
     }
 
     final bool useWasm = getBoolArg(kWebWasmFlag);
@@ -148,6 +172,7 @@ class DriveExamplesCommand extends PackageLoopingCommand {
         ],
       if (getBoolArg(platformWindows))
         platformWindows: <String>['-d', 'windows'],
+      if (getBoolArg(platformOhos)) platformOhos: <String>['-d', ohosDevice!],
     };
   }
 

@@ -12,6 +12,7 @@ import { CameraUtils } from './CameraUtils';
 import { FocusMode } from './features/autofocus/FocusMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
+import { CameraGlobalEventApi, PlatformDeviceOrientation } from './Messages';
 
 enum DeviceEventType {
   ORIENTATION_CHANGED = "orientation_changed",
@@ -27,19 +28,40 @@ export class DartMessenger {
   private binaryMessenger: BinaryMessenger;
   private cameraChannel: MethodChannel;
   private deviceChannel: MethodChannel;
+  private cameraIdSuffix: string;
 
   constructor(messenger: BinaryMessenger, textureId?: number) {
     this.binaryMessenger = messenger;
+    this.cameraIdSuffix = textureId != null ? textureId.toString() : '';
     // 初始化相机事件通道
-    this.cameraChannel = new MethodChannel(messenger, `flutter.io/cameraPlugin/camera${textureId || ''}`);
+    this.cameraChannel = new MethodChannel(messenger, `flutter.io/cameraPlugin/camera${this.cameraIdSuffix}`);
     // 初始化设备事件通道
     this.deviceChannel = new MethodChannel(messenger, 'flutter.io/cameraPlugin/device');
   }
 
+  getCameraIdSuffix(): string {
+    return this.cameraIdSuffix;
+  }
+
   sendDeviceOrientationChangeEvent(orientation: DeviceOrientation) {
-    const args: HashMap<String, Object> = new HashMap();
-    args.set('orientation', CameraUtils.serializeDeviceOrientation(orientation));
-    this.sendDeviceEvent(DeviceEventType.ORIENTATION_CHANGED, args);
+    const globalEventApi = new CameraGlobalEventApi(this.binaryMessenger);
+    const platformOrientation = this.toPlatformDeviceOrientation(orientation);
+    globalEventApi.deviceOrientationChanged(platformOrientation, { reply: (_) => {} });
+  }
+
+  private toPlatformDeviceOrientation(orientation: DeviceOrientation): PlatformDeviceOrientation {
+    switch (orientation) {
+      case DeviceOrientation.PORTRAIT_UP:
+        return PlatformDeviceOrientation.portraitUp;
+      case DeviceOrientation.PORTRAIT_DOWN:
+        return PlatformDeviceOrientation.portraitDown;
+      case DeviceOrientation.LANDSCAPE_LEFT:
+        return PlatformDeviceOrientation.landscapeLeft;
+      case DeviceOrientation.LANDSCAPE_RIGHT:
+        return PlatformDeviceOrientation.landscapeRight;
+      default:
+        return PlatformDeviceOrientation.portraitUp;
+    }
   }
 
   sendCameraInitializedEvent(

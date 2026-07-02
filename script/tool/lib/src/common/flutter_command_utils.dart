@@ -30,6 +30,7 @@ Future<bool> runConfigOnlyBuild(
     FlutterPlatform.macos => 'macos',
     FlutterPlatform.web => 'web',
     FlutterPlatform.windows => 'windows',
+    FlutterPlatform.ohos => 'ohos',
   };
 
   final int exitCode = await processRunner.runAndStream(

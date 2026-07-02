@@ -56,6 +56,9 @@ class FetchDepsCommand extends PackageLoopingCommand {
     argParser.addFlag(platformWindows,
         help: 'Include packages with Windows examples when used with '
             '--$_supportingTargetPlatformsOnlyFlag');
+    argParser.addFlag(platformOhos,
+        help: 'Include packages with OHOS examples when used with '
+            '--$_supportingTargetPlatformsOnlyFlag');
   }
 
   static const String _dartFlag = 'dart';
@@ -69,6 +72,7 @@ class FetchDepsCommand extends PackageLoopingCommand {
     platformMacOS,
     platformWeb,
     platformWindows,
+    platformOhos,
   ];
 
   @override
@@ -139,6 +143,7 @@ class FetchDepsCommand extends PackageLoopingCommand {
         case FlutterPlatform.linux:
         case FlutterPlatform.web:
         case FlutterPlatform.windows:
+        case FlutterPlatform.ohos:
           // No native dependency handling yet.
           result = PackageResult.skip('Nothing to do for $platform.');
       }
