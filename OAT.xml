@@ -148,11 +148,11 @@
                 <filteritem type="filepath" name="packages/animations/example/screenshots/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/animations/example/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/interactive_media_ads/example/test_driver/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
-                <filteritem type="filepath" name="packages/interactive_media_ads/example/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/interactive_media_ads/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
