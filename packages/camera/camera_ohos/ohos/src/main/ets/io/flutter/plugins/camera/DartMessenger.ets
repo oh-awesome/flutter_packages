@@ -27,13 +27,19 @@ export class DartMessenger {
   private binaryMessenger: BinaryMessenger;
   private cameraChannel: MethodChannel;
   private deviceChannel: MethodChannel;
+  private cameraIdSuffix: string;
 
   constructor(messenger: BinaryMessenger, textureId?: number) {
     this.binaryMessenger = messenger;
+    this.cameraIdSuffix = textureId != null ? textureId.toString() : '';
     // 初始化相机事件通道
-    this.cameraChannel = new MethodChannel(messenger, `flutter.io/cameraPlugin/camera${textureId || ''}`);
+    this.cameraChannel = new MethodChannel(messenger, `flutter.io/cameraPlugin/camera${this.cameraIdSuffix}`);
     // 初始化设备事件通道
     this.deviceChannel = new MethodChannel(messenger, 'flutter.io/cameraPlugin/device');
+  }
+
+  getCameraIdSuffix(): string {
+    return this.cameraIdSuffix;
   }
 
   sendDeviceOrientationChangeEvent(orientation: DeviceOrientation) {

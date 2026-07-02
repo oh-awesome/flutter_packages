@@ -126,6 +126,9 @@ enum PlatformFlashMode {
   torch,
 }
 
+/// Pigeon equivalent of [ImageFileFormat].
+enum PlatformImageFileFormat { jpeg, heif }
+
 /// Handles calls from Dart to the native side.
 @HostApi()
 abstract class CameraApi {
@@ -171,6 +174,10 @@ abstract class CameraApi {
 
   /// Stops streaming frames from the camera.
   void stopImageStream();
+
+  /// Sets the file format used for captured still images.
+  @async
+  void setImageFileFormat(PlatformImageFileFormat format);
 
   /// Sets the flash mode of the camera with the given ID.
   @async
@@ -249,4 +256,6 @@ abstract class CameraEventApi {
 
   /// Called when the camera closes.
   void closed();
+
+  String? pigeon_getMessageChannelSuffix();
 }

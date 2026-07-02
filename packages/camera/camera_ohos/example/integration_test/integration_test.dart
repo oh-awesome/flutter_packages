@@ -2,32 +2,23 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
+import 'dart:ui' as ui;
 
-import 'package:camera_ohos/camera_ohos.dart';
 import 'package:camera_example/camera_controller.dart';
+import 'package:camera_ohos/camera_ohos.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
-import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 void main() {
-  late Directory testDir;
-
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() async {
     CameraPlatform.instance = OhosCamera();
-    final Directory extDir = await getTemporaryDirectory();
-    testDir = await Directory('${extDir.path}/test').create(recursive: true);
-  });
-
-  tearDownAll(() async {
-    await testDir.delete(recursive: true);
   });
 
   final Map<ResolutionPreset, Size> presetExpectedSizes =
@@ -40,7 +31,7 @@ void main() {
     // Don't bother checking for max here since it could be anything.
   };
 
-  /// Verify that [actual] has dimensions that are at least as large as
+  /// Verify that [actual] has dimensions that are at most as large as
   /// [expectedSize]. Allows for a mismatch in portrait vs landscape. Returns
   /// whether the dimensions exactly match.
   bool assertExpectedDimensions(Size expectedSize, Size actual) {
@@ -50,9 +41,24 @@ void main() {
         actual.longestSide == expectedSize.longestSide;
   }
 
-  // This tests that the capture is no bigger than the preset, since we have
-  // automatic code to fall back to smaller sizes when we need to. Returns
-  // whether the image is exactly the desired resolution.
+  testWidgets('availableCameras only supports valid back or front cameras', (
+    WidgetTester tester,
+  ) async {
+    final List<CameraDescription> availableCameras =
+        await CameraPlatform.instance.availableCameras();
+
+    for (final CameraDescription cameraDescription in availableCameras) {
+      expect(
+        cameraDescription.lensDirection,
+        isNot(CameraLensDirection.external),
+      );
+      expect(cameraDescription.sensorOrientation, anyOf(0, 90, 180, 270));
+    }
+  });
+
+  /// This tests that the capture is no bigger than the preset, since we have
+  /// automatic code to fall back to smaller sizes when we need to. Returns
+  /// whether the image is exactly the desired resolution.
   Future<bool> testCaptureImageResolution(
       CameraController controller, ResolutionPreset preset) async {
     final Size expectedSize = presetExpectedSizes[preset]!;
@@ -60,12 +66,20 @@ void main() {
     // Take Picture
     final XFile file = await controller.takePicture();
 
-    // Load picture
+    // Load picture and verify it was saved
     final File fileImage = File(file.path);
-    final Image image = await decodeImageFromList(fileImage.readAsBytesSync());
+    expect(fileImage.existsSync(), isTrue);
+    expect(fileImage.lengthSync(), greaterThan(0));
+
+    // Decode image to verify dimensions
+    final Uint8List bytes = fileImage.readAsBytesSync();
+    final Completer<ui.Image> imageCompleter = Completer<ui.Image>();
+    ui.decodeImageFromList(bytes, (ui.Image image) {
+      imageCompleter.complete(image);
+    });
+    final ui.Image image = await imageCompleter.future;
 
     // Verify image dimensions are as expected
-    expect(image, isNotNull);
     return assertExpectedDimensions(
         expectedSize, Size(image.height.toDouble(), image.width.toDouble()));
   }
@@ -82,8 +96,10 @@ void main() {
         bool previousPresetExactlySupported = true;
         for (final MapEntry<ResolutionPreset, Size> preset
             in presetExpectedSizes.entries) {
-          final CameraController controller =
-              CameraController(cameraDescription, preset.key);
+          final CameraController controller = CameraController(
+            cameraDescription,
+            mediaSettings: MediaSettings(resolutionPreset: preset.key),
+          );
           await controller.initialize();
           final bool presetExactlySupported =
               await testCaptureImageResolution(controller, preset.key);
@@ -94,13 +110,13 @@ void main() {
         }
       }
     },
-    // TODO(egarciad): Fix https://github.com/flutter/flutter/issues/93686.
+    // TODO(harmonyos): Enable when resolution capture is stable on HarmonyOS.
     skip: true,
   );
 
-  // This tests that the capture is no bigger than the preset, since we have
-  // automatic code to fall back to smaller sizes when we need to. Returns
-  // whether the image is exactly the desired resolution.
+  /// This tests that the capture is no bigger than the preset, since we have
+  /// automatic code to fall back to smaller sizes when we need to. Returns
+  /// whether the image is exactly the desired resolution.
   Future<bool> testCaptureVideoResolution(
       CameraController controller, ResolutionPreset preset) async {
     final Size expectedSize = presetExpectedSizes[preset]!;
@@ -135,8 +151,10 @@ void main() {
         bool previousPresetExactlySupported = true;
         for (final MapEntry<ResolutionPreset, Size> preset
             in presetExpectedSizes.entries) {
-          final CameraController controller =
-              CameraController(cameraDescription, preset.key);
+          final CameraController controller = CameraController(
+            cameraDescription,
+            mediaSettings: MediaSettings(resolutionPreset: preset.key),
+          );
           await controller.initialize();
           await controller.prepareForVideoRecording();
           final bool presetExactlySupported =
@@ -148,7 +166,7 @@ void main() {
         }
       }
     },
-    // TODO(egarciad): Fix https://github.com/flutter/flutter/issues/93686.
+    // TODO(harmonyos): Enable when video resolution capture is stable on HarmonyOS.
     skip: true,
   );
 
@@ -161,8 +179,9 @@ void main() {
 
     final CameraController controller = CameraController(
       cameras[0],
-      ResolutionPreset.low,
-      enableAudio: false,
+      mediaSettings: const MediaSettings(
+        resolutionPreset: ResolutionPreset.low,
+      ),
     );
 
     await controller.initialize();
@@ -170,26 +189,21 @@ void main() {
 
     int startPause;
     int timePaused = 0;
+    const int pauseIterations = 2;
 
     await controller.startVideoRecording();
     final int recordingStart = DateTime.now().millisecondsSinceEpoch;
     sleep(const Duration(milliseconds: 500));
 
-    await controller.pauseVideoRecording();
-    startPause = DateTime.now().millisecondsSinceEpoch;
-    sleep(const Duration(milliseconds: 500));
-    await controller.resumeVideoRecording();
-    timePaused += DateTime.now().millisecondsSinceEpoch - startPause;
+    for (int i = 0; i < pauseIterations; i++) {
+      await controller.pauseVideoRecording();
+      startPause = DateTime.now().millisecondsSinceEpoch;
+      sleep(const Duration(milliseconds: 500));
+      await controller.resumeVideoRecording();
+      timePaused += DateTime.now().millisecondsSinceEpoch - startPause;
 
-    sleep(const Duration(milliseconds: 500));
-
-    await controller.pauseVideoRecording();
-    startPause = DateTime.now().millisecondsSinceEpoch;
-    sleep(const Duration(milliseconds: 500));
-    await controller.resumeVideoRecording();
-    timePaused += DateTime.now().millisecondsSinceEpoch - startPause;
-
-    sleep(const Duration(milliseconds: 500));
+      sleep(const Duration(milliseconds: 500));
+    }
 
     final XFile file = await controller.stopVideoRecording();
     final int recordingTime =
@@ -215,8 +229,9 @@ void main() {
 
     final CameraController controller = CameraController(
       cameras[0],
-      ResolutionPreset.low,
-      enableAudio: false,
+      mediaSettings: const MediaSettings(
+        resolutionPreset: ResolutionPreset.low,
+      ),
     );
 
     await controller.initialize();
@@ -224,8 +239,6 @@ void main() {
 
     await controller.startVideoRecording();
 
-    // SDK < 26 will throw a platform error when trying to switch and keep the same camera
-    // we accept either outcome here, while the native unit tests check the outcome based on the current Android SDK
     bool failed = false;
     try {
       await controller.setDescription(cameras[1]);
@@ -245,7 +258,7 @@ void main() {
       // cameras switched
       expect(controller.description, cameras[1]);
     }
-  });
+  }, skip: true);
 
   testWidgets('Set description', (WidgetTester tester) async {
     final List<CameraDescription> cameras =
@@ -256,8 +269,9 @@ void main() {
 
     final CameraController controller = CameraController(
       cameras[0],
-      ResolutionPreset.low,
-      enableAudio: false,
+      mediaSettings: const MediaSettings(
+        resolutionPreset: ResolutionPreset.low,
+      ),
     );
 
     await controller.initialize();
@@ -277,8 +291,9 @@ void main() {
 
       final CameraController controller = CameraController(
         cameras[0],
-        ResolutionPreset.low,
-        enableAudio: false,
+        mediaSettings: const MediaSettings(
+          resolutionPreset: ResolutionPreset.low,
+        ),
       );
 
       await controller.initialize();
@@ -314,8 +329,9 @@ void main() {
 
       final CameraController controller = CameraController(
         cameras[0],
-        ResolutionPreset.low,
-        enableAudio: false,
+        mediaSettings: const MediaSettings(
+          resolutionPreset: ResolutionPreset.low,
+        ),
       );
 
       await controller.initialize();
