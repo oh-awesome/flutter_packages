@@ -3,28 +3,32 @@
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-This project is based on  [shared_preferences@2.5.3](https://pub.dev/packages/shared_preferences/versions/2.5.3) .
+本项目基于 [shared_preferences@2.5.3](https://pub.dev/packages/shared_preferences/versions/2.5.3) 开发。
 
-## 1. Installation and Usage
+## 1. 安装与使用
 
-### 1.1 Installation
+### 1.1 安装方式
 
-Go to the project directory and add the following dependencies in pubspec.yaml：
+进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
 <!-- tabs:start -->
 
 #### pubspec.yaml
 
 ```yaml
+...
+
 dependencies:
   shared_preferences:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-      path: "packages/shared_preferences/shared_preferences"
-      ref: "br_shared_preferences-v2.5.3_ohos"
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/shared_preferences/shared_preferences
+      # ref: shared_preferences-v2.5.3-ohos-1.0.0
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
+...
 ```
 
-Execute Command
+执行命令
 
 ```bash
 flutter pub get
@@ -32,72 +36,81 @@ flutter pub get
 
 <!-- tabs:end -->
 
-### 1.2 Usage
+**TAG 版本对应表**
 
-For use cases [shared_preferences_ohos/example](./example)
+| Flutter 框架版本 | TAG | 分支 |
+| :--- | :--- | :--- |
+| 3.7 | `shared_preferences-v2.2.2-ohos-1.0.0` | `master` |
+| 3.22 | `shared_preferences-v2.3.2-ohos-1.0.0` | `br_shared_preferences-v2.3.2_ohos` |
+| 3.27 | `shared_preferences-v2.5.3-ohos-1.0.0` | `br_shared_preferences-v2.5.3_ohos` |
+| 3.35 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
+| 3.41 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
 
-## 2. Constraints
+## 1.2 使用案例
 
-### 2.1 Compatibility
+使用案例详见 [shared_preferences_ohos/example](./example)
 
-This document is verified based on the following versions:
+## 2. 约束与限制
 
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
+### 2.1 兼容性
 
-## 3. Properties
+在以下版本中已测试通过
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+1. Flutter: 3.35.7; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
 
-#### Storage type
+## 3. 属性
 
-| Name         | Description                 | Type   | **ohos Support** |
-| ------------ | --------------------------- | ------ | ---------------- |
-| String       | Store string values         | String | yes              |
-| int          | Store integer values        | int    | yes              |
-| double       | Store floating-point values | double | yes              |
-| bool         | Store boolean values        | bool   | yes              |
-| List<String> | Store string lists          | List   | yes              |
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
-### Parameters
+#### 存储类型
 
-| Name   | Description                                                  | Type    | **ohos Support** |
-| ------ | ------------------------------------------------------------ | ------- | ---------------- |
-| key    | The unique identifier for storing values                     | String  | yes              |
-| value  | The value to be stored (String, int, double, bool, or List<String>) | dynamic | yes              |
-| prefix | An optional prefix for all keys to avoid naming conflicts    | String  | yes              |
+| Name         | Description    | Type   | **ohos Support** |
+| ------------ | -------------- | ------ | ---------------- |
+| String       | 存储字符串值   | String | yes              |
+| int          | 存储整数值     | int    | yes              |
+| double       | 存储浮点数值   | double | yes              |
+| bool         | 存储布尔值     | bool   | yes              |
+| List<String> | 存储字符串列表 | List   | yes              |
+
+
+
+#### 参数
+
+| Name   | Description                                             | Type    | **ohos Support** |
+| ------ | ------------------------------------------------------- | ------- | ---------------- |
+| key    | 存储值的唯一标识符                                      | String  | yes              |
+| value  | 要存储的值（String、int、double、bool 或 List<String>） | dynamic | yes              |
+| prefix | 所有键的可选前缀，避免命名冲突                          | String  | yes              |
 
 ## 4. API
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
 #### SharedPreferences
 
-| Name            | **return value**          | Description                          | Type     | **ohos Support** |
-| --------------- | ------------------------- | ------------------------------------ | -------- | ---------------- |
-| getInstance()   | Future<SharedPreferences> | Return a SharedPreferences instance  | function | yes              |
-| getString()     | String                    | Get the stored string value          | function | yes              |
-| getInt()        | Int                       | Get the stored integer value         | function | yes              |
-| getDouble()     | Double                    | Get the stored floating-point value  | function | yes              |
-| getBool()       | Bool                      | Get the stored boolean value         | function | yes              |
-| getStringList() | StringList                | Get the stored string list           | function | yes              |
-| setString()     | Future<bool>              | Store a string value                 | function | yes              |
-| setInt()        | Future<bool>              | Store an integer value               | function | yes              |
-| setDouble()     | Future<bool>              | Store a floating-point value         | function | yes              |
-| setBool()       | Future<bool>              | Store a boolean value                | function | yes              |
-| setStringList() | Future<bool>              | Store a string list                  | function | yes              |
-| remove()        | Future<bool>              | Remove the stored value              | function | yes              |
-| clear()         | Future<bool>              | Remove all stored values             | function | yes              |
-| reload()        | Future<bool>              | Reload stored values from disk       | function | yes              |
-| containsKey()   | bool                      | Check if a key exists in preferences | function | yes              |
-| getKeys()       | Set<String>               | Return all keys in preferences       | function | yes              |
+| Name            | **return value**          | Description                 | Type     | **ohos Support** |
+| --------------- | ------------------------- | --------------------------- | -------- | ---------------- |
+| getInstance()   | Future<SharedPreferences> | 返回 SharedPreferences 实例 | function | yes              |
+| getString()     | String                    | 获取存储的字符串值          | function | yes              |
+| getInt()        | Int                       | 获取存储的整数值            | function | yes              |
+| getDouble()     | Double                    | 获取存储的浮点数值          | function | yes              |
+| getBool()       | Bool                      | 获取存储的布尔值            | function | yes              |
+| getStringList() | StringList                | 获取存储的字符串列表        | function | yes              |
+| setString()     | Future<bool>              | 存储字符串值                | function | yes              |
+| setInt()        | Future<bool>              | 存储整数值                  | function | yes              |
+| setDouble()     | Future<bool>              | 存储浮点数值                | function | yes              |
+| setBool()       | Future<bool>              | 存储布尔值                  | function | yes              |
+| setStringList() | Future<bool>              | 存储字符串列表              | function | yes              |
+| remove()        | Future<bool>              | 移除存储的值                | function | yes              |
+| clear()         | Future<bool>              | 移除所有存储的值            | function | yes              |
+| reload()        | Future<bool>              | 从磁盘重新加载存储的值      | function | yes              |
+| containsKey()   | bool                      | 检查首选项中是否存在某个键  | function | yes              |
+| getKeys()       | Set<String>               | 返回首选项中的所有键        | function | yes              |
 
-## 5. Known Issues
+## 5. 遗留问题
 
-## 6. Others
+## 6. 开源协议
 
-## 7.**License**
+本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.3_ohos/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.3_ohos/packages/shared_preferences/shared_preferences/LICENSE)
-
-> Template version:  v0.0.1.
-
+> 模板版本: v0.0.1
