@@ -254,7 +254,7 @@ void main() {
 
       await controller.pause();
       expect(controller.value.isPlaying, false);
-    }, skip: kIsWeb);
+    }, skip: kIsWeb || defaultTargetPlatform == TargetPlatform.ohos);
   });
 
   group('network videos', () {
