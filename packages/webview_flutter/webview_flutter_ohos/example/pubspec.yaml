@@ -10,7 +10,13 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  path_provider: ^2.0.6
+  path_provider:
+    git:
+      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      path: packages/path_provider/path_provider
+      ref: br_path_provider-v2.1.5_ohos
+  # path_provider:
+  #   path: "../../../path_provider/path_provider"
   path_provider_platform_interface: ^2.0.0
   webview_flutter:
     path: ../../webview_flutter
@@ -32,8 +38,8 @@ dependency_overrides:
   path_provider_ohos:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
-      ref: br_path_provider-v2.1.5_ohos
       path: packages/path_provider/path_provider_ohos
+      ref: br_path_provider-v2.1.5_ohos
 
 dev_dependencies:
   espresso: ^0.4.0
