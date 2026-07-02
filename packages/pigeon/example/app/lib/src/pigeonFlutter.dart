@@ -15,7 +15,8 @@ PlatformException _createConnectionError(String channelName) {
   );
 }
 
-List<Object?> wrapResponse({Object? result, PlatformException? error, bool empty = false}) {
+List<Object?> wrapResponse(
+    {Object? result, PlatformException? error, bool empty = false}) {
   if (empty) {
     return <Object?>[];
   }
@@ -87,7 +88,6 @@ class Student {
   }
 }
 
-
 class _PigeonCodec extends StandardMessageCodec {
   const _PigeonCodec();
   @override
@@ -95,10 +95,10 @@ class _PigeonCodec extends StandardMessageCodec {
     if (value is Identity) {
       buffer.putUint8(129);
       writeValue(buffer, value.index);
-    } else     if (value is Person) {
+    } else if (value is Person) {
       buffer.putUint8(130);
       writeValue(buffer, value.encode());
-    } else     if (value is Student) {
+    } else if (value is Student) {
       buffer.putUint8(131);
       writeValue(buffer, value.encode());
     } else {
@@ -109,12 +109,12 @@ class _PigeonCodec extends StandardMessageCodec {
   @override
   Object? readValueOfType(int type, ReadBuffer buffer) {
     switch (type) {
-      case 129: 
+      case 129:
         final int? value = readValue(buffer) as int?;
         return value == null ? null : Identity.values[value];
-      case 130: 
+      case 130:
         return Person.decode(readValue(buffer)!);
-      case 131: 
+      case 131:
         return Student.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -126,9 +126,11 @@ class DemoHostApi {
   /// Constructor for [DemoHostApi].  The [binaryMessenger] named argument is
   /// available for dependency injection.  If it is left null, the default
   /// BinaryMessenger will be used which routes to the host platform.
-  DemoHostApi({BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
+  DemoHostApi(
+      {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''})
       : pigeonVar_binaryMessenger = binaryMessenger,
-        pigeonVar_messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+        pigeonVar_messageChannelSuffix =
+            messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
   final BinaryMessenger? pigeonVar_binaryMessenger;
 
   static const MessageCodec<Object?> pigeonChannelCodec = _PigeonCodec();
@@ -136,8 +138,10 @@ class DemoHostApi {
   final String pigeonVar_messageChannelSuffix;
 
   Future<Object?> sendNull(Object? data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNull$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNull$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -158,8 +162,10 @@ class DemoHostApi {
   }
 
   Future<bool> sendTrue(bool data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendTrue$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendTrue$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -185,8 +191,10 @@ class DemoHostApi {
   }
 
   Future<bool> sendFalse(bool data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFalse$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFalse$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -212,8 +220,10 @@ class DemoHostApi {
   }
 
   Future<int> sendInt(int data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -239,8 +249,10 @@ class DemoHostApi {
   }
 
   Future<double> sendDouble(double data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendDouble$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendDouble$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -266,8 +278,10 @@ class DemoHostApi {
   }
 
   Future<String> sendString(String data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendString$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendString$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -293,8 +307,10 @@ class DemoHostApi {
   }
 
   Future<Uint8List> sendUint8List(Uint8List data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendUint8List$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendUint8List$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -320,8 +336,10 @@ class DemoHostApi {
   }
 
   Future<Int32List> sendInt32List(Int32List data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt32List$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt32List$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -347,8 +365,10 @@ class DemoHostApi {
   }
 
   Future<Int64List> sendInt64List(Int64List data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt64List$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt64List$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -374,8 +394,10 @@ class DemoHostApi {
   }
 
   Future<Float64List> sendFloat64List(Float64List data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFloat64List$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFloat64List$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -401,8 +423,10 @@ class DemoHostApi {
   }
 
   Future<List<String?>> sendList(List<String?> data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendList$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendList$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -428,8 +452,10 @@ class DemoHostApi {
   }
 
   Future<Map<String?, String?>> sendMap(Map<String?, String?> data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendMap$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendMap$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -450,13 +476,16 @@ class DemoHostApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!.cast<String?, String?>();
+      return (pigeonVar_replyList[0] as Map<Object?, Object?>?)!
+          .cast<String?, String?>();
     }
   }
 
   Future<Student> sendCustomClass(Student data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendCustomClass$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendCustomClass$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -482,8 +511,10 @@ class DemoHostApi {
   }
 
   Future<Person> sendNestedDatatype(Person data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNestedDatatype$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNestedDatatype$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -509,8 +540,10 @@ class DemoHostApi {
   }
 
   Future<Identity> sendEnum(Identity data) async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendEnum$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendEnum$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -536,8 +569,10 @@ class DemoHostApi {
   }
 
   Future<String> flutterInvokeSync() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeSync$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeSync$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -563,8 +598,10 @@ class DemoHostApi {
   }
 
   Future<String> flutterInvokeAsync() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeAsync$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeAsync$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -590,8 +627,10 @@ class DemoHostApi {
   }
 
   Future<String> errorHandling() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.errorHandling$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.errorHandling$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -617,8 +656,10 @@ class DemoHostApi {
   }
 
   Future<String> taskQueueTest() async {
-    final String pigeonVar_channelName = 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.taskQueueTest$pigeonVar_messageChannelSuffix';
-    final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
+    final String pigeonVar_channelName =
+        'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.taskQueueTest$pigeonVar_messageChannelSuffix';
+    final BasicMessageChannel<Object?> pigeonVar_channel =
+        BasicMessageChannel<Object?>(
       pigeonVar_channelName,
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
@@ -651,11 +692,19 @@ abstract class DemoFlutterApi {
 
   Future<String> platformInvokeAsync();
 
-  static void setUp(DemoFlutterApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = '',}) {
-    messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
+  static void setUp(
+    DemoFlutterApi? api, {
+    BinaryMessenger? binaryMessenger,
+    String messageChannelSuffix = '',
+  }) {
+    messageChannelSuffix =
+        messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';
     {
-      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.pigeon_example_app.DemoFlutterApi.platformInvokeSync$messageChannelSuffix', pigeonChannelCodec,
+      final BasicMessageChannel<
+          Object?> pigeonVar_channel = BasicMessageChannel<
+              Object?>(
+          'dev.flutter.pigeon.pigeon_example_app.DemoFlutterApi.platformInvokeSync$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -666,15 +715,19 @@ abstract class DemoFlutterApi {
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }
     }
     {
-      final BasicMessageChannel<Object?> pigeonVar_channel = BasicMessageChannel<Object?>(
-          'dev.flutter.pigeon.pigeon_example_app.DemoFlutterApi.platformInvokeAsync$messageChannelSuffix', pigeonChannelCodec,
+      final BasicMessageChannel<
+          Object?> pigeonVar_channel = BasicMessageChannel<
+              Object?>(
+          'dev.flutter.pigeon.pigeon_example_app.DemoFlutterApi.platformInvokeAsync$messageChannelSuffix',
+          pigeonChannelCodec,
           binaryMessenger: binaryMessenger);
       if (api == null) {
         pigeonVar_channel.setMessageHandler(null);
@@ -685,8 +738,9 @@ abstract class DemoFlutterApi {
             return wrapResponse(result: output);
           } on PlatformException catch (e) {
             return wrapResponse(error: e);
-          }          catch (e) {
-            return wrapResponse(error: PlatformException(code: 'error', message: e.toString()));
+          } catch (e) {
+            return wrapResponse(
+                error: PlatformException(code: 'error', message: e.toString()));
           }
         });
       }

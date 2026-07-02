@@ -5,6 +5,12 @@
 import 'ast.dart';
 import 'generator_tools.dart';
 
+/// The internal options used by the generator.
+abstract class InternalOptions {
+  /// Constructor.
+  const InternalOptions();
+}
+
 /// An abstract base class of generators.
 ///
 /// This provides the structure that is common across generators for different languages.

@@ -178,6 +178,25 @@ String makeChannelNameWithStrings({
   return 'dev.flutter.pigeon.$dartPackageName.$apiName.$methodName';
 }
 
+/// The channel name for the `removeStrongReference` method of the
+/// `InstanceManager` API.
+String makeRemoveStrongReferenceChannelName(String dartPackageName) {
+  return makeChannelNameWithStrings(
+    apiName: '${classNamePrefix}InstanceManager',
+    methodName: 'removeStrongReference',
+    dartPackageName: dartPackageName,
+  );
+}
+
+/// The channel name for the `clear` method of the `InstanceManager` API.
+String makeClearChannelName(String dartPackageName) {
+  return makeChannelNameWithStrings(
+    apiName: '${classNamePrefix}InstanceManager',
+    methodName: 'clear',
+    dartPackageName: dartPackageName,
+  );
+}
+
 // TODO(tarrinneal): Determine whether HostDataType is needed.
 
 /// Represents the mapping of a Dart datatype to a Host datatype.
@@ -297,6 +316,12 @@ const String seeAlsoWarning = 'See also: https://pub.dev/packages/pigeon';
 /// parameters.
 const String classNamePrefix = 'PigeonInternal';
 
+/// Prefix for utility classes generated to be used with ProxyAPIs.
+const String proxyApiClassNamePrefix = 'Pigeon';
+
+/// Prefix for the name of generated native type APIs of ProxyAPIs.
+const String hostProxyApiPrefix = '${proxyApiClassNamePrefix}Api';
+
 /// Name for the generated InstanceManager for ProxyApis.
 ///
 /// This lowers the chances of variable name collisions with user defined
@@ -319,6 +344,8 @@ const String varNamePrefix = 'pigeonVar_';
 const List<String> disallowedPrefixes = <String>[
   classNamePrefix,
   classMemberNamePrefix,
+  hostProxyApiPrefix,
+  proxyApiClassNamePrefix,
   varNamePrefix,
   'pigeonChannelCodec'
 ];
@@ -416,15 +443,20 @@ const List<String> validTypes = <String>[
   'Uint8List',
   'Int32List',
   'Int64List',
+  'Float32List',
   'Float64List',
   'List',
   'Map',
   'Object',
 ];
 
+/// The dedicated key for the base codecs used to access references in the
+/// InstanceManager.
+const int proxyApiCodecInstanceManagerKey = 128;
+
 /// Custom codecs' custom types are enumerations begin at this number to
 /// avoid collisions with the StandardMessageCodec.
-const int minimumCodecFieldKey = 129;
+const int minimumCodecFieldKey = proxyApiCodecInstanceManagerKey + 1;
 
 /// The maximum codec enumeration allowed.
 const int maximumCodecFieldKey = 255;
@@ -526,7 +558,10 @@ enum CustomTypes {
 
 /// Return the enumerated types that must exist in the codec
 /// where the enumeration should be the key used in the buffer.
-Iterable<EnumeratedType> getEnumeratedTypes(Root root) sync* {
+Iterable<EnumeratedType> getEnumeratedTypes(
+  Root root, {
+  bool excludeSealedClasses = false,
+}) sync* {
   int index = 0;
 
   for (final Enum customEnum in root.enums) {
@@ -540,13 +575,15 @@ Iterable<EnumeratedType> getEnumeratedTypes(Root root) sync* {
   }
 
   for (final Class customClass in root.classes) {
-    yield EnumeratedType(
-      customClass.name,
-      index + minimumCodecFieldKey,
-      CustomTypes.customClass,
-      associatedClass: customClass,
-    );
-    index += 1;
+    if (!excludeSealedClasses || !customClass.isSealed) {
+      yield EnumeratedType(
+        customClass.name,
+        index + minimumCodecFieldKey,
+        CustomTypes.customClass,
+        associatedClass: customClass,
+      );
+      index += 1;
+    }
   }
 }
 
