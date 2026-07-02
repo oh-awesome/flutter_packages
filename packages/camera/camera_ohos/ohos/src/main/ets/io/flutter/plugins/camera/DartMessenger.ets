@@ -35,11 +35,17 @@ enum CameraEventType {
 export class DartMessenger {
   cameraChannel: MethodChannel;
   deviceChannel: MethodChannel;
+  private cameraIdSuffix: string;
 
   constructor(messenger: BinaryMessenger, cameraId: Number) {
+    this.cameraIdSuffix = cameraId != null ? cameraId.toString() : '';
     this.cameraChannel =
-      new MethodChannel(messenger, "plugins.flutter.io/camera_ohos/camera" + cameraId);
+      new MethodChannel(messenger, "plugins.flutter.io/camera_ohos/camera" + this.cameraIdSuffix);
     this.deviceChannel = new MethodChannel(messenger, "plugins.flutter.io/camera_ohos/fromPlatform");
+  }
+
+  getCameraIdSuffix(): string {
+    return this.cameraIdSuffix;
   }
 
   sendDeviceOrientationChangeEvent(orientation: DeviceOrientation) {
