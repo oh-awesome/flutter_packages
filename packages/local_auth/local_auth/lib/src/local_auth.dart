@@ -14,6 +14,7 @@ import 'package:local_auth_android/local_auth_android.dart';
 import 'package:local_auth_darwin/local_auth_darwin.dart';
 import 'package:local_auth_platform_interface/local_auth_platform_interface.dart';
 import 'package:local_auth_windows/local_auth_windows.dart';
+import 'package:local_auth_ohos/local_auth_ohos.dart';
 
 /// A Flutter plugin for authenticating the user identity locally.
 class LocalAuthentication {
