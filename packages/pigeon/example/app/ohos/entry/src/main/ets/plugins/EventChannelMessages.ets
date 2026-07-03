@@ -1,13 +1,25 @@
 /*
-* Copyright 2013 The Flutter Authors. All rights reserved.
-* Use of this source code is governed by a BSD-style license that can be
-* found in the LICENSE file.
-*/
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ 
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
-import { BinaryMessenger,TaskQueue } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
+import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';
+import { EventChannel, EventSink, StreamHandler } from '@ohos/flutter_ohos';
 
 
 /** Error class for passing custom error details to Flutter via a thrown PlatformException. */
@@ -24,8 +36,7 @@ export class FlutterError implements Error {
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string,  message: string, stack?: string) 
-  {
+  constructor(code: string, name: string, message: string, stack?: string) {
     this.code = code;
     this.name = name;
     this.message = message;
@@ -38,79 +49,84 @@ export class PlatformEvent {
   constructor() {
   }
 
-  toList(): (Object | null)[] {
-    let arr: (Object | null)[] = [];
+  toList(): Array<Object | null> {
+    let arr: Array<Object | null> = new Array<Object | null>();
     return arr;
   }
 
   static fromList(arr: Object[]): PlatformEvent {
-    let pigeonResult: PlatformEvent = new PlatformEvent();
-    return pigeonResult;
+    return new PlatformEvent();
   }
 }
 
 /* Generated class from Pigeon that represents data sent in messages.*/
 export class IntEvent {
-  private data?: number;
+  private data: number;
 
-  public setData(data:number):void {
+  public setData(data: number): void {
     this.data = data;
   }
 
-  getData(): number | undefined{
+  getData(): number {
     return this.data;
   }
 
-  constructor(data?: number) {
+  constructor(data: number) {
     this.data = data;
   }
 
-  toList(): (Object | null)[] {
-    let arr: (Object | null)[] = [];
-    arr.push(this.data !== undefined ? this.data : null);
+  toList(): Array<Object | null> {
+    let arr: Array<Object | null> = new Array<Object | null>();
+    if (this.data === undefined || this.data === null) {
+      arr.push(null);
+    } else {
+      arr.push(this.data);
+    }
     return arr;
   }
 
   static fromList(arr: Object[]): IntEvent {
-    let pigeonResult: IntEvent = new IntEvent();
-    let data: Object = arr[0];
-    pigeonResult.setData(data as number);
-    return pigeonResult;
+    let dataObject: Object = arr[0];
+    const data: number = dataObject as number;
+    return new IntEvent(data);
   }
 }
 
 /* Generated class from Pigeon that represents data sent in messages.*/
 export class StringEvent {
-  private data?: string;
+  private data: string;
 
-  public setData(data:string):void {
+  public setData(data: string): void {
     this.data = data;
   }
 
-  getData(): string | undefined{
+  getData(): string {
     return this.data;
   }
 
-  constructor(data?: string) {
+  constructor(data: string) {
     this.data = data;
   }
 
-  toList(): (Object | null)[] {
-    let arr: (Object | null)[] = [];
-    arr.push(this.data !== undefined ? this.data : null);
+  toList(): Array<Object | null> {
+    let arr: Array<Object | null> = new Array<Object | null>();
+    if (this.data === undefined || this.data === null) {
+      arr.push(null);
+    } else {
+      arr.push(this.data);
+    }
     return arr;
   }
 
   static fromList(arr: Object[]): StringEvent {
-    let pigeonResult: StringEvent = new StringEvent();
-    let data: Object = arr[0];
-    pigeonResult.setData(data as string);
-    return pigeonResult;
+    let dataObject: Object = arr[0];
+    const data: string = dataObject as string;
+    return new StringEvent(data);
   }
 }
 
 export class PigeonCodec extends StandardMessageCodec {
-  static readonly INSTANCE: PigeonCodec  = new PigeonCodec();
+  static readonly INSTANCE: PigeonCodec = new PigeonCodec();
 
   getByte(n: number): number {
     let byteArray = new Uint8Array(1);
@@ -121,7 +137,7 @@ export class PigeonCodec extends StandardMessageCodec {
     super();
   }
 
-  readValueOfType(type: number,  buffer: ByteBuffer): ESObject {
+  readValueOfType(type: number, buffer: ByteBuffer): ESObject {
     switch (type) {
       case this.getByte(129):
         return IntEvent.fromList(super.readValue(buffer) as Object[]);
@@ -132,7 +148,7 @@ export class PigeonCodec extends StandardMessageCodec {
     }
   }
 
-  writeValue(stream: ByteBuffer , value: ESObject): ESObject{
+  writeValue(stream: ByteBuffer, value: ESObject): ESObject {
     if (value instanceof IntEvent) {
       stream.writeUint8(this.getByte(129));
       this.writeValue(stream, (value as IntEvent).toList());
@@ -144,4 +160,74 @@ export class PigeonCodec extends StandardMessageCodec {
     }
   }
 }
+
+const PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec(PigeonCodec.INSTANCE);
+
+
+/**
+ * Internal [StreamHandler] that delegates to a [PigeonEventChannelWrapper].
+ */
+class PigeonStreamHandler<T> implements StreamHandler {
+  private readonly wrapper: PigeonEventChannelWrapper<T>;
+  private pigeonSink: PigeonEventSink<T> | null = null;
+
+  constructor(wrapper: PigeonEventChannelWrapper<T>) {
+    this.wrapper = wrapper;
+  }
+
+  onListen(args: Object, events: EventSink): void {
+    this.pigeonSink = new PigeonEventSink<T>(events);
+    this.wrapper.onListen(args, this.pigeonSink!);
+  }
+
+  onCancel(args: Object): void {
+    this.pigeonSink = null;
+    this.wrapper.onCancel(args);
+  }
+}
+
+export interface PigeonEventChannelWrapper<T> {
+  onListen(args: Object, sink: PigeonEventSink<T>): void;
+  onCancel(args: Object): void;
+}
+
+export class PigeonEventSink<T> {
+  private readonly sink: EventSink;
+
+  constructor(sink: EventSink) {
+    this.sink = sink;
+  }
+
+  success(value: T): void {
+    this.sink.success(value);
+  }
+
+  error(errorCode: string, errorMessage: string | null, errorDetails: Object | null): void {
+    this.sink.error(errorCode, errorMessage, errorDetails);
+  }
+
+  endOfStream(): void {
+    this.sink.endOfStream();
+  }
+}
+
+export abstract class StreamEventsStreamHandler implements PigeonEventChannelWrapper<PlatformEvent> {
+  static register(binaryMessenger: BinaryMessenger, streamHandler: StreamEventsStreamHandler, instanceName: string = ''): void {
+    let channelName: string = 'dev.flutter.pigeon.pigeon_example_package.EventChannelMethods.streamEvents';
+    if (instanceName !== '') {
+      channelName += '.' + instanceName;
+    }
+    const internalStreamHandler: PigeonStreamHandler<PlatformEvent> =
+        new PigeonStreamHandler<PlatformEvent>(streamHandler);
+    const channel: EventChannel = new EventChannel(binaryMessenger, channelName, PigeonMethodChannelCodec);
+    channel.setStreamHandler(internalStreamHandler);
+  }
+
+  onListen(args: Object, sink: PigeonEventSink<PlatformEvent>): void {
+  }
+
+  onCancel(args: Object): void {
+  }
+}
+
 
