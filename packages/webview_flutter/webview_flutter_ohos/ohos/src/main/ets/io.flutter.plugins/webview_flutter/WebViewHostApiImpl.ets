@@ -233,13 +233,19 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     // scrollTo may need the page to be loaded first
     webView.waitControllerAttached().then(() => {
       webView.getController().scrollTo(x, y);
+      // Manually update scroll position since scrollTo doesn't trigger onScroll callback
+      webView.setScrollPosition(x, y);
     });
   }
 
   scrollBy(instanceId: number, x: number, y: number): void {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(instanceId);
     webView.waitControllerAttached().then(() => {
+      const currentX = webView.getScrollX();
+      const currentY = webView.getScrollY();
       webView.getController().scrollBy(x, y);
+      // Manually update scroll position since scrollBy doesn't trigger onScroll callback
+      webView.setScrollPosition(currentX + x, currentY + y);
     });
   }
 
@@ -348,7 +354,9 @@ export class WebViewPlatformView extends PlatformView {
 
   private rotation: number = 0;
   
-  private userAgentString: string = '';
+  userAgentString: string = '';
+ 	 
+ 	isWebviewBinding: boolean = false;
 
   private webViewFlutterApi: WebViewFlutterApiImpl;
 
@@ -557,6 +565,10 @@ export class WebViewPlatformView extends PlatformView {
     this.scrollY = event.yOffset;
   }
 
+  aboutToAppear() {
+    this.isWebviewBinding = true;
+  }
+ 	 
   onControllerAttached = () => {
     Log.d(TAG, "onControllerAttached");
     if (this.userAgentString) {
@@ -565,6 +577,10 @@ export class WebViewPlatformView extends PlatformView {
     }
     this.controllerAttached = true;
     this.reRegisterJavaScriptChannels();
+  }
+
+  aboutToDisappear() {
+    this.isWebviewBinding = false;
   }
 
   setOnDisposeCallback(callback: () => void) {
@@ -698,6 +714,12 @@ export class WebViewPlatformView extends PlatformView {
     return this.scrollY;
   }
 
+  setScrollPosition(x: number, y: number): void {
+    this.scrollX = x;
+    this.scrollY = y;
+    this.webViewFlutterApi.onScrollChanged(this, x, y, this.scrollX, this.scrollY, {reply: () => {}});
+  }
+
   setReturnValueForShouldOverrideUrlLoading(value: boolean) {
     this.returnValueForShouldOverrideUrlLoading = value;
   }
@@ -767,6 +789,7 @@ export class WebViewProxy {
 
 class WebSettingsImpl implements WebSettings {
   private webView: WebViewPlatformView;
+  private defaultUserAgent: string = '';
   params: DVModelParameters = new DVModelParameters;
   domStorageAccess: boolean = false;
   allowWindowOpenMethod : boolean = false;
@@ -781,6 +804,7 @@ class WebSettingsImpl implements WebSettings {
   textZoomRatio : number = 0;
   textZoomRatioCallback?: (ratio: number) => void;
   isAllowFullScreenRotate: boolean = false;
+  overScrollMode: number = 0; // Default: OverScrollMode.NEVER
 
   constructor(webView: WebViewPlatformView) {
     this.webView = webView;
@@ -832,8 +856,6 @@ class WebSettingsImpl implements WebSettings {
   async setUserAgentString(userAgentString: string) {
     await this.webView.waitControllerAttached();
     this.webView.setCustomUserAgent(userAgentString);
-    // 解决webview无法返回首页的问题，参考文档：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs-V5/faqs-arkweb-88-V5
-    this.webView.getController().loadUrl(this.webView.getUrl())
   }
 
   setMediaPlaybackRequiresUserGesture(require: boolean) {
@@ -889,9 +911,29 @@ class WebSettingsImpl implements WebSettings {
     this.textZoomRatioCallback && this.textZoomRatioCallback(textZoom);
   }
 
-   async getUserAgentString(): Promise<string> {
-    await this.webView.waitControllerAttached();
-    return this.webView.getController().getCustomUserAgent();
+  async getUserAgentString(): Promise<string> {
+    try {
+      await this.webView.waitControllerAttached();
+    } catch(err) {
+      Log.e(TAG, "getUserAgentString err = " + err)
+    }
+    if (this.webView.userAgentString) {
+      return this.webView.userAgentString;
+    }
+
+    if (this.webView.isWebviewBinding) {
+      return this.webView.getController().getCustomUserAgent();
+    }
+
+    if (this.defaultUserAgent) {
+      //  整个app只需要一次initializeWebEngine。
+      return this.defaultUserAgent;
+    }
+
+    web_webview.WebviewController.initializeWebEngine();
+    this.defaultUserAgent = web_webview.WebviewController.getDefaultUserAgent();
+
+    return this.defaultUserAgent;
   }
 
   getTextZoom() : number{
@@ -908,6 +950,14 @@ class WebSettingsImpl implements WebSettings {
 
   getAllowFullScreenRotate() : boolean {
     return this.isAllowFullScreenRotate;
+  }
+  
+  setOverScrollMode(mode: number) {
+    this.overScrollMode = mode;
+  }
+
+  getOverScrollMode(): number {
+    return this.overScrollMode;
   }
 }
 

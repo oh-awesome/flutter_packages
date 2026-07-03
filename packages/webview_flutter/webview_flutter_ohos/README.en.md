@@ -4,13 +4,13 @@
 
 
 
-本项目基于 [webview_flutter@4.13.0](https://pub.dev/packages/webview_flutter/versions/4.13.0) 开发。
+This project is based on [webview_flutter@4.13.0](https://pub.dev/packages/webview_flutter/versions/4.13.0).
 
-## 1. 安装与使用
+## 1. Installation and Usage
 
-### 1.1 安装方式
+### 1.1 Installation
 
-进入到工程目录并在 pubspec.yaml 中添加以下依赖:
+Go to the project directory and add the following dependencies in pubspec.yaml
 
 <!-- tabs:start -->
 
@@ -23,10 +23,10 @@ dependencies:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
       # ref: webview_flutter-v4.13.0-ohos-1.0.0
-      ref: TAG  #   请根据下方TAG版本对应表选择TAG
+      ref: TAG  #   Please select the TAG according to the TAG version table below
 ```
 
-执行命令
+Execute Command
 
 ```bash
 flutter pub get
@@ -34,34 +34,34 @@ flutter pub get
 
 <!-- tabs:end -->
 
-**TAG 版本对应表**
+**TAG Version Table**
 
-| Flutter 框架版本 | TAG | 分支 |
+| Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
 | 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `master` |
 | 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `br_webview_flutter-v4.8.0_ohos` |
 | 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
 | 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
 
-## 1.2 使用说明
+## 1.2 Usage
 
-使用案例详见 [webview_flutter_ohos/example](./example)
+For use cases [webview_flutter_ohos/example](./example)
 
-## 2. 约束与限制
+## 2. Constraints
 
-### 2.1 兼容性
+### 2.1 Compatibility
 
-在以下版本中已测试通过:
+This document is verified based on the following versions:
 
 1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
 
-### 2.2 **权限要求**
+### 2.2 **Permission Requirements**
 
-以下权限中有 `system_basic` 权限,而默认的应用权限是 `normal`,只能使用 `normal` 等级的权限。因此,安装 HAP 包时可能会报错 **9568289**。详情请参考 [文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/bm-tool-V5#ZH-CN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) 修改应用等级为 `system_basic`。
+The following permissions include the `system_basic` permission, but the default application permission is `normal`. Only the `normal` permission can be used. Therefore, the error **9568289** may be reported during the installation of the HAP package. For details, see [Document](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V5/bm-tool-V5#EN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) Change the application level to `system_basic`.
 
-####  2.2.1 **在 entry 目录下的 module.json5 中添加权限**
+####  2.2.1 **Add permissions to the module.json5 file in the entry directory.**
 
-打开 `entry/src/main/module.json5`,添加以下内容:
+Open  `entry/src/main/module.json5` and add the following information:
 
 ```diff
 "requestPermissions": [
@@ -78,23 +78,23 @@ flutter pub get
     ]
 ```
 
-#### 2.2.2 **在 entry 目录下添加申请以上权限的原因**
+#### 2.2.2 **Add the reason for applying for the preceding permission to the entry directory.**
 
-打开 `entry/src/main/resources/base/element/string.json`,添加以下内容:
+Open  `entry/src/main/resources/base/element/string.json` and add the following information:
 
 ```diff
 {
   "string": [
     {
       "name": "network_reason",
-      "value": "使用网络"
+      "value": "use network"
     }
   ]
 }
 ```
 ## 3. API
 
-> [!TIP] **ohos Support** 列为 **yes** 表示 ohos 平台支持该属性;**no** 表示不支持;**partially** 表示部分支持。使用方法跨平台一致,效果对标 iOS 或 Android。
+> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
 
 | Name                                                         | Description                  | Type                                                         | ohos Support |
 | ------------------------------------------------------------ | ---------------------------- | ------------------------------------------------------------ | ------------ |
@@ -103,9 +103,9 @@ flutter pub get
 | ProgressCallback(int progress)                               | Future<void>                 | Signature for callbacks that report loading progress of a page. | function     |
 | WebResourceErrorCallback([WebResourceError](#WebResourceError ) error) | Future<void>                 | Signature for callbacks that report a resource loading error. | function     |
 
-## 4. 属性
+## 4. Properties
 
-> [!TIP] **ohos Support** 列为 **yes** 表示 ohos 平台支持该属性;**no** 表示不支持;**partially** 表示部分支持。使用方法跨平台一致,效果对标 iOS 或 Android。
+> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
 
 ### WebViewWidget
 
@@ -394,13 +394,13 @@ flutter pub get
 | WebResourceErrorType.javaScriptExceptionOccurred       | A JavaScript exception occurred.                          | enum | yes          |
 | WebResourceErrorType.javaScriptResultTypeIsUnsupported | The result of JavaScript execution could not be returned. | enum | yes          |
 
-## 5. 遗留问题
+## 5. Known Issues
 
-无
+None
 
-## 6. 开源协议
+## 6. License
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_webview_flutter-v4.13.0_ohos/packages/webview_flutter/webview_flutter/LICENSE) ,请自由地享受和参与开源。
+This project is licensed under  [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_webview_flutter-v4.13.0_ohos/packages/webview_flutter/webview_flutter/LICENSE) .
 
 
-> 模板版本: v0.0.1
+> Template version: v0.0.1
