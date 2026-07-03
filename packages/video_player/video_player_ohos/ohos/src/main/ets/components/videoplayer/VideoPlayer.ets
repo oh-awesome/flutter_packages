@@ -164,7 +164,14 @@ export class VideoPlayer {
           } catch (e) {
             Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
           }
-          if (this.url) {
+          if (this.url && this.url.startsWith('http')) {
+            let mediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
+            let playbackStrategy: media.PlaybackStrategy | undefined = undefined;
+            if (deviceInfo.sdkApiVersion >= 17) {
+              playbackStrategy = { showFirstFrameOnPrepare: true } as media.PlaybackStrategy;
+            }
+            await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
+          } else if (this.url) {
             this.avPlayer.url = this.getIUri();
           } else {
             this.avPlayer.fdSrc = this.rawFile!;
@@ -690,7 +697,6 @@ setAudioFocus(mixWithOthers: boolean): void {
       }
       const metadata = await extractor.fetchMetadata();
       const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
-      orientation
       if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
         return orientation;
       }
@@ -847,6 +853,10 @@ setAudioFocus(mixWithOthers: boolean): void {
     let iUrl = this.url;
     const ohosFilePrefix = 'file://';
     if (iUrl != null && iUrl.startsWith(ohosFilePrefix)) {
+      if (this.fd != null) {
+        fs.closeSync(this.fd!);
+        this.fd = null;
+      }
       this.fd = fs.openSync(iUrl, fs.OpenMode.READ_ONLY).fd;
       iUrl = `fd://${this.fd!.toString()}`;
     }
