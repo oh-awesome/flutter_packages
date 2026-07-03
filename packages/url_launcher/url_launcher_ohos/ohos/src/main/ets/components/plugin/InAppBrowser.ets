@@ -7,6 +7,8 @@ import router from '@ohos.router';
 import { ValueType } from '@kit.ArkData';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { emitter } from '@kit.BasicServicesKit';
+import window from '@ohos.window';
+import common from '@ohos.app.ability.common';
 
 @Entry
 @Component
@@ -16,6 +18,7 @@ export struct InAppBrowser {
   private url?: string;
   private enableJavaScript: boolean = true;
   private enableDomStorage: boolean = true;
+  @State statusBarHeight: number = 32;
 
   aboutToDisappear() {
     emitter.off("closeWebView");
@@ -30,7 +33,21 @@ export struct InAppBrowser {
     emitter.once("closeWebView", () => {
       router.back();
       Log.d("InAppBrowser", "closeWebView done");
-    })
+   });
+    try {
+      let context = getContext(this) as common.UIAbilityContext;
+      window.getLastWindow(context).then((win) => {
+        let avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
+        let height = px2vp(avoidArea.topRect.height);
+        if (height > 0) {
+          this.statusBarHeight = height;
+        }
+      }).catch((e: Error) => {
+        console.error('InAppBrowser: Failed to get status bar height: ' + JSON.stringify(e));
+      });
+    } catch (e) {
+      console.error('InAppBrowser: Failed to get context: ' + JSON.stringify(e));
+    }
   }
 
   build() {
@@ -39,5 +56,6 @@ export struct InAppBrowser {
         .javaScriptAccess(this.enableJavaScript)
         .domStorageAccess(this.enableDomStorage)
     }.width('100%').height('100%')
+     .padding({ top: this.statusBarHeight })
   }
 }
