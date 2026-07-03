@@ -28,17 +28,17 @@ import 'file_selector_ohos_test.mocks.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  late FileSelectorAndroid plugin;
+  late FileSelectorOhos plugin;
   late MockFileSelectorApi mockApi;
 
   setUp(() {
     mockApi = MockFileSelectorApi();
-    plugin = FileSelectorAndroid(api: mockApi);
+    plugin = FileSelectorOhos(api: mockApi);
   });
 
   test('registered instance', () {
-    FileSelectorAndroid.registerWith();
-    expect(FileSelectorPlatform.instance, isA<FileSelectorAndroid>());
+    FileSelectorOhos.registerWith();
+    expect(FileSelectorPlatform.instance, isA<FileSelectorOhos>());
   });
 
   group('openFile', () {
@@ -110,8 +110,8 @@ void main() {
           ),
         ),
       ).thenAnswer(
-        (_) => Future<List<FileResponse>>.value(
-          <FileResponse>[
+        (_) => Future<List<FileResponse?>>.value(
+          <FileResponse?>[
             FileResponse(
               path: 'some/path.txt',
               size: 30,
