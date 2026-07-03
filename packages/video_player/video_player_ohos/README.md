@@ -38,6 +38,28 @@ flutter pub get
 
 ### 1.2 Usage
 
+- This implementation renders video with `Texture` by default.
+- `platformView` video rendering is not exposed at the moment. This is not because OHOS lacks native `XComponent + AVPlayer` capability, but because the current `flutter_ohos` `PlatformView` path still relies on texture-based composition and does not match the media `XComponent` video output path well enough. In practice it can lead to cases such as audio playing without visible video, so it is not documented as a stable capability.
+- `DataSourceType.file` supports `fd://` file descriptor paths on OHOS.
+- `setPlaybackSpeed` supports: `0.125x`, `0.25x`, `0.5x`, `0.75x`, `1.0x`, `1.25x`, `1.5x`, `1.75x`, `2.0x`, `3.0x`.
+  - **Difference from Android**: Android's `ExoPlayer` tolerates a wider continuous range (typically `0.25x ~ 4.0x`), while OHOS `AVPlayer` only supports discrete preset speed levels. If the requested value is not in the OHOS supported list, the plugin will **map it to the nearest supported level**.
+  - **OHOS Playback Speed Mapping Table**:
+
+    | Input Range | Effective Speed | Notes |
+    | :--- | :--- | :--- |
+    | `< 0.125` | `0.125x` | Falls back to the minimum level |
+    | `0.125 ~ 0.25` | `0.25x` | Maps to `0.25x` |
+    | `0.25 ~ 0.5` | `0.5x` | Maps to `0.5x` |
+    | `0.5 ~ 0.75` | `0.75x` | Maps to `0.75x` |
+    | `0.75 ~ 1.0` | `1.0x` | Normal speed |
+    | `1.0 ~ 1.25` | `1.25x` | Maps to `1.25x` |
+    | `1.25 ~ 1.5` | `1.5x` | Maps to `1.5x` |
+    | `1.5 ~ 1.75` | `1.75x` | Maps to `1.75x` |
+    | `1.75 ~ 2.0` | `2.0x` | Maps to `2.0x` |
+    | `2.0 ~ 3.0` | `3.0x` | Maps to `3.0x` |
+    | `> 3.0` | `3.0x` | Falls back to the maximum level |
+
+
 For use cases [ohos/example](./example)
 
 ## 2. Constraints
