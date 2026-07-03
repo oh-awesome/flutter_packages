@@ -20,7 +20,7 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 dependencies:
   pigeon:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
 
 ```
@@ -84,7 +84,7 @@ Usage：`flutter pub run pigeon --input <pigeon path> --dart_out<dart path> [opt
 
 ## 8. **License**
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/pigeon/LICENSE).
+This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/pigeon/LICENSE).
 
 
 

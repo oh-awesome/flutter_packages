@@ -13,6 +13,8 @@
     "@ohos/hypium": "1.0.6"
   },
   "overrides": {
-    "@ohos/flutter_ohos": "file:./har/flutter.har"
+    "@ohos/flutter_ohos": "file:./har/flutter.har",
+    "integration_test": "file:./har/integration_test.har",
+    "@ohos/flutter_module": "file:./entry"
   }
 }

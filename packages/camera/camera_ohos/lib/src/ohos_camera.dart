@@ -63,6 +63,9 @@ class OhosCamera extends CameraPlatform {
   // The stream for vending frames to platform interface clients.
   StreamController<CameraImageData>? _frameStreamController;
 
+  // Map of camera IDs to recording state, preventing duplicate recording per camera.
+  final Map<int, bool> _isRecordingMap = <int, bool>{};
+
   Stream<CameraEvent> _cameraEvents(int cameraId) =>
       cameraEventStreamController.stream
           .where((CameraEvent event) => event.cameraId == cameraId);
@@ -126,9 +129,13 @@ class OhosCamera extends CameraPlatform {
     });
 
     final Completer<void> completer = Completer<void>();
+    bool completed = false;
 
     onCameraInitialized(cameraId).first.then((CameraInitializedEvent value) {
-      completer.complete();
+      if (!completed) {
+        completed = true;
+        completer.complete();
+      }
     });
 
     _channel.invokeMapMethod<String, dynamic>(
@@ -147,10 +154,13 @@ class OhosCamera extends CameraPlatform {
           // ignore: only_throw_errors
           throw error;
         }
-        completer.completeError(
-          CameraException(error.code, error.message),
-          stackTrace,
-        );
+        if (!completed) {
+          completed = true;
+          completer.completeError(
+            CameraException(error.code, error.message),
+            stackTrace,
+          );
+        }
       },
     );
 
@@ -159,6 +169,7 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<void> dispose(int cameraId) async {
+    _isRecordingMap.remove(cameraId);
     if (_channels.containsKey(cameraId)) {
       final MethodChannel? cameraChannel = _channels[cameraId];
       cameraChannel?.setMethodCallHandler(null);
@@ -254,14 +265,21 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<void> startVideoCapturing(VideoCaptureOptions options) async {
-    await _channel.invokeMethod<void>(
-      'startVideoRecording',
-      <String, dynamic>{
-        'cameraId': options.cameraId,
-        'maxVideoDuration': options.maxDuration?.inMilliseconds,
-        'enableStream': options.streamCallback != null,
-      },
-    );
+    if (_isRecordingMap[options.cameraId] == true) return;
+    _isRecordingMap[options.cameraId] = true;
+    try {
+      await _channel.invokeMethod<void>(
+        'startVideoRecording',
+        <String, dynamic>{
+          'cameraId': options.cameraId,
+          'maxVideoDuration': options.maxDuration?.inMilliseconds,
+          'enableStream': options.streamCallback != null,
+        },
+      );
+    } catch (e) {
+      _isRecordingMap[options.cameraId] = false;
+      rethrow;
+    }
 
     if (options.streamCallback != null) {
       _installStreamController().stream.listen(options.streamCallback);
@@ -271,19 +289,26 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<XFile> stopVideoRecording(int cameraId) async {
-    final String? path = await _channel.invokeMethod<String>(
-      'stopVideoRecording',
-      <String, dynamic>{'cameraId': cameraId},
-    );
-
-    if (path == null) {
-      throw CameraException(
-        'INVALID_PATH',
-        'The platform "$defaultTargetPlatform" did not return a path while reporting success. The platform should always return a valid path or report an error.',
-      );
+    if (_isRecordingMap[cameraId] != true) {
+      throw CameraException('videoRecordingFailed', 'No recording in progress');
     }
+    try {
+      final String? path = await _channel.invokeMethod<String>(
+        'stopVideoRecording',
+        <String, dynamic>{'cameraId': cameraId},
+      );
 
-    return XFile(path);
+      if (path == null) {
+        throw CameraException(
+          'INVALID_PATH',
+          'The platform "$defaultTargetPlatform" did not return a path while reporting success. The platform should always return a valid path or report an error.',
+        );
+      }
+
+      return XFile(path);
+    } finally {
+      _isRecordingMap[cameraId] = false;
+    }
   }
 
   @override
@@ -327,12 +352,17 @@ class OhosCamera extends CameraPlatform {
   }
 
   void _startStreamListener() {
+    if (_platformImageStreamSubscription != null) return;
     const EventChannel cameraEventChannel =
         EventChannel('plugins.flutter.io/camera_ohos/imageStream');
     _platformImageStreamSubscription =
         cameraEventChannel.receiveBroadcastStream().listen((dynamic imageData) {
       _frameStreamController!
           .add(cameraImageFromPlatformData(imageData as Map<dynamic, dynamic>));
+    }, onError: (Object error) {
+      _platformImageStreamSubscription = null;
+    }, onDone: () {
+      _platformImageStreamSubscription = null;
     });
   }
 
@@ -386,7 +416,7 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<double> getMinExposureOffset(int cameraId) async {
-    final int? minExposureOffset = await _channel.invokeMethod<int>(
+    final num? minExposureOffset = await _channel.invokeMethod<num>(
       'getMinExposureOffset',
       <String, dynamic>{'cameraId': cameraId},
     );
@@ -396,7 +426,7 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<double> getMaxExposureOffset(int cameraId) async {
-    final int? maxExposureOffset = await _channel.invokeMethod<int>(
+    final num? maxExposureOffset = await _channel.invokeMethod<num>(
       'getMaxExposureOffset',
       <String, dynamic>{'cameraId': cameraId},
     );
@@ -416,7 +446,7 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<double> setExposureOffset(int cameraId, double offset) async {
-    final int? appliedOffset = await _channel.invokeMethod<int>(
+    final num? appliedOffset = await _channel.invokeMethod<num>(
       'setExposureOffset',
       <String, dynamic>{
         'cameraId': cameraId,
@@ -513,12 +543,16 @@ class OhosCamera extends CameraPlatform {
   @override
   Future<void> setDescriptionWhileRecording(
       CameraDescription description) async {
-    await _channel.invokeMethod<double>(
-      'setDescriptionWhileRecording',
-      <String, dynamic>{
-        'cameraName': description.name,
-      },
-    );
+    try {
+      await _channel.invokeMethod<double>(
+        'setDescriptionWhileRecording',
+        <String, dynamic>{
+          'cameraName': description.name,
+        },
+      );
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
   }
 
   @override
@@ -596,8 +630,8 @@ class OhosCamera extends CameraPlatform {
         final Map<String, Object?> arguments = _getArgumentDictionary(call);
         cameraEventStreamController.add(CameraInitializedEvent(
           cameraId,
-          (arguments['previewWidth']! as int).toDouble(),
-          (arguments['previewHeight']! as int).toDouble(),
+          (arguments['previewWidth']! as num).toDouble(),
+          (arguments['previewHeight']! as num).toDouble(),
           deserializeExposureMode(arguments['exposureMode']!.toString()),
           arguments['exposurePointSupported']! as bool,
           deserializeFocusMode(arguments['focusMode']!.toString()),

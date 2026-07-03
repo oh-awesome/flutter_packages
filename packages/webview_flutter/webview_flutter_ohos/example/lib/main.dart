@@ -585,7 +585,6 @@ class SampleMenu extends StatelessWidget {
   Future<void> _onVideoExample(BuildContext context) {
     final OhosWebViewController ohosController =
         webViewController as OhosWebViewController;
-    // #docregion fullscreen_example
     ohosController.setCustomWidgetCallbacks(
       onShowCustomWidget: (Widget widget, OnHideCustomWidgetCallback callback) {
         Navigator.of(context).push(MaterialPageRoute<void>(
@@ -597,7 +596,6 @@ class SampleMenu extends StatelessWidget {
         Navigator.of(context).pop();
       },
     );
-    // #enddocregion fullscreen_example
 
     return ohosController.loadRequest(
       LoadRequestParams(
@@ -606,7 +604,6 @@ class SampleMenu extends StatelessWidget {
     );
   }
 
-  /// 处理视频全屏模式，创建一个支持全屏旋转的 WebView 控制器并加载视频资源。
   Future<void> _onVideoFullScreen(BuildContext context) async {
     final OhosWebViewController videoController = OhosWebViewController(
       OhosWebViewControllerCreationParams(isAllowFullScreenRotate: true),

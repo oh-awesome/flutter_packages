@@ -9,7 +9,7 @@ import 'package:flutter/cupertino.dart';
 
 import 'file_selector_api.g.dart';
 
-/// An implementation of [FileSelectorPlatform] for Android.
+/// An implementation of [FileSelectorPlatform] for OHOS.
 class FileSelectorOhos extends FileSelectorPlatform {
   FileSelectorOhos({@visibleForTesting FileSelectorApi? api})
       : _api = api ?? FileSelectorApi();
@@ -84,8 +84,8 @@ class FileSelectorOhos extends FileSelectorPlatform {
           group.extensions == null) {
         throw ArgumentError(
           'Provided type group $group does not allow all files, but does not '
-          'set any of the Android supported filter categories. At least one of '
-          '"extensions" or "mimeTypes" must be non-empty for Android.',
+          'set any of the OHOS supported filter categories. At least one of '
+          '"extensions" or "mimeTypes" must be non-empty for OHOS.',
         );
       }
 

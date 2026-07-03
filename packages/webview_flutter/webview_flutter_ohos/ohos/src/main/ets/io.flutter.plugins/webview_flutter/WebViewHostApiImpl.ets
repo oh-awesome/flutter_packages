@@ -750,8 +750,6 @@ class WebSettingsImpl implements WebSettings {
   async setUserAgentString(userAgentString: string) {
     await this.webView.waitControllerAttached();
     this.webView.setCustomUserAgent(userAgentString);
-    // 解决webview无法返回首页的问题，参考文档：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs-V5/faqs-arkweb-88-V5
-    this.webView.getController().loadUrl(this.webView.getUrl());
   }
 
   setMediaPlaybackRequiresUserGesture(require: boolean) {
@@ -815,12 +813,16 @@ class WebSettingsImpl implements WebSettings {
    * */
 
   async getUserAgentString(): Promise<string> {
+    try {
+      await this.webView.waitControllerAttached();
+    } catch(err) {
+      Log.e(TAG, "getUserAgentString err = " + err)
+    }
     if (this.webView.userAgentString) {
       return this.webView.userAgentString;
     }
 
     if (this.webView.isWebviewBinding) {
-      await this.webView.waitControllerAttached();
       return this.webView.getController().getCustomUserAgent();
     }
 
@@ -830,7 +832,7 @@ class WebSettingsImpl implements WebSettings {
     }
 
     if (typeof (web_webview.WebviewController as ESObject)?.getDefaultUserAgent === 'function') {
-      web_webview.WebviewController.initializeWebEngine();
+    web_webview.WebviewController.initializeWebEngine();
       this.defaultUserAgent = (web_webview.WebviewController as ESObject)?.getDefaultUserAgent();
     }
 

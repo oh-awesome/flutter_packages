@@ -199,7 +199,8 @@ void main() {
     expect(await plugin.setValue('Bool', 'flutter.Bool', true), isTrue);
     expect(api.items['flutter.Bool'], true);
     expect(await plugin.setValue('Double', 'flutter.Double', 1.5), isTrue);
-    expect(api.items['flutter.Double'], 1.5);
+    // OHOS: Double values are stored as strings with DOUBLE_PREFIX via setString
+    expect(api.items['flutter.Double'], contains('1.5'));
     expect(await plugin.setValue('Int', 'flutter.Int', 12), isTrue);
     expect(api.items['flutter.Int'], 12);
     expect(await plugin.setValue('String', 'flutter.String', 'hi'), isTrue);
