@@ -9,14 +9,7 @@
         "runtimeOS": "HarmonyOS"
       }
     ],
-    "buildModeSet": [
-      {
-        "name": "debug"
-      },
-      {
-        "name": "release"
-      }
-    ]
+    "buildModeSet": [{"name": "debug"}, {"name": "profile"}, {"name": "release"}]
   },
   "modules": [
     {

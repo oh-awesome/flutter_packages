@@ -649,19 +649,43 @@ void main() {
       // Arrange
       final MethodChannelMock channel = MethodChannelMock(
         channelName: _channelName,
-        methods: <String, dynamic>{'stopVideoRecording': '/test/path.mp4'},
+        methods: <String, dynamic>{
+          'startVideoRecording': null,
+          'stopVideoRecording': '/test/path.mp4'
+        },
       );
 
       // Act
+      await camera.startVideoRecording(cameraId);
       final XFile file = await camera.stopVideoRecording(cameraId);
 
       // Assert
       expect(channel.log, <Matcher>[
+        isMethodCall('startVideoRecording', arguments: <String, Object?>{
+          'cameraId': cameraId,
+          'maxVideoDuration': null,
+          'enableStream': false,
+        }),
         isMethodCall('stopVideoRecording', arguments: <String, Object?>{
           'cameraId': cameraId,
         }),
       ]);
       expect(file.path, '/test/path.mp4');
+    });
+
+    test('Should throw when stopping a video recording without recording',
+        () async {
+      // Act / Assert
+      await expectLater(
+        () => camera.stopVideoRecording(cameraId),
+        throwsA(
+          isA<CameraException>()
+              .having((CameraException e) => e.code, 'code',
+                  'videoRecordingFailed')
+              .having((CameraException e) => e.description, 'description',
+                  'No recording in progress'),
+        ),
+      );
     });
 
     test('Should pause a video recording', () async {

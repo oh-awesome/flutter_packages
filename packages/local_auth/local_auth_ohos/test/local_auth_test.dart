@@ -4,18 +4,18 @@
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:local_auth_android/local_auth_android.dart';
+import 'package:local_auth_ohos/local_auth_ohos.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('LocalAuth', () {
     const MethodChannel channel = MethodChannel(
-      'plugins.flutter.io/local_auth_android',
+      'plugins.flutter.io/local_auth_ohos',
     );
 
     final List<MethodCall> log = <MethodCall>[];
-    late LocalAuthAndroid localAuthentication;
+    late LocalAuthOhos localAuthentication;
 
     setUp(() {
       _ambiguate(TestDefaultBinaryMessengerBinding.instance)!
@@ -24,12 +24,12 @@ void main() {
         log.add(methodCall);
         switch (methodCall.method) {
           case 'getEnrolledBiometrics':
-            return Future<List<String>>.value(<String>['weak', 'strong']);
+            return Future<List<String>>.value(<String>['face', 'fingerprint']);
           default:
             return Future<dynamic>.value(true);
         }
       });
-      localAuthentication = LocalAuthAndroid();
+      localAuthentication = LocalAuthOhos();
       log.clear();
     });
 
@@ -56,8 +56,8 @@ void main() {
         ],
       );
       expect(result, <BiometricType>[
-        BiometricType.weak,
-        BiometricType.strong,
+        BiometricType.face,
+        BiometricType.fingerprint,
       ]);
     });
 
@@ -84,7 +84,7 @@ void main() {
     group('With device auth fail over', () {
       test('authenticate with no args.', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Needs secure',
           options: const AuthenticationOptions(biometricOnly: true),
         );
@@ -98,14 +98,14 @@ void main() {
                   'stickyAuth': false,
                   'sensitiveTransaction': true,
                   'biometricOnly': true,
-                }..addAll(const AndroidAuthMessages().args)),
+                }..addAll(const OhosAuthMessages().args)),
           ],
         );
       });
 
       test('authenticate with no sensitive transaction.', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Insecure',
           options: const AuthenticationOptions(
             sensitiveTransaction: false,
@@ -123,7 +123,7 @@ void main() {
                   'stickyAuth': false,
                   'sensitiveTransaction': false,
                   'biometricOnly': true,
-                }..addAll(const AndroidAuthMessages().args)),
+                }..addAll(const OhosAuthMessages().args)),
           ],
         );
       });
@@ -132,7 +132,7 @@ void main() {
     group('With biometrics only', () {
       test('authenticate with no args.', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Needs secure',
         );
         expect(
@@ -145,14 +145,14 @@ void main() {
                   'stickyAuth': false,
                   'sensitiveTransaction': true,
                   'biometricOnly': false,
-                }..addAll(const AndroidAuthMessages().args)),
+                }..addAll(const OhosAuthMessages().args)),
           ],
         );
       });
 
       test('authenticate with no sensitive transaction.', () async {
         await localAuthentication.authenticate(
-          authMessages: <AuthMessages>[const AndroidAuthMessages()],
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
           localizedReason: 'Insecure',
           options: const AuthenticationOptions(
             sensitiveTransaction: false,
@@ -169,7 +169,7 @@ void main() {
                   'stickyAuth': false,
                   'sensitiveTransaction': false,
                   'biometricOnly': false,
-                }..addAll(const AndroidAuthMessages().args)),
+                }..addAll(const OhosAuthMessages().args)),
           ],
         );
       });

@@ -259,8 +259,12 @@ enum ProductType {
   NONCONSUMABLE,
 
   /// 自动续期订阅商品
-  @JsonValue(3)
+  @JsonValue(2)
   AUTORENEWABLE,
+
+  /// 非续期订阅商品
+  @JsonValue(3)
+  NONRENEWABLE,
 }
 
 /// 商品状态枚举

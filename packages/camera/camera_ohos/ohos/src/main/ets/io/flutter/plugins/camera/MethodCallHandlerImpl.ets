@@ -66,7 +66,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     this.methodChannel.setMethodCallHandler(this);
   }
 
-  public onMethodCall(call: MethodCall, result: MethodResult): void {
+  public async onMethodCall(call: MethodCall, result: MethodResult): Promise<void> {
     console.info(TAG, 'onMethodCall', call.method);
     switch (call.method) {
       case 'availableCameras': {
@@ -114,9 +114,21 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         this.curStatus = STATUS.INITIALIZE_ING;
         if (this.camera != null) {
           try {
-            this.camera.open(call.argument('imageFormatGroup'));
-            this.curStatus = STATUS.DEFAULT;
-            result.success(null)
+            this.camera.open(call.argument('imageFormatGroup')).then(() => {
+              this.curStatus = STATUS.DEFAULT;
+              result.success(null);
+            }).catch(async (e: BusinessError) => {
+              console.error(TAG, 'initialize failed: ' + e.message);
+              this.curStatus = STATUS.DEFAULT;
+              // Report error to Dart side first (before close sends closing event)
+              this.handleException(e, result);
+              // Then close camera to release resources
+              try {
+                await this.camera!.close();
+              } catch (closeError) {
+                console.error(TAG, 'close after initialize failed: ' + closeError.message);
+              }
+            });
           } catch (e) {
             this.curStatus = STATUS.DEFAULT;
             this.handleException(e, result)
@@ -184,6 +196,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         break;
       }
       case 'setExposurePoint': {
+        if (this.camera == null) {
+          result.error('EXPOSURE_POINT_ERROR', 'Camera not initialized', null);
+          return;
+        }
         let reset: number = call.argument('reset');
         let x: number | null = null;
         let y: number | null = null;
@@ -192,7 +208,6 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           y = call.argument("y");
         }
         try {
-          this.camera!.getFocusMode(result)
           this.camera!.setExposurePoint(result, new Point(x, y));
         } catch (e) {
           this.handleException(e, result);
@@ -287,7 +302,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         }
         try {
           let maxZoomLevel: number = this.camera!.getMaxZoomLevel();
-          result.success(Math.floor(maxZoomLevel));
+          result.success(maxZoomLevel);
         } catch (e) {
           this.handleException(e, result);
         }
@@ -299,7 +314,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         }
         try {
           let minZoomLevel: number = this.camera!.getMinZoomLevel();
-          result.success(Math.floor(minZoomLevel));
+          result.success(minZoomLevel);
         } catch (e) {
           this.handleException(e, result);
         }
@@ -360,11 +375,15 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
         break;
       case 'setDescriptionWhileRecording': {
+        if (this.camera == null) {
+          result.error('DESCRIPTION_ERROR', 'Camera not initialized', null);
+          return;
+        }
         try {
           let cameraName: string = call.argument('cameraName');
           let cameraProperties: CameraProperties =
             new CameraPropertiesImpl(cameraName, CameraUtils.getCameraManager(this.context));
-          this.camera?.setDescriptionWhileRecording(result, cameraProperties);
+          this.camera.setDescriptionWhileRecording(result, cameraProperties);
         } catch (e) {
           this.handleException(e, result);
         }
@@ -372,7 +391,19 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'dispose': {
         this.unregisterTexture(call.argument('cameraId'));
-        this.camera?.dispose();
+        if (this.camera) {
+          try {
+            await this.camera.close();
+          } catch (closeError) {
+            console.error(`Failed to close camera: ${closeError}`);
+          }
+          try {
+            await this.camera.dispose();
+          } catch (disposeError) {
+            console.error(`Failed to dispose camera: ${disposeError}`);
+          }
+          this.camera = null;
+        }
         result.success(null);
         break;
       }

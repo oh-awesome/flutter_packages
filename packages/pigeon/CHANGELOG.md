@@ -1,5 +1,7 @@
 ## 11.0.1
 
+* [arkts] Adds `messageChannelSuffix` support for `HostApi.setup` and `FlutterApi` constructors.
+* [arkts] Maps `Float32List` to ArkTS `number[]`.
 * Adds pub topics to package metadata.
 
 ## 11.0.0

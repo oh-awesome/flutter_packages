@@ -20,7 +20,7 @@
 dependencies:
   pigeon:
     git: 
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
 
 ```
@@ -57,6 +57,8 @@ flutter pub get
 |---------------------|-------------------------------------------------------------------------------------------------------|-------------|-------------------|
 | @HostApi()           |   使用 @HostApi() 注解定义接口，这些接口由原生平台实现，供 Flutter 调用                                                                       | annotation | yes               |
 | @FlutterApi()   |  使用 @FlutterApi() 注解定义接口，这些接口由 Flutter 实现，供原生平台调用                                                             | annotation | yes               |
+| @ProxyApi() | 定义可在 Dart 与宿主之间传递的对象代理 | annotation | no |
+| @EventChannelApi() | 定义 EventChannel 流式通信 API | annotation | no |
 
 ## 5. 命令
 
@@ -80,11 +82,13 @@ flutter pub get
 
 ## 6. 遗留问题
 
+- `@TaskQueue` 在 IDL 层可声明，但 `flutter_ohos` 的 `BasicMessageChannel` 目前仅支持三参数构造，无法完全绑定后台队列（partially）。
+- `@ProxyApi` / `@EventChannelApi` 在 pigeon 11.0.1 基线上未接入解析器，暂不支持生成对应 ArkTS 代码。
 ## 7. 其他
 
 ## 8. 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/pigeon/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/pigeon/LICENSE) ，请自由地享受和参与开源。
 
 
 
