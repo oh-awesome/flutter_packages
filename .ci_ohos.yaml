@@ -53,7 +53,7 @@ preparation_steps:
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
-    args: ["flutter_packages", "br_local_auth-v3.0.1_ohos_dev"]
+    args: ["flutter_packages", "br_local_auth-v3.0.1_ohos"]
     required: true
 
 # Compilation steps - executed in order
