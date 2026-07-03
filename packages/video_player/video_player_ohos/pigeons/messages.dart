@@ -19,10 +19,6 @@ import 'package:pigeon/pigeon.dart';
 @ConfigurePigeon(PigeonOptions(
   dartOut: 'lib/src/messages.g.dart',
   dartTestOut: 'test/test_api.g.dart',
-  javaOut: 'android/src/main/java/io/flutter/plugins/videoplayer/Messages.java',
-  javaOptions: JavaOptions(
-    package: 'io.flutter.plugins.videoplayer',
-  ),
   copyrightHeader: 'pigeons/copyright.txt',
 ))
 class TextureMessage {
@@ -69,7 +65,7 @@ class MixWithOthersMessage {
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
-abstract class AndroidVideoPlayerApi {
+abstract class OhosVideoPlayerApi {
   void initialize();
   TextureMessage create(CreateMessage msg);
   void dispose(TextureMessage msg);

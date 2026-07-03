@@ -40,7 +40,13 @@ const FORMAT_SS: String = 'ss';
 const FORMAT_DASH: String = 'dash';
 const FORMAT_HLS: String = 'hls';
 const FORMAT_OTHER: String = 'other';
+const BUFFER_INFO_POLL_INTERVAL: number = 500;
+const PLAYBACK_INFO_MIN_SDK: number = 12;
+const PLAYBACK_INFO_BUFFER_DURATION_KEY: string = 'buffer_duration';
 const TAG = 'VideoPlayer'
+interface AVPlayerWithPlaybackInfo {
+  getPlaybackInfo(): Promise<Record<string, Object>>;
+}
 
 let event:HashMap<string, Object> = new HashMap<string, Object>();
 
@@ -65,6 +71,18 @@ export class VideoPlayer {
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
+  private isSeeking: boolean = false;
+  private isPrepared: boolean = false;
+  private pendingPlay: boolean = false;
+  private pendingSeekPosition: number | null = null;
+  private seekPosition: number = 0;
+  private isBuffering: boolean = false;
+  private isSystemBuffering: boolean = false;
+  private isSeekBuffering: boolean = false;
+  private bufferingInfoTimer: number = -1;
+  private isPollingPlaybackInfo: boolean = false;
+  private isWindowKeepScreenOn: boolean = false;
+  private cachedRotationCorrection: number = 0;
 
   constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry,
     url: resourceManager.RawFileDescriptor | null, iUrl: string | null, eventChannel: EventChannel, AudioFocus: Boolean,
@@ -76,6 +94,11 @@ export class VideoPlayer {
     this.iUrl = iUrl;
     this.eventChannel = eventChannel;
     this.headers = headers;
+    try {
+      this.isWindowKeepScreenOn = (GlobalContext.getContext().getObject('windowClass') as window.Window).getWindowProperties().isKeepScreenOn;
+    } catch (e) {
+      Log.e(TAG, 'getWindowProperties failed: ' + JSON.stringify(e));
+    }
     if (AudioFocus == true) {
       this.interruptMode = audio.InterruptMode.SHARE_MODE;
       Log.i(TAG, "set interruptMode : " + this.interruptMode);
@@ -139,7 +162,17 @@ export class VideoPlayer {
       Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.resetProgress();
+          // Extract rotation before setting data source to avoid fd conflict with AVPlayer
+          try {
+            this.cachedRotationCorrection = await this.getRotationCorrection();
+            Log.i(TAG, 'cachedRotationCorrection=' + this.cachedRotationCorrection);
+          } catch (e) {
+            Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
+          }
           if (this.iUrl) {
             this.avPlayer.url = this.getIUri();
           } else {
@@ -147,15 +180,26 @@ export class VideoPlayer {
           }
           break;
         case AvplayerStatus.INITIALIZED:
+          this.isPrepared = false;
           this.avPlayer.surfaceId = this.surfaceId;
           this.avPlayer.prepare();
           break;
         case AvplayerStatus.PREPARED:
+          this.isPrepared = true;
           this.avPlayer.videoScaleType = 0;
           this.avPlayer.audioInterruptMode = this.interruptMode;
           this.setVideoSize();
           this.sendInitialized();
           this.duration = this.avPlayer.duration;
+          this.startBufferingInfoTimer();
+          if (this.pendingSeekPosition !== null) {
+            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            this.pendingSeekPosition = null;
+          }
+          if (this.pendingPlay) {
+            this.pendingPlay = false;
+            this.avPlayer.play();
+          }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
@@ -191,7 +235,9 @@ export class VideoPlayer {
           this.avPlayer.reset();
           break;
         case AvplayerStatus.RELEASED:
-          this.avPlayer.release();
+          this.isPrepared = false;
+          this.pendingPlay = false;
+          this.pendingSeekPosition = null;
           this.status = CommonConstants.STATUS_STOP;
           this.watchStatus();
           Log.i(TAG, '[PlayVideoModel] state released called')
@@ -203,8 +249,19 @@ export class VideoPlayer {
     });
 
     this.avPlayer.on(Events.TIME_UPDATE, (time: number) => {
+      if (this.isSeeking) {
+        this.playTime = time;
+        return;
+      }
       this.initProgress(time);
       this.playTime = time;
+    });
+
+    this.avPlayer.on(Events.SEEK_DONE, (time: number) => {
+      if (this.isSeeking) {
+        this.isSeeking = false;
+        this.endSeekBuffering();
+      }
     });
 
     this.avPlayer.on(Events.BUFFER_UPDATE, (infoType: media.BufferingInfoType, value: number) => {
@@ -218,6 +275,7 @@ export class VideoPlayer {
       if (err.code === 801) {
         return;
       }
+      this.resetBufferingState();
       this.avPlayer?.reset();
       this.sendError(err);
     })
@@ -227,6 +285,8 @@ export class VideoPlayer {
    * Release the video player.
    */
   release() {
+    this.stopBufferingInfoTimer();
+    this.resetBufferingState();
     if (this.avPlayer !== null) {
       this.avPlayer.release();
       this.eventChannel?.setStreamHandler(null);
@@ -239,6 +299,10 @@ export class VideoPlayer {
 
   play() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = true;
+        return;
+      }
       this.avPlayer.play();
     }
   }
@@ -248,19 +312,37 @@ export class VideoPlayer {
    */
   pause() {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingPlay = false;
+        return;
+      }
       this.avPlayer.pause();
     }
   }
 
   seekTo(position: number) {
     if (this.avPlayer !== null) {
+      if (!this.isPrepared) {
+        this.pendingSeekPosition = position;
+        return;
+      }
+      this.prepareSeek(position);
       this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
     }
   }
 
+  private prepareSeek(position: number): void {
+    this.startSeekBuffering();
+    this.isSeeking = true;
+    this.seekPosition = position;
+  }
+
   getPosition(): number {
+    if (this.isSeeking) {
+      return this.seekPosition;
+    }
     if (this.avPlayer !== null) {
-      return this.avPlayer.currentTime;
+      return Math.max(0, this.avPlayer.currentTime);
     } else {
       return 0;
     }
@@ -283,7 +365,8 @@ export class VideoPlayer {
 
   setVolume(volume: number) {
     if (this.avPlayer != null) {
-      this.avPlayer.setVolume(volume);
+      const clampedVolume = Math.max(0.0, Math.min(1.0, volume));
+      this.avPlayer.setVolume(clampedVolume);
     }
   }
 
@@ -292,15 +375,14 @@ export class VideoPlayer {
    *
    * @param playSpeed Current playback speed.
    */
-  setSpeed(playSpeed: number) {
+  setSpeed(playSpeed: media.PlaybackSpeed) {
     if (this.avPlayer == null || this.playerModel == null) {
       return;
     }
     if (CommonConstants.OPERATE_STATE.indexOf(this.avPlayer.state) === -1) {
       return;
     }
-    this.playerModel.playSpeed = playSpeed;
-    this.avPlayer.setSpeed(this.playerModel.playSpeed);
+    this.avPlayer.setSpeed(playSpeed);
   }
 
   /**
@@ -381,6 +463,7 @@ export class VideoPlayer {
     if (mode === Number(SliderMode.END) || mode === Number(SliderMode.CLICK)) {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
       if (this.avPlayer !== null) {
+        this.prepareSeek(this.seekTime);
         this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
       }
     }
@@ -532,7 +615,7 @@ export class VideoPlayer {
     if (this.status === CommonConstants.STATUS_START) {
       windowClass.setWindowKeepScreenOn(true);
     } else {
-      windowClass.setWindowKeepScreenOn(false);
+      windowClass.setWindowKeepScreenOn(this.isWindowKeepScreenOn);
     }
   }
 
@@ -573,7 +656,45 @@ export class VideoPlayer {
     event.set("duration", this.avPlayer?.duration);
     event.set("width", this.avPlayer?.width);
     event.set("height", this.avPlayer?.height);
+    event.set("rotationCorrection", this.cachedRotationCorrection);
     this.eventSink?.success(event);
+  }
+
+  private async getRotationCorrection(): Promise<number> {
+    let extractor: media.AVMetadataExtractor | null = null;
+    let fd: fs.File | null = null;
+    try {
+      extractor = await media.createAVMetadataExtractor();
+      if (this.iUrl?.startsWith("file://")) {
+        fd = fs.openSync(this.iUrl.substring(7), fs.OpenMode.READ_ONLY);
+        extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
+      } else if (this.iUrl) {
+        if (deviceInfo.sdkApiVersion < 20) {
+          return 0;
+        }
+        extractor.setUrlSource(this.iUrl, this.headers ?? undefined);
+      } else if (this.url) {
+        extractor.fdSrc = this.url!;
+      } else {
+        return 0;
+      }
+      const metadata = await extractor.fetchMetadata();
+      const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
+      orientation
+      if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
+        return orientation;
+      }
+      return 0;
+    } catch (e) {
+      Log.w(TAG, 'getRotationCorrection error: ' + JSON.stringify(e));
+      return 0;
+    } finally {
+      if (fd) {
+        fs.closeSync(fd);
+      }
+      extractor?.release();
+      extractor = null;
+    }
   }
 
   sendCompleted(): void {
@@ -582,12 +703,110 @@ export class VideoPlayer {
     this.eventSink?.success(event);
   }
 
+  resetBufferingState(): void {
+    let wasBuffering = this.isBuffering;
+    this.isSystemBuffering = false;
+    this.isSeekBuffering = false;
+    this.isSeeking = false;
+    this.seekPosition = 0;
+    this.bufferTimeTemp = 0;
+    if (wasBuffering) {
+      this.syncBufferingState();
+    } else {
+      this.isBuffering = false;
+    }
+  }
+
+  syncBufferingState(): void {
+    let shouldBuffering = this.isSystemBuffering || this.isSeekBuffering;
+    if (shouldBuffering == this.isBuffering) {
+      return;
+    }
+    this.isBuffering = shouldBuffering;
+    let event: HashMap<string, Object> = new HashMap<string, Object>();
+    event.set("event", shouldBuffering ? "bufferingStart" : "bufferingEnd");
+    this.eventSink?.success(event);
+  }
+
+  startSystemBuffering(): void {
+    this.isSystemBuffering = true;
+    this.syncBufferingState();
+  }
+
+  endSystemBuffering(): void {
+    this.isSystemBuffering = false;
+    this.syncBufferingState();
+  }
+
+  startSeekBuffering(): void {
+    this.isSeekBuffering = true;
+    this.syncBufferingState();
+  }
+
+  endSeekBuffering(): void {
+    if (!this.isSeekBuffering) {
+      return;
+    }
+    this.isSeekBuffering = false;
+    this.syncBufferingState();
+  }
+
+  startBufferingInfoTimer(): void {
+    if (deviceInfo.sdkApiVersion < PLAYBACK_INFO_MIN_SDK) {
+      return;
+    }
+    if (this.bufferingInfoTimer !== -1 || this.avPlayer == null) {
+      return;
+    }
+    this.bufferingInfoTimer = setInterval(() => {
+      this.reportBufferedPositionFromPlaybackInfo();
+    }, BUFFER_INFO_POLL_INTERVAL);
+  }
+
+  stopBufferingInfoTimer(): void {
+    if (this.bufferingInfoTimer === -1) {
+      return;
+    }
+    clearInterval(this.bufferingInfoTimer);
+    this.bufferingInfoTimer = -1;
+    this.isPollingPlaybackInfo = false;
+  }
+
+  async reportBufferedPositionFromPlaybackInfo(): Promise<void> {
+    if (this.avPlayer == null || this.isPollingPlaybackInfo) {
+      return;
+    }
+    this.isPollingPlaybackInfo = true;
+    try {
+      let avPlayer = this.avPlayer as AVPlayerWithPlaybackInfo;
+      let playbackInfo = await avPlayer.getPlaybackInfo();
+      let bufferDurationObject = playbackInfo[PLAYBACK_INFO_BUFFER_DURATION_KEY];
+      if (typeof bufferDurationObject === 'number') {
+        this.sendBufferingUpdate(media.BufferingInfoType.CACHED_DURATION, bufferDurationObject * CommonConstants.A_THOUSAND);
+      }
+    } catch (e) {
+      console.error(TAG, "reportBufferedPositionFromPlaybackInfo error:" + JSON.stringify(e))
+    } finally {
+      this.isPollingPlaybackInfo = false;
+    }
+  }
+
+  sendBufferingStart(): void {
+    this.startSystemBuffering();
+  }
+
+  sendBufferingEnd(): void {
+    this.endSystemBuffering();
+  }
+
   sendBufferingUpdate(infoType: media.BufferingInfoType, bufferingPosition: number): void {
     let event: HashMap<string, Object> = new HashMap<string, Object>();
     if (infoType == media.BufferingInfoType.BUFFERING_START) {
-      event.set("event", "bufferingStart");
+      this.sendBufferingStart();
+      return;
     } else if (infoType == media.BufferingInfoType.BUFFERING_END) {
-      event.set("event", "bufferingEnd");
+      this.sendBufferingEnd();
+      return;
     } else if (infoType == media.BufferingInfoType.CACHED_DURATION) {
       event.set("event", "bufferingUpdate");
       let bufferedDuration = this.playTime + bufferingPosition;
@@ -610,7 +829,8 @@ export class VideoPlayer {
   }
 
   sendError(error: Object): void {
-    this.eventSink?.error("videoError", "video player had error！", error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+ 	  this.eventSink?.error("VideoError", `Video player had error: ${errorMessage}`, error);
   }
 
   getIUri(): string {

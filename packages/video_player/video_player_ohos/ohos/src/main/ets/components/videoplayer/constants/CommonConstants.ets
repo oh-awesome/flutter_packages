@@ -69,6 +69,7 @@ export class CommonConstants {
    * A thousand.
    */
   static readonly A_THOUSAND: number = 1000;
+  static readonly YES: string = 'yes';
   /**
    * Speed set.
    */
@@ -126,6 +127,7 @@ export enum AvplayerStatus {
 export enum Events {
   STATE_CHANGE = 'stateChange',
   TIME_UPDATE = 'timeUpdate',
+  SEEK_DONE = 'seekDone',
   BUFFER_UPDATE = 'bufferingUpdate',
   ERROR = 'error'
 }

@@ -24,6 +24,14 @@ class TextureMessage {
 
   int textureId;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TextureMessage && other.textureId == textureId;
+
+  @override
+  int get hashCode => textureId.hashCode;
+
   Object encode() {
     return <Object?>[
       textureId,
@@ -47,6 +55,16 @@ class LoopingMessage {
   int textureId;
 
   bool isLooping;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LoopingMessage &&
+          other.textureId == textureId &&
+          other.isLooping == isLooping;
+
+  @override
+  int get hashCode => Object.hash(textureId, isLooping);
 
   Object encode() {
     return <Object?>[
@@ -74,6 +92,16 @@ class VolumeMessage {
 
   double volume;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VolumeMessage &&
+          other.textureId == textureId &&
+          other.volume == volume;
+
+  @override
+  int get hashCode => Object.hash(textureId, volume);
+
   Object encode() {
     return <Object?>[
       textureId,
@@ -100,6 +128,16 @@ class PlaybackSpeedMessage {
 
   double speed;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PlaybackSpeedMessage &&
+          other.textureId == textureId &&
+          other.speed == speed;
+
+  @override
+  int get hashCode => Object.hash(textureId, speed);
+
   Object encode() {
     return <Object?>[
       textureId,
@@ -125,6 +163,16 @@ class PositionMessage {
   int textureId;
 
   int position;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PositionMessage &&
+          other.textureId == textureId &&
+          other.position == position;
+
+  @override
+  int get hashCode => Object.hash(textureId, position);
 
   Object encode() {
     return <Object?>[
@@ -190,6 +238,14 @@ class MixWithOthersMessage {
   });
 
   bool mixWithOthers;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MixWithOthersMessage && other.mixWithOthers == mixWithOthers;
+
+  @override
+  int get hashCode => mixWithOthers.hashCode;
 
   Object encode() {
     return <Object?>[
@@ -273,7 +329,6 @@ class OhosVideoPlayerApi {
         'dev.flutter.pigeon.OhosVideoPlayerApi.initialize', codec,
         binaryMessenger: _binaryMessenger);
     var obj = <Object?>[TextureMessage(textureId: 0)];
-    print(obj);
     final List<Object?>? replyList = await channel.send(obj) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
