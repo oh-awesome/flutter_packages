@@ -65,7 +65,7 @@
                 <policyitem type="copyright" name="Huawei Technologies Co., Ltd." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed By Huawei Technologies Co., Ltd."/>
                 <policyitem type="copyright" name="Huawei Device Co., Ltd." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed By Huawei Device Co., Ltd."/>
                 <policyitem type="copyright" name="SwanLink (Jiangsu) Technology Development Co., LTD." path=".*/ohos/.*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed By SwanLink (Jiangsu) Technology Development Co., LTD"/>
-                <policyitem type="copyright" name="The Flutter Authors." path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed By The Flutter Authors."/>
+                <policyitem type="copyright" name="The Flutter Authors" path=".*" rule="may" group="defaultGroup" filefilter="copyrightPolicyFilter" desc="Developed By The Flutter Authors."/>
                 <policyitem type="license" name="BSD-3-Clause" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="license" name="BSD 3-Clause License" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
                 <policyitem type="license" name="BSD-2-Clause" path=".*" filefilter="defaultPolicyFilter" desc="不影响兼容性"/>
@@ -148,11 +148,11 @@
                 <filteritem type="filepath" name="packages/animations/example/screenshots/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/animations/example/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/interactive_media_ads/example/test_driver/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
-                <filteritem type="filepath" name="packages/interactive_media_ads/example/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
-                <filteritem type="filepath" name="packages/interactive_media_ads/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/> 
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/example/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/ios/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/lib/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/interactive_media_ads/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/interactive_media_ads/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera_windows/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/camera/camera/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
