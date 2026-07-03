@@ -11,6 +11,21 @@ import 'ik_product_wrapper.dart';
 
 part 'ik_payment_transaction_wrappers.g.dart';
 
+int? _finishMapProductTypeValue(ProductType? productType) {
+  switch (productType) {
+    case ProductType.CONSUMABLE:
+      return 0;
+    case ProductType.NONCONSUMABLE:
+      return 1;
+    case ProductType.AUTORENEWABLE:
+      return 2;
+    case ProductType.NONRENEWABLE:
+      return 3;
+    case null:
+      return null;
+  }
+}
+
 /// Callback handlers for transaction status changes.
 abstract class IKTransactionObserverWrapper {
   /// Triggered when any transactions are updated.
@@ -165,8 +180,9 @@ class IKPaymentTransactionWrapper {
   String toString() => _$IKPaymentTransactionWrapperToJson(this).toString();
 
   /// The payload that is used to finish this transaction.
-  Map<String, String?> toFinishMap() => <String, String?>{
+  Map<String, Object?> toFinishMap() => <String, Object?>{
         'transactionIdentifier': transactionIdentifier,
         'productIdentifier': payment.productId,
+        'productType': _finishMapProductTypeValue(payment.productType),
       };
 }
