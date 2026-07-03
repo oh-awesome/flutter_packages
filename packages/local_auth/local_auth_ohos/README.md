@@ -16,7 +16,7 @@ Enter the project directory and add the following dependency in `pubspec.yaml`:
 dependencies:
   local_auth:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/local_auth/local_auth
       ref: br_local_auth-v3.0.1_ohos
 ```
