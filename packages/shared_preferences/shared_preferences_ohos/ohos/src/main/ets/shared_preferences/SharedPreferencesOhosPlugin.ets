@@ -15,7 +15,7 @@ import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import data_preferences from '@ohos.data.preferences';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
-
+import { BusinessError } from '@kit.BasicServicesKit';
 import common from '@ohos.app.ability.common';
 import { bundleManager } from '@kit.AbilityKit';
 import { 
@@ -216,8 +216,8 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       } else {
         keysToDelete = Array.from(new Set<string>(allowList));
       }
-  
-      // ����ɾ����ÿ��10��key
+
+      // 分批删除，每批10个key
       const batchSize = 10;
       for (let i = 0; i < keysToDelete.length; i += batchSize) {
         const batch = keysToDelete.slice(i, i + batchSize);
