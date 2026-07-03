@@ -16,7 +16,9 @@ import 'messages.g.dart';
 /// An OHOS implementation of [VideoPlayerPlatform] that uses the
 /// Pigeon-generated [OhosVideoPlayerApi].
 class OhosVideoPlayer extends VideoPlayerPlatform {
-  final OhosVideoPlayerApi _api = OhosVideoPlayerApi();
+  OhosVideoPlayer({OhosVideoPlayerApi? pluginApi})
+    : _api = pluginApi ?? OhosVideoPlayerApi();
+  final OhosVideoPlayerApi _api;
 
   static void registerWith() {
     VideoPlayerPlatform.instance = OhosVideoPlayer();
