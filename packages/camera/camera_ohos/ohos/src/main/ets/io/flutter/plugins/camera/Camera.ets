@@ -49,7 +49,8 @@ import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/eng
 import display from '@ohos.display';
 import { AudioPermission, CameraPermissions } from './CameraPermissions';
 import { BinaryMessenger } from '@ohos/flutter_ohos';
-import { CameraEventApi, PlatformCameraState, PlatformSize, PlatformExposureMode, PlatformFocusMode } from './Messages';
+import { CameraEventApi, PlatformCameraState, PlatformSize, PlatformExposureMode, PlatformFocusMode,
+  PlatformImageFileFormat } from './Messages';
 import { Decimal } from '@kit.ArkTS';
 import { sensor } from '@kit.SensorServiceKit';
 
@@ -118,6 +119,14 @@ export class Camera implements CameraCaptureStateListener {
   private permissions: CameraPermissions;
   private photoRotation: camera.ImageRotation | undefined;
   private nowZoom: number = 1;
+  private imageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
+  private displayChangeCallback: ((_displayId: number) => void) | null = null;
+  private lastDisplayRotation: number = -1;
+  private foldStatusChangeCallback: ((foldStatus: display.FoldStatus) => void) | null = null;
+  private isClosed: boolean = false;
+  private targetVideoBitrate: number | null = null;
+  private targetAudioBitrate: number | null = null;
+  private heifEncodingSupported: boolean | null = null;
 
   constructor(
     ability: UIAbility,
@@ -168,16 +177,16 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public async open(imageFormatGroup: string | null): Promise<void> {
-
+    this.isClosed = false;
     this.imageFormatGroup = imageFormatGroup;
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
 
     if (!resolutionFeature.checkIsSupported()) {
-      this.sendCameraErrorEvent(
-        "Camera with name \""
-          + this.cameraProperties.getCameraName()
-          + "\" is not supported by this plugin.");
-      return;
+      const errorMsg: string = "Camera with name \""
+        + this.cameraProperties.getCameraName()
+        + "\" is not supported by this plugin.";
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
@@ -195,8 +204,9 @@ export class Camera implements CameraCaptureStateListener {
     // 增强相机设备获取的错误处理
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
-      this.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
-      return;
+      const errorMsg: string = "Failed to get camera device: " + this.cameraProperties.getCameraName();
+      this.sendCameraErrorEvent(errorMsg);
+      throw new Error(errorMsg);
     }
 
     this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
@@ -207,7 +217,7 @@ export class Camera implements CameraCaptureStateListener {
         this.sendCameraInitializedEvent(resolutionFeature);
       }
     }catch (err) {
-      this.close();
+      await this.close();
       let errorDescription: string;
       switch (err.code) {
       case camera.CameraErrorCode.INVALID_ARGUMENT:
@@ -222,7 +232,7 @@ export class Camera implements CameraCaptureStateListener {
       default:
       errorDescription = "Unknown camera error";
       }
-      this.dartMessenger.sendCameraErrorEvent(errorDescription);
+      this.sendCameraErrorEvent(errorDescription);
       throw err as Error;
     }
   }
@@ -235,7 +245,7 @@ export class Camera implements CameraCaptureStateListener {
   private sendCameraErrorEvent(errorMessage: string): void {
     try {
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
-      const cameraEventApi = new CameraEventApi(binaryMessenger);
+      const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
       cameraEventApi.error(errorMessage, { reply: () => {} });
     } catch (e) {
       Log.e(TAG, "Failed to send camera error event: " + e.message);
@@ -246,7 +256,7 @@ export class Camera implements CameraCaptureStateListener {
   private sendCameraClosingEvent(): void {
     try {
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
-      const cameraEventApi = new CameraEventApi(binaryMessenger);
+      const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
       cameraEventApi.closed({ reply: () => {} });
     } catch (e) {
       Log.e(TAG, "Failed to send camera closing event: " + e.message);
@@ -257,7 +267,7 @@ export class Camera implements CameraCaptureStateListener {
     try {
       // 获取 BinaryMessenger 实例
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
-      const cameraEventApi = new CameraEventApi(binaryMessenger);
+      const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
       
       // 从相机特性中获取所需的值
       const previewSize = new PlatformSize(
@@ -358,7 +368,7 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setFocusMode(newMode)
       result?.success(null)
     } catch (error) {
-      result?.success(null)
+      result?.error("setFocusModeFailed", "Could not set focus mode.", null)
     }
   }
 
@@ -394,13 +404,16 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
-    this.nowZoom = zoom;
-    zoomLevel.setValue(zoom);
     try {
       this.getCurSession().setZoomRatio(zoom);
     } catch (error) {
-      result.error("setZoomLevelFailed", "Could not set exposure point.", null);
+      Log.e(TAG, "setZoomLevel failed: zoom=" + zoom + ", error=" + error.message);
+      result.error("setZoomLevelFailed", "Could not set zoom level.", null);
+      return;
     }
+    this.nowZoom = zoom;
+    zoomLevel.setValue(zoom);
+    result.success(null);
   }
 
   public lockCaptureOrientation(orientation: DeviceOrientation): void {
@@ -417,6 +430,7 @@ export class Camera implements CameraCaptureStateListener {
       await this.previewOutput?.stop();
       await this.previewOutput2?.stop();
     } catch (e) {
+      Log.e(TAG, "pausePreview: failed to stop preview output: " + e.message);
     }
     this.pausedPreview = true;
     result.success(null);
@@ -430,6 +444,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput2?.start();
       }
     } catch (e) {
+      Log.e(TAG, "resumePreview: failed to start preview output: " + e.message);
     }
     this.pausedPreview = false;
     result.success(null);
@@ -441,7 +456,7 @@ export class Camera implements CameraCaptureStateListener {
     exposurePointFeature.setValue(point);
 
     const exposurePoint: camera.Point | null
-      = (point.x == null || point.y == null) ? null : { x: point.x, y: point.y };
+      = (point.x == null || point.y == null) ? null : { x: point.y, y: 1-point.x };
 
     try {
       this.getCurSession().setMeteringPoint(exposurePoint);
@@ -459,12 +474,7 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
-    let modeExistence: boolean = false;
-    Object.values(camera.ExposureMode).forEach(async (value) => {
-      if (newMode == value) {
-        modeExistence = true
-      }
-    })
+    const modeExistence: boolean = Object.values(camera.ExposureMode).includes(newMode);
 
     if (!modeExistence) {
       result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
@@ -546,7 +556,7 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
     this.takePictureResult = result;
-    this.takePictureName = '/IMG_' + Date.now().toString() + '.jpg';
+    this.takePictureName = '/IMG_' + Date.now().toString() + this.getCurrentImageFileExtension();
     this.runPictureAutoFocus();
   }
 
@@ -645,7 +655,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
+  async startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
     this.prepareRecording(result);
 
     if (imageStreamChannel != null) {
@@ -653,28 +663,40 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     this.initialCameraFacing = this.cameraProperties.getLensFacing();
-    this.recordingVideo = true;
 
     try {
       // 开始录制
-      this.startCapture(true, imageStreamChannel != null);
+      await this.startCapture(true, imageStreamChannel != null);
+      this.recordingVideo = true;
       result.success(null);
     } catch (e) {
       this.recordingVideo = false;
       this.captureFile = null;
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      let errMsg = "Unknown error";
+      if (e instanceof Error) {
+        errMsg = e.message;
+      } else if (typeof e === 'string') {
+        errMsg = e;
+      }
+      result.error("videoRecordingFailed", errMsg, null);
     }
   }
 
   async stopVideoRecording(result: MethodResult) {
-    if (!this.recordingVideo || !this.avRecorder) {
+    if (!this.recordingVideo) {
       result.success(null);
       return;
     }
+
+    if (!this.avRecorder) {
+      this.recordingVideo = false;
+      result.error("videoRecordingFailed", "avRecorder is not initialized", null);
+      return;
+    }
+
     this.cameraFeatures.setAutoFocus(this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, false));
     this.recordingVideo = false;
-    const isPrepared =
-      this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared';
+    const isPrepared = this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared';
     try {
       if (isPrepared) {
         await this.avRecorder.stop();
@@ -692,10 +714,12 @@ export class Camera implements CameraCaptureStateListener {
       Log.d(TAG, "videoSession stop error" + e.toString());
     } finally {
       try {
-        fs.close(this.captureFile);
+        if(this.captureFile != null) {
+          fs.close(this.captureFile);
+        }
         this.captureFile = null;
         this.isVideoMode = false;
-        this.open(this.imageFormatGroup);
+        await this.open(this.imageFormatGroup);
       } catch (e) {
         Log.d(TAG, "close file or openPreview error" + e.toString());
       }
@@ -851,9 +875,8 @@ export class Camera implements CameraCaptureStateListener {
           this.photoOutPut = null;
         }
       } catch (cleanupError) {
-
+        Log.e(TAG, 'startPreviewWithPhoto cleanup failed: ' + cleanupError.message);
       }
-
     }
   }
 
@@ -865,21 +888,104 @@ export class Camera implements CameraCaptureStateListener {
     photoAccessHelper.MediaAssetManager.requestImageData(this.applicationContext, photoAsset,
       requestOptions, {
         onDataPrepared(data: ArrayBuffer) {
-          that.convertBufferToFile(data);
+          that.convertBufferToFile(data).catch((error: Error) => {
+            Log.e(TAG, "convertBufferToFile failed: " + error.message)
+          });
         }
       });
   }
 
-  convertBufferToFile(data: ArrayBuffer) {
-    let photoUri: string = getContext(this).cacheDir + this.takePictureName;
-    let file: fs.File = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-    fs.write(file.fd, data).then(() => {
-      fs.closeSync(file);
+  async convertBufferToFile(data: ArrayBuffer) {
+    const photoUri: string = getContext(this).cacheDir + this.takePictureName;
+    const file: fs.File = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      if (this.imageFileFormat === PlatformImageFileFormat.heif) {
+        await this.packImageBufferToFile(data, file.fd);
+      } else {
+        await fs.write(file.fd, data);
+      }
       if (this.takePictureResult) {
-        this.takePictureResult.success(photoUri)
+        this.takePictureResult.success(photoUri);
         this.takePictureResult = undefined;
       }
-    });
+      fs.closeSync(file);
+    } catch (error) {
+      this.takePictureResult?.error(
+        "imageFileFormatEncodingFailed",
+        error instanceof Error ? error.message : "Failed to write captured image.",
+        null);
+      this.takePictureResult = undefined;
+      fs.closeSync(file);
+      try {
+        fs.unlinkSync(photoUri);
+      } catch (cleanupError) {
+        Log.e(TAG, "convertBufferToFile: failed to delete temp file: " + cleanupError.message);
+      }
+    }
+  }
+
+  public setImageFileFormat(result: MethodResult, format: PlatformImageFileFormat): void {
+    if (format === PlatformImageFileFormat.heif && !this.isHeifEncodingSupported()) {
+      result.error(
+        "unsupportedImageFileFormat",
+        "HEIF encoding is not supported on this OHOS device/runtime.",
+        null);
+      return;
+    }
+    this.imageFileFormat = format;
+    result.success(null);
+  }
+
+  private getCurrentImageFileExtension(): string {
+    switch (this.imageFileFormat) {
+      case PlatformImageFileFormat.heif:
+        return '.heif';
+      case PlatformImageFileFormat.jpeg:
+      default:
+        return '.jpg';
+    }
+  }
+
+  private isHeifEncodingSupported(): boolean {
+    if (this.heifEncodingSupported !== null) {
+      return this.heifEncodingSupported;
+    }
+    let imagePackerObj: image.ImagePacker | null = null;
+    try {
+      imagePackerObj = image.createImagePacker();
+      const supportedFormats = imagePackerObj.supportedFormats;
+      Log.d(TAG, "isHeifEncodingSupported supportedFormats : " + JSON.stringify(supportedFormats));
+      // ohos平台中heif和heic格式是相同的，但API 14之前不支持heic
+      this.heifEncodingSupported = supportedFormats.includes('image/heif') || supportedFormats.includes('image/heic');
+    } catch (error) {
+      Log.w(TAG, "Failed to query HEIF encoding support: " + error);
+      this.heifEncodingSupported = false;
+      return false;
+    } finally {
+      imagePackerObj?.release();
+    }
+    return this.heifEncodingSupported;
+  }
+
+  private async packImageBufferToFile(data: ArrayBuffer, fd: number): Promise<void> {
+    let imageSource: image.ImageSource | null = null;
+    let imagePackerObj: image.ImagePacker | null = null;
+    try {
+      imageSource = image.createImageSource(data);
+      imagePackerObj = image.createImagePacker();
+      await imagePackerObj.packToFile(imageSource, fd, {
+        format: 'image/heif',
+        quality: 100,
+        needsPackProperties: true,
+      });
+    } finally {
+      if (imagePackerObj != null) {
+        await imagePackerObj.release();
+      }
+      if (imageSource != null) {
+        await imageSource.release();
+      }
+    }
   }
 
   async pauseVideoRecording(result: MethodResult) {
@@ -935,12 +1041,14 @@ export class Camera implements CameraCaptureStateListener {
         await this.photoSession?.stop()
       }
     } catch (e) {
+      Log.e(TAG, "startImageStream: failed to stop photoSession: " + e.message);
     }
     try {
       if (this.videoSession != null) {
         await this.videoSession?.stop();
       }
     } catch (e) {
+      Log.e(TAG, "startImageStream: failed to stop videoSession: " + e.message);
     }
 
     let profiles =
@@ -987,76 +1095,81 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  async startCapture(record: boolean, stream: boolean) {
+  async startCapture(record: boolean, stream: boolean): Promise<void> {
     if (!this.pausedPreview) {
       this.getCurSession().stop();
     }
     this.photoSession = null;
     this.isVideoMode = true;
-    media.createAVRecorder(async (error, recorder) => {
-      if (recorder != null) {
-        this.avRecorder = recorder;
-        let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
-        this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
-        let fd = this.captureFile.fd;        
-        let displayRotation = display.getDefaultDisplaySync().rotation * camera.ImageRotation.ROTATION_90;
-        let previewRotation =  this.previewOutput!.getPreviewRotation(displayRotation);
+    return new Promise<void>((resolve, reject) => {
+      media.createAVRecorder(async (error, recorder) => {
+        if (recorder != null) {
+          this.avRecorder = recorder;
+          let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
+          this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
+          let fd = this.captureFile.fd;
+          let displayRotation = display.getDefaultDisplaySync().rotation * camera.ImageRotation.ROTATION_90;
+          let previewRotation = this.previewOutput!.getPreviewRotation(displayRotation);
 
-        this.cameraOutputCapability =
-          CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
-            this.cameraManager);
-        let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
-                                                           .getResolution()
-                                                           .getVideoSessionProfile(
-                                                             this.cameraOutputCapability.previewProfiles,
-                                                             this.cameraOutputCapability.videoProfiles);
+          this.cameraOutputCapability =
+            CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
+              this.cameraManager);
+          let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
+                                                             .getResolution()
+                                                             .getVideoSessionProfile(
+                                                               this.cameraOutputCapability.previewProfiles,
+                                                               this.cameraOutputCapability.videoProfiles);
 
-        this.aVRecorderProfile.videoFrameWidth = videoSessionProfile.getCaptureProfile()?.size.width;
-        this.aVRecorderProfile.videoFrameHeight = videoSessionProfile.getCaptureProfile()?.size.height;
-        const avRecorderConfig = await this.getAVRecorderConfig(fd, previewRotation);
-        await this.avRecorder.prepare(avRecorderConfig).then(async () => {
-          this.videoId = await this.avRecorder?.getInputSurface();
-        });
+          this.aVRecorderProfile.videoFrameWidth = videoSessionProfile.getCaptureProfile()?.size.width;
+          this.aVRecorderProfile.videoFrameHeight = videoSessionProfile.getCaptureProfile()?.size.height;
+          const avRecorderConfig = await this.getAVRecorderConfig(fd, previewRotation);
+          await this.avRecorder.prepare(avRecorderConfig).then(async () => {
+            this.videoId = await this.avRecorder?.getInputSurface();
+          });
 
-        let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
-        this.cameraFeatures.getResolution().setPreviewSize(previewSize);
-        this.previewOutput = this.cameraManager.createPreviewOutput(
-          videoSessionProfile.getPreviewProfile(),
-          this.flutterTexture.getSurfaceId().toString());
-        this.videoOutput = this.cameraManager.createVideoOutput(
-          videoSessionProfile.getCaptureProfile(),
-          this.videoId);
-        this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
-        this.videoSession?.beginConfig();
-        await this.cameraInput?.open();
-        this.videoSession?.addInput(this.cameraInput);
-        this.videoSession?.addOutput(this.previewOutput);
-        if (stream && this.imageStreamReader != null) {
-          let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
-          this.previewOutput2 = this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
-          this.videoSession.addOutput(this.previewOutput2);
-        }
-        this.videoSession?.addOutput(this.videoOutput);
-        await this.videoSession?.commitConfig();
-        this.getCurSession().setZoomRatio(this.nowZoom);
-        await this.videoSession?.start();
-
-        await this.applyFlashMode(this.videoSession!);
-
-        await this.videoOutput.start();
-        try {
-          if (this.pausedPreview) {
-            await this.previewOutput.stop();
+          let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
+          this.cameraFeatures.getResolution().setPreviewSize(previewSize);
+          this.previewOutput = this.cameraManager.createPreviewOutput(
+            videoSessionProfile.getPreviewProfile(),
+            this.flutterTexture.getSurfaceId().toString());
+          this.videoOutput = this.cameraManager.createVideoOutput(
+            videoSessionProfile.getCaptureProfile(),
+            this.videoId);
+          this.videoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_VIDEO) as camera.VideoSession;
+          this.videoSession?.beginConfig();
+          await this.cameraInput?.open();
+          this.videoSession?.addInput(this.cameraInput);
+          this.videoSession?.addOutput(this.previewOutput);
+          if (stream && this.imageStreamReader != null) {
+            let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
+            this.previewOutput2 = this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
+            this.videoSession.addOutput(this.previewOutput2);
           }
-          if (record) {
-            await this.avRecorder.start();
+          this.videoSession?.addOutput(this.videoOutput);
+          await this.videoSession?.commitConfig();
+          this.getCurSession().setZoomRatio(this.nowZoom);
+          await this.videoSession?.start();
+
+          await this.applyFlashMode(this.videoSession!);
+
+          await this.videoOutput.start();
+          try {
+            if (this.pausedPreview) {
+              await this.previewOutput.stop();
+            }
+            if (record) {
+              await this.avRecorder.start();
+            }
+            resolve();
+          } catch (e) {
+            Log.e(TAG, "startAVRecorder error");
+            reject(e);
           }
-        } catch (e) {
-          Log.d(TAG, "startAVRecorder error")
+        } else {
+          Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
+          reject(error);
         }
-      } else {
-        Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
-      }
+      });
     });
   }
 
@@ -1113,53 +1226,60 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   // 关闭
-  public close(): void {
-    this.stopAndReleaseCamera();
+  public async close(): Promise<void> {
+    if (this.isClosed) {
+      return;
+    }
+    this.isClosed = true;
+    this.unregisterDisplayChangeListener();
+    this.unregisterFoldStatusChangeListener();
 
-    this.avRecorder?.reset();
-    this.avRecorder?.release();
+    await this.stopAndReleaseCamera();
+
+    try {
+      await this.avRecorder?.reset();
+    } catch (resetError) {
+      Log.d(TAG, "avRecorder reset error: " + resetError.toString());
+    }
+    try {
+      await this.avRecorder?.release();
+    } catch (releaseError) {
+      Log.d(TAG, "avRecorder release error: " + releaseError.toString());
+    }
     this.avRecorder = null;
-
     this.cameraDevice = null;
-    this.releaseSession();
     this.sendCameraClosingEvent();
   }
 
   // 关闭摄像头输入流
-  private stopAndReleaseCamera() {
+  private async stopAndReleaseCamera() {
     if (this.cameraInput != null) {
       try {
         this.photoSession?.removeInput(this.cameraInput);
       } catch (e) {
+        Log.e(TAG, "stopAndReleaseCamera: failed to remove input from photoSession: " + e.message);
       }
       try {
         this.videoSession?.removeInput(this.cameraInput);
       } catch (e) {
+        Log.e(TAG, "stopAndReleaseCamera: failed to remove input from videoSession: " + e.message);
       }
-
-      this.cameraInput.close();
+      try {
+        this.cameraInput.close();
+      } catch (e) {
+        Log.e(TAG, "Failed to close cameraInput: " + e.toString());
+      }
       this.cameraInput = null;
     }
+    // ② 释放输出资源
+    await this.releasePreviewOutput();
+    await this.releaseVideoOutput();
+    await this.releasePhotoOutput();
+    // ③ 停止并释放 session
+    await this.releaseSession();
 
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
-      this.photoSession = null;
-      this.videoSession = null;
-    } else {
-      this.stopSession();
-    }
-  }
-
-  // 停止Session
-  async stopSession() {
-
-    if (this.photoSession != null) {
-      await this.photoSession.stop();
-      this.photoSession = null;
-    }
-    if (this.videoSession != null) {
-      await this.videoSession.stop();
-      this.videoSession = null;
     }
   }
 
@@ -1168,22 +1288,38 @@ export class Camera implements CameraCaptureStateListener {
     return;
   }
 
-  dispose() {
+  async dispose() {
     console.error(TAG, 'dispose');
-    this.close();
+    await this.close();
     this.getDeviceOrientationManager().stop();
   }
 
   // 释放Session
   private async releaseSession() {
     if (this.photoSession != null) {
-      await this.photoSession.stop();
-      await this.photoSession.release();
+      try {
+        await this.photoSession.stop();
+      } catch (e) {
+        Log.e(TAG, "releaseSession: failed to stop photoSession: " + e.message);
+      }
+      try {
+        await this.photoSession.release();
+      } catch (e) {
+        Log.e(TAG, "releaseSession: failed to release photoSession: " + e.message);
+      }
       this.photoSession = null;
     }
     if (this.videoSession != null) {
-      await this.videoSession.stop();
-      await this.videoSession.release();
+      try {
+        await this.videoSession.stop();
+      } catch (e) {
+        Log.e(TAG, "releaseSession: failed to stop videoSession: " + e.message);
+      }
+      try {
+        await this.videoSession.release();
+      } catch (e) {
+        Log.e(TAG, "releaseSession: failed to release videoSession: " + e.message);
+      }
       this.videoSession = null;
     }
   }
@@ -1194,6 +1330,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.cameraInput.close();
         this.cameraInput = null;
       } catch (e) {
+        Log.e(TAG, "releaseCameraInput: failed to close cameraInput: " + e.message);
       }
     }
   }
@@ -1204,6 +1341,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput.release();
         this.previewOutput = null;
       } catch (e) {
+        Log.e(TAG, "releasePreviewOutput: failed to release previewOutput: " + e.message);
       }
     }
   }
@@ -1215,6 +1353,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.photoOutPut.release();
         this.photoOutPut = null;
       } catch (e) {
+        Log.e(TAG, "releasePhotoOutput: failed to release photoOutput: " + e.message);
       }
     }
   }
@@ -1226,6 +1365,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.videoOutput.release();
         this.videoOutput = null;
       } catch (e) {
+        Log.e(TAG, "releaseVideoOutput: failed to release videoOutput: " + e.message);
       }
     }
   }
@@ -1237,5 +1377,27 @@ export class Camera implements CameraCaptureStateListener {
     await this.releasePreviewOutput();
     await this.releaseVideoOutput();
     await this.releasePhotoOutput();
+  }
+
+  private unregisterDisplayChangeListener(): void {
+    if (this.displayChangeCallback != null) {
+      try {
+        display.off('change', this.displayChangeCallback);
+      } catch (e) {
+        Log.e(TAG, "unregisterDisplayChangeListener failed: " + e.message);
+      }
+      this.displayChangeCallback = null;
+    }
+  }
+
+  private unregisterFoldStatusChangeListener(): void {
+    if (this.foldStatusChangeCallback != null) {
+      try {
+        display.off('foldStatusChange', this.foldStatusChangeCallback);
+      } catch (e) {
+        Log.e(TAG, "unregisterFoldStatusChangeListener failed: " + e.message);
+      }
+      this.foldStatusChangeCallback = null;
+    }
   }
 }

@@ -13,10 +13,12 @@
  * limitations under the License.
  */
  
-import { BinaryMessenger, MethodResult } from '@ohos/flutter_ohos';
+import { BinaryMessenger, MethodResult, Log } from '@ohos/flutter_ohos';
 import MethodChannel, { MethodResult as FlutterMethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
-import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result } from './Messages';
+import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi,
+  PlatformImageFileFormat,
+  FlutterError } from './Messages';
 import { CameraUtils } from './CameraUtils';
 import { FlashMode } from './features/flash/FlashMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
@@ -208,7 +210,7 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMaxZoomLevel());
+      return this.camera!.getMaxZoomLevel();
     } catch (error) {
       console.error('getMaxZoomLevel error:', error);
       return 1.0;
@@ -220,15 +222,19 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMinZoomLevel());
+      return this.camera!.getMinZoomLevel();
     } catch (error) {
       console.error('getMinZoomLevel error:', error);
       return 1.0;
     }
   }
 
-  setFocusPoint(point: PlatformPoint, result: Result<void>): void {
+  setFocusPoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
+      if (this.camera == null) {
+        result.error(new Error('FOCUS_POINT_ERROR: Camera not initialized'));
+        return;
+      }
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -240,7 +246,11 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('FOCUS_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setFocusPoint(methodResult, new Point(point.getX(), point.getY()));
+      if (point == null) {
+        this.camera!.setFocusPoint(methodResult, new Point(null, null));
+      } else {
+        this.camera!.setFocusPoint(methodResult, new Point(point.getX(), point.getY()));
+      }
     } catch (error) {
       result.error(new Error('FOCUS_POINT_ERROR: Failed to set focus point'));
     }
@@ -249,6 +259,10 @@ export class CameraApiImpl extends CameraApi {
   async setDescriptionWhileRecording(description: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       try {
+        if (this.camera == null) {
+          reject(new Error('Camera not initialized'));
+          return;
+        }
         const methodResult: CameraMethodResult = {
           success: (value: Any) => {
             console.log('setDescriptionWhileRecording success');
@@ -264,7 +278,7 @@ export class CameraApiImpl extends CameraApi {
           }
         };
         const cameraProperties: CameraProperties = new CameraPropertiesImpl(description, CameraUtils.getCameraManager(this.context));
-        this.camera?.setDescriptionWhileRecording(methodResult, cameraProperties);
+        this.camera.setDescriptionWhileRecording(methodResult, cameraProperties);
       } catch (error) {
         console.error('DESCRIPTION_ERROR: Failed to set description while recording');
         reject(error);
@@ -284,6 +298,7 @@ export class CameraApiImpl extends CameraApi {
   private flutterTexture: SurfaceTextureEntry | null = null;
   private textureId: number = -1;
   private curStatus: STATUS = STATUS.DEFAULT;
+  private currentImageFormat: string = '';
 
   constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
     super();
@@ -395,43 +410,55 @@ export class CameraApiImpl extends CameraApi {
   }
 
   // 在 initialize 方法中增强错误处理
-  initialize(imageFormat: PlatformImageFormatGroup): void {
+  async initialize(imageFormat: PlatformImageFormatGroup): Promise<void> {
 
-    
-    this.curStatus = STATUS.INITIALIZE_ING; 
-    if (this.camera != null) { 
-      try { 
 
+    this.curStatus = STATUS.INITIALIZE_ING;
+    if (this.camera != null) {
+      try {
         const imageFormatString = PlatformImageFormatGroup[imageFormat];
-        this.camera.open(imageFormatString);
+        this.currentImageFormat = imageFormatString;
+        await this.camera.open(imageFormatString);
         this.curStatus = STATUS.DEFAULT;
-
-      } catch (e) { 
+      } catch (e) {
+        Log.e(TAG, 'initialize failed: ' + e.message);
         this.curStatus = STATUS.DEFAULT;
-      } 
-    } else { 
+        // 先发送错误事件到 Dart 层（此时 dartMessenger 等资源仍可用）
+        const cameraEventApi = new CameraEventApi(this.binaryMessenger, this.camera.dartMessenger.getCameraIdSuffix());
+        cameraEventApi.error(e.message, { reply: () => {} });
+        // 再关闭相机释放资源（Camera.close 内部有 isClosed 守卫，重复调用安全，
+        // 且 close 会发送 closed 事件，应在 error 事件之后到达 Dart 侧）
+        try {
+          await this.camera.close();
+        } catch (closeError) {
+          Log.e(TAG, 'close after initialize failed: ' + closeError.message);
+        }
+        throw new FlutterError('CameraError', e.message, '', '');
+      }
+    } else {
       this.curStatus = STATUS.DEFAULT;
-
+      const cameraEventApi = new CameraEventApi(this.binaryMessenger, '');
+      cameraEventApi.error("Camera not found. Please call the 'create' method before calling 'initialize'.", { reply: () => {} });
+      throw new FlutterError('cameraNotFound',"Camera not found. Please call the 'create' method before calling 'initialize'.",'','');
     }
   }
 
   // 在 dispose 方法中改进错误处理
-  dispose(): void {
+  async dispose(): Promise<void> {
     try {
       // 先停止相机
       if (this.camera) {
         try {
-          this.camera.close();
+          await this.camera.close();
         } catch (closeError) {
           console.error(`Failed to close camera: ${closeError}`);
         }
         try {
-          this.camera?.dispose();
-          this.camera = null;
-
+          await this.camera.dispose();
         } catch (disposeError) {
           console.error(`Failed to dispose camera: ${disposeError}`);
         }
+        this.camera = null;
       }
       // 释放纹理
       if (this.textureId > -1) {
@@ -582,6 +609,30 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
+  setImageFileFormat(format: PlatformImageFileFormat, result: Result<void>): void {
+    try {
+      if (this.camera == null) {
+        result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Camera not initialized'));
+        return;
+      }
+
+      const methodResult: CameraMethodResult = {
+        success: (value: Any) => {
+          result.success(undefined);
+        },
+        error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
+          result.error(new Error(`${errorCode}: ${errorMessage}`));
+        },
+        notImplemented: () => {
+          result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Method not implemented'));
+        }
+      };
+      this.camera.setImageFileFormat(methodResult, format);
+    } catch (error) {
+      result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Failed to set image file format'));
+    }
+  }
+
   setFlashMode(flashMode: PlatformFlashMode, result: Result<void>): void {
     try {
       const flashModeString = PlatformFlashMode[flashMode];
@@ -634,8 +685,12 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  setExposurePoint(point: PlatformPoint, result: Result<void>): void {
+  setExposurePoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
+      if (this.camera == null) {
+        result.error(new Error('FOCUS_POINT_ERROR: Camera not initialized'));
+        return;
+      }
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -647,7 +702,11 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('EXPOSURE_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setExposurePoint(methodResult, new Point(point.getX(), point.getY()));
+      if (point == null) {
+        this.camera!.setExposurePoint(methodResult, new Point(null, null));
+      } else {
+        this.camera!.setExposurePoint(methodResult, new Point(point.getX(), point.getY()));
+      }
     } catch (error) {
       result.error(new Error('EXPOSURE_POINT_ERROR: Failed to set exposure point'));
     }
