@@ -17,14 +17,16 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 #### pubspec.yaml
 
 ```yaml
+...
 
 dependencies:
   pigeon:
     git:
-      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
-      path: "packages/pigeon"
-      ref: "br_pigeon-v25.3.2_ohos_dev"
-
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/pigeon
+      # ref: pigeon-v25.3.2-ohos-1.0.0
+      ref: TAG  #   Select a TAG according to the TAG version table below
+...
 ```
 
 Execute Command
@@ -33,9 +35,15 @@ Execute Command
 flutter pub get
 ```
 
+**TAG Version Table**
 
+| Flutter Version | TAG | Branch |
+| :--- | :--- | :--- |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `master` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `br_pigeon-v25.3.2_ohos` |
+| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `br_pigeon-v26.1.5_ohos` |
 
-### 1.2 Usage
+## 1.2 Usage
 
 For use cases [example](./example)
 
@@ -68,7 +76,7 @@ This document is verified based on the following versions:
 
 > [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this command; **no** means the opposite; **partially** means some capabilities of this command are supported. The usage method is the same on different platforms and the effect is consistent across supported Flutter host targets.
 
-Usage：`flutter pub run pigeon --input <pigeon path> --dart_out<dart path> [option]*`
+Usage:`flutter pub run pigeon --input <pigeon path> --dart_out <dart path> [option]*`
 
 > Upstream pigeon also exposes additional host binding output flags for JVM and native targets. Those flags are documented in the [upstream package](https://pub.dev/packages/pigeon); the table below focuses on flags commonly used with OHOS ArkTS workflows.
 
@@ -104,6 +112,6 @@ Section 4 summarizes **annotation-level** OHOS support. The table below lists **
 
 ## 8. **License**
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_pigeon-v25.3.2_ohos_dev/packages/pigeon/LICENSE).
+This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_pigeon-v25.3.2_ohos/packages/pigeon/LICENSE).
 
 > Template version: v0.0.1

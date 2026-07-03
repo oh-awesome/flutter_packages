@@ -1,188 +1,111 @@
-# Pigeon
+# `pigeon`
 
-Pigeon is a code generator tool to make communication between Flutter and the
-host platform type-safe, easier, and faster.
+本项目基于 [pigeon@25.5.0](https://pub.dev/packages/pigeon/versions/25.5.0) 开发。
 
-Pigeon removes the necessity to manage strings across multiple platforms and languages.
-It also improves efficiency over common method channel patterns. Most importantly though,
-it removes the need to write custom platform channel code, since pigeon generates it for you.
+## 1. 安装与使用
 
-For usage examples, see the [Example README](./example/README.md).
+### 1.1 安装方式
 
-## Features
+进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
-### Supported Platforms
+#### pubspec.yaml
 
-Currently pigeon supports generating:
-* Kotlin and Java code for Android
-* Swift and Objective-C code for iOS and macOS
-* C++ code for Windows
-* GObject code for Linux
+```yaml
+...
 
-### Supported Datatypes
+dependencies:
+  pigeon:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/pigeon
+      # ref: pigeon-v25.3.2-ohos-1.0.0
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
+...
+```
 
-Pigeon uses the `StandardMessageCodec` so it supports
-[any datatype platform channels support](https://flutter.dev/to/platform-channels-codec).
+执行命令
 
-Custom classes, nested datatypes, and enums are also supported.
+```bash
+flutter pub get
+```
 
-Basic inheritance with empty `sealed` parent classes is allowed only in the Swift, Kotlin, and Dart generators.
+**TAG 版本对应表**
 
-Nullable enums in Objective-C generated code will be wrapped in a class to allow for nullability.
+| Flutter 框架版本 | TAG | 分支 |
+| :--- | :--- | :--- |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `master` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `br_pigeon-v25.3.2_ohos` |
+| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `br_pigeon-v26.1.5_ohos` |
 
-By default, custom classes in Swift are defined as structs.
-Structs don't support some features - recursive data, or Objective-C interop.
-Use the @SwiftClass annotation when defining the class to generate the data
-as a Swift class instead.
+## 1.2 使用案例
 
-### Synchronous and Asynchronous methods
+使用案例详见 [example](./example)
 
-While all calls across platform channel APIs (such as pigeon methods) are asynchronous,
-pigeon methods can be written on the native side as synchronous methods,
-to make it simpler to always reply exactly once.
+## 2. 约束与限制
 
-If asynchronous methods are needed, the `@async` annotation can be used. This will require
-results or errors to be returned via a provided callback. [Example](./example/README.md#HostApi_Example).
+### 2.1 兼容性
 
-### Error Handling
+在以下版本中已测试通过
 
-#### Kotlin, Java and Swift
+1. Flutter version 3.22.1-ohos-1.1.0; SDK: 6.0.0.47 (API Version 20 Release); IDE: DevEco Studio: 6.0.0.858; ROM: 6.0.0.125 SP8;
 
-All Host API exceptions are translated into Flutter `PlatformException`.
-* For synchronous methods, thrown exceptions will be caught and translated.
-* For asynchronous methods, there is no default exception handling; errors
-should be returned via the provided callback.
+## 3. API
 
-To pass custom details into `PlatformException` for error handling,
-use `FlutterError` in your Host API. [Example](./example/README.md#HostApi_Example).
+> [!TIP] "Pigeon"是一个代码生成工具，通过终端执行命令调用，不涉及API
 
-For swift, use `PigeonError` instead of `FlutterError` when throwing an error. See [Example#Swift](./example/README.md#Swift) for more details.
+## 4. 注解
 
-#### Objective-C and C++
-
-Host API errors can be sent using the provided `FlutterError` class (translated into `PlatformException`).
-
-For synchronous methods:
-* Objective-C - Set the `error` argument to a `FlutterError` reference.
-* C++ - Return a `FlutterError`.
-
-For async methods:
-* Return a `FlutterError` through the provided callback.
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该注解；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果与各 Flutter 宿主目标保持一致。
 
 
-### Task Queue
+| Name               | Description                                      | Type       | ohos Support |
+| ------------------ | ------------------------------------------------ | ---------- | ------------ |
+| @HostApi()         | 使用 @HostApi() 注解定义接口，这些接口由原生平台实现，供 Flutter 调用    | annotation | yes          |
+| @FlutterApi()      | 使用 @FlutterApi() 注解定义接口，这些接口由 Flutter 实现，供原生平台调用 | annotation | yes          |
+| @ProxyApi()        | 定义基于 `InstanceManager`、弱引用 GC、继承与适配器的双向对象引用（详见 §7）。 | annotation | partially    |
+| @TaskQueue()       | IDL 可标注 `@TaskQueue`；**`flutter_ohos` 的 `BasicMessageChannel` 目前仅三参数**，队列**尚未绑定**到通道（详见 §7）。 | annotation | partially    |
 
-When targeting a Flutter version that supports the
-[TaskQueue API](https://docs.flutter.dev/development/platform-integration/platform-channels?tab=type-mappings-kotlin-tab#channels-and-platform-threading)
-the threading model for handling HostApi methods can be selected with the
-`TaskQueue` annotation.
 
-### Multi-Instance Support
+## 5. 命令
 
-Host and Flutter APIs now support the ability to provide a unique message channel suffix string
-to the api to allow for multiple instances to be created and operate in parallel.
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该命令；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果与各 Flutter 宿主目标保持一致。
 
-## Usage
+使用：`flutter pub run pigeon --input <pigeon path> --dart_out <dart path> [option]*`
 
-1) Add pigeon as a `dev_dependency`.
-1) Make a ".dart" file outside of your "lib" directory for defining the
-   communication interface.
-1) Run pigeon on your ".dart" file to generate the required Dart and
-   host-language code: `flutter pub get` then `dart run pigeon`
-   with suitable arguments. [Example](./example/README.md#Invocation).
-1) Add the generated Dart code to `./lib` for compilation.
-1) Implement the host-language code and add it to your build (see below).
-1) Call the generated Dart methods.
+> 上游 pigeon 还提供面向 JVM 与原生宿主的附加输出参数，详见 [上游包文档](https://pub.dev/packages/pigeon)；下表侧重 OHOS ArkTS 工作流常用参数。
 
-### Rules for defining your communication interface
-[Example](./example/README.md#HostApi_Example)
 
-1) The file should contain no method or function definitions, only declarations.
-1) Custom classes used by APIs are defined as classes with fields of the
-   supported datatypes (see the supported Datatypes section).
-1) APIs should be defined as an `abstract class` with either `@HostApi()` or
-   `@FlutterApi()` as metadata.  `@HostApi()` being for procedures that are defined
-   on the host platform and the `@FlutterApi()` for procedures that are defined in Dart.
-1) Method declarations on the API classes should have arguments and a return
-   value whose types are defined in the file, are supported datatypes, or are
-   `void`.
-1) Event channels are supported only on the Swift, Kotlin, and Dart generators.
-1) Event channel methods should be wrapped in an `abstract class` with the metadata `@EventChannelApi`.
-1) Event channel definitions should not include the `Stream` return type, just the type that is being streamed.
-1) Objective-C and Swift have special naming conventions that can be utilized with the
-   `@ObjCSelector` and `@SwiftFunction` respectively.
+| Command                       | Description                   | ohos Support |
+| ----------------------------- | ----------------------------- | ------------ |
+| --input                       | 指定输入的 Dart 文件路径，该文件中定义了通信接口   | yes          |
+| --dart_out                    | 指定生成的 Dart 文件的输出路径            | yes          |
+| --arkts_out                   | 指定生成的 ohos ArkTS 文件路径            | yes          |
+| --java_out                    | 指定生成的 JVM 宿主 Java 文件路径       | yes          |
+| --java_package                | 指定生成的 JVM 宿主 Java 文件包名       | yes          |
+| --cpp_header_out              | 指定生成的 Windows 头文件（`.h`）路径   | yes          |
+| --cpp_source_out              | 指定生成的 Windows 源文件（`.cpp`）路径 | yes          |
 
-### Flutter calling into iOS steps
 
-1) Add the generated Objective-C or Swift code to your Xcode project for compilation
-   (e.g. `ios/Runner.xcworkspace` or `.podspec`).
-1) Implement the generated protocol for handling the calls on iOS, set it up
-   as the handler for the messages.
+## 6. 遗留问题
 
-### Flutter calling into Android Steps
+## 7. ArkTS 生成说明
 
-1) Add the generated Java or Kotlin code to your `./android/app/src/main/java` directory
-   for compilation.
-1) Implement the generated Java or Kotlin interface for handling the calls on Android, set
-   it up as the handler for the messages.
+§4 汇总了**注解级别**的 OHOS 支持情况。下表列出 **ArkTS（OHOS）** 宿主生成结果与典型 **对等 Pigeon 宿主生成器**在**代码生成与运行时**上的差异；集成时请按业务逐项核对生成的 ArkTS 与对等宿主源码。
 
-### Flutter calling into Windows Steps
 
-1) Add the generated C++ code to your `./windows` directory for compilation, and
-   to your `windows/CMakeLists.txt` file.
-1) Implement the generated C++ abstract class for handling the calls on Windows,
-   set it up as the handler for the messages.
+| 序号  | 能力项                                 | OHOS ArkTS 与对等宿主生成器的差异要点                                                                                                                                                |
+| --- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `@TaskQueue` / `TaskQueueType`（**部分**） | 部分宿主生成器将 **`TaskQueue`** 作为 **`BasicMessageChannel` 第四参数**。**`flutter_ohos` 当前仅提供三参数**构造，因此即使 IDL 标注 `@TaskQueue(type: TaskQueueType.serialBackgroundThread)`，ArkTS 仍生成**标准三参数通道**；处理器在默认平台线程执行，待 `flutter_ohos` 支持四参数后再对齐。 |
+| 2   | **枚举（enum）的伴侣类包装**                 | 除 `export enum` 外，生成器还会为每个 Pigeon 枚举生成 **`<枚举名>Enum` 伴侣类**（如携带 `index` 等），在 **`toList` / `fromList` 与 `PigeonCodec`** 中通过 **`new <枚举名>Enum(...)` 包装** 参与编解码，以契合 `StandardMessageCodec` 对自定义类型的传递。对等宿主侧生成物通常更直接地使用 **语言原生 enum**，**形态与手写习惯与 ArkTS 不一致**；宿主侧若混用「裸枚举值」与「包装实例」易导致编解码失败，须按生成代码的 getter/setter 与 codec 分支使用。 |
+| 3   | `@ProxyApi`（**部分支持**）              | **已实现：** `PigeonInstanceManager`（**WeakRef + FinalizationRegistry** GC）、`PigeonProxyApiRegistrar`、`PigeonApi<名称>` 适配器、**继承/接口** registrar getter、**`List<某ProxyApi>`** 类型映射、codec **`pigeon_newInstance` 分发**（子类优先于父类拓扑排序）、实例引用标签 128。**IDL 中的最低宿主 API 字段**通过 **`PigeonMinApi.isSatisfied()`** 记录以保持跨平台一致，但**不在 OHOS 侧强制执行**。若 ProxyApi 声明**必填** Flutter 回调，Dart 侧可能不生成 `pigeon_newInstance` 处理器。宿主实现类名宜与 **Pigeon 配置中声明的宿主类名**（或 ProxyApi 名称）一致，以便 codec `instanceof` 分发。 |
+| 4   | **`sealed` 数据类继承**                  | 对等宿主生成器普遍支持受限的 sealed 父子类建模与生成。ArkTS 生成器在 codec 中设置 **`excludeSealedClasses: true`**，对「任意 HostApi 或数据结构里的 sealed 继承树」的覆盖可能不完整；使用前应对同一份 pigeon 输出的 ArkTS 与对等宿主文件都做编译与联调测试。                                   |
+| 5   | `messageChannelSuffix`              | ArkTS **`HostApi.setup(..., messageChannelSuffix: '')`** 与 **`FlutterApi` 构造器**支持与 Dart 相同的后缀，非空时向频道名追加 **`.suffix`**。 |
+| 6   | 类型化二进制数据（`Uint8List`、`Float32List` 等） | `Uint8List`、`Int32List`、`Int64List`、`Float32List`、`Float64List` 在 ArkTS 侧映射为 **`number[]`**，而非 `Uint8Array` 等类型化数组。对等宿主生成器通常使用平台原生字节/浮点缓冲区，codec 支持更丰富。 |
+| 7   | 宿主专属配置注解                              | 仅作用于 **非 `--arkts_out` 目标** 的注解，对 **ArkTS 输出会被忽略**。 |
 
-### Flutter calling into macOS steps
 
-1) Add the generated Objective-C or Swift code to your Xcode project for compilation
-   (e.g. `macos/Runner.xcworkspace` or `.podspec`).
-1) Implement the generated protocol for handling the calls on macOS, set it up
-   as the handler for the messages.
+## 8. 开源协议
 
-### Flutter calling into Linux steps
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_pigeon-v25.3.2_ohos/packages/pigeon/LICENSE) ，请自由地享受和参与开源。
 
-1) Add the generated GObject code to your `./linux` directory for compilation, and
-   to your `linux/CMakeLists.txt` file.
-1) Implement the generated protocol for handling the calls on Linux, set it up
-   as the vtable for the API object.
-
-### Calling into Flutter from the host platform
-
-Pigeon also supports calling in the opposite direction. The steps are similar
-but reversed.  For more information look at the annotation `@FlutterApi()` which
-denotes APIs that live in Flutter but are invoked from the host platform.
-[Example](./example/README.md#FlutterApi_Example).
-
-## Stability of generated code
-
-Pigeon is intended to replace direct use of method channels in the internal
-implementation of plugins and applications. Because the expected use of Pigeon
-is as an internal implementation detail, its development strongly favors
-improvements to generated code over consistency with previous generated code,
-so breaking changes in generated code are common.
-
-As a result, using Pigeon-generated code in public APIs is
-**strongy discouraged**, as doing so will likely create situations where you are
-unable to update to a new version of Pigeon without causing breaking changes
-for your clients.
-
-### Inter-version compatibility
-
-The generated message channel code used for Pigeon communication is an
-internal implementation detail of Pigeon that is subject to change without
-warning, and changes to the communication are *not* considered breaking changes.
-Both sides of the communication (the Dart code and the host-language code)
-must be generated with the **same version** of Pigeon. Using code generated with
-different versions has undefined behavior, including potentially crashing the
-application.
-
-This means that Pigeon-generated code **should not** be split across packages.
-For example, putting the generated Dart code in a platform interface package
-and the generated host-language code in a platform implementation package is
-very likely to cause crashes for some plugin clients after updates.
-
-## Feedback
-
-File an issue in [flutter/flutter](https://github.com/flutter/flutter) with
-"[pigeon]" at the start of the title.
+> 模板版本: v0.0.1
