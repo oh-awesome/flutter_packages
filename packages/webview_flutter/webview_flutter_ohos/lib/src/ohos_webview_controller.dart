@@ -709,6 +709,17 @@ class OhosWebViewController extends PlatformWebViewController {
     _onJavaScriptPrompt = onJavaScriptTextInputDialog;
     return _webChromeClient.setSynchronousReturnValueForOnJsPrompt(true);
   }
+  
+  @override
+  Future<void> setOverScrollMode(WebViewOverScrollMode mode) {
+    final ohos_webview.OverScrollMode ohosMode = switch (mode) {
+      WebViewOverScrollMode.always => ohos_webview.OverScrollMode.always,
+      WebViewOverScrollMode.ifContentScrolls =>
+        ohos_webview.OverScrollMode.never,
+      WebViewOverScrollMode.never => ohos_webview.OverScrollMode.never,
+    };
+    return _webView.settings.setOverScrollMode(ohosMode);
+  }
 }
 
 /// Ohos implementation of [PlatformWebViewPermissionRequest].
@@ -1009,9 +1020,9 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
               params as OhosWebViewWidgetCreationParams),
       viewType: 'plugins.flutter.io/webview',
       surfaceFactory: (
-          BuildContext context,
-          PlatformViewController controller,
-          ) {
+        BuildContext context,
+        PlatformViewController controller,
+      ) {
         return OhosViewSurface(
           controller: controller as OhosViewController,
           gestureRecognizers: _ohosParams.gestureRecognizers,
@@ -1022,7 +1033,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
         return _initOhosView(
           params,
           displayWithHybridComposition:
-          _ohosParams.displayWithHybridComposition,
+              _ohosParams.displayWithHybridComposition,
         )
           ..addOnPlatformViewCreatedListener(params.onPlatformViewCreated)
           ..create();
@@ -1031,9 +1042,9 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
   }
 
   OhosViewController _initOhosView(
-      PlatformViewCreationParams params, {
-        required bool displayWithHybridComposition,
-      }) {
+    PlatformViewCreationParams params, {
+    required bool displayWithHybridComposition,
+  }) {
     if (displayWithHybridComposition) {
       return _ohosParams.platformViewsServiceProxy.initExpensiveOhosView(
         id: params.id,
@@ -1059,7 +1070,7 @@ class OhosWebViewWidget extends PlatformWebViewWidget {
   // Attempt to handle custom views with a default implementation if it has not
   // been set.
   void _trySetDefaultOnShowCustomWidgetCallbacks(BuildContext context) {
-        final OhosWebViewController controller =
+    final OhosWebViewController controller =
         _ohosParams.controller as OhosWebViewController;
 
     if (controller._onShowCustomWidgetCallback == null) {
@@ -1475,7 +1486,10 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
     final LoadRequestCallback? onLoadRequest = _onLoadRequest;
     final NavigationRequestCallback? onNavigationRequest = _onNavigationRequest;
 
-    if (onNavigationRequest == null || onLoadRequest == null) {
+    //与 Android 保持一致：只拦截主框架导航，因为 loadUrl 无法加载子框架
+    if (!isForMainFrame ||
+        onNavigationRequest == null ||
+        onLoadRequest == null) {
       return;
     }
 

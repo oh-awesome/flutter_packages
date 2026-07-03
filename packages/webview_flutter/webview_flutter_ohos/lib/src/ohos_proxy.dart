@@ -49,9 +49,7 @@ class OhosWebViewProxy {
     void Function(ohos_webview.WebChromeClient instance,
             ohos_webview.ConsoleMessage message)?
         onConsoleMessage,
-    void Function(
-            ohos_webview.WebChromeClient instance,
-            ohos_webview.View view,
+    void Function(ohos_webview.WebChromeClient instance, ohos_webview.View view,
             ohos_webview.CustomViewCallback callback)?
         onShowCustomView,
     void Function(ohos_webview.WebChromeClient instance)? onHideCustomView,

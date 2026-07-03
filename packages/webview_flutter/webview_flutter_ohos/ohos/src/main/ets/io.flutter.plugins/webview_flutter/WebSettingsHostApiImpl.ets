@@ -67,6 +67,10 @@ export interface WebSettings {
   setAllowFullScreenRotate(enabled: boolean): void;
   
   getAllowFullScreenRotate(): boolean;
+
+  setOverScrollMode(mode: number): void;
+
+  getOverScrollMode(): number;
 }
 
 export class WebSettingsCreator {
@@ -169,5 +173,10 @@ export class WebSettingsHostApiImpl extends WebSettingsHostApi {
   setAllowFullScreenRotate(instanceId: number, enabled: boolean) {
     const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
     webSettings.setAllowFullScreenRotate(enabled);
+  }
+  
+  setOverScrollMode(instanceId: number, mode: number) {
+    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    webSettings.setOverScrollMode(mode);
   }
 }
