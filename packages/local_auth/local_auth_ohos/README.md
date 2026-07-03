@@ -19,9 +19,9 @@ Enter the project directory and add the following dependency in `pubspec.yaml`:
 dependencies:
   local_auth:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/local_auth/local_auth
-      ref: br_local_auth-v2.3.0_ohos_dev
+      ref: br_local_auth-v2.3.0_ohos
 ```
 
 Execute Command
@@ -129,4 +129,4 @@ None
 
 ## 7. License
 
-This project is licensed under [BSD 3-Clause License](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_local_auth-v2.3.0_ohos/packages/local_auth/local_auth_ohos/LICENSE), please feel free to enjoy and participate in open source.
+This project is licensed under [BSD 3-Clause License](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_local_auth-v2.3.0_ohos/packages/local_auth/local_auth_ohos/LICENSE), please feel free to enjoy and participate in open source.
