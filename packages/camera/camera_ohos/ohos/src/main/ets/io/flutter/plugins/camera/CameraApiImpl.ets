@@ -12,11 +12,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
- 
+
 import { BinaryMessenger, MethodResult } from '@ohos/flutter_ohos';
 import MethodChannel, { MethodResult as FlutterMethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import Any from '@ohos/flutter_ohos/src/main/ets/plugin/common/Any';
-import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result } from './Messages';
+import { CameraApi, PlatformCameraDescription, PlatformCameraLensDirection, PlatformMediaSettings, PlatformImageFormatGroup, PlatformDeviceOrientation, PlatformFlashMode, PlatformExposureMode, PlatformFocusMode, PlatformPoint, Result, CameraEventApi,
+  PlatformImageFileFormat, FlutterError } from './Messages';
 import { CameraUtils } from './CameraUtils';
 import { FlashMode } from './features/flash/FlashMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
@@ -30,7 +31,7 @@ import { CameraPropertiesImpl } from './CameraPropertiesImpl';
 import { CameraFeatureFactoryImpl } from './features/CameraFeatureFactoryImpl';
 import { ResolutionPreset, ResolutionPreset_valueOf } from './types/ResolutionPreset';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
-import { EventChannel, TextureRegistry } from '@ohos/flutter_ohos';
+import { EventChannel, Log, TextureRegistry } from '@ohos/flutter_ohos';
 import { SurfaceTextureEntry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
 import { HashMap } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
@@ -208,7 +209,7 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMaxZoomLevel());
+      return this.camera!.getMaxZoomLevel();
     } catch (error) {
       console.error('getMaxZoomLevel error:', error);
       return 1.0;
@@ -220,15 +221,19 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         return 1.0;
       }
-      return Math.floor(this.camera!.getMinZoomLevel());
+      return this.camera!.getMinZoomLevel();
     } catch (error) {
       console.error('getMinZoomLevel error:', error);
       return 1.0;
     }
   }
 
-  setFocusPoint(point: PlatformPoint, result: Result<void>): void {
+  setFocusPoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
+      if (this.camera == null) {
+        result.error(new Error('FOCUS_POINT_ERROR: Camera not initialized'));
+        return;
+      }
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -240,15 +245,20 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('FOCUS_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setFocusPoint(methodResult, new Point(point.getX(), point.getY()));
+      const focusPoint: Point = point == null ? new Point(null, null) : new Point(point.getX(), point.getY());
+      this.camera!.setFocusPoint(methodResult, focusPoint);
     } catch (error) {
       result.error(new Error('FOCUS_POINT_ERROR: Failed to set focus point'));
     }
   }
-  
+
   async setDescriptionWhileRecording(description: string): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       try {
+        if (this.camera == null) {
+          reject(new Error('Camera not initialized'));
+          return;
+        }
         const methodResult: CameraMethodResult = {
           success: (value: Any) => {
             console.log('setDescriptionWhileRecording success');
@@ -264,7 +274,7 @@ export class CameraApiImpl extends CameraApi {
           }
         };
         const cameraProperties: CameraProperties = new CameraPropertiesImpl(description, CameraUtils.getCameraManager(this.context));
-        this.camera?.setDescriptionWhileRecording(methodResult, cameraProperties);
+        this.camera.setDescriptionWhileRecording(methodResult, cameraProperties);
       } catch (error) {
         console.error('DESCRIPTION_ERROR: Failed to set description while recording');
         reject(error);
@@ -277,13 +287,17 @@ export class CameraApiImpl extends CameraApi {
   private ability: UIAbility;
   private textureRegistry: TextureRegistry;
   private imageStreamChannel: EventChannel;
-  
+
   // 从 MethodCallHandlerImpl 移植的属性
   private cameraPermissions: CameraPermissions;
   private camera: Camera | null = null;
   private flutterTexture: SurfaceTextureEntry | null = null;
   private textureId: number = -1;
   private curStatus: STATUS = STATUS.DEFAULT;
+  private currentImageFormat: string = 'jpeg';
+  private currentResolutionPreset: ResolutionPreset = ResolutionPreset.medium;
+  private currentEnableAudio: boolean = false;
+  private cameraIdPositionMap: Map<string, camera.CameraPosition> = new Map();
 
   constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
     super();
@@ -294,7 +308,7 @@ export class CameraApiImpl extends CameraApi {
     this.methodChannel = new MethodChannel(binaryMessenger, 'plugins.flutter.io/camera_ohos');
     this.imageStreamChannel = new EventChannel(binaryMessenger, 'plugins.flutter.io/camera_ohos/imageStream');
     this.cameraPermissions = new CameraPermissions();
-    
+
     // 确保状态正确初始化
     this.curStatus = STATUS.DEFAULT;
     this.textureId = -1;
@@ -308,32 +322,32 @@ export class CameraApiImpl extends CameraApi {
     try {
 
       console.log('mediaSettings:', JSON.stringify(mediaSettings));
-      
+
       if (this.curStatus != STATUS.DEFAULT) {
         result.success(-1);
         return;
       }
       this.curStatus = STATUS.CREATE_ING;
-      
+
       if (this.camera) {
         this.camera.releaseCamera();
       }
       if (this.textureId > -1) {
         this.unregisterTexture(this.textureId);
       }
-      
+
       // 检查权限
       this.cameraPermissions.requestPermissions(
         this.context,
         mediaSettings.getEnableAudio(),
         (errCode: string | null, errDesc: string | null) => {
-         
+
           if (errCode == null) {
             try {
-    
+
               this.registerCameraTexture();
 
-              
+
               // 创建相机实例
               class CallArgumentImpl implements CallArgument {
                 argument(key: string): string | number | boolean | null {
@@ -348,22 +362,22 @@ export class CameraApiImpl extends CameraApi {
               const call: CallArgument = new CallArgumentImpl();
 
 
-      
+
               this.instantiateCamera(call, result);
             } catch (e) {
-             
+
               this.curStatus = STATUS.DEFAULT;
               result.error(new Error(`CREATE_ERROR: ${(e as Error).message}`));
             }
           } else {
-        
+
             this.curStatus = STATUS.DEFAULT;
             result.error(new Error(`${errCode}: ${errDesc}`));
           }
         }
       );
     } catch (error) {
-    
+
       this.curStatus = STATUS.DEFAULT;
       result.error(new Error(`CREATE_ERROR: ${(error as Error).message}`));
     }
@@ -372,6 +386,15 @@ export class CameraApiImpl extends CameraApi {
 
   getAvailableCameras(): PlatformCameraDescription[] {
     try {
+      try {
+        const cameraManager = CameraUtils.getCameraManager(this.context);
+        const devices = cameraManager.getSupportedCameras();
+        for (const d of devices) {
+          this.cameraIdPositionMap.set(d.cameraId, d.cameraPosition);
+        }
+      } catch (e) {
+        Log.w(TAG, 'getAvailableCameras: failed to update cameraIdPositionMap: ' + e.message);
+      }
       const cameras = CameraUtils.getAvailableCameras(this.context);
       return cameras.map(cameraMap => {
         const name = cameraMap.get('name') as string || '';
@@ -385,7 +408,7 @@ export class CameraApiImpl extends CameraApi {
           lensDirection = PlatformCameraLensDirection.external;
         }
         const sensorOrientation = cameraMap.get('sensorOrientation') as number || 0;
-        
+
         return new PlatformCameraDescription(name, lensDirection, sensorOrientation);
       });
     } catch (error) {
@@ -394,44 +417,82 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
+  private resolveCurrentCameraId(requestedCameraId: string): string {
+    let currentDevices: camera.CameraDevice[] = [];
+    try {
+      const cameraManager = CameraUtils.getCameraManager(this.context);
+      currentDevices = cameraManager.getSupportedCameras();
+    } catch (e) {
+      Log.w(TAG, 'resolveCurrentCameraId: getSupportedCameras failed: ' + e.message);
+      return requestedCameraId;
+    }
+    if (currentDevices.some((d: camera.CameraDevice) => d.cameraId === requestedCameraId)) {
+      return requestedCameraId;
+    }
+    const desiredPosition = this.cameraIdPositionMap.get(requestedCameraId);
+    if (desiredPosition === undefined) {
+      Log.w(TAG, `resolveCurrentCameraId: unknown camera ID '${requestedCameraId}', using as-is`);
+      return requestedCameraId;
+    }
+    const matchingDevice = currentDevices.find((d: camera.CameraDevice) => d.cameraPosition === desiredPosition);
+    if (matchingDevice) {
+      Log.i(TAG, `resolveCurrentCameraId: resolved stale ID '${requestedCameraId}' (position=${desiredPosition}) → '${matchingDevice.cameraId}'`);
+      return matchingDevice.cameraId;
+    }
+    Log.w(TAG, `resolveCurrentCameraId: no camera found for position ${desiredPosition}, using original ID '${requestedCameraId}'`);
+    return requestedCameraId;
+  }
+
   // 在 initialize 方法中增强错误处理
-  initialize(imageFormat: PlatformImageFormatGroup): void {
+  async initialize(imageFormat: PlatformImageFormatGroup): Promise<void> {
 
-    
-    this.curStatus = STATUS.INITIALIZE_ING; 
-    if (this.camera != null) { 
-      try { 
 
+    this.curStatus = STATUS.INITIALIZE_ING;
+    if (this.camera != null) {
+      try {
         const imageFormatString = PlatformImageFormatGroup[imageFormat];
-        this.camera.open(imageFormatString);
+        this.currentImageFormat = imageFormatString;
+        await this.camera.open(imageFormatString);
         this.curStatus = STATUS.DEFAULT;
-
-      } catch (e) { 
+      } catch (e) {
+        Log.e(TAG, 'initialize failed: ' + e.message);
         this.curStatus = STATUS.DEFAULT;
-      } 
-    } else { 
+        // 先发送错误事件到 Dart 层（此时 dartMessenger 等资源仍可用）
+        const cameraEventApi = new CameraEventApi(this.binaryMessenger, this.camera.dartMessenger.getCameraIdSuffix());
+        cameraEventApi.error(e.message, { reply: () => {} });
+        // 再关闭相机释放资源（Camera.close 内部有 isClosed 守卫，重复调用安全，
+        // 且 close 会发送 closed 事件，应在 error 事件之后到达 Dart 侧）
+        try {
+          await this.camera.close();
+        } catch (closeError) {
+          Log.e(TAG, 'close after initialize failed: ' + closeError.message);
+        }
+        throw new FlutterError('CameraError', e.message, '', '');
+      }
+    } else {
       this.curStatus = STATUS.DEFAULT;
-
+      const cameraEventApi = new CameraEventApi(this.binaryMessenger, '');
+      cameraEventApi.error("Camera not found. Please call the 'create' method before calling 'initialize'.", { reply: () => {} });
+      throw new FlutterError('cameraNotFound',"Camera not found. Please call the 'create' method before calling 'initialize'.",'','');
     }
   }
 
   // 在 dispose 方法中改进错误处理
-  dispose(): void {
+  async dispose(): Promise<void> {
     try {
       // 先停止相机
       if (this.camera) {
         try {
-          this.camera.close();
+          await this.camera.close();
         } catch (closeError) {
           console.error(`Failed to close camera: ${closeError}`);
         }
         try {
-          this.camera?.dispose();
-          this.camera = null;
-
+          await this.camera.dispose();
         } catch (disposeError) {
           console.error(`Failed to dispose camera: ${disposeError}`);
         }
+        this.camera = null;
       }
       // 释放纹理
       if (this.textureId > -1) {
@@ -582,6 +643,30 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
+  setImageFileFormat(format: PlatformImageFileFormat, result: Result<void>): void {
+    try {
+      if (this.camera == null) {
+        result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Camera not initialized'));
+        return;
+      }
+
+      const methodResult: CameraMethodResult = {
+        success: (value: Any) => {
+          result.success(undefined);
+        },
+        error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
+          result.error(new Error(`${errorCode}: ${errorMessage}`));
+        },
+        notImplemented: () => {
+          result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Method not implemented'));
+        }
+      };
+      this.camera.setImageFileFormat(methodResult, format);
+    } catch (error) {
+      result.error(new Error('IMAGE_FILE_FORMAT_ERROR: Failed to set image file format'));
+    }
+  }
+
   setFlashMode(flashMode: PlatformFlashMode, result: Result<void>): void {
     try {
       const flashModeString = PlatformFlashMode[flashMode];
@@ -590,7 +675,7 @@ export class CameraApiImpl extends CameraApi {
         result.error(new Error(`FLASH_MODE_ERROR: Unknown flash mode ${flashModeString}`));
         return;
       }
-      
+
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -616,7 +701,7 @@ export class CameraApiImpl extends CameraApi {
         result.error(new Error(`EXPOSURE_MODE_ERROR: Unknown exposure mode ${exposureModeString}`));
         return;
       }
-      
+
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -634,8 +719,12 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  setExposurePoint(point: PlatformPoint, result: Result<void>): void {
+  setExposurePoint(point: PlatformPoint | null, result: Result<void>): void {
     try {
+      if (this.camera == null) {
+        result.error(new Error('EXPOSURE_POINT_ERROR: Camera not initialized'));
+        return;
+      }
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -647,7 +736,8 @@ export class CameraApiImpl extends CameraApi {
           result.error(new Error('EXPOSURE_POINT_ERROR: Method not implemented'));
         }
       };
-      this.camera!.setExposurePoint(methodResult, new Point(point.getX(), point.getY()));
+      const exposurePoint: Point = point == null ? new Point(null, null) : new Point(point.getX(), point.getY());
+      this.camera!.setExposurePoint(methodResult, exposurePoint);
     } catch (error) {
       result.error(new Error('EXPOSURE_POINT_ERROR: Failed to set exposure point'));
     }
@@ -680,7 +770,7 @@ export class CameraApiImpl extends CameraApi {
         console.error(`FOCUS_MODE_ERROR: Unknown focus mode ${focusModeString}`);
         return;
       }
-      
+
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           console.log('setFocusMode success');
@@ -704,7 +794,7 @@ export class CameraApiImpl extends CameraApi {
         result.error(new Error('ZOOM_ERROR: Camera not initialized'));
         return;
       }
-      
+
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
           result.success(undefined);
@@ -740,7 +830,9 @@ export class CameraApiImpl extends CameraApi {
     const resolutionPreset: ResolutionPreset = call.argument('resolutionPreset') as ResolutionPreset;
     let enableAudio: boolean = call.argument('enableAudio') as boolean;
 
-    // 在 instantiateCamera 方法中
+    this.currentResolutionPreset = resolutionPreset;
+    this.currentEnableAudio = enableAudio;
+    cameraName = this.resolveCurrentCameraId(cameraName);
     const dartMessenger: DartMessenger =
       new DartMessenger(this.binaryMessenger, this.textureId);
     const cameraProperties: CameraProperties =
@@ -755,7 +847,13 @@ export class CameraApiImpl extends CameraApi {
         cameraProperties,
         resolutionPreset,
         enableAudio,
-        this.cameraPermissions);
+        this.cameraPermissions,
+        this.textureRegistry);
+
+    this.camera.onAutoSwitchToRearCamera = (): void => {
+      this.switchToRearCamera().catch((e: Error): void =>
+        Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
+    };
 
     const reply: HashMap<String, Object> = new HashMap();
     reply.set('cameraId', this.textureId);
@@ -783,5 +881,77 @@ export class CameraApiImpl extends CameraApi {
 
   prepareForVideoRecording(): void {
     console.log('prepareForVideoRecording success');
+  }
+
+  private async switchToRearCamera(): Promise<void> {
+    const cameraManager = CameraUtils.getCameraManager(this.context);
+    let allCameraDevices: camera.CameraDevice[];
+    try {
+      allCameraDevices = cameraManager.getSupportedCameras();
+    } catch (e) {
+      Log.e(TAG, 'switchToRearCamera: getSupportedCameras failed: ' + e.message);
+      return;
+    }
+
+    const backCamera = allCameraDevices.find(
+      (d: camera.CameraDevice) => d.cameraPosition === camera.CameraPosition.CAMERA_POSITION_BACK
+    );
+    if (!backCamera) {
+      Log.w(TAG, 'switchToRearCamera: no rear camera found');
+      return;
+    }
+
+    if (this.camera != null) {
+      try {
+        this.camera.onAutoSwitchToRearCamera = null; // 避免循环触发
+        await this.camera.close();
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
+      }
+    }
+
+    if (!this.flutterTexture) {
+      Log.e(TAG, 'switchToRearCamera: flutterTexture is null, cannot proceed');
+      return;
+    }
+
+    const dartMessenger = new DartMessenger(this.binaryMessenger, this.textureId);
+    let cameraProperties: CameraProperties;
+    try {
+      cameraProperties = new CameraPropertiesImpl(backCamera.cameraId, cameraManager);
+    } catch (e) {
+      Log.e(TAG, 'switchToRearCamera: create CameraPropertiesImpl failed: ' + e.message);
+      return;
+    }
+
+    this.camera = new Camera(
+      this.ability,
+      this.flutterTexture,
+      new CameraFeatureFactoryImpl(),
+      dartMessenger,
+      cameraProperties,
+      this.currentResolutionPreset,
+      this.currentEnableAudio,
+      this.cameraPermissions,
+      this.textureRegistry
+    );
+    this.camera.onAutoSwitchToRearCamera = (): void => {
+      this.switchToRearCamera().catch((e: Error): void =>
+        Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
+    };
+
+    try {
+      await this.camera.open(this.currentImageFormat);
+    } catch (e) {
+      Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
+      return;
+    }
+
+    try {
+      const cameraEventApi = new CameraEventApi(this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
+      cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
+    } catch (e) {
+      Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
+    }
   }
 }

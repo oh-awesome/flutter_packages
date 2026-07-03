@@ -118,6 +118,9 @@ enum PlatformImageFormatGroup {
   nv21,
 }
 
+/// Pigeon equivalent of [ImageFileFormat].
+enum PlatformImageFileFormat { jpeg, heif }
+
 /// Pigeon equivalent of [FlashMode].
 enum PlatformFlashMode {
   off,
@@ -171,6 +174,10 @@ abstract class CameraApi {
 
   /// Stops streaming frames from the camera.
   void stopImageStream();
+
+  /// Sets the file format used for captured still images.
+  @async
+  void setImageFileFormat(PlatformImageFileFormat format);
 
   /// Sets the flash mode of the camera with the given ID.
   @async
@@ -247,6 +254,12 @@ abstract class CameraEventApi {
   /// Called when an error occurs in the camera.
   void error(String message);
 
+  /// Called when the camera is automatically switched (e.g., to rear camera
+  /// in tri-fold dual-screen mode).
+  void cameraSwitched(String newCameraName);
+
   /// Called when the camera closes.
   void closed();
+
+  String? pigeon_getMessageChannelSuffix();
 }
