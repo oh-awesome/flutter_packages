@@ -14,7 +14,7 @@ Go to your project directory and add the following dependency in pubspec.yaml. F
 dependencies:
   in_app_purchase:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase
       ref: br_in_app_purchase-v3.2.3_ohos
 ```
@@ -25,7 +25,7 @@ If you need to debug the OHOS platform implementation directly, or call OHOS-spe
 dependencies:
   in_app_purchase_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase_ohos
       ref: br_in_app_purchase-v3.2.3_ohos
 ```
@@ -221,7 +221,7 @@ None
 
 ## Contributing
 
-If you encounter any issues during use, feel free to submit an [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues). Pull requests are also welcome at [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls).
+If you encounter any issues during use, feel free to submit an [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues). Pull requests are also welcome at [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls).
 
 ## License
 

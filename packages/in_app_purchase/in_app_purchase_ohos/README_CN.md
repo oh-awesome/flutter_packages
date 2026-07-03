@@ -14,7 +14,7 @@ in_app_purchase_ohos 是 in_app_purchase 在 OpenHarmony 平台上的 federated 
 dependencies:
   in_app_purchase:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase
       ref: br_in_app_purchase-v3.2.3_ohos
 ```
@@ -25,7 +25,7 @@ dependencies:
 dependencies:
   in_app_purchase_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase_ohos
       ref: br_in_app_purchase-v3.2.3_ohos
 ```
@@ -221,7 +221,7 @@ InAppPurchaseOhosPlatformAddition.refreshPurchaseVerificationData 会触发 OHOS
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues)，也欢迎提交 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues)，也欢迎提交 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
 ## 开源协议
 
