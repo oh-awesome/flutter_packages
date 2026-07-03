@@ -15,7 +15,7 @@ import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import data_preferences from '@ohos.data.preferences';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
-
+import { BusinessError } from '@kit.BasicServicesKit';
 import common from '@ohos.app.ability.common';
 import { bundleManager } from '@kit.AbilityKit';
 import { 
