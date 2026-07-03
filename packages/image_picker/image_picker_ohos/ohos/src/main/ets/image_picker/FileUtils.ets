@@ -13,7 +13,7 @@ import { systemDateTime } from '@kit.BasicServicesKit';
 const TAG = "FileUtils";
 
 export default class FileUtils {
-  static getPathFromUri(context: common.Context | null, uri: string, defExtension?: string) {
+  static getPathFromUri(context: common.Context | null, uri: string, defExtension?: string): string|null {
     Log.i(TAG, "getPathFromUri : " + uri);
     let inputFile: fs.File;
     try {
@@ -39,6 +39,7 @@ export default class FileUtils {
         fs.closeSync(targetDir);
       } catch (err) {
         Log.e(TAG, "mkdirSync failed err:" + err);
+        fs.closeSync(inputFile);
         return null;
       }
 
@@ -75,7 +76,17 @@ export default class FileUtils {
         Log.i(TAG, "copyFileSync inputFile fd:" + inputFile.fd + " outputFile fd:" + outputFile.fd);
         fs.copyFileSync(inputFile.fd, outputFilePath);
       } catch (err) {
+        fs.closeSync(outputFile);
         Log.e(TAG, "copyFileSync failed err:" + err);
+         try {
+            fs.unlinkSync(outputFilePath);
+          } catch (e) {
+           Log.e(TAG, "unlinkSync failed err:" + e);}
+          try {
+            fs.rmdirSync(targetDirectoryPath);
+          } catch (e) {
+            Log.e(TAG, "rmdirSync failed err:" + e);
+          }
         return null;
       } finally {
         fs.closeSync(inputFile);

@@ -28,6 +28,7 @@ import { BusinessError } from '@ohos.base';
 import { cameraPicker, camera } from '@kit.CameraKit';
 import { photoAccessHelper } from '@kit.MediaLibraryKit'
 import DateTimeUtil from './DateTimeUtil';
+import ImagePickerUtils from './ImagePickerUtils';
 
 export default class ImagePickerDelegate {
   readonly REQUEST_CODE_CHOOSE_IMAGE_FROM_GALLERY = 2342;
@@ -185,16 +186,25 @@ export default class ImagePickerDelegate {
     let pathList: ArrayList<string> = new ArrayList();
     if (localImageOptions != null && localImageOptions != undefined) {
       for (let path of uris) {
-        if (path.search("video") < 0 && this.pendingCallState) {
+        let isVideo = this.isVideoFile(path);
+        if (path.search("video/") < 0 && !isVideo && this.pendingCallState) {
           path = await this.getResizedImagePath(path, this.pendingCallState.imageOptions);
         }
         let realPath = FileUtils.getPathFromUri(this.context, path);
         Log.i(ImagePickerDelegate.TAG, "getPathFromUri : " + realPath);
+        if (realPath == null) {
+            Log.e(ImagePickerDelegate.TAG,"Failed to get path from URI: " + path);
+            continue;
+           }
         pathList.add(realPath);
       }
     } else {
       for (let path of uris) {
         let realPath = FileUtils.getPathFromUri(this.context, path);
+        if (realPath == null) {
+          Log.e(ImagePickerDelegate.TAG,"Failed to get path from URI: " + path);
+          continue;
+        }
         pathList.add(realPath);
       }
     }
@@ -224,6 +234,11 @@ export default class ImagePickerDelegate {
   handleChooseVideoResult(code: number, uris: Array<string>): void {
     if (code == 0) {
       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
+        if (realPath == null) {
+            Log.e(ImagePickerDelegate.TAG, "Failed to get path from URI: " + uris[0]);
+            this.finishWithSuccess(null);
+            return;
+          }
       this.handleVideoResult(realPath as string, false);
     } else {
       this.finishWithSuccess(null);
@@ -237,8 +252,21 @@ export default class ImagePickerDelegate {
       return;
     }
 
-    Log.i(ImagePickerDelegate.TAG, "launchTakeVideoWithCameraWant duration: " + options.getMaxDurationSeconds());
-    this.launchTakeVideoWithCameraWant(options.getMaxDurationSeconds());
+    // 新增：运行时权限检查
+    // 由于 ImagePickerUtils.needRequestCameraPermission 是异步回调方式
+    // 改为使用新增的异步权限请求方法
+    this.checkAndRequestCameraPermission().then((hasCameraPermission) =>{
+      if (!hasCameraPermission) {
+        this.pendingCallState = null;  // 清理状态
+        result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
+        return;
+      }
+      Log.i(ImagePickerDelegate.TAG, "launchTakeVideoWithCameraWant duration: " + options.getMaxDurationSeconds());
+      this.launchTakeVideoWithCameraWant(options.getMaxDurationSeconds());
+    }).catch((err: BusinessError) => {
+         result.error(new FlutterError("camera_permission_error",err.message, null));
+         return;
+    });
   }
 
   async launchTakeVideoWithCameraWant(duration: number): Promise<void> {
@@ -251,8 +279,12 @@ export default class ImagePickerDelegate {
     }
 
     cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.VIDEO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
-      this.handlerCaptureVideoResult(pickerResult.resultCode, filePath);
-    })
+      // 修改：传入 resultUri
+      this.handlerCaptureVideoResult(pickerResult.resultCode, pickerResult.resultUri);
+    }).catch((err: BusinessError) => {
+          Log.e(ImagePickerDelegate.TAG, "cameraPicker.pick VIDEO failed: " + err.message);
+          this.finishWithSuccess(null);
+        });
   }
 
   private saveFileUri(filePath: string): string{
@@ -285,6 +317,11 @@ export default class ImagePickerDelegate {
   handleChooseImageResult(code: number, uris: Array<string>): void {
     if (code == 0) {
       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
+      if (realPath == null) {
+            Log.e(ImagePickerDelegate.TAG, "Failed to get path from URI: " + uris[0]);
+            this.finishWithSuccess(null);
+            return;
+          }
       this.handleImageResult(realPath as string, false);
     } else {
       this.finishWithSuccess(null);
@@ -307,7 +344,20 @@ export default class ImagePickerDelegate {
       this.finishWithAlreadyActiveError(result);
       return;
     }
-    this.launchTakeImageWithCameraWant();
+      // 新增：运行时权限检查
+      // 由于 ImagePickerUtils.needRequestCameraPermission 是异步回调方式
+      // 改为使用新增的异步权限请求方法
+     this.checkAndRequestCameraPermission().then((hasCameraPermission: boolean) =>{
+       if (!hasCameraPermission) {
+         result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
+         return;
+       }
+       this.launchTakeImageWithCameraWant();
+      }).catch((err: BusinessError) => {
+                 result.error(new FlutterError("camera_permission_error",err.message, null));
+                 return;
+            });
+
   }
 
   launchTakeImageWithCameraWant() {
@@ -320,8 +370,12 @@ export default class ImagePickerDelegate {
 
     cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.PHOTO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
       this.pendingCameraMediaUri = pickerResult.resultUri;
-      this.handlerCaptureImageResult(pickerResult.resultCode, filePath);
-    })
+      // 修改：传入 resultUri 而非预设的 filePath
+      this.handlerCaptureImageResult(pickerResult.resultCode, pickerResult.resultUri);
+    }).catch((err: BusinessError) => {
+           Log.e(ImagePickerDelegate.TAG, "cameraPicker.pick PHOTO failed: " + err.message);
+           this.finishWithSuccess(null);
+         });
   }
 
   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
@@ -342,14 +396,36 @@ export default class ImagePickerDelegate {
 
   handlerCaptureImageResult(code: number, path: string): void {
     if (code === 0) {
-      this.handleImageResult(path, true);
+      // 使用 resultUri 解析真实文件路径
+      let realPath: string | null = null;
+      if (path) {
+        realPath = FileUtils.getPathFromUri(this.context, path);
+      }
+      // 如果解析失败，回退到 pendingCameraMediaUri
+      if (!realPath && this.pendingCameraMediaUri) {
+        realPath = FileUtils.getPathFromUri(this.context, this.pendingCameraMediaUri);
+      }
+      if (!realPath) {
+            this.finishWithSuccess(null);
+            Log.e(ImagePickerDelegate.TAG, "Failed to get file path from URI");
+            return;
+          }
+      this.handleImageResult(realPath || path, true); // filePath 作为兜底
     } else {
       this.finishWithSuccess(null);
     }
   }
 
   handlerCaptureVideoResult(code: number, path: string): void {
-    this.finishWithSuccess(code === 0 ? path : null);
+    if (code === 0) {
+      let realPath: string | null = null;
+      if (path) {
+        realPath = FileUtils.getPathFromUri(this.context, path);
+      }
+      this.finishWithSuccess(realPath || null);
+    } else {
+      this.finishWithSuccess(null);
+    }
   }
 
   async handleImageResult(path: string, shouldDeleteOriginalIfScaled: boolean): Promise<void> {
@@ -362,7 +438,12 @@ export default class ImagePickerDelegate {
     if (localImageOptions != null) {
       let finalImagePath = await this.getResizedImagePath(path, localImageOptions);
       if (finalImagePath != null && finalImagePath != path && shouldDeleteOriginalIfScaled) {
-        fs.unlink(path);
+      try {
+          fs.unlink(path);
+        } catch (e) {
+          Log.e(ImagePickerDelegate.TAG, "Failed to delete original file: " + e);
+          // 删除失败不影响最终结果，继续返回缩放后的图片路径
+        }
       }
       this.finishWithSuccess(finalImagePath);
     } else {
@@ -407,6 +488,7 @@ export default class ImagePickerDelegate {
       localResult = this.pendingCallState.result;
     }
     this.pendingCallState = null;
+    this.pendingCameraMediaUri = null; // 清理相机媒体URI
 
     if (localResult === null) {
       if (!pathList.isEmpty()) {
@@ -423,6 +505,7 @@ export default class ImagePickerDelegate {
       localResult = this.pendingCallState.result;
     }
     this.pendingCallState = null;
+    this.pendingCameraMediaUri = null; // 清理相机媒体URI
 
     if (localResult === null) {
       this.cache.saveResult(path as ArrayList<string>, null, null);
@@ -434,6 +517,30 @@ export default class ImagePickerDelegate {
   async getResizedImagePath(path: string, outputOptions: ImageSelectionOptions): Promise<string> {
     return this.imageResizer.resizeImageIfNeeded(path, outputOptions.getMaxWidth(), outputOptions.getMaxHeight(),
       outputOptions.getQuality());
+  }
+
+  // 新增辅助方法检查权限
+  private async checkAndRequestCameraPermission(): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      ImagePickerUtils.needRequestCameraPermission((_err: BusinessError, isInManifest: boolean ) => {
+        if (!isInManifest) {
+          // manifest 中未声明权限，说明不需要相机权限
+          resolve(true);
+          return;
+        }
+        // manifest 中声明了权限，进行运行时请求
+        ImagePickerUtils.requestCameraPermission(this.context as common.Context)
+          .then((granted) => resolve(granted))
+          .catch(() => resolve(false));
+      });
+    });
+  }
+
+  // 新增：视频判断方法
+  private isVideoFile(filePath: string): boolean {
+    const videoExtensions = ['.mp4', '.3gp', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
+    const lowerPath = filePath.toLowerCase();
+    return videoExtensions.some(ext => lowerPath.endsWith(ext));
   }
 }
 
