@@ -17,7 +17,7 @@ import camera from '@ohos.multimedia.camera';
 import UIAbility from '@ohos.app.ability.UIAbility';
 import { HashMap } from '@kit.ArkTS';
 import { BusinessError } from '@kit.BasicServicesKit';
-import { BinaryMessenger, EventChannel, MethodCall, TextureRegistry } from '@ohos/flutter_ohos';
+import { BinaryMessenger, EventChannel, Log, MethodCall, TextureRegistry } from '@ohos/flutter_ohos';
 import MethodChannel, {
   MethodCallHandler,
   MethodResult
@@ -75,7 +75,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     this.methodChannel.setMethodCallHandler(this);
   }
 
-  public onMethodCall(call: MethodCall, result: MethodResult): void {
+  public async onMethodCall(call: MethodCall, result: MethodResult): Promise<void> {
     console.info(TAG, 'onMethodCall', call.method);
     switch (call.method) {
       case 'availableCameras': {
@@ -123,11 +123,20 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         this.curStatus = STATUS.INITIALIZE_ING;
         if (this.camera != null) {
           try {
-            this.camera.open(call.argument('imageFormatGroup'));
+            await this.camera.open(call.argument('imageFormatGroup'));
             this.curStatus = STATUS.DEFAULT;
             result.success(null)
           } catch (e) {
+            Log.e(TAG, 'initialize failed: ' + e.message);
             this.curStatus = STATUS.DEFAULT;
+            // 先发送错误事件到 Dart 层
+            this.camera?.dartMessenger.sendCameraErrorEvent(e.message);
+            // 再关闭相机释放资源
+            try {
+              await this.camera?.close();
+            } catch (closeError) {
+              Log.e(TAG, 'close after initialize failed: ' + closeError.message);
+            }
             this.handleException(e, result)
           }
         } else {
@@ -381,7 +390,19 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'dispose': {
         this.unregisterTexture(call.argument('cameraId'));
-        this.camera?.dispose();
+        if (this.camera) {
+          try {
+            await this.camera.close();
+          } catch (closeError) {
+            console.error(`Failed to close camera: ${closeError}`);
+          }
+          try {
+            await this.camera.dispose();
+          } catch (disposeError) {
+            console.error(`Failed to dispose camera: ${disposeError}`);
+          }
+          this.camera = null;
+        }
         result.success(null);
         break;
       }

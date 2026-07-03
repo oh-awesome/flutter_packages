@@ -226,20 +226,20 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
   /// Display the thumbnail of the captured image or video.
   Widget _thumbnailWidget() {
- 	  final VideoPlayerController? localVideoController = videoController;
+    final VideoPlayerController? localVideoController = videoController;
     return Expanded(
       child: Align(
         alignment: Alignment.centerRight,
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
- 	          if (localVideoController == null && imageFile == null)
+            if (localVideoController == null && imageFile == null)
               Container()
             else
               SizedBox(
                 width: 64.0,
                 height: 64.0,
- 	              child: (localVideoController == null)
+                child: (localVideoController == null)
                     ? (
                     // The captured image on the web contains a network-accessible URL
                     // pointing to a location within the browser. It may be displayed
@@ -247,15 +247,15 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
                     // bytes to memory.
                     kIsWeb
                         ? Image.network(imageFile!.path)
- 	                      : Image.file(File(imageFile!.path)))
+                        : Image.file(File(imageFile!.path)))
                     : Container(
                     decoration: BoxDecoration(
                         border: Border.all(color: Colors.pink)),
                     child: Center(
-                        child: AspectRatio(
-                            aspectRatio:
-                            localVideoController.value.aspectRatio,
-                            child: VideoPlayer(localVideoController)),
+ 	                      child: AspectRatio(
+ 	                          aspectRatio:
+ 	                          localVideoController.value.aspectRatio,
+ 	                          child: VideoPlayer(localVideoController))
                     )      ),
               ),
           ],
@@ -744,8 +744,8 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       if (mounted) {
         setState(() {
           imageFile = file;
- 	  	    videoController?.dispose();
- 	  	    videoController = null;
+ 	        videoController?.dispose();
+ 	        videoController = null;
           Singleton.getInstance().setData(imageFile?.path ?? '');
         });
         if (file != null) {
@@ -1027,32 +1027,32 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   }
 
   Future<void> _startVideoPlayer() async {
- 	  if (videoFile == null) {
- 	    return;
- 	  }
- 	  final VideoPlayerController vController;
- 	   vController = kIsWeb
- 	       ? VideoPlayerController.network(videoFile!.path)
- 	       : VideoPlayerController.file(File(videoFile!.path));
- 	  videoPlayerListener = () {
- 	    if (videoController != null) {
- 	      if (mounted) {
- 	        setState(() {});
- 	      }
- 	      videoController!.removeListener(videoPlayerListener!);
- 	    }
- 	  };
- 	  vController.addListener(videoPlayerListener!);
- 	  await vController.setLooping(true);
- 	  await vController.initialize();
- 	  await videoController?.dispose();
- 	  if (mounted) {
- 	    setState(() {
- 	      imageFile = null;
- 	      videoController = vController;
- 	    });
- 	  }
- 	  await vController.play();
+    if (videoFile == null) {
+      return;
+    }
+    final VideoPlayerController vController;
+ 	  vController = kIsWeb
+ 	      ? VideoPlayerController.network(videoFile!.path)
+ 	      : VideoPlayerController.file(File(videoFile!.path));
+    videoPlayerListener = () {
+      if (videoController != null) {
+        if (mounted) {
+          setState(() {});
+        }
+        videoController!.removeListener(videoPlayerListener!);
+      }
+    };
+    vController.addListener(videoPlayerListener!);
+    await vController.setLooping(true);
+    await vController.initialize();
+    await videoController?.dispose();
+    if (mounted) {
+      setState(() {
+        imageFile = null;
+        videoController = vController;
+      });
+    }
+    await vController.play();
   }
 
   Future<XFile?> takePicture() async {
