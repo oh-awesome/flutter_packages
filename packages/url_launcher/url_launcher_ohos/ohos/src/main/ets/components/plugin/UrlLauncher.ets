@@ -18,7 +18,7 @@ import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plug
 import Want from '@ohos.app.ability.Want';
 import wantConstant from '@ohos.app.ability.wantConstant';
 import fileuri from '@ohos.file.fileuri';
-import { FlutterError, UrlLauncherApi, UrlLauncherApiCodec, WebViewOptions, wrapError } from './Messages';
+import { FlutterError, UrlLauncherApi, UrlLauncherApiCodec, WebViewOptions, BrowserOptions, wrapError } from './Messages';
 import common from '@ohos.app.ability.common';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import call from '@ohos.telephony.call';
@@ -327,24 +327,39 @@ export class UrlLauncher implements UrlLauncherApi {
     }
   }
 
-  openUrlInWebView(url: string, options: WebViewOptions): boolean {
+  openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): boolean {
     let headers = options.getHeaders();
-    let my_header_key = headers.get('my_header_key');
     if (!headers.has('harmony_browser_page')) {
       promptAction.showToast({
         message: '请在 launch 函数的 headers 参数中添加 harmony_browser_page 和对应的值，并在鸿蒙工程中增加对应的页面和配置路由',
       });
       return false;
     }
-      let harmonyBrowserPage = headers.get('harmony_browser_page');
-      router.pushUrl({ url: harmonyBrowserPage, params: {'url': url, 'options': options,'my_header_key':my_header_key} }).catch((error: BusinessError) => {
-        Log.e(TAG, 'Failed to open url: ', harmonyBrowserPage, ', Error: ', JSON.stringify(error));
-        if (error.code == 100002) {
-          promptAction.showToast({
-            message: harmonyBrowserPage + ' 页面不存在，或者没有在 main_pages.json 中声明',
-          });
-        }
-      });
+    let harmonyBrowserPage = headers.get('harmony_browser_page');
+
+    let headerMap: Record<string, string> = {};
+    headers.forEach((value: string, key: string) => {
+      if (key !== 'harmony_browser_page') {
+        headerMap[key] = value;
+      }
+    });
+
+    router.pushUrl({
+      url: harmonyBrowserPage,
+      params: {
+        'url': url,
+        'options': options,
+        'headers': headerMap,
+        'browserOptions': browserOptions,
+      }
+    }).catch((error: BusinessError) => {
+      Log.e(TAG, 'Failed to open url: ', harmonyBrowserPage, ', Error: ', JSON.stringify(error));
+      if (error.code == 100002) {
+        promptAction.showToast({
+          message: `页面 "${harmonyBrowserPage}" 不存在， 请在鸿蒙工程中创建该页面并注册路由。`,
+        });
+      }
+    });
     return true;
   }
 
@@ -424,8 +439,9 @@ export class UrlLauncher implements UrlLauncherApi {
             let args = msg as Array<Object>;
             let urlArg = args[0] as string;
             let optionsArg = args[1] as WebViewOptions;
+            let browserOptionsArg = args[2] as BrowserOptions;
             try {
-              let output = api.openUrlInWebView(urlArg, optionsArg);
+              let output = api.openUrlInWebView(urlArg, optionsArg, browserOptionsArg);
               wrapped.push(output);
             } catch (err) {
               let errs = wrapError(err);
