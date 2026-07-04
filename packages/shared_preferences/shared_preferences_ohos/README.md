@@ -3,15 +3,15 @@
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-This project is based on [shared_preferences@2.2.0](https://pub.dev/packages/shared_preferences/versions/2.2.0).
+本项目基于 [shared_preferences@2.2.0](https://pub.dev/packages/shared_preferences/versions/2.2.0) 开发。
 
-`shared_preferences_ohos` is the OpenHarmony platform implementation of `shared_preferences`. It provides persistent key-value storage for lightweight data on OpenHarmony devices. Through the federated plugin architecture, this implementation is automatically registered when you add `shared_preferences` as a dependency, so you do not need to reference this package directly in your code.
+`shared_preferences_ohos` 是 `shared_preferences` 的 OpenHarmony 平台实现。它为 OpenHarmony 设备上的轻量级数据提供持久化的键值存储。通过联合插件架构，当您添加 `shared_preferences` 作为依赖时，该实现会自动注册，因此您无需在代码中直接引用此包。
 
-## 1. Installation and Usage
+## 1. 安装与使用
 
-### 1.1 Installation
+### 1.1 安装方式
 
-Go to the project directory and add the following dependencies in pubspec.yaml：
+进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
 <!-- tabs:start -->
 
@@ -21,61 +21,73 @@ Go to the project directory and add the following dependencies in pubspec.yaml�
 dependencies:
   shared_preferences:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences"
+      # ref: shared_preferences-v2.2.2-ohos-1.0.0
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
-Execute Command
+执行命令
 
 ```bash
 flutter pub get
 ```
 
+**TAG 版本对应表**
+
+| Flutter 框架版本 | TAG | 分支 |
+| :--- | :--- | :--- |
+| 3.7 | `shared_preferences-v2.2.2-ohos-1.0.0` | `master` |
+| 3.22 | `shared_preferences-v2.3.2-ohos-1.0.0` | `br_shared_preferences-v2.3.2_ohos` |
+| 3.27 | `shared_preferences-v2.5.3-ohos-1.0.0` | `br_shared_preferences-v2.5.3_ohos` |
+| 3.35 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
+| 3.41 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
+
 <!-- tabs:end -->
 
-### 1.2 Usage
+### 1.2 使用案例
 
-#### Basic Usage
+#### 基本用法
 
 ```dart
 import 'package:shared_preferences/shared_preferences.dart';
 
-// Obtain a SharedPreferences instance
+// 获取 SharedPreferences 实例
 final prefs = await SharedPreferences.getInstance();
 
-// Write data
+// 写入数据
 await prefs.setString('username', 'Alice');
 await prefs.setInt('age', 25);
 await prefs.setDouble('score', 95.5);
 await prefs.setBool('is_logged_in', true);
 await prefs.setStringList('tags', ['flutter', 'ohos', 'mobile']);
 
-// Read data
+// 读取数据
 final username = prefs.getString('username');       // 'Alice'
 final age = prefs.getInt('age');                   // 25
 final score = prefs.getDouble('score');             // 95.5
 final loggedIn = prefs.getBool('is_logged_in');     // true
 final tags = prefs.getStringList('tags');           // ['flutter', 'ohos', 'mobile']
 
-// Check if a key exists
+// 检查某个键是否存在
 final hasKey = prefs.containsKey('username');       // true
 
-// Get all keys
-final allKeys = prefs.getKeys();                    // Set containing all stored keys
+// 获取所有键
+final allKeys = prefs.getKeys();                    // 包含所有已存储键的 Set
 
-// Remove a specific key
+// 移除特定键
 await prefs.remove('age');
 
-// Clear all stored data (only keys with 'flutter.' prefix)
+// 清除所有存储数据（仅清除以 'flutter.' 为前缀的键）
 await prefs.clear();
 
-// Reload data from disk
+// 从磁盘重新加载数据
 await prefs.reload();
 ```
 
-#### Data Persistence Example
+#### 数据持久化示例
 
-The following example demonstrates how to persist data across app restarts using `SharedPreferences`:
+以下示例演示了如何使用 `SharedPreferences` 在应用重启之间持久化数据：
 
 ```dart
 import 'package:flutter/material.dart';
@@ -91,7 +103,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'SharedPreferences Demo',
+      title: 'SharedPreferences 演示',
       home: CounterPage(),
     );
   }
@@ -113,7 +125,7 @@ class _CounterPageState extends State<CounterPage> {
     _loadCounter();
   }
 
-  // Load persisted counter value
+  // 加载持久化的计数器值
   Future<void> _loadCounter() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -121,7 +133,7 @@ class _CounterPageState extends State<CounterPage> {
     });
   }
 
-  // Increment counter and persist the new value
+  // 递增计数器并持久化新值
   Future<void> _incrementCounter() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
@@ -133,13 +145,13 @@ class _CounterPageState extends State<CounterPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Counter Demo')),
+      appBar: AppBar(title: const Text('计数器演示')),
       body: Center(
-        child: Text('Button pressed $_counter times.\nThis value persists across restarts.'),
+        child: Text('按钮被按下 $_counter 次。\n此值在重启后仍然保留。'),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _incrementCounter,
-        tooltip: 'Increment',
+        tooltip: '递增',
         child: const Icon(Icons.add),
       ),
     );
@@ -147,37 +159,37 @@ class _CounterPageState extends State<CounterPage> {
 }
 ```
 
-#### Using SharedPreferencesOhos Directly
+#### 直接使用 SharedPreferencesOhos
 
-If you need to use the platform implementation directly (e.g., for testing or advanced scenarios), you can instantiate `SharedPreferencesOhos`:
+如果您需要直接使用平台实现（例如用于测试或高级场景），可以实例化 `SharedPreferencesOhos`：
 
 ```dart
 import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
 
-// Create an instance of SharedPreferencesOhos
+// 创建 SharedPreferencesOhos 实例
 final SharedPreferencesOhos prefs = SharedPreferencesOhos();
 
-// Write values using setValue
+// 使用 setValue 写入值
 await prefs.setValue('String', 'flutter.username', 'Alice');
 await prefs.setValue('Int', 'flutter.age', 25);
 await prefs.setValue('Double', 'flutter.score', 95.5);
 await prefs.setValue('Bool', 'flutter.is_logged_in', true);
 await prefs.setValue('StringList', 'flutter.tags', ['flutter', 'ohos']);
 
-// Read all values with a specific prefix
+// 读取具有特定前缀的所有值
 final Map<String, Object> values = await prefs.getAllWithParameters(
   GetAllParameters(filter: PreferencesFilter(prefix: 'flutter.')),
 );
 print(values); // {flutter.username: Alice, flutter.age: 25, ...}
 
-// Clear values with a specific prefix
+// 清除具有特定前缀的值
 await prefs.clearWithParameters(
   ClearParameters(filter: PreferencesFilter(prefix: 'flutter.')),
 );
 
-// Clear with allow list (only remove specific keys)
+// 使用允许列表清除（仅移除特定键）
 await prefs.clearWithParameters(
   ClearParameters(
     filter: PreferencesFilter(
@@ -187,72 +199,72 @@ await prefs.clearWithParameters(
   ),
 );
 
-// Register as the default platform implementation (normally done automatically)
+// 注册为默认平台实现（通常自动完成）
 SharedPreferencesOhos.registerWith();
 ```
 
-For more use cases, see [shared_preferences_ohos/example](./example).
+更多使用案例详见 [shared_preferences_ohos/example](./example)。
 
-## 2. Constraints
+## 2. 约束与限制
 
-### 2.1 Compatibility
+### 2.1 兼容性
 
-This document is verified based on the following versions:
+在以下版本中已测试通过：
 
 1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
 
-### 2.2 Key Prefix Behavior
+### 2.2 键前缀行为
 
-- The `SharedPreferences.getInstance()` API uses `'flutter.'` as the default prefix for all keys. For example, when you call `prefs.setInt('counter', 5)`, the key is internally stored as `'flutter.counter'`.
-- The `clear()` method only removes keys that start with the `'flutter.'` prefix. Keys with other prefixes are not affected.
-- When using `SharedPreferencesOhos` directly, you can specify any prefix (including an empty prefix `''`) via `getAllWithParameters` / `clearWithParameters`.
+- `SharedPreferences.getInstance()` API 使用 `'flutter.'` 作为所有键的默认前缀。例如，当您调用 `prefs.setInt('counter', 5)` 时，键在内部存储为 `'flutter.counter'`。
+- `clear()` 方法仅移除以 `'flutter.'` 前缀开头的键。其他前缀的键不受影响。
+- 直接使用 `SharedPreferencesOhos` 时，可以通过 `getAllWithParameters` / `clearWithParameters` 指定任意前缀（包括空前缀 `''`）。
 
-## 3. Properties
+## 3. 属性
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+> [!TIP] "ohos Support"列为 **yes** 表示 ohos 平台支持该属性；**no** 表示不支持；**partially** 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android。
 
-#### Storage type
+#### 存储类型
 
-| Name         | Description                 | Type   | **ohos Support** |
-| ------------ | --------------------------- | ------ | ---------------- |
-| String       | Store string values         | String | yes              |
-| int          | Store integer values        | int    | yes              |
-| double       | Store floating-point values | double | yes              |
-| bool         | Store boolean values        | bool   | yes              |
-| List<String> | Store string lists          | List   | yes              |
+| Name         | Description    | Type   | **ohos Support** |
+| ------------ | -------------- | ------ | ---------------- |
+| String       | 存储字符串值   | String | yes              |
+| int          | 存储整数值     | int    | yes              |
+| double       | 存储浮点数值   | double | yes              |
+| bool         | 存储布尔值     | bool   | yes              |
+| List<String> | 存储字符串列表 | List   | yes              |
 
 ## 4. API
 
-> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this property; **no** means the opposite; **partially** means some capabilities of this property are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+> [!TIP] "ohos Support"列为 **yes** 表示 ohos 平台支持该属性；**no** 表示不支持；**partially** 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android。
 
-### SharedPreferences (User-facing API)
+### SharedPreferences（面向用户的 API）
 
-These are the APIs provided by the `shared_preferences` package that developers typically use. The ohos platform implementation supports all of these methods.
+这些是 `shared_preferences` 包提供的开发者通常使用的 API。ohos 平台实现支持所有这些方法。
 
 | Name            | **return value**          | Description                          | **ohos Support** |
 | --------------- | ------------------------- | ------------------------------------ | ---------------- |
-| getInstance()   | Future<SharedPreferences> | Returns a SharedPreferences instance. The ohos platform implementation is automatically selected on OpenHarmony devices. | yes |
-| getString()     | String?                   | Reads a string value for the given key. Returns `null` if the key does not exist. | yes |
-| getInt()        | int?                      | Reads an integer value for the given key. Returns `null` if the key does not exist. | yes |
-| getDouble()     | double?                   | Reads a double value for the given key. Returns `null` if the key does not exist. | yes |
-| getBool()       | bool?                     | Reads a boolean value for the given key. Returns `null` if the key does not exist. | yes |
-| getStringList() | List<String>?             | Reads a string list for the given key. Returns `null` if the key does not exist. | yes |
-| setString()     | Future<bool>              | Writes a string value. Returns `true` if the value was committed successfully, `false` otherwise. | yes |
-| setInt()        | Future<bool>              | Writes an integer value. Returns `true` if the value was committed successfully, `false` otherwise. | yes |
-| setDouble()     | Future<bool>              | Writes a double value. Returns `true` if the value was committed successfully, `false` otherwise. | yes |
-| setBool()       | Future<bool>              | Writes a boolean value. Returns `true` if the value was committed successfully, `false` otherwise. | yes |
-| setStringList() | Future<bool>              | Writes a string list. Returns `true` if the value was committed successfully, `false` otherwise. | yes |
-| remove()        | Future<bool>              | Removes the value associated with the given key. Returns `true` if the key was removed successfully. | yes |
-| clear()         | Future<bool>              | Removes all keys that start with the `'flutter.'` prefix. Keys with other prefixes are not affected. Returns `true` on success. | yes |
-| reload()        | Future<bool>              | Reloads the preferences from disk. Useful when preferences may have been modified by another process. Returns `true` on success. | yes |
-| containsKey()   | bool                      | Checks whether the given key exists in preferences. | yes |
-| getKeys()       | Set<String>               | Returns all keys currently stored in preferences (only those with the `'flutter.'` prefix). | yes |
+| getInstance()   | Future<SharedPreferences> | 返回 SharedPreferences 实例。在 OpenHarmony 设备上会自动选择 ohos 平台实现。 | yes |
+| getString()     | String?                   | 读取给定键的字符串值。如果键不存在则返回 `null`。 | yes |
+| getInt()        | int?                      | 读取给定键的整数值。如果键不存在则返回 `null`。 | yes |
+| getDouble()     | double?                   | 读取给定键的浮点数值。如果键不存在则返回 `null`。 | yes |
+| getBool()       | bool?                     | 读取给定键的布尔值。如果键不存在则返回 `null`。 | yes |
+| getStringList() | List<String>?             | 读取给定键的字符串列表。如果键不存在则返回 `null`。 | yes |
+| setString()     | Future<bool>              | 写入字符串值。成功提交返回 `true`，否则返回 `false`。 | yes |
+| setInt()        | Future<bool>              | 写入整数值。成功提交返回 `true`，否则返回 `false`。 | yes |
+| setDouble()     | Future<bool>              | 写入浮点数值。成功提交返回 `true`，否则返回 `false`。 | yes |
+| setBool()       | Future<bool>              | 写入布尔值。成功提交返回 `true`，否则返回 `false`。 | yes |
+| setStringList() | Future<bool>              | 写入字符串列表。成功提交返回 `true`，否则返回 `false`。 | yes |
+| remove()        | Future<bool>              | 移除与给定键关联的值。成功移除返回 `true`。 | yes |
+| clear()         | Future<bool>              | 移除所有以 `'flutter.'` 前缀开头的键。其他前缀的键不受影响。成功返回 `true`。 | yes |
+| reload()        | Future<bool>              | 从磁盘重新加载首选项。当首选项可能被其他进程修改时非常有用。成功返回 `true`。 | yes |
+| containsKey()   | bool                      | 检查给定键是否存在于首选项中。 | yes |
+| getKeys()       | Set<String>               | 返回当前存储在首选项中的所有键（仅包含以 `'flutter.'` 前缀开头的键）。 | yes |
 
-#### Method Parameters
+#### 方法参数
 
 ##### getInstance()
 
-No parameters.
+无参数。
 
 ```dart
 final prefs = await SharedPreferences.getInstance();
@@ -260,9 +272,9 @@ final prefs = await SharedPreferences.getInstance();
 
 ##### getString(key)
 
-| Parameter | Type     | Description                            | Required |
-| --------- | -------- | -------------------------------------- | -------- |
-| key       | String   | The key used to store the string value | Yes      |
+| Parameter | Type     | Description              | Required |
+| --------- | -------- | ------------------------ | -------- |
+| key       | String   | 用于存储字符串值的键     | Yes      |
 
 ```dart
 final value = prefs.getString('username');
@@ -270,9 +282,9 @@ final value = prefs.getString('username');
 
 ##### getInt(key)
 
-| Parameter | Type     | Description                            | Required |
-| --------- | -------- | -------------------------------------- | -------- |
-| key       | String   | The key used to store the integer value | Yes     |
+| Parameter | Type     | Description              | Required |
+| --------- | -------- | ------------------------ | -------- |
+| key       | String   | 用于存储整数值的键       | Yes      |
 
 ```dart
 final value = prefs.getInt('age');
@@ -280,9 +292,9 @@ final value = prefs.getInt('age');
 
 ##### getDouble(key)
 
-| Parameter | Type     | Description                            | Required |
-| --------- | -------- | -------------------------------------- | -------- |
-| key       | String   | The key used to store the double value | Yes      |
+| Parameter | Type     | Description              | Required |
+| --------- | -------- | ------------------------ | -------- |
+| key       | String   | 用于存储浮点数值的键     | Yes      |
 
 ```dart
 final value = prefs.getDouble('score');
@@ -290,9 +302,9 @@ final value = prefs.getDouble('score');
 
 ##### getBool(key)
 
-| Parameter | Type     | Description                            | Required |
-| --------- | -------- | -------------------------------------- | -------- |
-| key       | String   | The key used to store the boolean value | Yes     |
+| Parameter | Type     | Description              | Required |
+| --------- | -------- | ------------------------ | -------- |
+| key       | String   | 用于存储布尔值的键       | Yes      |
 
 ```dart
 final value = prefs.getBool('is_logged_in');
@@ -300,9 +312,9 @@ final value = prefs.getBool('is_logged_in');
 
 ##### getStringList(key)
 
-| Parameter | Type     | Description                            | Required |
-| --------- | -------- | -------------------------------------- | -------- |
-| key       | String   | The key used to store the string list  | Yes      |
+| Parameter | Type     | Description              | Required |
+| --------- | -------- | ------------------------ | -------- |
+| key       | String   | 用于存储字符串列表的键   | Yes      |
 
 ```dart
 final value = prefs.getStringList('tags');
@@ -310,10 +322,10 @@ final value = prefs.getStringList('tags');
 
 ##### setString(key, value)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key to associate with the string     | Yes      |
-| value     | String   | The string value to store                | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 与字符串关联的键       | Yes      |
+| value     | String   | 要存储的字符串值       | Yes      |
 
 ```dart
 await prefs.setString('username', 'Alice');
@@ -321,10 +333,10 @@ await prefs.setString('username', 'Alice');
 
 ##### setInt(key, value)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key to associate with the integer    | Yes      |
-| value     | int      | The integer value to store               | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 与整数关联的键         | Yes      |
+| value     | int      | 要存储的整数值         | Yes      |
 
 ```dart
 await prefs.setInt('age', 25);
@@ -332,10 +344,10 @@ await prefs.setInt('age', 25);
 
 ##### setDouble(key, value)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key to associate with the double     | Yes      |
-| value     | double   | The double value to store                | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 与浮点数关联的键       | Yes      |
+| value     | double   | 要存储的浮点数值       | Yes      |
 
 ```dart
 await prefs.setDouble('score', 95.5);
@@ -343,10 +355,10 @@ await prefs.setDouble('score', 95.5);
 
 ##### setBool(key, value)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key to associate with the boolean    | Yes      |
-| value     | bool     | The boolean value to store               | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 与布尔值关联的键       | Yes      |
+| value     | bool     | 要存储的布尔值         | Yes      |
 
 ```dart
 await prefs.setBool('is_logged_in', true);
@@ -354,10 +366,10 @@ await prefs.setBool('is_logged_in', true);
 
 ##### setStringList(key, value)
 
-| Parameter | Type          | Description                              | Required |
-| --------- | ------------- | ---------------------------------------- | -------- |
-| key       | String        | The key to associate with the string list | Yes     |
-| value     | List<String>  | The string list to store                 | Yes      |
+| Parameter | Type          | Description            | Required |
+| --------- | ------------- | ---------------------- | -------- |
+| key       | String        | 与字符串列表关联的键   | Yes      |
+| value     | List<String>  | 要存储的字符串列表     | Yes      |
 
 ```dart
 await prefs.setStringList('tags', ['flutter', 'ohos']);
@@ -365,9 +377,9 @@ await prefs.setStringList('tags', ['flutter', 'ohos']);
 
 ##### remove(key)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key whose value should be removed    | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 要移除其值的键         | Yes      |
 
 ```dart
 await prefs.remove('username');
@@ -375,7 +387,7 @@ await prefs.remove('username');
 
 ##### clear()
 
-No parameters. Removes all keys with the `'flutter.'` prefix.
+无参数。移除所有以 `'flutter.'` 前缀开头的键。
 
 ```dart
 await prefs.clear();
@@ -383,7 +395,7 @@ await prefs.clear();
 
 ##### reload()
 
-No parameters. Reloads preferences data from disk.
+无参数。从磁盘重新加载首选项数据。
 
 ```dart
 await prefs.reload();
@@ -391,43 +403,43 @@ await prefs.reload();
 
 ##### containsKey(key)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key to check for existence           | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 要检查是否存在的键     | Yes      |
 
 ```dart
-final exists = prefs.containsKey('username'); // true or false
+final exists = prefs.containsKey('username'); // true 或 false
 ```
 
 ##### getKeys()
 
-No parameters. Returns all keys with the `'flutter.'` prefix.
+无参数。返回所有以 `'flutter.'` 前缀开头的键。
 
 ```dart
-final keys = prefs.getKeys(); // Set<String> of all stored keys
+final keys = prefs.getKeys(); // 包含所有已存储键的 Set<String>
 ```
 
-### SharedPreferencesOhos (Platform Implementation API)
+### SharedPreferencesOhos（平台实现 API）
 
-These are the APIs provided by the `SharedPreferencesOhos` platform implementation class. Most developers should use the `SharedPreferences` user-facing API above. Use these only if you need direct access to the platform implementation.
+这些是 `SharedPreferencesOhos` 平台实现类提供的 API。大多数开发者应使用上方的 `SharedPreferences` 面向用户 API。仅在需要直接访问平台实现时使用这些 API。
 
 | Name                       | **return value**        | Description                                                                 | **ohos Support** |
 | -------------------------- | ----------------------- | --------------------------------------------------------------------------- | ---------------- |
-| registerWith()             | void                    | Registers this class as the default instance of SharedPreferencesStorePlatform. Called automatically by the plugin registration mechanism. | yes |
-| setValue(valueType, key, value) | Future<bool>      | Writes a value. `valueType` must be one of `'String'`, `'Bool'`, `'Int'`, `'Double'`, or `'StringList'`. Returns `true` on success. | yes |
-| remove(key)                | Future<bool>            | Removes the value for the given key. Returns `true` on success.             | yes              |
-| clear()                    | Future<bool>            | Removes all keys with the `'flutter.'` prefix. Returns `true` on success.   | yes              |
-| clearWithPrefix(prefix)    | Future<bool>            | Removes all keys that start with the given prefix. Returns `true` on success. | yes           |
-| clearWithParameters(parameters) | Future<bool>      | Removes keys based on ClearParameters (prefix + optional allowList). Returns `true` on success. | yes |
-| getAll()                   | Future<Map<String, Object>> | Returns all key-value pairs with the `'flutter.'` prefix.              | yes              |
-| getAllWithPrefix(prefix)   | Future<Map<String, Object>> | Returns all key-value pairs that start with the given prefix.           | yes              |
-| getAllWithParameters(parameters) | Future<Map<String, Object>> | Returns key-value pairs based on GetAllParameters (prefix + optional allowList). | yes |
+| registerWith()             | void                    | 将此类注册为 SharedPreferencesStorePlatform 的默认实例。由插件注册机制自动调用。 | yes |
+| setValue(valueType, key, value) | Future<bool>      | 写入一个值。`valueType` 必须是 `'String'`、`'Bool'`、`'Int'`、`'Double'` 或 `'StringList'` 之一。成功返回 `true`。 | yes |
+| remove(key)                | Future<bool>            | 移除给定键的值。成功返回 `true`。                                           | yes              |
+| clear()                    | Future<bool>            | 移除所有以 `'flutter.'` 前缀开头的键。成功返回 `true`。                     | yes              |
+| clearWithPrefix(prefix)    | Future<bool>            | 移除所有以给定前缀开头的键。成功返回 `true`。                               | yes              |
+| clearWithParameters(parameters) | Future<bool>      | 基于 ClearParameters（前缀 + 可选 allowList）移除键。成功返回 `true`。     | yes              |
+| getAll()                   | Future<Map<String, Object>> | 返回所有以 `'flutter.'` 前缀开头的键值对。                             | yes              |
+| getAllWithPrefix(prefix)   | Future<Map<String, Object>> | 返回所有以给定前缀开头的键值对。                                         | yes              |
+| getAllWithParameters(parameters) | Future<Map<String, Object>> | 基于 GetAllParameters（前缀 + 可选 allowList）返回键值对。               | yes              |
 
-#### SharedPreferencesOhos Method Parameters
+#### SharedPreferencesOhos 方法参数
 
 ##### registerWith()
 
-No parameters. Called automatically by Flutter's plugin registration system.
+无参数。由 Flutter 插件注册系统自动调用。
 
 ```dart
 SharedPreferencesOhos.registerWith();
@@ -437,9 +449,9 @@ SharedPreferencesOhos.registerWith();
 
 | Parameter  | Type     | Description                                                              | Required |
 | ---------- | -------- | ------------------------------------------------------------------------ | -------- |
-| valueType  | String   | The type identifier: `'String'`, `'Bool'`, `'Int'`, `'Double'`, or `'StringList'` | Yes |
-| key        | String   | The key to associate with the value                                      | Yes      |
-| value      | Object   | The value to store. Type must match `valueType`                          | Yes      |
+| valueType  | String   | 类型标识符：`'String'`、`'Bool'`、`'Int'`、`'Double'` 或 `'StringList'` | Yes      |
+| key        | String   | 与值关联的键                                                             | Yes      |
+| value      | Object   | 要存储的值。类型必须与 `valueType` 匹配                                 | Yes      |
 
 ```dart
 await prefs.setValue('String', 'flutter.username', 'Alice');
@@ -451,9 +463,9 @@ await prefs.setValue('StringList', 'flutter.tags', ['flutter', 'ohos']);
 
 ##### remove(key)
 
-| Parameter | Type     | Description                              | Required |
-| --------- | -------- | ---------------------------------------- | -------- |
-| key       | String   | The key whose value should be removed    | Yes      |
+| Parameter | Type     | Description            | Required |
+| --------- | -------- | ---------------------- | -------- |
+| key       | String   | 要移除其值的键         | Yes      |
 
 ```dart
 await prefs.remove('flutter.username');
@@ -461,7 +473,7 @@ await prefs.remove('flutter.username');
 
 ##### clear()
 
-No parameters. Removes all keys with the `'flutter.'` prefix.
+无参数。移除所有以 `'flutter.'` 前缀开头的键。
 
 ```dart
 await prefs.clear();
@@ -469,41 +481,41 @@ await prefs.clear();
 
 ##### clearWithPrefix(prefix)
 
-| Parameter | Type     | Description                                           | Required |
-| --------- | -------- | ----------------------------------------------------- | -------- |
-| prefix    | String   | The prefix filter. Only keys starting with this prefix will be removed. Use `''` to remove all keys. | Yes |
+| Parameter | Type     | Description                                                      | Required |
+| --------- | -------- | ---------------------------------------------------------------- | -------- |
+| prefix    | String   | 前缀过滤器。仅移除以此前缀开头的键。使用 `''` 移除所有键。       | Yes      |
 
 ```dart
 await prefs.clearWithPrefix('flutter.');
-await prefs.clearWithPrefix('');  // clears all keys regardless of prefix
+await prefs.clearWithPrefix('');  // 清除所有键，无论前缀如何
 ```
 
 ##### clearWithParameters(parameters)
 
-| Parameter   | Type             | Description                          | Required |
-| ----------- | ---------------- | ------------------------------------ | -------- |
-| parameters  | ClearParameters  | Contains a PreferencesFilter with prefix and optional allowList | Yes |
+| Parameter   | Type             | Description                                  | Required |
+| ----------- | ---------------- | -------------------------------------------- | -------- |
+| parameters  | ClearParameters  | 包含带有前缀和可选 allowList 的 PreferencesFilter | Yes      |
 
 **ClearParameters**
 
-| Field   | Type              | Description                                                              | Required |
-| ------- | ----------------- | ------------------------------------------------------------------------ | -------- |
-| filter  | PreferencesFilter | Filter specifying which keys to clear                                     | Yes      |
+| Field   | Type              | Description                              | Required |
+| ------- | ----------------- | ---------------------------------------- | -------- |
+| filter  | PreferencesFilter | 指定要清除哪些键的过滤器                 | Yes      |
 
 **PreferencesFilter**
 
 | Field     | Type          | Description                                                              | Required |
 | --------- | ------------- | ------------------------------------------------------------------------ | -------- |
-| prefix    | String        | Only keys starting with this prefix will be considered                   | Yes      |
-| allowList | Set<String>?  | Optional whitelist of specific keys to clear. If null, all matching keys are cleared. | No |
+| prefix    | String        | 仅考虑以此前缀开头的键                                                   | Yes      |
+| allowList | Set<String>?  | 可选的特定键白名单，用于指定要清除的键。如果为 null，则清除所有匹配的键。 | No       |
 
 ```dart
-// Clear all keys with 'flutter.' prefix
+// 清除所有以 'flutter.' 前缀开头的键
 await prefs.clearWithParameters(
   ClearParameters(filter: PreferencesFilter(prefix: 'flutter.')),
 );
 
-// Clear only specific keys within 'flutter.' prefix
+// 仅清除 'flutter.' 前缀下的特定键
 await prefs.clearWithParameters(
   ClearParameters(
     filter: PreferencesFilter(
@@ -513,7 +525,7 @@ await prefs.clearWithParameters(
   ),
 );
 
-// Clear all keys regardless of prefix
+// 清除所有键，无论前缀如何
 await prefs.clearWithParameters(
   ClearParameters(filter: PreferencesFilter(prefix: '')),
 );
@@ -521,7 +533,7 @@ await prefs.clearWithParameters(
 
 ##### getAll()
 
-No parameters. Returns all key-value pairs with the `'flutter.'` prefix.
+无参数。返回所有以 `'flutter.'` 前缀开头的键值对。
 
 ```dart
 final Map<String, Object> values = await prefs.getAll();
@@ -529,9 +541,9 @@ final Map<String, Object> values = await prefs.getAll();
 
 ##### getAllWithPrefix(prefix)
 
-| Parameter | Type     | Description                                           | Required |
-| --------- | -------- | ----------------------------------------------------- | -------- |
-| prefix    | String   | The prefix filter. Only keys starting with this prefix will be returned. Use `''` to get all keys. | Yes |
+| Parameter | Type     | Description                                                      | Required |
+| --------- | -------- | ---------------------------------------------------------------- | -------- |
+| prefix    | String   | 前缀过滤器。仅返回以此前缀开头的键值对。使用 `''` 获取所有键。   | Yes      |
 
 ```dart
 final Map<String, Object> values = await prefs.getAllWithPrefix('flutter.');
@@ -540,30 +552,30 @@ final Map<String, Object> allValues = await prefs.getAllWithPrefix('');
 
 ##### getAllWithParameters(parameters)
 
-| Parameter   | Type              | Description                          | Required |
-| ----------- | ----------------- | ------------------------------------ | -------- |
-| parameters  | GetAllParameters  | Contains a PreferencesFilter with prefix and optional allowList | Yes |
+| Parameter   | Type              | Description                                  | Required |
+| ----------- | ----------------- | -------------------------------------------- | -------- |
+| parameters  | GetAllParameters  | 包含带有前缀和可选 allowList 的 PreferencesFilter | Yes      |
 
 **GetAllParameters**
 
-| Field   | Type              | Description                                                              | Required |
-| ------- | ----------------- | ------------------------------------------------------------------------ | -------- |
-| filter  | PreferencesFilter | Filter specifying which keys to retrieve                                  | Yes      |
+| Field   | Type              | Description                              | Required |
+| ------- | ----------------- | ---------------------------------------- | -------- |
+| filter  | PreferencesFilter | 指定要检索哪些键的过滤器                 | Yes      |
 
 **PreferencesFilter**
 
 | Field     | Type          | Description                                                              | Required |
 | --------- | ------------- | ------------------------------------------------------------------------ | -------- |
-| prefix    | String        | Only keys starting with this prefix will be considered                   | Yes      |
-| allowList | Set<String>?  | Optional whitelist of specific keys to retrieve. If null, all matching keys are returned. | No |
+| prefix    | String        | 仅考虑以此前缀开头的键                                                   | Yes      |
+| allowList | Set<String>?  | 可选的特定键白名单，用于指定要检索的键。如果为 null，则返回所有匹配的键。 | No       |
 
 ```dart
-// Get all keys with 'flutter.' prefix
+// 获取所有以 'flutter.' 前缀开头的键
 final Map<String, Object> values = await prefs.getAllWithParameters(
   GetAllParameters(filter: PreferencesFilter(prefix: 'flutter.')),
 );
 
-// Get only specific keys within 'flutter.' prefix
+// 仅获取 'flutter.' 前缀下的特定键
 final Map<String, Object> values = await prefs.getAllWithParameters(
   GetAllParameters(
     filter: PreferencesFilter(
@@ -573,20 +585,18 @@ final Map<String, Object> values = await prefs.getAllWithParameters(
   ),
 );
 
-// Get all keys regardless of prefix
+// 获取所有键，无论前缀如何
 final Map<String, Object> allValues = await prefs.getAllWithParameters(
   GetAllParameters(filter: PreferencesFilter(prefix: '')),
 );
 ```
 
-## 5. Known Issues
+## 5. 遗留问题
 
-- Strings that start with the special internal prefix (`VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4`) cannot be stored via `setValue('String', ...)` because it is used internally to encode `double` values. Attempting to store such a string will throw a `PlatformException`.
+- 以特殊内部前缀（`VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4`）开头的字符串无法通过 `setValue('String', ...)` 存储，因为该前缀在内部用于编码 `double` 值。尝试存储此类字符串将抛出 `PlatformException`。
 
-## 6. Others
+## 6. 开源协议
 
-## 7. License
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/shared_preferences/shared_preferences/LICENSE)
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/shared_preferences/shared_preferences/LICENSE)
-
-> Template version: v0.0.1.
+> 模板版本: v0.0.1

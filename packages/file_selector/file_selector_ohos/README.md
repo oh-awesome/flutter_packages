@@ -2,48 +2,59 @@
   <h1>file_selector_ohos</h1>
 </div>
 
-This project is developed based on [file_selector@1.0.0](https://pub.dev/packages/file_selector/versions/1.0.0).
+本项目基于 [file_selector@1.0.0](https://pub.dev/packages/file_selector/versions/1.0.0) 开发。
 
-## Introduction
+## 简介
 
-`file_selector_ohos` is the OpenHarmony platform implementation of `file_selector`. It provides file selection capabilities for Flutter apps, including single-file selection and multi-file selection.
+`file_selector_ohos` 是 `file_selector` 的 OpenHarmony 平台实现，为 Flutter 应用提供文件选择能力，支持选择单个文件、批量选择文件。
 
-## Installation
+## 下载安装
 
-Go to your project root directory and add the following dependency in `pubspec.yaml`:
+进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
 <!-- tabs:start -->
 
 
 ```yaml
 dependencies:
-  file_selector:	 
-    git: 	 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git	 
+  file_selector:
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/file_selector/file_selector
+      # ref: file_selector-v1.0.1-ohos-1.0.0
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
-Run:
+执行命令：
 
 ```bash
 flutter pub get
 ```
 
-## Constraints and Limitations
+**TAG 版本对应表**
 
-### Compatibility
+| Flutter 框架版本 | TAG | 分支 |
+| :--- | :--- | :--- |
+| 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `master` |
+| 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
+| 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
+| 3.35 | `file_selector-v1.1.0-ohos-1.0.0` | `br_file_selector-v1.1.0_ohos` |
 
-Tested and passed on the following versions:
+## 约束与限制
+
+### 兼容性
+
+在以下版本中已测试通过
 
 1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
 
-### 2.2 Permission Requirements
+### 2.2 权限要求
 
-Some permissions used below require the `system_basic` privilege level. New run with the default `normal` privilege level, so installation may fail with an error if `system_basic` permissions are not properly configured.
+以下中包含`system_basic`权限，而默认应用权限等级为`normal`，仅能使用`normal`等级的权限。安装HAP包时因权限等级不匹配导致安装失败，请参考平台官方权限管理文档进行配置。
 
-#### Add permissions in `module.json5` under the `entry` directory
+####  在 entry 目录下的module.json5中添加权限
 
-Open `entry/src/main/module.json5` and add:
+打开 `entry/src/main/module.json5`，添加：
 
 ```yaml
 ...
@@ -61,9 +72,9 @@ Open `entry/src/main/module.json5` and add:
 ]
 ```
 
-#### Add the reason string for the above permission under the `entry` directory
+####  在 entry 目录下添加申请以上权限的原因
 
-Open `entry/src/main/resources/base/element/string.json` and add:
+打开 `entry/src/main/resources/base/element/string.json`，添加：
 
 ```
 ...
@@ -71,26 +82,26 @@ Open `entry/src/main/resources/base/element/string.json` and add:
   "string": [
     {
       "name": "network_reason",
-      "value": "Use network"
+      "value": "使用网络"
     },
   ]
 }
 ```
 
-## Usage Example
+## 使用示例
 
 ```dart
 import 'package:file_selector_platform_interface/file_selector_platform_interface.dart';
 
 Future<void> pickTextFile() async {
-  // Import and define file filter conditions
+  // 导入并定义文件过滤条件
   const XTypeGroup typeGroup = XTypeGroup(
     label: 'text',
     extensions: <String>['txt', 'json'],
     uniformTypeIdentifiers: <String>['public.text'],
   );
 
-  // Open file picker through platform interface
+  // 调用平台接口打开文件选择器
   final XFile? file = await FileSelectorPlatform.instance.openFile(
     acceptedTypeGroups: <XTypeGroup>[typeGroup],
   );
@@ -101,60 +112,61 @@ Future<void> pickTextFile() async {
 ```
 
 
-## API Reference
+## 接口说明
 
 
 ### API
 
-> [!TIP] In the "ohos Support" column, yes means the property is supported on ohos, no means not supported, and partially means partially supported. Usage is cross-platform consistent, and behavior is aligned with iOS or Android.
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
 | Name                                                         | return value        | Description                                                  | Type     | ohos Support |
 | ------------------------------------------------------------ | ------------------- | ------------------------------------------------------------ | -------- | ------------ |
-| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<XFile?>      | Opens a file dialog for loading files and returns the file response list selected by the user. | function | partially          |
-| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<List<XFile>> | Opens a file dialog for loading files and returns the file response list selected by the user. | function | partially          |
-| getDirectoryPath({String? initialDirectory, String? confirmButtonText,}) | Future<String?>     | Opens a file dialog for selecting a directory and returns the selected directory path. | function | no           |
+| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<XFile?>      | 打开一个用于加载文件的文件对话框，并返回用户选择的文件响应列表。 | function | partially          |
+| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<List<XFile>> | 打开一个文件对话框以加载文件，并返回用户选择的文件响应列表。 | function | partially          |
+| getDirectoryPath({String? initialDirectory, String? confirmButtonText,}) | Future<String?>     | 打开一个文件对话框以选择目录，并返回所选的目录路径。         | function | no           |
 
-### Parameters
+### Parameters 
 
 | Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| acceptedTypeGroups  | A list of file type groups that can be selected in the dialog. The display behavior depends on the platform.                                                                                                                                 | List<[XTypeGroup](#XTypeGroup)>?               | yes               |
-| initialDirectory  | The full path of the directory displayed when the dialog opens. If not provided, the platform chooses an initial location.                                                                                                                                | String?               | yes               |
-| confirmButtonText | Text on the dialog confirm button. If not provided, the default OS label is used (for example, "Open").                                                                                                                                 | String?               | no              |
+| acceptedTypeGroups  | 可以在对话框中选择的文件类型组列表，其显示方式取决于平台。                                                                                                                                 | List<[XTypeGroup](#XTypeGroup)>?               | yes               |
+| initialDirectory  | 对话框打开时将显示的目录的完整路径。如果没有提供，平台将选择一个初始位置。                                                                                                                                | String?               | yes               |
+| confirmButtonText | 对话框确认按钮上的文本。如果没有提供，将使用默认的操作系统标签（例如，“Open”）。                                                                                                                                 | String?               | no              |
 
 ### XTypeGroup
 
 | Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
 |--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| label  | The "name" or reference of this type group.                                                                                                                                 | String?               | yes               |
-| extensions  | File extensions for this group.                                                                                                                                 | List<String>?               | yes               |
-| mimeTypes  | MIME types for this group.                                                                                                                                 | List<String>?               | yes               |
-| uniformTypeIdentifiers  | Uniform type identifiers for this group.                                                                                                                                 | List<String>?               | no              |
-| webWildCards  | Web wildcards for this group (for example: image/*, video/*).                                                                                                                                 | List<String>?               | no              |
+| label  | 这个类型组的“名称”或引用。                                                                                                                                 | String?               | yes               |
+| extensions  | 这个组的文件扩展名                                                                                                                                 | List<String>?               | yes               |
+| mimeTypes  | 这个组的 MIME 类型。                                                                                                                                 | List<String>?               | yes               |
+| uniformTypeIdentifiers  | 这个组的统一类型标识符。                                                                                                                                 | List<String>?               | no              |
+| webWildCards  | 这个组的网络通配符（例如：image/*，video/*）。                                                                                                                                 | List<String>?               | no              |
 
 
-## Known Issues
+## 遗留问题
 
-The confirm button text in the system picker dialog cannot be customized. Directory selection is not supported in picker dialogs on phone devices. `webWildCards` only takes effect on the Web platform. `uniformTypeIdentifiers` is a list of UTIs and only takes effect on iOS/macOS platforms.
+系统选择拉起对话框后的确认按钮不支持自定义；手机侧filepicker拉起对话框不支持选择目录；webWildCards仅在 Web 平台生效；uniformTypeIdentifiers是统一类型标识符（UTI）列表，仅在 iOS / macOS 平台生效
 
 
-## Directory Structure
+## 目录结构
 
 ```text
 file_selector_ohos/
-├─ lib/                         # OpenHarmony platform implementation export and core logic
-├─ ohos/                        # OpenHarmony native implementation
-├─ pigeons/                     # Pigeon interface definitions
-├─ example/                     # Example app
-├─ test/                        # Test code
-├─ pubspec.yaml                 # Package configuration
-└─ README.md                    # Original documentation
+├─ lib/                         # OpenHarmony 平台实现导出与核心逻辑
+├─ ohos/                        # OpenHarmony 原生侧实现
+├─ pigeons/                     # Pigeon 接口定义
+├─ example/                     # 示例应用
+├─ test/                        # 测试代码
+├─ pubspec.yaml                 # 包配置
+└─ README.md                    # 说明文档
 ```
 
-## Contributing
+## 贡献代码
 
-If you find any issues during usage, feel free to submit an [Issue](https://gitcode.com/openharmony-sig/flutter_packages/issues). PR contributions are also welcome: [PR](https://gitcode.com/openharmony-sig/flutter_packages/pulls).
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues)，当然，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
-## License
+## 开源协议
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE). Feel free to use it and contribute to open source.
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE) ，请自由地享受和参与开源。
+
