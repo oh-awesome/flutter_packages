@@ -13,6 +13,7 @@
 * limitations under the License.
 */
 
+
 import 'dart:typed_data';
 
 import 'package:file_selector_ohos/src/file_selector_ohos.dart';
@@ -110,8 +111,8 @@ void main() {
           ),
         ),
       ).thenAnswer(
-        (_) => Future<List<FileResponse?>>.value(
-          <FileResponse?>[
+        (_) => Future<List<FileResponse>>.value(
+          <FileResponse>[
             FileResponse(
               path: 'some/path.txt',
               size: 30,

@@ -20,6 +20,7 @@ import { BusinessError } from '@kit.BasicServicesKit';
 import { Log } from '@ohos/flutter_ohos';
 
 const TAG = "FileSelectorUtil";
+
 enum PhotoViewMIMETypes {
   IMAGE_TYPE = 'image/*',
   VIDEO_TYPE = 'video/*',
@@ -33,6 +34,13 @@ const PHOTO_VIEW_MIME_TYPE_MAP = new Map([
   [PhotoViewMIMETypes.VIDEO_TYPE, 'FILTER_MEDIA_TYPE_VIDEO'],
   [PhotoViewMIMETypes.IMAGE_VIDEO_TYPE, 'FILTER_MEDIA_TYPE_ALL'],
 ]);
+
+/**
+ * 规范化文件后缀：若无前导点则自动补上
+ */
+function normalizeFileSuffix(extensionType: string): string {
+  return extensionType.startsWith('.') ? extensionType : '.' + extensionType;
+}
 
 
 interface  ConfigText {
@@ -121,7 +129,7 @@ export async function documentPickerSelect(option: picker.DocumentSelectOptions,
     let file_suffix: string[] = [];
     if (option.fileSuffixFilters != null) {
       for (let extensionType of option.fileSuffixFilters) {
-        file_suffix.push("." + extensionType);
+        file_suffix.push(normalizeFileSuffix(extensionType));
       }
       config.parameters.key_file_suffix_filter = file_suffix;
     }
@@ -143,53 +151,6 @@ export async function documentPickerSelect(option: picker.DocumentSelectOptions,
     console.error(`Invoke documentViewPicker.select failed, code is ${err.code}, message is ${err.message}`);
   }
   return undefined;
-}
-
-export function pickPhotoViewMimeType(mimeTypes: Array<string> | null): picker.PhotoViewMIMETypes | null {
-  if (mimeTypes == null || mimeTypes.length === 0) {
-    return null;
-  }
-  let hasImage: boolean = false;
-  let hasVideo: boolean = false;
-  for (let mime of mimeTypes) {
-    if (mime === '*/*') {
-      hasImage = true;
-      hasVideo = true;
-    } else if (mime === 'image/*') {
-      hasImage = true;
-    } else if (mime === 'video/*') {
-      hasVideo = true;
-    } else {
-      return null;
-    }
-  }
-  if (hasImage && hasVideo) {
-    return picker.PhotoViewMIMETypes.IMAGE_VIDEO_TYPE;
-  }
-  if (hasImage) {
-    return picker.PhotoViewMIMETypes.IMAGE_TYPE;
-  }
-  if (hasVideo) {
-    return picker.PhotoViewMIMETypes.VIDEO_TYPE;
-  }
-  return null;
-}
-
-/**
- * PhotoViewPicker 仅覆盖图/视频通配符 mimeTypes。
- * extensions 非空时需走 DocumentViewPicker。
- */
-export function resolvePhotoViewMimeTypeForExtensions(
-  allowedTypes: FileTypes
-): picker.PhotoViewMIMETypes | null {
-  const photoMime: picker.PhotoViewMIMETypes | null = pickPhotoViewMimeType(allowedTypes.mimeTypes);
-  if (photoMime === null) {
-    return null;
-  }
-  if (allowedTypes.extensions != null && allowedTypes.extensions.length > 0) {
-    return null;
-  }
-  return photoMime;
 }
 
 /** 通配符 MIME 对应的扩展名集合 */
@@ -237,7 +198,80 @@ const MIME_TO_EXTENSIONS: Map<string, Array<string>> = new Map<string, Array<str
   ['application/x-rar-compressed', ['rar']],
 ]);
 
- //把 mime 列表反向映射为对应的扩展名列表
+const EXTENSION_TO_MIME: Map<string, string> = buildExtensionToMimeMap();
+
+/**
+ * 根据 MIME_TO_EXTENSIONS 构建扩展名到 MIME 的反向映射表。
+ * 优先使用具体 MIME（如 image/jpeg）。
+ */
+function buildExtensionToMimeMap(): Map<string, string> {
+  const map: Map<string, string> = new Map<string, string>();
+  MIME_TO_EXTENSIONS.forEach((exts: Array<string>, mime: string): void => {
+    if (mime.endsWith('/*')) {
+      return;
+    }
+    for (let ext of exts) {
+      map.set(ext.toLowerCase(), mime);
+    }
+  });
+  MIME_TO_EXTENSIONS.forEach((exts: Array<string>, mime: string): void => {
+    if (!mime.endsWith('/*')) {
+      return;
+    }
+    for (let ext of exts) {
+      const key: string = ext.toLowerCase();
+      if (!map.has(key)) {
+        map.set(key, mime);
+      }
+    }
+  });
+  return map;
+}
+
+/**
+ * 从文件路径或文件名中提取扩展名（不含点号，小写）。
+ * 会去掉路径前缀与 URI 查询参数；无有效扩展名时返回空字符串。
+ * @param pathOrName 文件路径或文件名
+ * @returns 扩展名
+ */
+function extractFileExtension(pathOrName: string): string {
+  const baseName: string = pathOrName.substring(pathOrName.lastIndexOf('/') + 1);
+  const queryIndex: number = baseName.indexOf('?');
+  const name: string = queryIndex >= 0 ? baseName.substring(0, queryIndex) : baseName;
+  const dotIndex: number = name.lastIndexOf('.');
+  if (dotIndex <= 0 || dotIndex === name.length - 1) {
+    return '';
+  }
+  return name.substring(dotIndex + 1).toLowerCase();
+}
+
+/**
+ * 根据文件路径或文件名解析 MIME 类型。
+ * 优先匹配具体类型，其次匹配通配符类型；未知扩展名返回 application/octet-stream。
+ * @param path 文件路径
+ * @param fileName 可选的文件名（优先于 path 用于解析）
+ * @returns MIME 类型字符串
+ */
+export function getMimeTypeFromPath(path: string, fileName?: string): string {
+  const source: string = (fileName != null && fileName.length > 0) ? fileName : path;
+  const extension: string = extractFileExtension(source);
+  if (extension.length === 0) {
+    return 'application/octet-stream';
+  }
+  const mime: string | undefined = EXTENSION_TO_MIME.get(extension);
+  if (mime != null) {
+    return mime;
+  }
+  Log.w(TAG, 'Unknown extension for MIME lookup: ' + extension);
+  return 'application/octet-stream';
+}
+
+/**
+ * 将 mime 列表反向映射为对应的扩展名列表（去重）。
+ * 未在内置映射表中的 MIME 类型会记录警告日志并跳过。
+ * @param mimeTypes MIME 类型数组
+ * @returns 扩展名数组
+ */
 export function tryConvertMimetypesToExtensions(mimeTypes: Array<string> | null): Array<string> {
   let result: Array<string> = [];
   if (mimeTypes == null || mimeTypes.length === 0) {
@@ -269,23 +303,26 @@ export async function filePicker(initialDirectory: string, allowedTypes: FileTyp
   let file_suffix_set: Set<string> = new Set<string>();
   if (allowedTypes.extensions != null) {
     for (let extensionType of allowedTypes.extensions) {
-      file_suffix_set.add("." + extensionType);
+      file_suffix_set.add(normalizeFileSuffix(extensionType));
     }
   }
   if (allowedTypes.mimeTypes != null && allowedTypes.mimeTypes.length > 0) {
     let derived: Array<string> = tryConvertMimetypesToExtensions(allowedTypes.mimeTypes);
     for (let extensionType of derived) {
-      file_suffix_set.add("." + extensionType);
+      file_suffix_set.add(normalizeFileSuffix(extensionType));
     }
   }
-  documentSelectOptions.fileSuffixFilters = Array.from(file_suffix_set);
+  // Omit fileSuffixFilters when empty to allow all types, aligned with setType("*/*").
+  if (file_suffix_set.size > 0) {
+    documentSelectOptions.fileSuffixFilters = Array.from(file_suffix_set);
+  }
   try {
     const documentViewPicker = new picker.DocumentViewPicker();
     let documentSelectResult = await documentViewPicker.select(documentSelectOptions);
     Log.i(TAG, "documentViewPicker select file succeed.");
     return new Promise<ESObject> ((resolve) => {resolve(documentSelectResult)});
   } catch (err) {
-    Log.e(TAG, "documentViewPicker select file failed.")
-    return new Promise<ESObject> ((resolve) => {resolve(undefined)});
+    Log.e(TAG, "documentViewPicker select file failed: " + JSON.stringify(err));
+    return new Promise<ESObject> ((resolve, reject) => {reject(err)});
   }
 }
