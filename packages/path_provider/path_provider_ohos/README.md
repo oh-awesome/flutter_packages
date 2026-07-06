@@ -1,46 +1,60 @@
+
+
 <p align="center">
   <h1 align="center"> <code>path_provider</code> </h1>
 </p>
 
-This project is based on [path_provider@2.1.0](https://pub.dev/packages/path_provider/versions/2.1.0).
+本项目基于 [path_provider@2.1.0](https://pub.dev/packages/path_provider/versions/2.1.0) 开发。
 
-## Introduction
+## 简介
 
-`path_provider` is used in Flutter to obtain common file system paths on devices, such as temporary directories, application document directories, cache directories, and external storage related paths. This implementation integrates with `path_provider` through a federated plugin, providing consistent platform channel capabilities on OpenHarmony as the official plugin.
+`path_provider` 在 Flutter 中用于获取设备上常用的文件系统路径，例如临时目录、应用文档目录、缓存目录及外部存储相关路径。本实现通过联邦插件（federated plugin）接入 `path_provider`，在 OpenHarmony 上提供与官方插件一致的平台通道能力。
 
-## Installation
+## 下载安装
 
-Go to the project directory and add the following dependencies in pubspec.yaml:
+进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
 ```yaml
 ...
 
 dependencies:
   path_provider:
-    git: 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/path_provider/path_provider
-      ref: br_path_provider-v2.1.4_ohos
+      # ref: provider-v2.1.1-ohos-1.0.0
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
-Execute command:
+执行命令
 
 ```bash
 flutter pub get
 ```
 
-## Constraints and Limitations
+**TAG 版本对应表**
 
-### Compatibility
+| Flutter 框架版本 | TAG | 分支 |
+| :--- | :--- | :--- |
+| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `master` |
+| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `br_path_provider-v2.1.4_ohos` |
+| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
+| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
+| 3.41 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
 
-Tested and verified on the following versions:
+## 约束与限制
+
+### 兼容性
+
+在以下版本中已测试通过
 1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
 
-### Permission Requirements
 
-Some permissions are system-level (`system-level`), while the default application level is `normal`, which can only use `normal` level permissions. Therefore, if system-level permissions are requested in the application, errors may occur when installing the HAP package.
+### 权限要求
 
-Open `entry/src/main/module.json5` and add:
+部分权限属于系统级（`system-level`），而应用默认等级为 `normal`，只能使用 `normal` 级权限。因此，若在应用中申请了系统级权限，安装 HAP 包时可能会出现错误。
+
+打开 `entry/src/main/module.json5`，添加：
 
 ```yaml
 "requestPermissions": [
@@ -57,7 +71,7 @@ Open `entry/src/main/module.json5` and add:
 ]
 ```
 
-Open `entry/src/main/resources/base/element/string.json` and add:
+打开 `entry/src/main/resources/base/element/string.json`，添加：
 
 ```
 ...
@@ -65,15 +79,16 @@ Open `entry/src/main/resources/base/element/string.json` and add:
   "string": [
     {
       "name": "network_reason",
-      "value": "Use network"
+      "value": "使用网络"
     },
   ]
 }
 ```
 
-## Usage Example
+## 使用示例
 
-The example in this repository [`example/lib/main.dart`](./example/lib/main.dart) follows the same implementation approach: both depend on `path_provider_platform_interface`, use `PathProviderPlatform.instance` to call `getTemporaryPath()`, `getApplicationDocumentsPath()`, etc.; the UI side triggers requests in button `onPressed` and displays paths or errors through `FutureBuilder`. The code snippets in this document are simplified examples, please refer to `example/lib/main.dart` for the complete runnable version.
+本仓库示例 [`example/lib/main.dart`](./example/lib/main.dart) 与下列写法在实现思路上保持一致：都依赖 `path_provider_platform_interface`，使用 `PathProviderPlatform.instance` 调用 `getTemporaryPath()`、`getApplicationDocumentsPath()` 等；界面侧在按钮 `onPressed` 里触发请求，并通过 `FutureBuilder` 展示路径或错误。本文代码片段为精简示例，完整可运行版本请以 `example/lib/main.dart` 为准。
+
 
 ```dart
 import 'package:flutter/material.dart';
@@ -96,87 +111,86 @@ Future<void> logPathsFromExample() async {
 }
 ```
 
-## Usage Instructions
+## 使用说明
 
-1. Add dependency on `path_provider` in `pubspec.yaml` (Git source and `ref` configured as above); the example project will resolve `path_provider_platform_interface` through transitive dependencies.
-2. For path queries, refer to the example implementation approach: call `getTemporaryPath()` and other methods through `PathProviderPlatform.instance`, and trigger via buttons on the UI side, displaying results through `FutureBuilder`. The code snippets in this document are simplified examples, please refer to `example/lib/main.dart` for the complete runnable version.
+1. 在 `pubspec.yaml` 中依赖 `path_provider`（Git 源与 `ref` 按上节配置）；示例工程会通过传递依赖解析到 `path_provider_platform_interface`。
+2. 路径查询可参考示例实现思路：通过 `PathProviderPlatform.instance` 调用 `getTemporaryPath()` 等方法，并在界面侧通过按钮触发、`FutureBuilder` 展示结果。本文代码片段为精简示例，完整可运行版本请以 `example/lib/main.dart` 为准。
 
-## API Reference
+## 接口说明
 
 ### API
 
-The following lists the support status of path capabilities related to the `path_provider` platform interface in this OHOS implementation. The application layer should still use the functions exported by the main `path_provider` package.
+以下列出与 `path_provider` 平台接口相关的路径能力在本 OHOS 实现中的支持情况。应用层仍以 `path_provider` 主包导出的函数为准。
 
-| Name                | Return Value                        |  Description               | Type       | OHOS Support |
+| 名称                | 返回值                        |  说明               | 类型       | OHOS 支持 |
 |---------------------|-------------------------------------------------------------------------------------------------------|------|-------|-------------------|
- | getTemporaryPath()   |   Future<String?>             |         Obtain the unbacked temporary directory path on the device, which is suitable for storing the cache of downloaded files.     | function | yes               |	 
- | getApplicationSupportPath()   |    Future<String?>     |    The method to obtain the path of the directory of the application support files, the path of the directory where the application may place the application support files. If the directory does not exist, it will be automatically created.       | function | yes  
- | getLibraryPath()   |    Future<String?>     |    Get the path of the application Library directory (used on iOS/macOS platforms). OHOS does not support this, calling will throw `UnsupportedError`. The example app still provides a corresponding button to verify this behavior.         | function | no               |             |	 
- | getApplicationDocumentsPath() |     Future<String?>  |          The method to obtain the file path of the application, in which the application can place user-generated data or data that cannot be recreated by the application.       | function | yes               |	 
- | getApplicationCachePath()   | Future<String?>       |          The method to obtain the application cache path: The application may place a path specific to the application cache file directory. If the directory does not exist, it will be automatically created.      | function       | yes              |	 
- | getExternalCachePaths()     | Future<List<String?>> | Obtaining the cached data of the application can be stored in external directory paths, which are usually located on external storage, such as separate partitions or SD cards. A mobile phone may have multiple available storage directories.  | function       | yes               |	 
- | getExternalStoragePath()    |   Future<String?>         |       The method of obtaining the top-level storage path of the application, where the application can access the directory path of the top-level storage.     |        function       | yes               |	 
- | getExternalStoragePaths([StorageDirectory](#StorageDirectory) arg_directory)   | Future<List<String?>> |   The method of obtaining the top-level storage path of the application, the paths where application-specific data can be stored in external directories, and these paths are usually located on external storage, such as separate partitions or SD cards. A mobile phone may have multiple available storage directories. | function       | yes   
- | getDownloadsPath()   | Future<String?>       | Get the path of the download files directory; on OHOS, this is implemented based on `getExternalStoragePaths(StorageDirectory.downloads)`, returns null when no path is available. | function | yes           |
+| getTemporaryPath()   |   Future<String?>             |         获取设备上未备份的临时目录路径，适合存放下载文件的缓存     | function | yes               |
+| getApplicationSupportPath()   |    Future<String?>     |    获取应用程序支持文件目录路径的方法，应用程序可能放置应用程序支持文件的目录的路径，如果该目录不存在，则自动创建。         | function | yes               |
+| getLibraryPath()   |    Future<String?>     |    获取应用程序 Library 目录路径（iOS/macOS 等平台使用）。OHOS 不支持，调用将抛出 `UnsupportedError`。示例应用仍提供对应按钮以便验证该行为。         | function | no               |
+| getApplicationDocumentsPath() |     Future<String?>  |          获取应用程序文件路径的方法，应用程序可以在其中放置用户生成的数据，或者不能由应用程序重新创建的数据。       | function | yes               |
+| getApplicationCachePath()   | Future<String?>       |          获取应用程序缓存路径的方法，应用程序可能放置特定于应用程序的缓存文件目录的路径，如果该目录不存在，则自动创建。      | function       | yes              |
+| getExternalCachePaths()     | Future<List<String?>> | 获取应用程序的缓存数据可以存储在外部的目录路径，这些路径通常位于外部存储上，如单独的分区或SD卡。手机可能有多个可用的存储目录  | function       | yes               |
+| getExternalStoragePath()    |   Future<String?>         |       获取应用程序顶级存储路径的方法，应用程序可以在其中访问顶级存储的目录路径。     |        function       | yes               |
+| getExternalStoragePaths([StorageDirectory](#StorageDirectory) arg_directory)   | Future<List<String?>> |   获取应用程序顶级存储路径的方法，应用程序特定的数据可以存储在外部目录的路径，这些路径通常位于外部存储上，如单独的分区或SD卡。手机可能有多个可用的存储目录。 | function       | yes               |
+| getDownloadsPath()   | Future<String?>       | 获取下载文件目录路径的方法；OHOS 上基于 `getExternalStoragePaths(StorageDirectory.downloads)` 实现，无可用路径时返回 null。 | function | yes               |
 
-### Properties
+### 属性
 
 #### StorageDirectory
 
-| Name              | Description                                                | Type                                        | OHOS Support |
+| 名称              | 说明                                                | 类型                                        | OHOS 支持 |
 | ----------------- | ---------------------------------------------------------- | ------------------------------------------- | ------------ |
- |  StorageDirectory.music  | The type of music file stored in the directory |  enum | yes   |	 
- |  StorageDirectory.podcasts  | The audio file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.ringtones  | The ringtone file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.alarms  | The file type of the alarm bell in the storage directory |  enum | yes   |	 
- |  StorageDirectory.notifications  | The notification file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.pictures  | The image file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.movies  | The movie file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.downloads  | The download file type of the storage directory |  enum | yes   |	 
- |  StorageDirectory.dcim  | The types of photo and video files stored in the directory |  enum | yes   |	 
- |  StorageDirectory.documents  | The common file types of the storage directory |  enum | yes   |
+|  StorageDirectory.music  | 存储目录的音乐文件类型 |  enum | yes   |
+|  StorageDirectory.podcasts  | 存储目录的音频文件类型 |  enum | yes   |
+|  StorageDirectory.ringtones  | 存储目录的铃声文件类型 |  enum | yes   |
+|  StorageDirectory.alarms  | 存储目录的闹钟铃声文件类型 |  enum | yes   |
+|  StorageDirectory.notifications  | 存储目录的通知文件类型 |  enum | yes   |
+|  StorageDirectory.pictures  | 存储目录的图片文件类型 |  enum | yes   |
+|  StorageDirectory.movies  | 存储目录的电影文件类型 |  enum | yes   |
+|  StorageDirectory.downloads  | 存储目录的下载文件类型 |  enum | yes   |
+|  StorageDirectory.dcim  | 存储目录的照片和视频文件类型 |  enum | yes   |
+|  StorageDirectory.documents  | 存储目录的普通文件类型 |  enum | yes   |
 
-## Unsupported Capabilities
+## 不支持的能力
 
-- `StorageDirectory.root`: The public API's `StorageDirectory` enum **does not include** `root`, **not supported** `StorageDirectory.root` usage. To get the root directory, use `getExternalStoragePaths(type: null)`.
-- `getLibraryPath()`: OHOS does not provide an equivalent Library directory concept as iOS/macOS, this implementation will throw `UnsupportedError('getLibraryPath is not supported on OHOS')` (behavior consistent with Android implementation). The example app [`example/lib/main.dart`](./example/lib/main.dart) still retains the **Get Library Directory** button, clicking it will show the above error message through `FutureBuilder`.
+- `StorageDirectory.root`：公开 API 的 `StorageDirectory` 枚举**不包含** `root`，**不支持** `StorageDirectory.root` 写法。获取根目录请使用 `getExternalStoragePaths(type: null)`。
+- `getLibraryPath()`：OHOS 不提供与 iOS/macOS 等价的 Library 目录概念，本实现会抛出 `UnsupportedError('getLibraryPath is not supported on OHOS')`（行为与 Android 实现一致）。示例应用 [`example/lib/main.dart`](./example/lib/main.dart) 中仍保留 **Get Library Directory** 按钮，点击后可通过 `FutureBuilder` 查看上述错误信息。
 
-## Differences from Android
+## 与 Android 的差异
 
-Some "external storage" related interfaces are inconsistent with Android behavior, and cannot be aligned due to platform capability limitations:
+部分「外部存储」相关接口与 Android 行为不一致，受平台能力限制无法对齐：
 
-- `getExternalStorageDirectory()`: Android returns the application-specific directory on external storage, OHOS returns the `files` directory within the application sandbox (internal storage).
-- `getExternalCacheDirectories()`: Android can return multiple external cache directories, OHOS only returns a single application `cache` directory.
-- `getExternalStorageDirectories(type)`: Android returns multiple system-level external media/storage directories, OHOS creates subdirectories by type under the `files` directory and returns a single path.
+- `getExternalStorageDirectory()`：Android 返回外部存储上的应用专属目录，OHOS 返回应用沙箱内的 `files` 目录（内部存储）。
+- `getExternalCacheDirectories()`：Android 可返回多个外部缓存目录，OHOS 仅返回单个应用 `cache` 目录。
+- `getExternalStorageDirectories(type)`：Android 返回多个系统级外部媒体/存储目录，OHOS 在 `files` 目录下按类型创建子目录并返回单一路径。
+## 遗留问题
 
-## Known Issues
-
-## Directory Structure
+## 目录结构
 
 ```
 |---- path_provider_ohos
-|     |---- example                    # Example application
-|           |---- lib                  # Example Dart code
-|           |---- ohos                 # Example application native code
-|     |---- lib                        # Dart core implementation
-|           |---- path_provider_ohos.dart   # Plugin main entry
-|           |---- messages.g.dart           # Platform channel message definition
-|     |---- ohos                       # OpenHarmony native code directory
-|           |---- src/main/ets/components/plugin/PathProviderOhosPlugin.ets  # Plugin entry
-|     |---- test                       # Unit tests
-|     |---- CHANGELOG.md               # Version changelog
+|     |---- example                    # 示例应用
+|           |---- lib                  # 示例 Dart 代码
+|           |---- ohos                 # 示例应用原生代码
+|     |---- lib                        # Dart 核心实现
+|           |---- path_provider_ohos.dart   # 插件主入口
+|           |---- messages.g.dart           # 平台通道消息定义
+|     |---- ohos                       # OpenHarmony 原生代码目录
+|           |---- src/main/ets/components/plugin/PathProviderOhosPlugin.ets  # 插件入口
+|     |---- test                       # 单元测试
+|     |---- CHANGELOG.md               # 版本变更记录
 |     |---- LICENSE                    # BSD-3-Clause
-|     |---- pubspec.yaml               # Package configuration file
-|     |---- README_CN.md   # Chinese documentation
-|     |---- README.md      # English documentation
+|     |---- pubspec.yaml               # 包配置文件
+|     |---- README.md      # 中文文档
+|     |---- README.en.md   # 英文文档
 ```
 
-## Contributing
+## 贡献代码
 
-If you encounter any issues during use, please submit an [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues). Of course, [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) contributions are also very welcome.
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
-## License
+## 开源协议
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/path_provider/path_provider_ohos/LICENSE), please feel free to enjoy and participate in open source.
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/path_provider/path_provider_ohos/LICENSE) ，请自由地享受和参与开源。
 
-> Template version: v0.0.1
+> 模板版本: v0.0.1
