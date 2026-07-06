@@ -13,17 +13,13 @@ This project is based on [image_picker](https://pub.dev/packages/image_picker) a
 Add the dependency to your Flutter project's `pubspec.yaml`:
 
 ```yaml
-# Option 1: Direct reference (from pub repository)
-dependencies:
-  image_picker_ohos: ^0.8.13+7
-
-# Option 2: Using Git dependency
 dependencies:
   image_picker_ohos:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
-      path: "packages/image_picker/image_picker_ohos"
-      ref: "br_image_picker-v1.2.1_ohos"
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
+      path: packages/image_picker/image_picker_ohos
+      # ref: image_picker-v1.2.1-ohos-1.0.0
+      ref: TAG  #   Please select the TAG according to the TAG version table below
 ```
 
 ### Install Dependencies
@@ -33,7 +29,15 @@ dependencies:
 flutter pub get
 ```
 
+**TAG Version Table**
 
+| Flutter Version | TAG | Branch |
+| :--- | :--- | :--- |
+| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `master` |
+| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
+| 3.41 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
 
 ## Constraints and Limitations
 
@@ -332,7 +336,7 @@ image_picker_ohos/
 
 ## Contributing
 
-Contributions and issues are welcome! Please visit the [repository](https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) to submit a Pull Request or report issues.
+Contributions and issues are welcome! Please visit the [repository](https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) to submit a Pull Request or report issues.
 
 ## License
 
