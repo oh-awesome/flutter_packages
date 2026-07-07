@@ -33,11 +33,11 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `master` |
-| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
-| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
-| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
 | 3.41 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
+| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
+| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
+| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `master` |
 
 ## Constraints and Limitations
 
