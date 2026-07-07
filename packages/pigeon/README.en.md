@@ -37,9 +37,9 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `master` |
-| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `br_pigeon-v25.3.2_ohos` |
 | 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `br_pigeon-v26.1.5_ohos` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `br_pigeon-v25.3.2_ohos` |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `master` |
 
 <!-- tabs:end -->
 
