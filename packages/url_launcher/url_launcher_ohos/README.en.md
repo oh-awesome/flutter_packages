@@ -30,11 +30,11 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `url_launcher_v6.1.11-ohos-1.0.0` | `master` |
-| 3.22 | `url_launcher_v6.3.0-ohos-1.0.0` | `br_url_launcher-v6.3.0_ohos` |
-| 3.27 | `url_launcher_v6.3.1-ohos-1.0.0` | `br_url_launcher_v6.3.1_ohos` |
-| 3.35 | `url_launcher_v6.3.2-ohos-1.0.0` | `br_url_launcher-v6.3.2_ohos` |
 | 3.41 | `url_launcher_v6.3.2-ohos-1.0.0` | `br_url_launcher-v6.3.2_ohos` |
+| 3.35 | `url_launcher_v6.3.2-ohos-1.0.0` | `br_url_launcher-v6.3.2_ohos` |
+| 3.27 | `url_launcher_v6.3.1-ohos-1.0.0` | `br_url_launcher_v6.3.1_ohos` |
+| 3.22 | `url_launcher_v6.3.0-ohos-1.0.0` | `br_url_launcher-v6.3.0_ohos` |
+| 3.7 | `url_launcher_v6.1.11-ohos-1.0.0` | `master` |
 
 ## Constraints and Limitations
 
