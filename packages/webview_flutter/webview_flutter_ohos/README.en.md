@@ -38,10 +38,10 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `master` |
-| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `br_webview_flutter-v4.8.0_ohos` |
-| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
 | 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `br_webview_flutter-v4.8.0_ohos` |
+| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `master` |
 
 ## 1.2 Usage
 
