@@ -35,10 +35,10 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `local_auth-v2.1.6-ohos-1.0.0` | `master` |
-| 3.22 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
-| 3.27 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
 | 3.35 | `local_auth-v3.0.0-ohos-1.0.0` | `br_local_auth-v3.0.0_ohos` |
+| 3.27 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
+| 3.22 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
+| 3.7 | `local_auth-v2.1.6-ohos-1.0.0` | `master` |
 
 <!-- tabs:end -->
 
