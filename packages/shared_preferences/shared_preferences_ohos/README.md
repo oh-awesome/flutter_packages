@@ -37,11 +37,11 @@ flutter pub get
 
 | Flutter 框架版本 | TAG | 分支 |
 | :--- | :--- | :--- |
-| 3.7 | `shared_preferences-v2.2.2-ohos-1.0.0` | `master` |
-| 3.22 | `shared_preferences-v2.3.2-ohos-1.0.0` | `br_shared_preferences-v2.3.2_ohos` |
-| 3.27 | `shared_preferences-v2.5.3-ohos-1.0.0` | `br_shared_preferences-v2.5.3_ohos` |
-| 3.35 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
 | 3.41 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
+| 3.35 | `shared_preferences-v2.5.4-ohos-1.0.0` | `br_shared_preferences-v2.5.4_ohos` |
+| 3.27 | `shared_preferences-v2.5.3-ohos-1.0.0` | `br_shared_preferences-v2.5.3_ohos` |
+| 3.22 | `shared_preferences-v2.3.2-ohos-1.0.0` | `br_shared_preferences-v2.3.2_ohos` |
+| 3.7 | `shared_preferences-v2.2.2-ohos-1.0.0` | `master` |
 
 <!-- tabs:end -->
 
