@@ -39,10 +39,10 @@ flutter pub get
 
 | Flutter 框架版本 | TAG | 分支 |
 | :--- | :--- | :--- |
-| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `master` |
-| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `br_camera-v0.11.0+2_ohos` |
-| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `br_camera-v0.11.1_ohos` |
 | 3.35 | `camera-v0.11.3-ohos-1.0.0` | `br_camera-v0.11.3_ohos` |
+| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `br_camera-v0.11.1_ohos` |
+| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `br_camera-v0.11.0+2_ohos` |
+| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `master` |
 
 ## 1.2 使用案例
 
