@@ -40,10 +40,10 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `video_player-v2.7.2-ohos-1.0.0` | `master` |
-| 3.22 | `video_player-v2.9.2-ohos-1.0.0` | `br_video_player-v2.9.2_ohos` |
-| 3.27 | `video_player-v2.10.0-ohos-1.0.0` | `br_video_player-v2.10.0_ohos` |
 | 3.35 | `video_player-v2.10.1-ohos-1.0.0` | `br_video_player-v2.10.1_ohos` |
+| 3.27 | `video_player-v2.10.0-ohos-1.0.0` | `br_video_player-v2.10.0_ohos` |
+| 3.22 | `video_player-v2.9.2-ohos-1.0.0` | `br_video_player-v2.9.2_ohos` |
+| 3.7 | `video_player-v2.7.2-ohos-1.0.0` | `master` |
 
 ## 1.2 Usage Instructions
 
