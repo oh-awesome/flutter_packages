@@ -32,11 +32,11 @@ flutter pub get
 
 | Flutter Version | TAG | Branch |
 | :--- | :--- | :--- |
-| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `master` |
-| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `br_path_provider-v2.1.4_ohos` |
-| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
 | 3.41 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
+| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
+| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
+| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `br_path_provider-v2.1.4_ohos` |
+| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `master` |
 
 ## Constraints and Limitations
 
