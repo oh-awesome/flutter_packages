@@ -42,11 +42,11 @@ flutter pub get
 
 | Flutter 框架版本 | TAG | 分支 |
 | :--- | :--- | :--- |
-| 3.7 | `in_app_purchase_v3.1.11-ohos-1.0.0` | `master` |
-| 3.22 | `in_app_purchase_v3.2.0-ohos-1.0.0` | `br_in_app_purchase-v3.2.0_ohos` |
-| 3.27 | `in_app_purchase_v3.2.3-ohos-1.0.0` | `br_in_app_purchase-v3.2.3_ohos` |
-| 3.35 | `in_app_purchase_v3.2.3-ohos-1.0.0` | `br_in_app_purchase-v3.2.3_ohos` |
 | 3.41 | `in_app_purchase_v3.2.3-ohos-1.0.0` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.35 | `in_app_purchase_v3.2.3-ohos-1.0.0` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.27 | `in_app_purchase_v3.2.3-ohos-1.0.0` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.22 | `in_app_purchase_v3.2.0-ohos-1.0.0` | `br_in_app_purchase-v3.2.0_ohos` |
+| 3.7 | `in_app_purchase_v3.1.11-ohos-1.0.0` | `master` |
 
 ## 约束与限制
 
