@@ -34,8 +34,8 @@ flutter pub get
 
 | Flutter 框架版本 | TAG | 分支 |
 | :--- | :--- | :--- |
-| 3.41 | `file_selector-v1.1.0-ohos-1.0.0` | `br_file_selector-v1.1.0_ohos` |
-| 3.35 | `file_selector-v1.1.0-ohos-1.0.0` | `br_file_selector-v1.1.0_ohos` |
+| 3.41 | `-` | `br_file_selector-v1.1.0_ohos` |
+| 3.35 | `-` | `br_file_selector-v1.1.0_ohos` |
 | 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
 | 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
 | 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `master` |
