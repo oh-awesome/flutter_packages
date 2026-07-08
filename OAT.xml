@@ -246,6 +246,8 @@
                 <filteritem type="filepath" name="packages/url_launcher/url_launcher/example/linux/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter/webview_flutter_wkwebview/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter/webview_flutter/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/webview_flutter/webview_flutter_ohos/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/video_player/video_player_ohos/test/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter/webview_flutter_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter/webview_flutter_platform_interface/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/webview_flutter/webview_flutter_web/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
