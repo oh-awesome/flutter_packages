@@ -1,3 +1,7 @@
+// Copyright (c) 2025 Huawei Device Co., Ltd. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE_HW file.
+
 import 'package:pigeon/pigeon.dart';
 
 // 生成命令（在 example/app 目录下执行）：
