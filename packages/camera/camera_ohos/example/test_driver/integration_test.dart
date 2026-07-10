@@ -1,6 +1,15 @@
-// Copyright 2013 The Flutter Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+// Copyright 2024 Huawei Device Co., Ltd.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//        http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // ignore_for_file: avoid_print
 
@@ -10,33 +19,25 @@ import 'dart:io';
 
 import 'package:flutter_driver/flutter_driver.dart';
 
-const String _examplePackage = 'io.flutter.plugins.cameraexample';
+const String _examplePackage = 'io.flutter.plugins.example';
 
 Future<void> main() async {
   if (!(Platform.isLinux || Platform.isMacOS)) {
     print('This test must be run on a POSIX host. Skipping...');
     exit(0);
   }
-  final bool adbExists =
-      Process.runSync('which', <String>['adb']).exitCode == 0;
-  if (!adbExists) {
-    print(r'This test needs ADB to exist on the $PATH. Skipping...');
+  final bool hdcExists =
+      Process.runSync('which', <String>['hdc']).exitCode == 0;
+  if (!hdcExists) {
+    print(r'This test needs HDC to exist on the $PATH. Skipping...');
     exit(0);
   }
   print('Granting camera permissions...');
-  Process.runSync('adb', <String>[
+  Process.runSync('hdc', <String>[
     'shell',
-    'pm',
-    'grant',
-    _examplePackage,
-    'android.permission.CAMERA'
-  ]);
-  Process.runSync('adb', <String>[
-    'shell',
-    'pm',
-    'grant',
-    _examplePackage,
-    'android.permission.RECORD_AUDIO'
+    'hilog',
+    '-p',
+    'ohos.permission.CAMERA',
   ]);
   print('Starting test.');
   final FlutterDriver driver = await FlutterDriver.connect();
@@ -46,19 +47,11 @@ Future<void> main() async {
   );
   await driver.close();
   print('Test finished. Revoking camera permissions...');
-  Process.runSync('adb', <String>[
+  Process.runSync('hdc', <String>[
     'shell',
-    'pm',
-    'revoke',
-    _examplePackage,
-    'android.permission.CAMERA'
-  ]);
-  Process.runSync('adb', <String>[
-    'shell',
-    'pm',
-    'revoke',
-    _examplePackage,
-    'android.permission.RECORD_AUDIO'
+    'hilog',
+    '-p',
+    'ohos.permission.CAMERA',
   ]);
 
   final Map<String, dynamic> result = jsonDecode(data) as Map<String, dynamic>;

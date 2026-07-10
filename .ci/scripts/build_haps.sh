@@ -15,5 +15,6 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Run the Python runner
-python3 "$SCRIPT_DIR/build_hap_for_changed_packages.py"
+# Run the Python runner with unbuffered output
+python3 -u "$SCRIPT_DIR/build_hap_for_changed_packages.py"
+exit $?
