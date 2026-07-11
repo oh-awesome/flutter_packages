@@ -5,19 +5,42 @@
 // Copyright 2013 The Flutter Authors.
 
 import Ability from '@ohos.app.ability.Ability';
-import { DartMessenger } from '../../DartMessenger';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import display from '@ohos.display';
 
 import { BusinessError, Callback } from '@ohos.base';
 
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
+import { CameraGlobalEventApi, PlatformDeviceOrientation } from '../../Messages';
 
 const handleOrientationChange = (
   newOrientation: DeviceOrientation,
   previousOrientation: DeviceOrientation,
-  messenger: DartMessenger) => {
+  globalEventApi: CameraGlobalEventApi) => {
   if (newOrientation !== previousOrientation) {
-    messenger.sendDeviceOrientationChangeEvent(newOrientation);
+    let platformOrientation: PlatformDeviceOrientation;
+    switch (newOrientation) {
+      case DeviceOrientation.PORTRAIT_UP:
+        platformOrientation = PlatformDeviceOrientation.portraitUp;
+        break;
+      case DeviceOrientation.PORTRAIT_DOWN:
+        platformOrientation = PlatformDeviceOrientation.portraitDown;
+        break;
+      case DeviceOrientation.LANDSCAPE_LEFT:
+        platformOrientation = PlatformDeviceOrientation.landscapeLeft;
+        break;
+      case DeviceOrientation.LANDSCAPE_RIGHT:
+        platformOrientation = PlatformDeviceOrientation.landscapeRight;
+        break;
+      default:
+        platformOrientation = PlatformDeviceOrientation.portraitUp;
+        break;
+    }
+    let callback: Reply<void> = {
+      reply: (result: void | null) => {}
+    };
+    globalEventApi.deviceOrientationChanged(platformOrientation, callback);
   }
 }
 
@@ -26,31 +49,33 @@ export class DeviceOrientationManager {
   // private static readonly orientationIntentFilter: IntentFilter =
   //   new IntentFilter(Intent.ACTION_CONFIGURATION_CHANGED);
   private readonly ability: Ability;
-  private readonly messenger: DartMessenger;
+  private readonly binaryMessenger: BinaryMessenger;
   private readonly isFrontFacing: boolean;
   private readonly sensorOrientation: number;
   private lastOrientation: DeviceOrientation = DeviceOrientation.PORTRAIT_UP;
   private displayClass: display.Display | null = null;
+  private globalEventApi: CameraGlobalEventApi | null = null;
 
 
   public static create(
     ability: Ability,
-    messenger: DartMessenger,
+    binaryMessenger: BinaryMessenger,
     isFrontFacing: boolean,
     sensorOrientation: number
   ): DeviceOrientationManager {
-    return new DeviceOrientationManager(ability, messenger, isFrontFacing, sensorOrientation);
+    return new DeviceOrientationManager(ability, binaryMessenger, isFrontFacing, sensorOrientation);
   }
 
   constructor(
     ability: Ability,
-    messenger: DartMessenger,
+    binaryMessenger: BinaryMessenger,
     isFrontFacing: boolean,
     sensorOrientation: number) {
     this.ability = ability;
-    this.messenger = messenger;
+    this.binaryMessenger = binaryMessenger;
     this.isFrontFacing = isFrontFacing;
     this.sensorOrientation = sensorOrientation;
+    this.globalEventApi = new CameraGlobalEventApi(binaryMessenger);
   }
 
   public start() {
@@ -130,55 +155,26 @@ export class DeviceOrientationManager {
 
   handleUIOrientationChange() {
     let orientation: DeviceOrientation = this.getUIOrientation();
-    handleOrientationChange(orientation, this.lastOrientation, this.messenger);
+    if (this.globalEventApi) {
+      handleOrientationChange(orientation, this.lastOrientation, this.globalEventApi);
+    }
     this.lastOrientation = orientation;
   }
-
 
   getUIOrientation(): DeviceOrientation {
     const rotation: number | undefined = display.getDefaultDisplaySync().rotation;
     const orientation: display.Orientation | undefined = display.getDefaultDisplaySync().orientation
-    switch (orientation) {
+    switch (rotation) {
       case display.Orientation.PORTRAIT:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.PORTRAIT_UP;
-        } else {
-          return DeviceOrientation.PORTRAIT_DOWN;
-        }
+        return DeviceOrientation.PORTRAIT_UP;
       case display.Orientation.LANDSCAPE:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.LANDSCAPE_LEFT;
-        } else {
-          return DeviceOrientation.LANDSCAPE_RIGHT;
-        }
+        return DeviceOrientation.LANDSCAPE_LEFT;
       case display.Orientation.PORTRAIT_INVERTED:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.PORTRAIT_UP;
-        } else {
-          return DeviceOrientation.PORTRAIT_DOWN;
-        }
+        return DeviceOrientation.PORTRAIT_DOWN;
       case display.Orientation.LANDSCAPE_INVERTED:
-        if (rotation == 0 || rotation == 90) {
-          return DeviceOrientation.LANDSCAPE_RIGHT;
-        } else {
-          return DeviceOrientation.LANDSCAPE_LEFT;
-        }
+        return DeviceOrientation.LANDSCAPE_RIGHT;
       default:
         return DeviceOrientation.PORTRAIT_UP;
     }
   }
-  // getDeviceDefaultOrientation():number{
-  //    Configuration config = activity.getResources().getConfiguration();
-  //   int rotation = getDisplay().getRotation();
-  //   if (((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180)
-  //           && config.orientation == Configuration.ORIENTATION_LANDSCAPE)
-  //       || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270)
-  //           && config.orientation == Configuration.ORIENTATION_PORTRAIT)) {
-  //     return Configuration.ORIENTATION_LANDSCAPE;
-  //   } else {
-  //     return Configuration.ORIENTATION_PORTRAIT;
-  //   }
-  // }
-
-
 }
