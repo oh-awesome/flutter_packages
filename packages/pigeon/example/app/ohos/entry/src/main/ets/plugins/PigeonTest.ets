@@ -33,12 +33,23 @@ export class FlutterError implements Error {
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string,  message: string, stack?: string) 
-  {
+  constructor(code: string, name: string, message: string, stack?: string) {
     this.code = code;
     this.name = name;
     this.message = message;
     this.stack = stack;
+  }
+}
+
+/**
+ * Wrapper so PigeonCodec always serializes a Dart `double` as float64.
+ * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded
+ * as integers by StandardMessageCodec and fail strict Dart double casts.
+ */
+export class PigeonInternalDoubleBox {
+  value: number;
+  constructor(value: number) {
+    this.value = value;
   }
 }
 
@@ -569,7 +580,7 @@ export class Student {
 }
 
 export class PigeonCodec extends StandardMessageCodec {
-  static readonly INSTANCE: PigeonCodec  = new PigeonCodec();
+  static readonly INSTANCE: PigeonCodec = new PigeonCodec();
 
   getByte(n: number): number {
     let byteArray = new Uint8Array(1);
@@ -580,14 +591,14 @@ export class PigeonCodec extends StandardMessageCodec {
     super();
   }
 
-  readValueOfType(type: number,  buffer: ByteBuffer): ESObject {
+  readValueOfType(type: number, buffer: ByteBuffer): ESObject {
     switch (type) {
       case this.getByte(129): {
-        let value: Object= super.readValue(buffer);
+        let value: Object = super.readValue(buffer);
         return value == null ? null : Identity[value as number];
       }
       case this.getByte(130): {
-        let value: Object= super.readValue(buffer);
+        let value: Object = super.readValue(buffer);
         return value == null ? null : ProxyRole[value as number];
       }
       case this.getByte(131):
@@ -599,8 +610,13 @@ export class PigeonCodec extends StandardMessageCodec {
     }
   }
 
-  writeValue(stream: ByteBuffer , value: ESObject): ESObject{
-    if (value instanceof IdentityEnum) {
+  writeValue(stream: ByteBuffer, value: ESObject): ESObject {
+    if (value instanceof PigeonInternalDoubleBox) {
+      stream.writeInt8(this.getByte(6));
+      this.writeAlignment(stream, 8);
+      stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);
+      return;
+    } else     if (value instanceof IdentityEnum) {
       stream.writeUint8(this.getByte(129));
       this.writeValue(stream, value == null ? null : Identity[value.index as string]);
     } else if (value instanceof ProxyRoleEnum) {
@@ -620,9 +636,9 @@ export class PigeonCodec extends StandardMessageCodec {
 
 
 export interface Result<T> {
-  success( result: T ): void;
+  success(result: T): void;
 
-  error( error: Error): void;
+  error(error: Error): void;
 }
 /**
  * Codec extending `PigeonCodec` with ProxyApi instance
@@ -670,43 +686,43 @@ export class PigeonProxyApiBaseCodec extends PigeonCodec {
 /* Generated abstract class from Pigeon that represents a handler of messages from Flutter.*/
 export abstract class DemoHostApi {
 
-  abstract sendNull(data: Object | undefined ): Object | undefined;
+  abstract sendNull(data: Object | undefined): Object | undefined;
 
-  abstract sendTrue(data: boolean ): boolean;
+  abstract sendTrue(data: boolean): boolean;
 
-  abstract sendFalse(data: boolean ): boolean;
+  abstract sendFalse(data: boolean): boolean;
 
-  abstract sendInt(data: number ): number;
+  abstract sendInt(data: number): number;
 
-  abstract sendDouble(data: number ): number;
+  abstract sendDouble(data: number): number;
 
-  abstract sendString(data: string ): string;
+  abstract sendString(data: string): string;
 
-  abstract sendUint8List(data: number[] ): number[];
+  abstract sendUint8List(data: number[]): number[];
 
-  abstract sendInt32List(data: number[] ): number[];
+  abstract sendInt32List(data: number[]): number[];
 
-  abstract sendInt64List(data: number[] ): number[];
+  abstract sendInt64List(data: number[]): number[];
 
-  abstract sendFloat64List(data: number[] ): number[];
+  abstract sendFloat64List(data: number[]): number[];
 
-  abstract sendList(data: Array<string> ): Array<string>;
+  abstract sendList(data: Array<string>): Array<string>;
 
-  abstract sendMap(data: Map<string, string> ): Map<string, string>;
+  abstract sendMap(data: Map<string, string>): Map<string, string>;
 
-  abstract sendCustomClass(data: Student ): Student;
+  abstract sendCustomClass(data: Student): Student;
 
-  abstract sendNestedDatatype(data: Person ): Person;
+  abstract sendNestedDatatype(data: Person): Person;
 
-  abstract sendEnum(data: Identity ): Identity;
+  abstract sendEnum(data: Identity): Identity;
 
-  abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;
+  abstract sendNullableEnum(data: Identity | undefined): Identity | undefined;
 
-  abstract sendAsyncEnum(data: Identity , result: Result<Identity>): void;
+  abstract sendAsyncEnum(data: Identity, result: Result<Identity>): void;
 
-  abstract triggerPlatformEchoEnum(data: Identity , result: Result<Identity>): void;
+  abstract triggerPlatformEchoEnum(data: Identity, result: Result<Identity>): void;
 
-  abstract triggerPlatformEchoNullableEnum(data: Identity | undefined , result: Result<Identity | undefined>): void;
+  abstract triggerPlatformEchoNullableEnum(data: Identity | undefined, result: Result<Identity | undefined>): void;
 
   abstract flutterInvokeSync(): string;
 
@@ -725,7 +741,7 @@ export abstract class DemoHostApi {
   */
   abstract proxyApiHostCreateAndEcho(result: Result<string>): void;
   /** The codec used by DemoHostApi. */
-  static getCodec(): MessageCodec<Object>{
+  static getCodec(): MessageCodec<Object> {
     return PigeonCodec.INSTANCE;
   }
   /*Sets up an instance of `DemoHostApi` to handle messages through the `binaryMessenger`.*/
@@ -737,7 +753,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNull' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -751,8 +767,7 @@ export abstract class DemoHostApi {
               try {
                 let output: Object | undefined = api!.sendNull(args[0] as Object | undefined);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -768,7 +783,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendTrue' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -782,8 +797,7 @@ export abstract class DemoHostApi {
               try {
                 let output: boolean = api!.sendTrue(args[0] as boolean);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -799,7 +813,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFalse' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -813,8 +827,7 @@ export abstract class DemoHostApi {
               try {
                 let output: boolean = api!.sendFalse(args[0] as boolean);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -830,7 +843,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -844,8 +857,7 @@ export abstract class DemoHostApi {
               try {
                 let output: number = api!.sendInt(args[0] as number);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -861,7 +873,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendDouble' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -874,9 +886,8 @@ export abstract class DemoHostApi {
               let res: Array<Object | null> = [];
               try {
                 let output: number = api!.sendDouble(args[0] as number);
-                res.push(output);
-              }
- catch (error) {
+                res.push(new PigeonInternalDoubleBox(output));
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -892,7 +903,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendString' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -906,8 +917,7 @@ export abstract class DemoHostApi {
               try {
                 let output: string = api!.sendString(args[0] as string);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -923,7 +933,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendUint8List' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -937,8 +947,7 @@ export abstract class DemoHostApi {
               try {
                 let output: number[] = api!.sendUint8List(args[0] as number[]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -954,7 +963,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt32List' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -968,8 +977,7 @@ export abstract class DemoHostApi {
               try {
                 let output: number[] = api!.sendInt32List(args[0] as number[]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -985,7 +993,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendInt64List' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -999,8 +1007,7 @@ export abstract class DemoHostApi {
               try {
                 let output: number[] = api!.sendInt64List(args[0] as number[]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1016,7 +1023,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendFloat64List' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1030,8 +1037,7 @@ export abstract class DemoHostApi {
               try {
                 let output: number[] = api!.sendFloat64List(args[0] as number[]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1047,7 +1053,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendList' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1061,8 +1067,7 @@ export abstract class DemoHostApi {
               try {
                 let output: Array<string> = api!.sendList(args[0] as Array<string>);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1078,7 +1083,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendMap' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1092,8 +1097,7 @@ export abstract class DemoHostApi {
               try {
                 let output: Map<string, string> = api!.sendMap(args[0] as Map<string, string>);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1109,7 +1113,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendCustomClass' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1123,8 +1127,7 @@ export abstract class DemoHostApi {
               try {
                 let output: Student = api!.sendCustomClass(args[0] as Student);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1140,7 +1143,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNestedDatatype' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1154,8 +1157,7 @@ export abstract class DemoHostApi {
               try {
                 let output: Person = api!.sendNestedDatatype(args[0] as Person);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1171,7 +1173,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendEnum' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1186,8 +1188,7 @@ export abstract class DemoHostApi {
                 let pigeonEnumResult: Identity = api!.sendEnum(Identity[args[0] as string]);
                 let output: ESObject = pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new IdentityEnum(Identity[pigeonEnumResult as number]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1203,7 +1204,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendNullableEnum' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1218,8 +1219,7 @@ export abstract class DemoHostApi {
                 let pigeonEnumResult: Identity | undefined = api!.sendNullableEnum((args[0] == null ? null : Identity[args[0] as string]));
                 let output: ESObject = pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new IdentityEnum(Identity[pigeonEnumResult as number]);
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1235,7 +1235,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.sendAsyncEnum' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1271,7 +1271,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.triggerPlatformEchoEnum' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1307,7 +1307,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.triggerPlatformEchoNullableEnum' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               if (!(Array.isArray(message))) {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
                   return;
@@ -1343,13 +1343,12 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeSync' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               let res: Array<Object | null> = [];
               try {
                 let output: string = api!.flutterInvokeSync();
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1365,7 +1364,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.flutterInvokeAsync' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               class ResultImp implements Result<string>{
                     success(result: string): void {
                       let res: Array<Object | null> = [];
@@ -1392,7 +1391,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.errorHandling' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               class ResultImp implements Result<string>{
                     success(result: string): void {
                       let res: Array<Object | null> = [];
@@ -1419,13 +1418,12 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.taskQueueTest' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               let res: Array<Object | null> = [];
               try {
                 let output: string = api!.taskQueueTest();
                 res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
               }
@@ -1441,7 +1439,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.triggerPlatformInvokeSync' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               class ResultImp implements Result<string>{
                     success(result: string): void {
                       let res: Array<Object | null> = [];
@@ -1468,7 +1466,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.triggerPlatformInvokeAsync' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               class ResultImp implements Result<string>{
                     success(result: string): void {
                       let res: Array<Object | null> = [];
@@ -1495,7 +1493,7 @@ export abstract class DemoHostApi {
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.proxyApiHostCreateAndEcho' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            onMessage(message: Object, reply: Reply<Object>) {
               class ResultImp implements Result<string>{
                     success(result: string): void {
                       let res: Array<Object | null> = [];
@@ -1570,8 +1568,7 @@ export abstract class PigeonApiHostEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 api!.pigeonRegistrar.instanceManager.addDartCreatedInstance(api!.pigeon_defaultConstructor(storedRoleArg, initialArg, roleArg), pigeon_identifierArg); res.push(null);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1599,8 +1596,7 @@ export abstract class PigeonApiHostEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1627,8 +1623,7 @@ export abstract class PigeonApiHostEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1656,8 +1651,7 @@ export abstract class PigeonApiHostEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1685,8 +1679,7 @@ export abstract class PigeonApiHostEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1810,8 +1803,7 @@ export abstract class PigeonApiEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 api!.pigeonRegistrar.instanceManager.addDartCreatedInstance(api!.pigeon_defaultConstructor(storedRoleArg, initialArg, roleArg), pigeon_identifierArg); res.push(null);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1839,8 +1831,7 @@ export abstract class PigeonApiEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1867,8 +1858,7 @@ export abstract class PigeonApiEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1896,8 +1886,7 @@ export abstract class PigeonApiEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -1925,8 +1914,7 @@ export abstract class PigeonApiEnumCounter {
               let res: Array<Object | null> = [];
               try {
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
-              }
- catch (error) {
+              } catch (error) {
                 res = wrapError(error as Error);
               }
               reply.reply(res);
@@ -2030,7 +2018,7 @@ export class DemoFlutterApi {
         null,
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: ESObject[] = channelReply as ESObject[] ;
+            let listReply: ESObject[] = channelReply as ESObject[];
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
@@ -2044,7 +2032,7 @@ export class DemoFlutterApi {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
-          }  else {
+          } else {
             let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
             callback.reply(connErr);
           } 
@@ -2059,7 +2047,7 @@ export class DemoFlutterApi {
         null,
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: ESObject[] = channelReply as ESObject[] ;
+            let listReply: ESObject[] = channelReply as ESObject[];
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
@@ -2073,7 +2061,7 @@ export class DemoFlutterApi {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
-          }  else {
+          } else {
             let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
             callback.reply(connErr);
           } 
@@ -2088,7 +2076,7 @@ export class DemoFlutterApi {
         [new IdentityEnum(Identity[valueArg as number])],
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: ESObject[] = channelReply as ESObject[] ;
+            let listReply: ESObject[] = channelReply as ESObject[];
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
@@ -2102,7 +2090,7 @@ export class DemoFlutterApi {
               let output: ESObject = listReply[0] == null ? null : Identity[listReply[0] as string];
               callback.reply(output);
             }
-          }  else {
+          } else {
             let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
             callback.reply(connErr);
           } 
@@ -2117,7 +2105,7 @@ export class DemoFlutterApi {
         [(valueArg == null ? null : new IdentityEnum(Identity[valueArg as number]))],
         channelReply => {
           if (Array.isArray(channelReply)) {
-            let listReply: ESObject[] = channelReply as ESObject[] ;
+            let listReply: ESObject[] = channelReply as ESObject[];
             if (listReply.length > 1) {
               let arrFirst:string = listReply[0] as string;
               let arrSecond:string = listReply[1] as string;
@@ -2128,7 +2116,7 @@ export class DemoFlutterApi {
               let output: ESObject = listReply[0] == null ? null : Identity[listReply[0] as string];
               callback.reply(output);
             }
-          }  else {
+          } else {
             let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
             callback.reply(connErr);
           } 
