@@ -257,10 +257,9 @@ void main() {
               arguments: <NamedType>[
                 NamedType(
                   name: 'message',
-                  type: TypeDeclaration(
+                  type: const TypeDeclaration(
                     baseName: 'Input',
                     isNullable: false,
-                    associatedClass: Class(name: 'Input', fields: <NamedType>[]),
                   ),
                 ),
               ],
@@ -286,5 +285,100 @@ void main() {
     expect(code, contains('onMessage(message: Object, reply: Reply<Object>)'));
     expect(code, contains('success(result: T): void;'));
     expect(code, isNot(contains('number , b')));
+  });
+
+  test('double fields are boxed in toList and codec writeValue', () {
+    final Class classDefinition = Class(
+      name: 'AllTypes',
+      fields: <NamedType>[
+        NamedType(
+          type: const TypeDeclaration(baseName: 'double', isNullable: true),
+          name: 'aDouble',
+        ),
+      ],
+    );
+    final Root root = Root(
+      apis: <Api>[],
+      classes: <Class>[classDefinition],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const ArkTSGenerator generator = ArkTSGenerator();
+    generator.generate(
+      const ArkTSOptions(),
+      root,
+      sink,
+      dartPackageName: _defaultPackageName,
+    );
+    final String code = sink.toString();
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(
+      code,
+      contains(
+        'arr.push((this.aDouble === null || this.aDouble === undefined ? null : new PigeonInternalDoubleBox(this.aDouble)));',
+      ),
+    );
+  });
+
+  test('double values are boxed for codec when sending to Dart', () {
+    final Api hostApi = Api(
+      name: 'Api',
+      location: ApiLocation.host,
+      methods: <Method>[
+        Method(
+          name: 'echoDouble',
+          returnType: const TypeDeclaration(
+            baseName: 'double',
+            isNullable: false,
+          ),
+          arguments: <NamedType>[],
+        ),
+      ],
+    );
+    final Api flutterApi = Api(
+      name: 'FlutterSide',
+      location: ApiLocation.flutter,
+      methods: <Method>[
+        Method(
+          name: 'setDouble',
+          returnType: TypeDeclaration.voidDeclaration(),
+          arguments: <NamedType>[
+            NamedType(
+              type: const TypeDeclaration(
+                baseName: 'double',
+                isNullable: false,
+              ),
+              name: 'value',
+            ),
+          ],
+        ),
+      ],
+    );
+    final Root root = Root(
+      apis: <Api>[hostApi, flutterApi],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final StringBuffer sink = StringBuffer();
+    const ArkTSGenerator generator = ArkTSGenerator();
+    generator.generate(
+      const ArkTSOptions(),
+      root,
+      sink,
+      dartPackageName: _defaultPackageName,
+    );
+    final String code = sink.toString();
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(code, contains('class ApiCodec extends StandardMessageCodec'));
+    expect(code, contains('res.push(new PigeonInternalDoubleBox(output));'));
+    expect(code, contains('[new PigeonInternalDoubleBox(valueArg)]'));
+    expect(code, contains('if (value instanceof PigeonInternalDoubleBox)'));
+    expect(code, contains('this.writeAlignment(stream, 8);'));
+    expect(
+      code,
+      contains(
+        'stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);',
+      ),
+    );
   });
 }

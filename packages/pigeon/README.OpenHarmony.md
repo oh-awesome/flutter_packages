@@ -43,7 +43,7 @@ For use cases [ohos/example](example)
 
 This document is verified based on the following versions:
 
-1. Flutter: 3.7.12-ohos-1.0.6; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
+1. Flutter: 3.7.12-ohos-1.1.3; SDK: 6.1.1.125 (API Version 24 Release); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
 
 ## 3. API
 
