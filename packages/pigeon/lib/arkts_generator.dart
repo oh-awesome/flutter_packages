@@ -38,6 +38,56 @@ const String _docCommentContinuation = '* ';
 /// Documentation close symbol.
 const String _docCommentSuffix = '*/';
 
+<<<<<<< HEAD
+=======
+/// The standard codec for Flutter, used for any non custom codecs and extended for custom codecs.
+const String _codecName = 'PigeonCodec';
+const String _overflowClassName = '${classNamePrefix}CodecOverflow';
+
+/// Wrapper type so [PigeonCodec] always serializes a Dart `double` as float64.
+const String _doubleBoxClassName = '${classNamePrefix}DoubleBox';
+
+/// [StandardMessageCodec] type tag for IEEE 754 float64 values.
+const int _standardCodecFloat64Tag = 6;
+// Used to create classes with type number rather than long.
+const String _forceInt = '${varNamePrefix}forceInt';
+
+///Enum companion suffix
+const String _enumCompanionSuffix = 'Enum';
+const String _string_Param_Suffix = 'Str';
+
+/// Tag value matching `proxyApiCodecInstanceManagerKey`, used to mark an
+/// instance reference in the wire format.
+const int _proxyApiInstanceTag = proxyApiCodecInstanceManagerKey;
+
+/// Identifier where host-allocated identifiers begin (Dart owns [0, 2^16)).
+const int _minHostCreatedIdentifier = 65536;
+
+/// Generated InstanceManager class name (ArkTS side).
+const String _instanceManagerClassName =
+    '${proxyApiClassNamePrefix}InstanceManager';
+
+/// Generated InstanceManagerApi class name (ArkTS side).
+const String _instanceManagerApiClassName =
+    '${proxyApiClassNamePrefix}InstanceManagerApi';
+
+/// Generated finalization listener interface name (ArkTS side).
+const String _finalizationListenerInterfaceName =
+    '${proxyApiClassNamePrefix}FinalizationListener';
+
+/// Generated ProxyApi shared codec class name (ArkTS side).
+const String _proxyApiBaseCodecClassName =
+    '${proxyApiClassNamePrefix}ProxyApiBaseCodec';
+
+/// Generated ProxyApi registrar class name (ArkTS side).
+const String _proxyApiRegistrarClassName =
+    '${proxyApiClassNamePrefix}ProxyApiRegistrar';
+
+/// Per-ProxyApi host adapter class name (ArkTS side).
+String _proxyApiHostClassName(AstProxyApi api) =>
+    '$hostProxyApiPrefix${api.name}';
+
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
 /// Documentation comment spec.
 const DocumentCommentSpecification _docCommentSpec =
     DocumentCommentSpecification(
@@ -305,7 +355,19 @@ if (this.$fieldName instanceof Array) {
           } else if (!hostDatatype.isBuiltin &&
               customEnumNames.contains(field.type.baseName)) {
             indent.writeln(
+<<<<<<< HEAD
                 'arr.push(${_enumToWire('this.$fieldName', nullable: field.type.isNullable)});');
+=======
+              'const $fieldName$_string_Param_Suffix = ${field.type.baseName}[this.$fieldName as number];',
+            );
+            indent.writeln(
+              'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));',
+            );
+          } else if (_isDartDoubleType(field.type)) {
+            indent.writeln(
+              'arr.push(${_encodeDoubleForCodec(field.type, 'this.$fieldName')});',
+            );
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
           } else {
             indent.writeln('arr.push(this.$fieldName);');
           }
@@ -468,6 +530,7 @@ if (this.$fieldName instanceof Array) {
           indent.write('${func.name}(callback: Reply<$returnType>):void ');
           sendArgument = 'null';
         } else {
+<<<<<<< HEAD
           final Iterable<String> argTypes = func.arguments.map(
               (NamedType e) => _arkTSTypeForDartTypeWithNullability(e.type));
           final Iterable<String> argNames =
@@ -478,6 +541,43 @@ if (this.$fieldName instanceof Array) {
           final String argsSignature =
               map2(argTypes, argNames, (String x, String y) => '$y: $x')
                   .join(',');
+=======
+          final Iterable<String> argTypes = func.parameters.map(
+            (NamedType e) => _arkTSTypeForDartType(e.type),
+          );
+          final Iterable<String> argNames = indexMap(
+            func.parameters,
+            _getSafeArgumentName,
+          );
+          // Enum arguments must be wrapped in the codec's companion type before
+          // being sent; a bare enum value (number) would not match
+          // `instanceof <Enum>Enum` and would be encoded as a plain int without
+          // the enum type tag.
+          final List<String> sendArgParts = indexMap(func.parameters, (
+            int i,
+            NamedType arg,
+          ) {
+            final String argName = getSafeArgumentExpression(i, arg);
+            if (arg.type.isEnum) {
+              final String enumName = _arkTSCustomTypeName(arg.type);
+              return arg.type.isNullable
+                  ? '($argName == null ? null : new $enumName$_enumCompanionSuffix($enumName[$argName as number]))'
+                  : 'new $enumName$_enumCompanionSuffix($enumName[$argName as number])';
+            }
+            if (_isDartDoubleType(arg.type)) {
+              return _encodeDoubleForCodec(arg.type, argName);
+            }
+            return argName;
+          }).toList();
+
+          sendArgument = '[${sendArgParts.join(', ')}]';
+
+          final String argsSignature = map2(
+            argTypes,
+            argNames,
+            (String x, String y) => '$y: $x',
+          ).join(',');
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
           indent.write(
               '${func.name}($argsSignature, callback: Reply<$returnType>) ');
         }
@@ -644,6 +744,7 @@ if (this.$fieldName instanceof Array) {
               });
             }
             if (method.isAsynchronous) {
+<<<<<<< HEAD
               final String resultValue =
                   method.returnType.isVoid ? 'null' : 'result';
               if (isEnum(root, method.returnType)) {
@@ -652,6 +753,20 @@ if (this.$fieldName instanceof Array) {
                     : ' as number';
               }
               const String resultName = 'resultCallback';
+=======
+              // Encode an enum result into its codec companion before replying,
+              // exactly like the sync path / data-class toList. Without this an
+              // async enum return would push the raw enum value and the codec
+              // (which keys off `instanceof <Enum>Enum`) would mis-serialize it.
+              final resultValue = method.returnType.isVoid
+                  ? 'null'
+                  : (method.returnType.isEnum
+                      ? '(result === null || result === undefined ? null : new ${_arkTSCustomTypeName(method.returnType)}$_enumCompanionSuffix(${_arkTSCustomTypeName(method.returnType)}[result as number]))'
+                      : _isDartDoubleType(method.returnType)
+                          ? _encodeDoubleForCodec(method.returnType, 'result')
+                          : 'result');
+              const resultName = 'resultCallback';
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
               indent.format('''
 class ResultImp implements Result<$returnType>{
 \t\t\tsuccess(result: $returnType): void {
@@ -693,6 +808,13 @@ let $resultName: Result<$returnType> = new ResultImp();
                   } else {
                     indent.writeln('res.push(output);');
                   }
+<<<<<<< HEAD
+=======
+                  final String outputPush = _isDartDoubleType(method.returnType)
+                      ? _encodeDoubleForCodec(method.returnType, 'output')
+                      : 'output';
+                  indent.writeln('res.push($outputPush);');
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
                 }
               });
               indent.addScoped(null, '}', () {
@@ -872,6 +994,31 @@ getByte(n: number): number {
 }''');
   }
 
+  void _writeDoubleBoxClass(Indent indent) {
+    indent.writeln(
+      '/**',
+    );
+    indent.writeln(
+      ' * Wrapper so $_codecName always serializes a Dart `double` as float64.',
+    );
+    indent.writeln(
+      ' * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded',
+    );
+    indent.writeln(
+      ' * as integers by StandardMessageCodec and fail strict Dart double casts.',
+    );
+    indent.writeln(
+      ' */',
+    );
+    indent.write('export class $_doubleBoxClassName ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('value: number;');
+      indent.writeScoped('constructor(value: number) {', '}', () {
+        indent.writeln('this.value = value;');
+      });
+    });
+  }
+
   @override
   void writeGeneralUtilities(
     ArkTSOptions generatorOptions,
@@ -881,8 +1028,21 @@ getByte(n: number): number {
   }) {
     indent.newln();
     _writeErrorClass(indent);
+<<<<<<< HEAD
     indent.newln();
     _writeWrapError(indent);
+=======
+
+    if (_rootUsesDartDouble(root)) {
+      indent.newln();
+      _writeDoubleBoxClass(indent);
+    }
+
+    if (hasHostApi) {
+      indent.newln();
+      _writeWrapError(indent);
+    }
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
   }
 
   /// Calculates the name of the codec that will be generated for [api].
@@ -992,4 +1152,1483 @@ getByte(n: number): number {
       return null;
     }
   }
+<<<<<<< HEAD
+=======
+
+  @override
+  void writeGeneralCodec(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
+    // Sealed (parent) classes are not serialized directly -- only their
+    // concrete subclasses are -- so they are excluded from the codec's
+    // enumerated custom types. This intentionally matches the Kotlin and Swift
+    // generators (see writeGeneralCodec in kotlin_generator.dart /
+    // swift_generator.dart), which pass the same flag to getEnumeratedTypes.
+    final List<EnumeratedType> enumeratedTypes = getEnumeratedTypes(
+      root,
+      excludeSealedClasses: true,
+    ).toList();
+    void writeEncodeLogic(EnumeratedType customType) {
+      final isEnum = customType.type == CustomTypes.customEnum;
+      final nullCheck = customType.type == CustomTypes.customEnum
+          ? 'value == null ? null : '
+          : '';
+      var valueString = '';
+      if (isEnum) {
+        valueString = customType.enumeration < maximumCodecFieldKey
+            ? '$nullCheck${customType.name}[value.index as string]'
+            : 'wrap.toList()';
+      } else {
+        valueString = customType.enumeration < maximumCodecFieldKey
+            ? '$nullCheck(value as ${customType.name}).toList()'
+            : 'wrap.toList()';
+      }
+
+      final int enumeration = customType.enumeration < maximumCodecFieldKey
+          ? customType.enumeration
+          : maximumCodecFieldKey;
+      final isCustom = customType.type == CustomTypes.customClass;
+      if (isCustom) {
+        indent.add('if (value instanceof ${customType.name}) ');
+        indent.addScoped('{', '} else ', () {
+          if (customType.enumeration >= maximumCodecFieldKey) {
+            indent.writeln(
+              'let wrap:$_overflowClassName = new $_overflowClassName();',
+            );
+            indent.writeln(
+              'wrap.setType(${customType.enumeration - maximumCodecFieldKey});',
+            );
+
+            indent.writeln(
+              'wrap.setWrapped($nullCheck(value as ${customType.name}).toList());',
+            );
+          }
+          indent.writeln('stream.writeUint8(this.getByte($enumeration));');
+          indent.writeln('this.writeValue(stream, $valueString);');
+        }, addTrailingNewline: false);
+      } else {
+        indent.add(
+          'if (value instanceof ${customType.name}$_enumCompanionSuffix) ',
+        );
+        indent.addScoped('{', '} else ', () {
+          if (customType.enumeration >= maximumCodecFieldKey) {
+            indent.writeln(
+              'let wrap:$_overflowClassName = new $_overflowClassName();',
+            );
+            indent.writeln(
+              'wrap.setType(${customType.enumeration - maximumCodecFieldKey});',
+            );
+            indent.writeln(
+              'wrap.setWrapped($nullCheck((value as ${customType.name}$_enumCompanionSuffix).index));',
+            );
+          }
+          indent.writeln('stream.writeUint8(this.getByte($enumeration));');
+          indent.writeln('this.writeValue(stream, $valueString);');
+        }, addTrailingNewline: false);
+      }
+    }
+
+    void writeDecodeLogic(EnumeratedType customType) {
+      indent.write('case this.getByte(${customType.enumeration}):');
+      if (customType.type == CustomTypes.customClass) {
+        indent.newln();
+        indent.nest(1, () {
+          indent.writeln(
+            'return ${customType.name}.fromList(super.readValue(buffer) as Object[]);',
+          );
+        });
+      } else if (customType.type == CustomTypes.customEnum) {
+        indent.addScoped(' {', '}', () {
+          indent.writeln('let value: Object = super.readValue(buffer);');
+          indent.writeln(
+            'return ${_intToEnum('value', customType.name, true)};',
+          );
+        });
+      }
+    }
+
+    final overflowClass = EnumeratedType(
+      _overflowClassName,
+      maximumCodecFieldKey,
+      CustomTypes.customClass,
+    );
+
+    if (root.requiresOverflowClass) {
+      _writeCodecOverflowUtilities(
+        generatorOptions,
+        root,
+        indent,
+        enumeratedTypes,
+        dartPackageName: dartPackageName,
+      );
+    }
+    indent.newln();
+    indent.write('export class $_codecName extends StandardMessageCodec ');
+    indent.addScoped('{', '}', () {
+      indent.writeln(
+        'static readonly INSTANCE: $_codecName = new $_codecName();',
+      );
+      indent.newln();
+      _writeGetByteMethoe(indent);
+
+      // When ProxyApi is present, PigeonProxyApiBaseCodec subclasses $_codecName
+      // and must call super(); ArkTS forbids extending a class whose sole
+      // constructor is private (arkts-subclassing-restrictions).
+      final bool hasProxyApi = root.apis.any((Api api) => api is AstProxyApi);
+      indent.writeScoped(
+        hasProxyApi ? 'constructor() {' : 'private constructor() {',
+        '}',
+        () {
+          indent.writeln('super();');
+        },
+      );
+      indent.newln();
+      indent.writeScoped(
+        'readValueOfType(type: number, buffer: ByteBuffer): ESObject {',
+        '}',
+        () {
+          indent.writeScoped('switch (type) {', '}', () {
+            for (final customType in enumeratedTypes) {
+              if (customType.enumeration < maximumCodecFieldKey) {
+                writeDecodeLogic(customType);
+              }
+            }
+            if (root.requiresOverflowClass) {
+              writeDecodeLogic(overflowClass);
+            }
+            indent.writeln('default:');
+            indent.nest(1, () {
+              indent.writeln('return super.readValueOfType(type, buffer);');
+            });
+          });
+        },
+      );
+      indent.newln();
+      indent.writeScoped(
+        'writeValue(stream: ByteBuffer, value: ESObject): ESObject {',
+        '}',
+        () {
+        if (_rootUsesDartDouble(root)) {
+          indent.writeScoped(
+            'if (value instanceof $_doubleBoxClassName) {',
+            '} else ',
+            () {
+              indent.writeln(
+                'stream.writeInt8(this.getByte($_standardCodecFloat64Tag));',
+              );
+              indent.writeln('this.writeAlignment(stream, 8);');
+              indent.writeln(
+                'stream.writeFloat64((value as $_doubleBoxClassName).value, true);',
+              );
+              indent.writeln('return;');
+            },
+            addTrailingNewline: false,
+          );
+        }
+        indent.write('');
+        enumeratedTypes.forEach(writeEncodeLogic);
+        indent.addScoped('{', '}', () {
+          indent.writeln('super.writeValue(stream, value);');
+        });
+      });
+    });
+    indent.newln();
+  }
+
+  void _writeCodecOverflowUtilities(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    List<EnumeratedType> types, {
+    required String dartPackageName,
+  }) {
+    final overflowInteration = NamedType(
+      name: 'type',
+      type: const TypeDeclaration(baseName: _forceInt, isNullable: false),
+    );
+    final overflowObject = NamedType(
+      name: 'wrapped',
+      type: const TypeDeclaration(baseName: 'Object', isNullable: true),
+    );
+    final overflowFields = <NamedType>[overflowInteration, overflowObject];
+    final overflowClass = Class(
+      name: _overflowClassName,
+      fields: overflowFields,
+    );
+
+    _writeDataClassSignature(generatorOptions, indent, overflowClass, () {
+      writeClassEncode(
+        generatorOptions,
+        root,
+        indent,
+        overflowClass,
+        dartPackageName: dartPackageName,
+      );
+
+      indent.format('''
+static fromList(list: Object[]): Object | null {
+  const wrapper: $_overflowClassName = new $_overflowClassName();
+  wrapper.setType(list[0] as number);
+  wrapper.setWrapped(list[1]);
+  return wrapper.unwrap();
+}
+''');
+
+      indent.write('unwrap(): Object | null ');
+      indent.addScoped('{', '}', () {
+        indent.writeln(
+          'if (this.wrapped === null || this.wrapped === undefined) {',
+        );
+        indent.nest(1, () {
+          indent.writeln('return null;');
+        });
+        indent.writeScoped('switch (this.type) {', '}', () {
+          for (int i = totalCustomCodecKeysAllowed; i < types.length; i++) {
+            indent.writeln('case ${i - totalCustomCodecKeysAllowed}:');
+            indent.nest(1, () {
+              if (types[i].type == CustomTypes.customClass) {
+                indent.writeln(
+                  'return ${types[i].name}.fromList(this.wrapped as Object[]);',
+                );
+              } else if (types[i].type == CustomTypes.customEnum) {
+                indent.writeln(
+                  'return ${types[i].name}[this.wrapped as string];',
+                );
+              }
+            });
+          }
+        });
+        indent.writeln('return null;');
+      });
+    }, private: true);
+  }
+
+  // =====================================================================
+  // ProxyApi support for HarmonyOS ArkTS.
+  //
+  // Implemented:
+  //   * PigeonInstanceManager (WeakRef + FinalizationRegistry GC)
+  //   * PigeonInstanceManagerApi (removeStrongReference / clear / cb)
+  //   * PigeonProxyApiBaseCodec (tag 128 + pigeon_newInstance dispatch)
+  //   * PigeonProxyApiRegistrar (per-engine coordinator, abstract)
+  //   * PigeonApi<Name> adapters (constructors, fields, host/flutter methods)
+  //   * ProxyApi inheritance/interface registrar getters
+  //   * List<ProxyApi> typing via _arkTSTypeForProxyApiType
+  //   * minApi recorded for IDL parity (not enforced on OHOS — see PigeonMinApi)
+  // =====================================================================
+
+  @override
+  void writeInstanceManager(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
+    indent.format('''
+/**
+ * Maintains a 1:1 mapping between native objects and integer identifiers
+ * shared with the Dart `InstanceManager`.
+ *
+ * Memory management mirrors Kotlin/Swift: each instance is tracked with a
+ * [WeakRef] and a strong reference. [remove] drops the strong reference; when
+ * the weak reference is garbage collected, [FinalizationRegistry] notifies the
+ * [finalizationListener]. [getIdentifierForStrongReference] re-creates a strong
+ * reference when needed to pass an identifier to Dart.
+ *
+ * Thread safety: synchronous, single-threaded platform channel thread (see
+ * Kotlin `InstanceManager` rationale).
+ */
+export class $_instanceManagerClassName {
+  private static readonly minHostCreatedIdentifier: number = $_minHostCreatedIdentifier;
+
+  private readonly weakInstances: Map<number, WeakRef<ESObject>> = new Map<number, WeakRef<ESObject>>();
+  private readonly strongInstances: Map<number, ESObject> = new Map<number, ESObject>();
+  private readonly finalizationRegistry: FinalizationRegistry<number>;
+  private readonly instancesHeldForFinalization: Set<ESObject> = new Set<ESObject>();
+  private nextIdentifier: number = $_instanceManagerClassName.minHostCreatedIdentifier;
+  private finalizationListener: $_finalizationListenerInterfaceName | null = null;
+  private finalizationListenerStopped: boolean = false;
+
+  constructor() {
+    this.finalizationRegistry = new FinalizationRegistry<number>((identifier: number) => {
+      if (this.finalizationListenerStopped) {
+        return;
+      }
+      if (this.strongInstances.has(identifier)) {
+        return;
+      }
+      this.weakInstances.delete(identifier);
+      if (this.finalizationListener !== null) {
+        this.finalizationListener.onFinalize(identifier);
+      }
+    });
+  }
+
+  setFinalizationListener(listener: $_finalizationListenerInterfaceName | null): void {
+    this.finalizationListener = listener;
+  }
+
+  stopFinalizationListener(): void {
+    this.finalizationListenerStopped = true;
+    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+      this.finalizationRegistry.unregister(instance);
+    });
+    this.instancesHeldForFinalization.clear();
+  }
+
+  hasFinalizationListenerStopped(): boolean {
+    return this.finalizationListenerStopped;
+  }
+
+  private findIdentifierForInstance(instance: ESObject): number | null {
+    let found: number | null = null;
+    this.strongInstances.forEach((strong: ESObject, identifier: number) => {
+      if (found === null && strong === instance) {
+        found = identifier;
+      }
+    });
+    if (found !== null) {
+      return found;
+    }
+    this.weakInstances.forEach((weakRef: WeakRef<ESObject>, identifier: number) => {
+      if (found !== null) {
+        return;
+      }
+      const deref: ESObject | undefined = weakRef.deref();
+      if (deref !== undefined && deref === instance) {
+        found = identifier;
+      }
+    });
+    return found;
+  }
+
+  private addInstance(instance: ESObject, identifier: number): void {
+    if (identifier < 0) {
+      throw new Error('Identifier must be >= 0: ' + identifier);
+    }
+    if (this.weakInstances.has(identifier)) {
+      throw new Error('Identifier has already been added: ' + identifier);
+    }
+    const weakRef: WeakRef<ESObject> = new WeakRef(instance);
+    this.weakInstances.set(identifier, weakRef);
+    this.strongInstances.set(identifier, instance);
+    this.finalizationRegistry.register(instance, identifier, instance);
+    this.instancesHeldForFinalization.add(instance);
+  }
+
+  addDartCreatedInstance(instance: ESObject, identifier: number): void {
+    this.addInstance(instance, identifier);
+  }
+
+  addHostCreatedInstance(instance: ESObject): number {
+    if (this.findIdentifierForInstance(instance) !== null) {
+      throw new Error('Instance has already been added.');
+    }
+    const identifier: number = this.nextIdentifier++;
+    this.addInstance(instance, identifier);
+    return identifier;
+  }
+
+  getInstance(identifier: number): ESObject | null {
+    const strong: ESObject | undefined = this.strongInstances.get(identifier);
+    if (strong !== undefined) {
+      return strong;
+    }
+    const weak: WeakRef<ESObject> | undefined = this.weakInstances.get(identifier);
+    if (weak === undefined) {
+      return null;
+    }
+    const deref: ESObject | undefined = weak.deref();
+    return deref === undefined ? null : deref;
+  }
+
+  getIdentifierForStrongReference(instance: ESObject | null): number | null {
+    if (instance === null || instance === undefined) {
+      return null;
+    }
+    const identifier: number | null = this.findIdentifierForInstance(instance);
+    if (identifier !== null) {
+      this.strongInstances.set(identifier, instance);
+    }
+    return identifier;
+  }
+
+  containsInstance(instance: ESObject | null): boolean {
+    if (instance === null || instance === undefined) {
+      return false;
+    }
+    return this.findIdentifierForInstance(instance) !== null;
+  }
+
+  remove(identifier: number): ESObject | null {
+    const instance: ESObject | undefined = this.strongInstances.get(identifier);
+    if (instance === undefined) {
+      return null;
+    }
+    this.strongInstances.delete(identifier);
+    this.weakInstances.delete(identifier);
+    this.instancesHeldForFinalization.delete(instance);
+    this.finalizationRegistry.unregister(instance);
+    return instance;
+  }
+
+  clear(): void {
+    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+      this.finalizationRegistry.unregister(instance);
+    });
+    this.instancesHeldForFinalization.clear();
+    this.weakInstances.clear();
+    this.strongInstances.clear();
+  }
+
+  getDebugInfo(): string {
+    const idParts: string[] = [];
+    this.weakInstances.forEach((_weakRef: WeakRef<ESObject>, identifier: number) => {
+      idParts.push(identifier.toString());
+    });
+    const registeredIdentifiers: string = idParts.join(', ');
+    return '$_instanceManagerClassName state: instanceCount='
+      + this.weakInstances.size
+      + ', strongCount=' + this.strongInstances.size
+      + ', nextIdentifier=' + this.nextIdentifier
+      + ', registeredIdentifiers=[' + registeredIdentifiers + ']';
+  }
+}
+
+export interface $_finalizationListenerInterfaceName {
+  onFinalize(identifier: number): void;
+}
+''');
+    indent.newln();
+  }
+
+  @override
+  void writeInstanceManagerApi(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
+    final String removeRefChannel = makeRemoveStrongReferenceChannelName(
+      dartPackageName,
+    );
+    final String clearChannel = makeClearChannelName(dartPackageName);
+    indent.format('''
+/**
+ * Generated API for managing the Dart and native `$_instanceManagerClassName`s.
+ *
+ * Set up by `$_proxyApiRegistrarClassName` in setUp() / tearDown().
+ */
+export class $_instanceManagerApiClassName {
+  binaryMessenger: BinaryMessenger;
+
+  constructor(binaryMessenger: BinaryMessenger) {
+    this.binaryMessenger = binaryMessenger;
+  }
+
+  /** The shared codec used by `$_instanceManagerApiClassName`. */
+  static getCodec(): MessageCodec<Object> {
+    return $_codecName.INSTANCE;
+  }
+
+  /** Registers (or removes) message handlers that let Dart drive this manager. */
+  static setUpMessageHandlers(
+    binaryMessenger: BinaryMessenger,
+    instanceManager: $_instanceManagerClassName | null,
+  ): void {
+    // removeStrongReference
+    {
+      let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+        binaryMessenger,
+        "$removeRefChannel",
+        $_instanceManagerApiClassName.getCodec());
+      if (instanceManager != null) {
+        channel.setMessageHandler({
+          onMessage(message: Object, reply: Reply<Object>): void {
+            if (!(Array.isArray(message))) {
+              reply.reply(wrapError(new Error('Invalid Pigeon message: expected List.')));
+              return;
+            }
+            let args: Array<Object> = message as Array<Object>;
+            if (args.length < 1) {
+              reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 1 argument(s).')));
+              return;
+            }
+            let identifierArg: number = args[0] as number;
+            if (typeof identifierArg !== 'number') {
+              reply.reply(wrapError(new Error('Invalid Pigeon message: identifier must be a number.')));
+              return;
+            }
+            let res: Array<Object | null> = [];
+            try {
+              instanceManager!.remove(identifierArg);
+              res.push(null);
+            } catch (error) {
+              res = wrapError(error as Error);
+            }
+            reply.reply(res);
+          }
+        });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    // clear
+    {
+      let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+        binaryMessenger,
+        "$clearChannel",
+        $_instanceManagerApiClassName.getCodec());
+      if (instanceManager != null) {
+        channel.setMessageHandler({
+          onMessage(message: Object, reply: Reply<Object>): void {
+            let res: Array<Object | null> = [];
+            try {
+              instanceManager!.clear();
+              res.push(null);
+            } catch (error) {
+              res = wrapError(error as Error);
+            }
+            reply.reply(res);
+          }
+        });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+  }
+
+  /**
+   * Asks the Dart-side InstanceManager to release the strong reference for
+   * the identifier so that the Dart proxy object can be garbage collected.
+   */
+  removeStrongReference(identifierArg: number, callback: Reply<void>): void {
+    const channelName: string = '$removeRefChannel';
+    let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+      this.binaryMessenger, channelName, $_instanceManagerApiClassName.getCodec());
+    channel.send([identifierArg], channelReply => {
+      // Errors on the Dart side are intentionally swallowed; the worst case
+      // is a Dart-side memory leak that the developer can debug if needed.
+      callback.reply();
+    });
+  }
+}
+''');
+    indent.newln();
+  }
+
+  // NOTE: despite the `writeProxyApiBaseCodec` name (fixed by the
+  // StructuredGenerator hook), this only emits the ProxyApi *registrar*. The
+  // base codec *class* ($_proxyApiBaseCodecClassName) is emitted later by
+  // `_writeProxyApiBaseCodecClass` from `writeApis`, because ArkTS does not
+  // hoist class declarations and it must appear after `$_codecName` (which it
+  // extends). See the matching comment in `writeApis`.
+  @override
+  void writeProxyApiBaseCodec(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+  ) {
+    final Iterable<AstProxyApi> allProxyApis =
+        root.apis.whereType<AstProxyApi>();
+    _writeProxyApiRegistrar(
+      generatorOptions,
+      indent,
+      allProxyApis: allProxyApis,
+    );
+  }
+
+  void _writeProxyApiRegistrar(
+    InternalArkTSOptions generatorOptions,
+    Indent indent, {
+    required Iterable<AstProxyApi> allProxyApis,
+  }) {
+    final getters = StringBuffer();
+    final setUpBody = StringBuffer();
+    final tearDownBody = StringBuffer();
+    for (final api in allProxyApis) {
+      final String hostName = _proxyApiHostClassName(api);
+      getters.writeln(
+        '  /** An implementation of [$hostName] used to register a new Dart instance of `${api.name}` with the Dart `InstanceManager`. */',
+      );
+      getters.writeln('  abstract get${api.name}(): $hostName;');
+      getters.writeln();
+
+      final bool hasHostHandlers = api.constructors.isNotEmpty ||
+          api.attachedFields.isNotEmpty ||
+          api.hostMethods.isNotEmpty;
+      if (hasHostHandlers) {
+        setUpBody.writeln(
+          '    $hostName.setUpMessageHandlers(this.binaryMessenger, this.get${api.name}());',
+        );
+        tearDownBody.writeln(
+          '    $hostName.setUpMessageHandlers(this.binaryMessenger, null);',
+        );
+      }
+    }
+    indent.format('''
+/**
+ * No-op [Reply] for fire-and-forget InstanceManager callbacks.
+ * ArkTS rejects untyped object literals for interface-typed parameters
+ * (arkts-no-untyped-obj-literals).
+ */
+class PigeonNoOpVoidReply implements Reply<void> {
+  reply(_value: void): void {
+  }
+}
+
+class PigeonRegistrarFinalizationListener implements $_finalizationListenerInterfaceName {
+  private readonly api: $_instanceManagerApiClassName;
+
+  constructor(api: $_instanceManagerApiClassName) {
+    this.api = api;
+  }
+
+  onFinalize(identifier: number): void {
+    this.api.removeStrongReference(identifier, new PigeonNoOpVoidReply());
+  }
+}
+
+/**
+ * Provides implementations for each ProxyApi class and shared resources.
+ *
+ * Subclass this in the host plugin, override each `getXxx()` to return your
+ * implementation of `$hostProxyApiPrefix<ApiName>`, then call setUp() from
+ * onAttachedToEngine and tearDown() from onDetachedFromEngine.
+ */
+export abstract class $_proxyApiRegistrarClassName {
+  public binaryMessenger: BinaryMessenger;
+  public instanceManager: $_instanceManagerClassName;
+  /** Whether ProxyApi calls into Dart should be suppressed (e.g. during shutdown). */
+  public ignoreCallsToDart: boolean = false;
+  private codecInstance: MessageCodec<Object> | null = null;
+
+  constructor(binaryMessenger: BinaryMessenger) {
+    this.binaryMessenger = binaryMessenger;
+    this.instanceManager = new $_instanceManagerClassName();
+    const api: $_instanceManagerApiClassName = new $_instanceManagerApiClassName(binaryMessenger);
+    this.instanceManager.setFinalizationListener(new PigeonRegistrarFinalizationListener(api));
+  }
+
+  /** Returns the shared `$_proxyApiBaseCodecClassName`, lazily instantiated. */
+  getCodec(): MessageCodec<Object> {
+    if (this.codecInstance === null) {
+      this.codecInstance = new $_proxyApiBaseCodecClassName(this);
+    }
+    return this.codecInstance!;
+  }
+
+${getters.toString().trimRight()}
+
+  /** Registers all message handlers and InstanceManager handlers. */
+  setUp(): void {
+    $_instanceManagerApiClassName.setUpMessageHandlers(this.binaryMessenger, this.instanceManager);
+${setUpBody.toString().trimRight()}
+  }
+
+  /** Tears down all message handlers from the binary messenger. */
+  tearDown(): void {
+    this.ignoreCallsToDart = true;
+    this.instanceManager.stopFinalizationListener();
+    this.instanceManager.clear();
+    $_instanceManagerApiClassName.setUpMessageHandlers(this.binaryMessenger, null);
+${tearDownBody.toString().trimRight()}
+  }
+}
+''');
+    indent.newln();
+  }
+
+  /// Writes `PigeonProxyApiBaseCodec` AFTER PigeonCodec has been written, so
+  /// that `extends $_codecName` is valid at module evaluation time.
+  void _writeProxyApiBaseCodecClass(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent, {
+    required String dartPackageName,
+  }) {
+    indent.writeln('/**');
+    indent.writeln(' * Codec extending `$_codecName` with ProxyApi instance');
+    indent.writeln(' * references (tag $_proxyApiInstanceTag). Host-created');
+    indent.writeln(
+      ' * instances must be registered via `pigeon_newInstance` before encoding.',
+    );
+    indent.writeln(' */');
+    indent.write(
+      'export class $_proxyApiBaseCodecClassName extends $_codecName ',
+    );
+    indent.addScoped('{', '}', () {
+      indent.writeln('registrar: $_proxyApiRegistrarClassName;');
+      indent.newln();
+      indent.write('constructor(registrar: $_proxyApiRegistrarClassName) ');
+      indent.addScoped('{', '}', () {
+        indent.writeln('super();');
+        indent.writeln('this.registrar = registrar;');
+      });
+      indent.newln();
+      indent.write(
+        'override readValueOfType(type: number, buffer: ByteBuffer): ESObject ',
+      );
+      indent.addScoped('{', '}', () {
+        indent.writeScoped('if (type === $_proxyApiInstanceTag) {', '}', () {
+          indent.writeln(
+            'const identifier: number = super.readValue(buffer) as number;',
+          );
+          indent.writeln(
+            'const instance: ESObject | null = this.registrar.instanceManager.getInstance(identifier);',
+          );
+          indent.writeScoped('if (instance === null) {', '}', () {
+            indent.writeln(
+              "throw new Error('$_proxyApiBaseCodecClassName: instance not found for identifier ' + identifier + '. ' + this.registrar.instanceManager.getDebugInfo());",
+            );
+          });
+          indent.writeln('return instance;');
+        });
+        indent.writeln('return super.readValueOfType(type, buffer);');
+      });
+      indent.newln();
+      indent.write(
+        'override writeValue(stream: ByteBuffer, value: ESObject): ESObject ',
+      );
+      indent.addScoped('{', '}', () {
+        indent.writeScoped(
+          'if (value === null || typeof value === \'boolean\' || typeof value === \'number\' || typeof value === \'string\' || Array.isArray(value) || value instanceof Map) {',
+          '}',
+          () {
+            indent.writeln('return super.writeValue(stream, value);');
+          },
+        );
+        indent.newln();
+        indent.writeScoped(
+          'if (this.registrar.instanceManager.containsInstance(value)) {',
+          '}',
+          () {
+            indent.writeln(
+              'const identifier: number | null = this.registrar.instanceManager.getIdentifierForStrongReference(value);',
+            );
+            indent.writeScoped('if (identifier === null) {', '}', () {
+              indent.writeln(
+                "throw new Error('$_proxyApiBaseCodecClassName: no identifier for registered instance. ' + this.registrar.instanceManager.getDebugInfo());",
+              );
+            });
+            indent.writeln('stream.writeInt8($_proxyApiInstanceTag);');
+            indent.writeln(
+              'return this.writeValue(stream, identifier as Object);',
+            );
+          },
+        );
+        indent.newln();
+        indent.writeln('return super.writeValue(stream, value);');
+      });
+    });
+    indent.newln();
+  }
+
+  @override
+  void writeProxyApi(
+    InternalArkTSOptions generatorOptions,
+    Root root,
+    Indent indent,
+    AstProxyApi api, {
+    required String dartPackageName,
+  }) {
+    final String hostName = _proxyApiHostClassName(api);
+
+    addDocumentationComments(
+      indent,
+      api.documentationComments,
+      _docCommentSpec,
+      generatorComments: <String>[
+        ' Generated host-side adapter for ProxyApi `${api.name}`.',
+        ' Subclass and override the abstract members to provide your',
+        ' HarmonyOS implementation, then return your subclass from the',
+        " registrar's `get${api.name}()`.",
+      ],
+    );
+    indent.write('export abstract class $hostName ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('pigeonRegistrar: $_proxyApiRegistrarClassName;');
+      indent.newln();
+      indent.write(
+        'constructor(pigeonRegistrar: $_proxyApiRegistrarClassName) ',
+      );
+      indent.addScoped('{', '}', () {
+        indent.writeln('this.pigeonRegistrar = pigeonRegistrar;');
+      });
+      indent.newln();
+
+      // ----- Abstract members -----
+      _writeProxyApiConstructorAbstractMethods(indent, api);
+      _writeProxyApiAttachedFieldAbstractMethods(indent, api);
+      if (api.hasCallbackConstructor()) {
+        _writeProxyApiUnattachedFieldAbstractMethods(indent, api);
+      }
+      _writeProxyApiHostMethodAbstractMethods(indent, api);
+
+      // ----- setUpMessageHandlers -----
+      if (api.constructors.isNotEmpty ||
+          api.attachedFields.isNotEmpty ||
+          api.hostMethods.isNotEmpty) {
+        _writeProxyApiMessageHandlerMethod(
+          indent,
+          api,
+          hostName: hostName,
+          dartPackageName: dartPackageName,
+        );
+      }
+
+      // ----- pigeon_newInstance -----
+      _writeProxyApiNewInstanceMethod(
+        indent,
+        api,
+        dartPackageName: dartPackageName,
+      );
+
+      _writeProxyApiInheritedApiMethods(indent, api);
+
+      // ----- Flutter callbacks -----
+      for (final Method method in api.flutterMethods) {
+        _writeProxyApiFlutterMethod(
+          indent,
+          api,
+          method,
+          dartPackageName: dartPackageName,
+        );
+      }
+    });
+    indent.newln();
+  }
+
+  void _writeProxyApiInheritedApiMethods(Indent indent, AstProxyApi api) {
+    final inheritedApiNames = <String>{
+      if (api.superClass != null) api.superClass!.baseName,
+      ...api.interfaces.map((TypeDeclaration type) => type.baseName),
+    };
+    for (final name in inheritedApiNames) {
+      final String hostName = '$hostProxyApiPrefix$name';
+      indent.writeln(
+        '/** An implementation of [$hostName] used to access callback methods. */',
+      );
+      indent.format('''
+${classMemberNamePrefix}get$hostName(): $hostName {
+  return this.pigeonRegistrar.get$name();
+}
+''');
+      indent.newln();
+    }
+  }
+
+  void _writeProxyApiConstructorAbstractMethods(
+    Indent indent,
+    AstProxyApi api,
+  ) {
+    for (final Constructor constructor in api.constructors) {
+      final String name = constructor.name.isNotEmpty
+          ? constructor.name
+          : '${classMemberNamePrefix}defaultConstructor';
+      addDocumentationComments(
+        indent,
+        constructor.documentationComments,
+        _docCommentSpec,
+      );
+      final Iterable<String> sigParts = <Parameter>[
+        ...api.unattachedFields.map(
+          (ApiField field) => Parameter(name: field.name, type: field.type),
+        ),
+        ...constructor.parameters,
+      ].map(_proxyApiParamSig);
+      indent.writeln('abstract $name(${sigParts.join(', ')}): ESObject;');
+      indent.newln();
+    }
+  }
+
+  void _writeProxyApiAttachedFieldAbstractMethods(
+    Indent indent,
+    AstProxyApi api,
+  ) {
+    for (final ApiField field in api.attachedFields) {
+      addDocumentationComments(
+        indent,
+        field.documentationComments,
+        _docCommentSpec,
+      );
+      final sig = <String>[
+        if (!field.isStatic) '${classMemberNamePrefix}instance: ESObject',
+      ];
+      indent.writeln(
+        'abstract ${field.name}(${sig.join(', ')}): ${_arkTSTypeOrEsObject(field.type)};',
+      );
+      indent.newln();
+    }
+  }
+
+  // Unattached fields are plain (non-ProxyApi) values that Dart's callback-style
+  // constructor expects. `pigeon_newInstance` reads each one from the host
+  // instance via `this.<field>(pigeon_instance)`, so an abstract accessor must
+  // be emitted for the host subclass to implement (mirrors the Kotlin
+  // generator's `_writeProxyApiUnattachedFieldAbstractMethods`). Without this,
+  // generated code would call a method that does not exist.
+  void _writeProxyApiUnattachedFieldAbstractMethods(
+    Indent indent,
+    AstProxyApi api,
+  ) {
+    for (final ApiField field in api.unattachedFields) {
+      addDocumentationComments(
+        indent,
+        field.documentationComments,
+        _docCommentSpec,
+      );
+      indent.writeln(
+        'abstract ${field.name}(${classMemberNamePrefix}instance: ESObject): ${_arkTSTypeOrEsObject(field.type)};',
+      );
+      indent.newln();
+    }
+  }
+
+  void _writeProxyApiHostMethodAbstractMethods(Indent indent, AstProxyApi api) {
+    for (final Method method in api.hostMethods) {
+      addDocumentationComments(
+        indent,
+        method.documentationComments,
+        _docCommentSpec,
+      );
+      final sig = <String>[
+        if (!method.isStatic) '${classMemberNamePrefix}instance: ESObject',
+        ...method.parameters.map(_proxyApiParamSig),
+        if (method.isAsynchronous)
+          'result: Result<${method.returnType.isVoid ? 'void' : _arkTSTypeOrEsObject(method.returnType)}>',
+      ];
+      final String ret = method.isAsynchronous || method.returnType.isVoid
+          ? 'void'
+          : _arkTSTypeOrEsObject(method.returnType);
+      indent.writeln('abstract ${method.name}(${sig.join(', ')}): $ret;');
+      indent.newln();
+    }
+  }
+
+  void _writeProxyApiMessageHandlerMethod(
+    Indent indent,
+    AstProxyApi api, {
+    required String hostName,
+    required String dartPackageName,
+  }) {
+    indent.writeln('/** Wires every host-side handler for `${api.name}`. */');
+    indent.write(
+      'static setUpMessageHandlers(binaryMessenger: BinaryMessenger, api: $hostName | null): void ',
+    );
+    indent.addScoped('{', '}', () {
+      indent.writeln(
+        'const codec: MessageCodec<Object> = api != null ? api.pigeonRegistrar.getCodec() : $_codecName.INSTANCE;',
+      );
+
+      // Constructors
+      for (final Constructor constructor in api.constructors) {
+        final String name = constructor.name.isNotEmpty
+            ? constructor.name
+            : '${classMemberNamePrefix}defaultConstructor';
+        final String channelName = makeChannelNameWithStrings(
+          apiName: api.name,
+          methodName: name,
+          dartPackageName: dartPackageName,
+        );
+        final ctorParams = <Parameter>[
+          Parameter(
+            name: '${classMemberNamePrefix}identifier',
+            type: const TypeDeclaration(baseName: 'int', isNullable: false),
+          ),
+          ...api.unattachedFields.map(
+            (ApiField field) => Parameter(name: field.name, type: field.type),
+          ),
+          ...constructor.parameters,
+        ];
+        _writeProxyApiHandlerBlock(
+          indent,
+          channelName: channelName,
+          parameters: ctorParams,
+          isAsync: false,
+          handlerBody: (List<String> argNames) {
+            final String identifierExpr = argNames.first;
+            final String ctorArgs = argNames.skip(1).join(', ');
+            return 'api!.pigeonRegistrar.instanceManager.addDartCreatedInstance('
+                'api!.$name($ctorArgs), $identifierExpr); res.push(null);';
+          },
+        );
+      }
+
+      // Attached fields
+      for (final ApiField field in api.attachedFields) {
+        final String channelName = makeChannelNameWithStrings(
+          apiName: api.name,
+          methodName: field.name,
+          dartPackageName: dartPackageName,
+        );
+        final fieldParams = <Parameter>[
+          if (!field.isStatic)
+            Parameter(
+              name: '${classMemberNamePrefix}instance',
+              type: TypeDeclaration(
+                baseName: api.name,
+                isNullable: false,
+                associatedProxyApi: api,
+              ),
+            ),
+          Parameter(
+            name: '${classMemberNamePrefix}identifier',
+            type: const TypeDeclaration(baseName: 'int', isNullable: false),
+          ),
+        ];
+        _writeProxyApiHandlerBlock(
+          indent,
+          channelName: channelName,
+          parameters: fieldParams,
+          isAsync: false,
+          handlerBody: (List<String> argNames) {
+            final String instanceArg = field.isStatic ? '' : argNames.first;
+            final String identifierArg = argNames.last;
+            return 'api!.pigeonRegistrar.instanceManager.addDartCreatedInstance('
+                'api!.${field.name}($instanceArg), $identifierArg); res.push(null);';
+          },
+        );
+      }
+
+      // Host methods
+      for (final Method method in api.hostMethods) {
+        final String channelName = makeChannelName(
+          api,
+          method,
+          dartPackageName,
+        );
+        final methodParams = <Parameter>[
+          if (!method.isStatic)
+            Parameter(
+              name: '${classMemberNamePrefix}instance',
+              type: TypeDeclaration(
+                baseName: api.name,
+                isNullable: false,
+                associatedProxyApi: api,
+              ),
+            ),
+          ...method.parameters,
+        ];
+        _writeProxyApiHandlerBlock(
+          indent,
+          channelName: channelName,
+          parameters: methodParams,
+          isAsync: method.isAsynchronous,
+          returnType: method.returnType,
+          handlerBody: (List<String> argNames) {
+            final call = 'api!.${method.name}(${argNames.join(', ')})';
+            if (method.isAsynchronous) {
+              return '$call;';
+            }
+            if (method.returnType.isVoid) {
+              return '$call; res.push(null);';
+            }
+            if (method.returnType.isEnum) {
+              // Wrap the enum value in its codec companion before pushing
+              // (matches the data-class toList enum handling).
+              return 'let pigeonEnumResult: ESObject = $call; '
+                  'let output: ESObject = ${_proxyApiEncodeEnum(method.returnType, 'pigeonEnumResult')}; '
+                  'res.push(output);';
+            }
+            if (_isDartDoubleType(method.returnType)) {
+              return 'let output: ESObject = $call; '
+                  'res.push(${_encodeDoubleForCodec(method.returnType, 'output')});';
+            }
+            return 'let output: ESObject = $call; res.push(output);';
+          },
+        );
+      }
+    });
+    indent.newln();
+  }
+
+  /// Emits one channel + handler block following the same pattern as
+  /// `_writeMethodSetup`, but parameterised for ProxyApi semantics.
+  void _writeProxyApiHandlerBlock(
+    Indent indent, {
+    required String channelName,
+    required List<Parameter> parameters,
+    required bool isAsync,
+    TypeDeclaration returnType = const TypeDeclaration.voidDeclaration(),
+    required String Function(List<String> argNames) handlerBody,
+  }) {
+    final bool isVoid = returnType.isVoid;
+    indent.write('');
+    indent.addScoped('{', '}', () {
+      indent.writeln(
+        'let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(binaryMessenger, "$channelName", codec);',
+      );
+      indent.write('if (api != null) ');
+      indent.addScoped('{', '} else {', () {
+        indent.writeln('channel.setMessageHandler({');
+        indent.nest(2, () {
+          indent.write('onMessage(message: Object, reply: Reply<Object>) ');
+          indent.addScoped('{', '} });', () {
+            final argNames = <String>[];
+            if (parameters.isNotEmpty) {
+              // Type-safety contract (intentionally matches the regular HostApi
+              // handler path and the Kotlin/Swift/Dart generators): the message
+              // shape is validated structurally by the precheck below (it must
+              // be a List of the expected arity), and individual argument types
+              // are guaranteed by the typed Codec plus the matched generated
+              // code on both sides. The `as` casts are NOT erasure like in
+              // TypeScript -- ArkTS checks them at runtime and throws on a
+              // mismatch, which the surrounding try/catch (sync handlers)
+              // surfaces as a wrapped error reply. ProxyApi instance arguments
+              // are resolved by the tag-128 codec, which throws if the
+              // identifier is unknown. Per-parameter `typeof` checks are
+              // therefore not emitted: they would diverge from every other
+              // path, miss most types (enums/lists/maps/custom/instances), and
+              // would have to assign null to non-nullable targets.
+              _writeArkTsPigeonListMessagePrecheck(indent, parameters.length);
+              for (var i = 0; i < parameters.length; i++) {
+                final Parameter param = parameters[i];
+                final safe = '${_proxyApiSafeName(i, param)}Arg';
+                argNames.add(safe);
+                if (param.type.isEnum) {
+                  // The codec decodes an enum to its member-name string; convert
+                  // back to the enum value the handler call expects. Held as
+                  // ESObject to stay tolerant of null (nullable enums).
+                  indent.writeln(
+                    'let $safe: ESObject = ${_proxyApiDecodeEnum(param.type, 'args[$i]')};',
+                  );
+                } else {
+                  indent.writeln(
+                    'let $safe: ${_arkTSTypeOrEsObject(param.type)} = args[$i] as ${_arkTSTypeOrEsObject(param.type)};',
+                  );
+                }
+              }
+            }
+            if (isAsync) {
+              final String resultType =
+                  isVoid ? 'void' : _arkTSTypeOrEsObject(returnType);
+              // Encode an enum result into its codec companion before replying
+              // (matches the data-class toList enum handling).
+              final String successPush = isVoid
+                  ? 'null'
+                  : (returnType.isEnum
+                      ? _proxyApiEncodeEnum(returnType, 'result')
+                      : _isDartDoubleType(returnType)
+                          ? _encodeDoubleForCodec(returnType, 'result')
+                          : 'result');
+              indent.format('''
+class ResultImp implements Result<$resultType> {
+  success(result: $resultType): void {
+    let res: Array<Object | null> = [];
+    res.push($successPush);
+    reply.reply(res);
+  }
+  error(error: Error): void {
+    reply.reply(wrapError(error));
+  }
+}
+let resultCallback: Result<$resultType> = new ResultImp();
+''');
+              argNames.add('resultCallback');
+              indent.writeln(handlerBody(argNames));
+            } else {
+              indent.writeln('let res: Array<Object | null> = [];');
+              indent.writeScoped('try {', '} catch (error) {', () {
+                indent.writeln(handlerBody(argNames));
+              });
+              indent.addScoped(null, '}', () {
+                indent.writeln('res = wrapError(error as Error);');
+              });
+              indent.writeln('reply.reply(res);');
+            }
+          });
+        });
+      });
+      indent.addScoped(null, '}', () {
+        indent.writeln('channel.setMessageHandler(null);');
+      });
+    });
+  }
+
+  void _writeProxyApiNewInstanceMethod(
+    Indent indent,
+    AstProxyApi api, {
+    required String dartPackageName,
+  }) {
+    final String channelName = makeChannelNameWithStrings(
+      apiName: api.name,
+      methodName: '${classMemberNamePrefix}newInstance',
+      dartPackageName: dartPackageName,
+    );
+    indent.writeln('/**');
+    indent.writeln(
+      ' * Creates a Dart proxy of [pigeon_instance] and attaches it via the InstanceManager.',
+    );
+    indent.writeln(' *');
+    indent.writeln(
+      ' * Any unattached field values are read synchronously from this host adapter via its',
+    );
+    indent.writeln(
+      ' * own field methods (local calls, not channel round-trips) and are sent together with',
+    );
+    indent.writeln(
+      ' * the identifier in a single newInstance message. Exactly one platform channel message',
+    );
+    indent.writeln(' * is sent regardless of the number of fields.');
+    indent.writeln(' */');
+    indent.write(
+      '${classMemberNamePrefix}newInstance(pigeon_instance: ESObject, callback: Reply<void>): void ',
+    );
+    indent.addScoped('{', '}', () {
+      indent.format('''
+if (this.pigeonRegistrar.ignoreCallsToDart) {
+  callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+  return;
+}
+if (this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+  callback.reply();
+  return;
+}''');
+      if (api.hasCallbackConstructor()) {
+        indent.format(
+          '''
+const pigeon_identifier: number = this.pigeonRegistrar.instanceManager.addHostCreatedInstance(pigeon_instance);''',
+        );
+        // Unattached field values are passed alongside the identifier when Dart
+        // has a callback-style constructor.
+        final sendParts = <String>['pigeon_identifier'];
+        for (var i = 0; i < api.unattachedFields.length; i++) {
+          final ApiField field = api.unattachedFields.elementAt(i);
+          indent.writeln(
+            'const ${field.name}Arg: ESObject = this.${field.name}(pigeon_instance);',
+          );
+          final String argRef = '${field.name}Arg';
+          sendParts.add(
+            field.type.isEnum
+                ? _proxyApiEncodeEnum(field.type, argRef)
+                : _isDartDoubleType(field.type)
+                    ? _encodeDoubleForCodec(field.type, argRef)
+                    : argRef,
+          );
+        }
+        indent.format('''
+const channelName: string = '$channelName';
+let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+  this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
+channel.send([${sendParts.join(', ')}], channelReply => {
+  if (Array.isArray(channelReply)) {
+    let listReply: ESObject[] = channelReply as ESObject[];
+    if (listReply.length > 1) {
+      let arrFirst: string = listReply[0] as string;
+      let arrSecond: string = listReply[1] as string;
+      let arrThird: string = listReply[2] as string;
+      callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject);
+    } else {
+      callback.reply();
+    }
+  } else {
+    callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+  }
+});''');
+      } else {
+        indent.format(
+          '''
+callback.reply(new FlutterError('new-instance-error', 'Attempting to create a new Dart instance of ${api.name}, but the class has a nonnull callback method.', '') as ESObject);''',
+        );
+      }
+    });
+    indent.newln();
+  }
+
+  void _writeProxyApiFlutterMethod(
+    Indent indent,
+    AstProxyApi api,
+    Method method, {
+    required String dartPackageName,
+  }) {
+    final String channelName = makeChannelName(api, method, dartPackageName);
+    final String returnType = method.returnType.isVoid
+        ? 'void'
+        : _arkTSTypeOrEsObject(method.returnType);
+
+    final sigParts = <String>[
+      '${classMemberNamePrefix}instance: ESObject',
+      ...indexMap(
+        method.parameters,
+        (int i, NamedType arg) =>
+            '${_proxyApiSafeName(i, arg)}Arg: ${_arkTSTypeOrEsObject(arg.type)}',
+      ),
+      'callback: Reply<$returnType>',
+    ];
+    final sendParts = <String>[
+      '${classMemberNamePrefix}instance',
+      ...indexMap(method.parameters, (int i, NamedType arg) {
+        final String argName = '${_proxyApiSafeName(i, arg)}Arg';
+        // Enum arguments must travel as their codec companion, not the raw
+        // enum value (matches the data-class toList enum handling).
+        return arg.type.isEnum
+            ? _proxyApiEncodeEnum(arg.type, argName)
+            : _isDartDoubleType(arg.type)
+                ? _encodeDoubleForCodec(arg.type, argName)
+                : argName;
+      }),
+    ];
+
+    addDocumentationComments(
+      indent,
+      method.documentationComments,
+      _docCommentSpec,
+    );
+    indent.write('${method.name}(${sigParts.join(', ')}): void ');
+    indent.addScoped('{', '}', () {
+      indent.format('''
+const channelName: string = '$channelName';
+let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
+  this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
+channel.send([${sendParts.join(', ')}], channelReply => {
+  if (Array.isArray(channelReply)) {
+    let listReply: ESObject[] = channelReply as ESObject[];
+    if (listReply.length > 1) {
+      let arrFirst: string = listReply[0] as string;
+      let arrSecond: string = listReply[1] as string;
+      let arrThird: string = listReply[2] as string;
+      callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject);
+    } else {''');
+      if (method.returnType.isVoid) {
+        indent.writeln('      callback.reply();');
+      } else if (!method.returnType.isNullable) {
+        // Non-null return: a null payload from Dart is a contract violation,
+        // so surface it as a FlutterError (matches the Kotlin/Swift ProxyApi
+        // generators and the regular FlutterApi path).
+        final String replyExpr = method.returnType.isEnum
+            ? '${_arkTSCustomTypeName(method.returnType)}[listReply[0] as string]'
+            : 'listReply[0] as $returnType';
+        indent.format('''
+      if (listReply[0] == null) {
+        callback.reply(new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '') as ESObject);
+      } else {
+        callback.reply($replyExpr);
+      }''');
+      } else {
+        // Nullable return: decode an enum member-name string back to its value
+        // when applicable (mirrors the data-class fromList enum handling).
+        final String replyExpr = method.returnType.isEnum
+            ? _proxyApiDecodeEnum(method.returnType, 'listReply[0]')
+            : 'listReply[0] as $returnType';
+        indent.writeln('      callback.reply($replyExpr);');
+      }
+      indent.format('''
+    }
+  } else {
+    callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+  }
+});''');
+    });
+    indent.newln();
+  }
+
+  /// Maps a Pigeon type to ArkTS, falling back to `ESObject` when no direct
+  /// mapping exists (e.g. ProxyApi references whose runtime type is supplied
+  /// by user code).
+  String _arkTSTypeOrEsObject(TypeDeclaration type) {
+    final String? builtin = _arkTSTypeForBuiltinDartType(type);
+    if (builtin != null) {
+      return builtin;
+    }
+    final String? proxyApiType = _arkTSTypeForProxyApiType(type);
+    if (proxyApiType != null) {
+      return proxyApiType;
+    }
+    // Enums and data classes have concrete ArkTS class names.
+    if (type.isEnum || type.isClass) {
+      if (type.isNullable) {
+        return '${type.baseName} | undefined';
+      }
+      return type.baseName;
+    }
+    return 'ESObject';
+  }
+
+  String _proxyApiSafeName(int index, NamedType arg) {
+    final String base = arg.name.isEmpty ? 'arg$index' : arg.name;
+    return base == 'arguments' ? '${base}Var' : base;
+  }
+
+  /// Converts a codec-decoded enum (a member-name string) back to the enum
+  /// value that generated signatures expect. [valueExpr] yields the raw value.
+  /// Mirrors the data-class `fromList` enum handling (`Enum[str]`).
+  String _proxyApiDecodeEnum(TypeDeclaration type, String valueExpr) {
+    final String enumName = _arkTSCustomTypeName(type);
+    return type.isNullable
+        ? '($valueExpr == null ? null : $enumName[$valueExpr as string])'
+        : '$enumName[$valueExpr as string]';
+  }
+
+  /// Wraps an enum value in its codec companion for encoding, with a null
+  /// guard. [valueExpr] yields the enum value. Mirrors the data-class `toList`
+  /// enum handling (`new <Enum>Enum(<Enum>[value as number])`). Always
+  /// parenthesised so it is safe inside arrays / argument lists.
+  String _proxyApiEncodeEnum(TypeDeclaration type, String valueExpr) {
+    final String enumName = _arkTSCustomTypeName(type);
+    return '($valueExpr === null || $valueExpr === undefined ? null '
+        ': new $enumName$_enumCompanionSuffix($enumName[$valueExpr as number]))';
+  }
+
+  String _proxyApiParamSig(Parameter p) {
+    return '${_proxyApiSafeName(0, p)}: ${_arkTSTypeOrEsObject(p.type)}';
+  }
+
+  bool _isDartDoubleType(TypeDeclaration type) => type.baseName == 'double';
+
+  bool _typeDeclarationUsesDouble(TypeDeclaration type) {
+    if (type.baseName == 'double') {
+      return true;
+    }
+    for (final TypeDeclaration typeArg in type.typeArguments) {
+      if (_typeDeclarationUsesDouble(typeArg)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _rootUsesDartDouble(Root root) {
+    for (final Class klass in root.classes) {
+      for (final NamedType field in klass.fields) {
+        if (_typeDeclarationUsesDouble(field.type)) {
+          return true;
+        }
+      }
+    }
+    for (final Api api in root.apis) {
+      for (final Method method in api.methods) {
+        if (_typeDeclarationUsesDouble(method.returnType)) {
+          return true;
+        }
+        for (final NamedType param in method.parameters) {
+          if (_typeDeclarationUsesDouble(param.type)) {
+            return true;
+          }
+        }
+      }
+      if (api is AstProxyApi) {
+        for (final ApiField field in api.unattachedFields) {
+          if (_typeDeclarationUsesDouble(field.type)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Wraps [valueExpr] so [PigeonCodec] always serializes a Pigeon `double`
+  /// as float64 on the wire.
+  String _encodeDoubleForCodec(TypeDeclaration type, String valueExpr) {
+    assert(_isDartDoubleType(type));
+    if (type.isNullable) {
+      return '($valueExpr === null || $valueExpr === undefined ? null : new $_doubleBoxClassName($valueExpr))';
+    }
+    return 'new $_doubleBoxClassName($valueExpr)';
+  }
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
 }

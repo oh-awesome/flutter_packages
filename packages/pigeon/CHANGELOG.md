@@ -1,3 +1,216 @@
+<<<<<<< HEAD
+=======
+## 21.2.0
+
+* [arkts] Fixed double type value with a zero fractional part gets incorrectly converted  to an integer type when transferred from the ArkTS layer to the Dart layer.
+* [arkts] Ports full OpenHarmony ArkTS code generator from pigeon 26.3.4 OHOS branch,
+  including `@ProxyApi`, `@EventChannelApi`, `messageChannelSuffix`, and `Float32List` support.
+* [arkts] Adds OHOS example app pigeonTest harness for on-device QA (HostApi/FlutterApi/ProxyApi).
+* [arkts] Adds EventChannel example (`event_channel_messages.dart`) and `eventChannelStream` QA button; completes `@EventChannelApi` parsing and Dart code generation on v21.2.0.
+* Removes restriction on number of custom types.
+* [java] Fixes bug with multiple enums.
+* [java] Removes `Object` from generics.
+* [objc] Fixes bug with multiple enums per data class.
+* Updates `varPrefix` and `classMemberNamePrefix`.
+* Updates minimum supported SDK version to Flutter 3.19/Dart 3.3.
+
+## 21.1.0
+
+* Adds GObject (Linux) support.
+
+## 21.0.0
+
+* **Breaking Change** [cpp] Fixes style of enum names. References to enum values
+  will need to be updated to `EnumType.kValue` style, instead of the previous
+  `EnumType.value`.
+
+## 20.0.2
+
+* [java] Adds `equals` and `hashCode` support for data classes.
+* [swift] Fully-qualifies types in Equatable extension test.
+
+## 20.0.1
+
+* [cpp] Fixes handling of null class arguments.
+
+## 20.0.0
+
+* Moves all codec logic to single custom codec per file.
+* **Breaking Change** Limits the number of total custom types to 126.
+  * If more than 126 custom types are needed, consider breaking up your definition files.
+* Fixes bug that prevented collection subtypes from being added properly.
+* [swift] Adds `@unchecked Sendable` to codec method.
+* [objc] [cpp] Fixes bug that prevented setting custom header import path.
+
+## 19.0.2
+
+* [kotlin] Adds the `@JvmOverloads` to the `HostApi` setUp method. This prevents the calling Java code from having to provide an empty `String` as Kotlin provides it by default
+
+## 19.0.1
+
+* [dart] Updates `PigeonInstanceMangerApi` to use the shared api channel code.
+
+## 19.0.0
+
+* **Breaking Change** [swift] Removes `FlutterError` in favor of `PigeonError`.
+* Updates minimum supported SDK version to Flutter 3.16/Dart 3.2.
+
+## 18.0.1
+
+* Fixes unnecessary calls of `toList` and `fromList` when encoding/decoding data classes.
+* [kotlin] Changes to some code to make it more idiomatic.
+* Removes collisions with the word `list`.
+
+## 18.0.0
+
+* Adds message channel suffix option to all APIs.
+* **Breaking Change** [dart] Changes `FlutterApi` `setup` to `setUp`.
+
+## 17.3.0
+
+* [swift] Adds `@SwiftClass` annotation to allow choice between `struct` and `class` for data classes.
+* [cpp] Adds support for recursive data class definitions.
+
+## 17.2.0
+
+* [dart] Adds implementation for `@ProxyApi`.
+
+## 17.1.3
+
+* [objc] Fixes double prefixes added to enum names.
+
+## 17.1.2
+
+* [swift] Separates message call code generation into separate methods.
+
+## 17.1.1
+
+* Removes heap allocation in generated C++ code.
+
+## 17.1.0
+
+* [kotlin] Adds `includeErrorClass` to `KotlinOptions`.
+* Updates minimum supported SDK version to Flutter 3.13/Dart 3.1.
+
+## 17.0.0
+
+* **Breaking Change** [kotlin] Converts Kotlin enum case generation to SCREAMING_SNAKE_CASE.
+  * Updates `writeEnum` function to adhere to Kotlin naming conventions.
+  * Improves handling of complex names with enhanced regex patterns.
+  * Expands unit tests for comprehensive name conversion validation.
+  * **Migration Note**: This change modifies the naming convention of Kotlin enum cases generated from the Pigeon package. It is recommended to review the impact on your existing codebase and update any dependent code accordingly.
+
+## 16.0.5
+
+* Adds ProxyApi to AST generation.
+
+## 16.0.4
+
+* [swift] Improve style of Swift output.
+
+## 16.0.3
+
+* [kotlin] Separates message call code generation into separate methods.
+
+## 16.0.2
+
+* [dart] Separates message call code generation into separate methods.
+
+## 16.0.1
+
+* [dart] Fixes test generation for missing wrapResponse method if only host Api.
+
+## 16.0.0
+
+* [java] Adds `VoidResult` type for `Void` returns.
+* **Breaking Change** [java] Updates all `Void` return types to use new `VoidResult`.
+
+## 15.0.3
+
+* Fixes new lint warnings.
+
+## 15.0.2
+
+* Prevents optional and non-positional parameters in Flutter APIs.
+* [dart] Fixes named parameters in test output of host API methods.
+
+## 15.0.1
+
+* [java] Adds @CanIgnoreReturnValue annotation to class builder.
+
+## 15.0.0
+
+* **Breaking Change** [kotlin] Updates Flutter API to use new errorClassName.
+
+## 14.0.1
+
+* Updates minimum supported SDK version to Flutter 3.10/Dart 3.0.
+* Updates issue_tracker link.
+
+## 14.0.0
+
+* **Breaking change** [dart] Renames locally defined host API variables.
+  * [dart] Host api static field `codec` changed to `pigeonChannelCodec`.
+* [dart] Adds named parameters to host API methods.
+* [dart] Adds optional parameters to host API methods.
+* [dart] Adds default values for class constructors and host API methods.
+* Adds `isEnum` and `isClass` to `TypeDeclaration`s.
+* [cpp] Fixes `FlutterError` generation being tied to ErrorOr.
+
+## 13.1.2
+
+* Adds compatibility with `analyzer` 6.x.
+
+## 13.1.1
+
+* [kotlin] Removes unnecessary `;`s in generated code.
+
+## 13.1.0
+
+* [swift] Fixes Flutter Api void return error handling.
+  * This shouldn't be breaking for anyone, but if you were incorrectly getting
+    success responses, you may now be failing (correctly).
+* Adds method channel name to error response when channel fails to connect.
+* Reduces code generation duplication.
+* Changes some methods to only be generated if needed.
+
+## 13.0.0
+
+* **Breaking Change** [objc] Eliminates boxing of non-nullable primitive types
+  (bool, int, double). Changes required:
+  * Implementations of host API methods that take non-nullable
+    primitives will need to be updated to match the new signatures.
+  * Calls to Flutter API methods that take non-nullable primitives will need to
+    be updated to pass unboxed values.
+  * Calls to non-nullable primitive property methods on generated data classes
+    will need to be updated.
+  * **WARNING**: Current versions of `Xcode` do not appear to warn about
+    implicit `NSNumber *` to `BOOL` conversions, so code that is no longer
+    correct after this breaking change may compile without warning. For example,
+    `myGeneratedClass.aBoolProperty = @NO` can silently set `aBoolProperty` to
+    `YES`. Any data class or Flutter API interactions involving `bool`s should
+    be carefully audited by hand when updating.
+
+
+
+## 12.0.1
+
+* [swift] Adds protocol for Flutter APIs.
+
+## 12.0.0
+
+* Adds error handling on Flutter API methods.
+* **Breaking Change** [kotlin] Flutter API methods now return `Result<return-type>`.
+* **Breaking Change** [swift] Flutter API methods now return `Result<return-type, FlutterError>`.
+* **Breaking Change** [java] Removes `Reply` class from all method returns and replaces it with `Result`.
+  * Changes required: Replace all `Reply` callbacks with `Result` classes that contain both `success` and `failure` methods.
+* **Breaking Change** [java] Adds `NullableResult` class for all nullable method returns.
+  * Changes required: Any method that returns a nullable type will need to be updated to return `NullableResult` rather than `Result`.
+* **Breaking Change** [java] Renames Host API `setup` method to `setUp`.
+* **Breaking Change** [objc] Boxes all enum returns to allow for `nil` response on error.
+* **Breaking Change** [objc] Renames `<api>Setup` to `SetUp<api>`.
+
+>>>>>>> 21f437ea3 (pigoen兼容浮点数的在Dart层传递的优化)
 ## 11.0.1
 
 * [arkts] Adds `messageChannelSuffix` support for `HostApi.setup` and `FlutterApi` constructors.
