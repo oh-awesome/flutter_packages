@@ -2,6 +2,7 @@ import 'package:pigeon/pigeon.dart';
 
 // 生成命令（在 example/app 目录下执行）：
 //   dart run pigeon --input lib/pigeonTest.dart
+// 同步生成：lib/src/pigeon_test.g.dart、ohos/entry/src/main/ets/plugins/PigeonTest.ets
 @ConfigurePigeon(
   PigeonOptions(
     dartOut: 'lib/src/pigeon_test.g.dart',

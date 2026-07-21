@@ -1091,6 +1091,21 @@ void main() {
     expect(code, contains('private aInt32List?: number[];'));
     expect(code, contains('private aInt64List?: number[];'));
     expect(code, contains('private aFloat64List?: number[];'));
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(
+      code,
+      contains(
+        'arr.push((this.aDouble === null || this.aDouble === undefined ? null : new PigeonInternalDoubleBox(this.aDouble)));',
+      ),
+    );
+    expect(code, contains('if (value instanceof PigeonInternalDoubleBox)'));
+    expect(code, contains('this.writeAlignment(stream, 8);'));
+    expect(
+      code,
+      contains(
+        'stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);',
+      ),
+    );
   });
 
   test('host multiple args', () {
@@ -1704,5 +1719,64 @@ void main() {
     final code = sink.toString();
     expect(code, isNot(contains('class PigeonEventSink')));
     expect(code, contains('PigeonStreamHandler'));
+  });
+
+  test('double values are boxed for codec when sending to Dart', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'echoDouble',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'double',
+                isNullable: false,
+              ),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'FlutterApi',
+          methods: <Method>[
+            Method(
+              name: 'setDouble',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[
+                Parameter(
+                  type: const TypeDeclaration(
+                    baseName: 'double',
+                    isNullable: false,
+                  ),
+                  name: 'value',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(
+      code,
+      contains('res.push(new PigeonInternalDoubleBox(output));'),
+    );
+    expect(code, contains('[new PigeonInternalDoubleBox(valueArg)]'));
+    expect(code, contains('channelReply =>'));
   });
 }
