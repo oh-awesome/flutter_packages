@@ -49,6 +49,12 @@ const DocumentCommentSpecification _docCommentSpec =
 /// The standard codec for Flutter, used for any non custom codecs and extended for custom codecs.
 const String _standardMessageCodec = 'StandardMessageCodec';
 
+/// Wrapper type so custom codecs always serialize a Dart `double` as float64.
+const String _doubleBoxClassName = 'PigeonInternalDoubleBox';
+
+/// StandardMessageCodec tag for a float64 value.
+const int _standardCodecFloat64Tag = 6;
+
 /// arkts参数
 class ArkTSOptions {
   /// 构造
@@ -306,6 +312,9 @@ if (this.$fieldName instanceof Array) {
               customEnumNames.contains(field.type.baseName)) {
             indent.writeln(
                 'arr.push(${_enumToWire('this.$fieldName', nullable: field.type.isNullable)});');
+          } else if (_isDartDoubleType(field.type)) {
+            indent.writeln(
+                'arr.push(${_encodeDoubleForCodec(field.type, 'this.$fieldName')});');
           } else {
             indent.writeln('arr.push(this.$fieldName);');
           }
@@ -408,7 +417,7 @@ if (this.$fieldName instanceof Array) {
       ArkTSOptions generatorOptions, Root root, Indent indent, Api api,
       {required String dartPackageName}) {
     assert(api.location == ApiLocation.flutter);
-    if (getCodecClasses(api, root).isNotEmpty) {
+    if (_apiNeedsCustomCodec(api, root)) {
       _writeCodec(indent, api, root);
     }
 
@@ -437,7 +446,7 @@ if (this.$fieldName instanceof Array) {
       indent.write('static getCodec(): MessageCodec<Object> ');
       indent.addScoped('{', '}', () {
         indent.write('return ');
-        if (getCodecClasses(api, root).isNotEmpty) {
+        if (_apiNeedsCustomCodec(api, root)) {
           indent.addln('$codecName.INSTANCE;');
         } else {
           indent.addln('new $_standardMessageCodec();');
@@ -446,14 +455,16 @@ if (this.$fieldName instanceof Array) {
 
       indent.newln();
 
-      /// Returns an argument name that can be used in a context where it is possible to collide
-      /// and append `.index` to enums.
-      String getEnumSafeArgumentExpression(int count, NamedType argument) {
+      /// Returns an argument expression safe for the codec (enum indices, double boxing).
+      String getCodecSafeArgumentExpression(int count, NamedType argument) {
+        final String argName = _getArgumentName(count, argument);
         if (isEnum(root, argument.type)) {
-          final String argName = _getArgumentName(count, argument);
           return _enumToWire('${argName}Arg', nullable: argument.type.isNullable);
         }
-        return '${_getArgumentName(count, argument)}Arg';
+        if (_isDartDoubleType(argument.type)) {
+          return _encodeDoubleForCodec(argument.type, '${argName}Arg');
+        }
+        return '${argName}Arg';
       }
 
       for (final Method func in api.methods) {
@@ -472,9 +483,9 @@ if (this.$fieldName instanceof Array) {
               (NamedType e) => _arkTSTypeForDartTypeWithNullability(e.type));
           final Iterable<String> argNames =
               indexMap(func.arguments, _getSafeArgumentName);
-          final Iterable<String> enumSafeArgNames =
-              indexMap(func.arguments, getEnumSafeArgumentExpression);
-          sendArgument = '[${enumSafeArgNames.join(', ')}]';
+          final Iterable<String> codecSafeArgNames =
+              indexMap(func.arguments, getCodecSafeArgumentExpression);
+          sendArgument = '[${codecSafeArgNames.join(', ')}]';
           final String argsSignature =
               map2(argTypes, argNames, (String x, String y) => '$y: $x')
                   .join(',');
@@ -541,7 +552,7 @@ if (this.$fieldName instanceof Array) {
       ArkTSOptions generatorOptions, Root root, Indent indent, Api api,
       {required String dartPackageName}) {
     assert(api.location == ApiLocation.host);
-    if (getCodecClasses(api, root).isNotEmpty) {
+    if (_apiNeedsCustomCodec(api, root)) {
       _writeCodec(indent, api, root);
     }
     const List<String> generatedMessages = <String>[
@@ -560,7 +571,7 @@ if (this.$fieldName instanceof Array) {
       indent.write('static getCodec(): MessageCodec<Object>');
       indent.addScoped('{', '}', () {
         indent.write('return ');
-        if (getCodecClasses(api, root).isNotEmpty) {
+        if (_apiNeedsCustomCodec(api, root)) {
           indent.addln('$codecName.INSTANCE;');
         } else {
           indent.addln('new $_standardMessageCodec();');
@@ -644,8 +655,11 @@ if (this.$fieldName instanceof Array) {
               });
             }
             if (method.isAsynchronous) {
-              final String resultValue =
-                  method.returnType.isVoid ? 'null' : 'result';
+              final String resultValue = method.returnType.isVoid
+                  ? 'null'
+                  : _isDartDoubleType(method.returnType)
+                      ? _encodeDoubleForCodec(method.returnType, 'result')
+                      : 'result';
               if (isEnum(root, method.returnType)) {
                 enumTag = method.returnType.isNullable
                     ? ' === undefined || $resultValue === null ? null : ${_enumToWire(resultValue, nullable: false)}'
@@ -690,6 +704,9 @@ let $resultName: Result<$returnType> = new ResultImp();
                   if (isEnum(root, method.returnType)) {
                     indent.writeln(
                         'res.push(${_enumToWire('output', nullable: method.returnType.isNullable)});');
+                  } else if (_isDartDoubleType(method.returnType)) {
+                    indent.writeln(
+                        'res.push(${_encodeDoubleForCodec(method.returnType, 'output')});');
                   } else {
                     indent.writeln('res.push(output);');
                   }
@@ -719,7 +736,7 @@ let $resultName: Result<$returnType> = new ResultImp();
   /// Example:
   /// private static class FooCodec extends StandardMessageCodec {...}
   void _writeCodec(Indent indent, Api api, Root root) {
-    assert(getCodecClasses(api, root).isNotEmpty);
+    assert(_apiNeedsCustomCodec(api, root));
     final Iterable<EnumeratedClass> codecClasses = getCodecClasses(api, root);
     final String codecName = _getCodecName(api);
     indent.newln();
@@ -750,6 +767,21 @@ let $resultName: Result<$returnType> = new ResultImp();
       indent.newln();
       indent.write('writeValue(stream: ByteBuffer, value: ESObject): ESObject ');
       indent.addScoped('{', '}', () {
+        if (_rootUsesDartDouble(root)) {
+          indent.writeScoped(
+            'if (value instanceof $_doubleBoxClassName) {',
+            '} else ',
+            () {
+              indent.writeln(
+                  'stream.writeInt8(this.getByte($_standardCodecFloat64Tag));');
+              indent.writeln('this.writeAlignment(stream, 8);');
+              indent.writeln(
+                  'stream.writeFloat64((value as $_doubleBoxClassName).value, true);');
+              indent.writeln('return;');
+            },
+            addTrailingNewline: false,
+          );
+        }
         bool firstClass = true;
         for (final EnumeratedClass customClass in codecClasses) {
           if (firstClass) {
@@ -872,6 +904,25 @@ getByte(n: number): number {
 }''');
   }
 
+  void _writeDoubleBoxClass(Indent indent) {
+    indent.writeln('/**');
+    indent.writeln(
+        ' * Wrapper so custom codecs always serialize a Dart `double` as float64.');
+    indent.writeln(
+        ' * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded');
+    indent.writeln(
+        ' * as integers by StandardMessageCodec and fail strict Dart double casts.');
+    indent.writeln(' */');
+    indent.write('export class $_doubleBoxClassName ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('value: number;');
+      indent.write('constructor(value: number) ');
+      indent.addScoped('{', '}', () {
+        indent.writeln('this.value = value;');
+      });
+    });
+  }
+
   @override
   void writeGeneralUtilities(
     ArkTSOptions generatorOptions,
@@ -881,6 +932,10 @@ getByte(n: number): number {
   }) {
     indent.newln();
     _writeErrorClass(indent);
+    if (_rootUsesDartDouble(root)) {
+      indent.newln();
+      _writeDoubleBoxClass(indent);
+    }
     indent.newln();
     _writeWrapError(indent);
   }
@@ -991,5 +1046,61 @@ getByte(n: number): number {
     } else {
       return null;
     }
+  }
+
+  bool _isDartDoubleType(TypeDeclaration type) => type.baseName == 'double';
+
+  bool _typeDeclarationUsesDouble(TypeDeclaration type) {
+    if (type.baseName == 'double') {
+      return true;
+    }
+    for (final TypeDeclaration typeArg in type.typeArguments) {
+      if (_typeDeclarationUsesDouble(typeArg)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _apiUsesDartDouble(Api api) {
+    for (final Method method in api.methods) {
+      if (_typeDeclarationUsesDouble(method.returnType)) {
+        return true;
+      }
+      for (final NamedType arg in method.arguments) {
+        if (_typeDeclarationUsesDouble(arg.type)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  bool _apiNeedsCustomCodec(Api api, Root root) =>
+      getCodecClasses(api, root).isNotEmpty || _apiUsesDartDouble(api);
+
+  bool _rootUsesDartDouble(Root root) {
+    for (final Class klass in root.classes) {
+      for (final NamedType field in klass.fields) {
+        if (_typeDeclarationUsesDouble(field.type)) {
+          return true;
+        }
+      }
+    }
+    for (final Api api in root.apis) {
+      if (_apiUsesDartDouble(api)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Wraps [valueExpr] so the codec always serializes a Pigeon `double` as float64.
+  String _encodeDoubleForCodec(TypeDeclaration type, String valueExpr) {
+    assert(_isDartDoubleType(type));
+    if (type.isNullable) {
+      return '($valueExpr === null || $valueExpr === undefined ? null : new $_doubleBoxClassName($valueExpr))';
+    }
+    return 'new $_doubleBoxClassName($valueExpr)';
   }
 }
