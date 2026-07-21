@@ -45,6 +45,12 @@ const String _overflowClassName = '${classNamePrefix}CodecOverflow';
 // Used to create classes with type number rather than long.
 const String _forceInt = '${varNamePrefix}forceInt';
 
+/// Wrapper type so [PigeonCodec] always serializes a Dart `double` as float64.
+const String _doubleBoxClassName = '${classNamePrefix}DoubleBox';
+
+/// [StandardMessageCodec] type tag for IEEE 754 float64 values.
+const int _standardCodecFloat64Tag = 6;
+
 ///Enum companion suffix
 const String _enumCompanionSuffix = 'Enum';
 const String _string_Param_Suffix = 'Str';
@@ -521,6 +527,10 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
             indent.writeln(
               'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));',
             );
+          } else if (_isDartDoubleType(field.type)) {
+            indent.writeln(
+              'arr.push(${_encodeDoubleForCodec(field.type, 'this.$fieldName')});',
+            );
           } else {
             indent.writeln('arr.push(this.$fieldName);');
           }
@@ -703,6 +713,9 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
               return arg.type.isNullable
                   ? '($argName == null ? null : new $enumName$_enumCompanionSuffix($enumName[$argName as number]))'
                   : 'new $enumName$_enumCompanionSuffix($enumName[$argName as number])';
+            }
+            if (_isDartDoubleType(arg.type)) {
+              return _encodeDoubleForCodec(arg.type, argName);
             }
             return argName;
           }).toList();
@@ -997,7 +1010,9 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                   ? 'null'
                   : (method.returnType.isEnum
                       ? '(result === null || result === undefined ? null : new ${_arkTSCustomTypeName(method.returnType)}$_enumCompanionSuffix(${_arkTSCustomTypeName(method.returnType)}[result as number]))'
-                      : 'result');
+                      : _isDartDoubleType(method.returnType)
+                          ? _encodeDoubleForCodec(method.returnType, 'result')
+                          : 'result');
               const resultName = 'resultCallback';
               indent.format('''
 class ResultImp implements Result<$returnType>{
@@ -1044,7 +1059,10 @@ let $resultName: Result<$returnType> = new ResultImp();
                   } else {
                     indent.writeln('let output: $returnType = $call;');
                   }
-                  indent.writeln('res.push(output);');
+                  final String outputPush = _isDartDoubleType(method.returnType)
+                      ? _encodeDoubleForCodec(method.returnType, 'output')
+                      : 'output';
+                  indent.writeln('res.push($outputPush);');
                 }
               });
               indent.addScoped(null, '}', () {
@@ -1150,6 +1168,31 @@ let $resultName: Result<$returnType> = new ResultImp();
           indent.writeln('this.stack = stack;');
         },
       );
+    });
+  }
+
+  void _writeDoubleBoxClass(Indent indent) {
+    indent.writeln(
+      '/**',
+    );
+    indent.writeln(
+      ' * Wrapper so $_codecName always serializes a Dart `double` as float64.',
+    );
+    indent.writeln(
+      ' * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded',
+    );
+    indent.writeln(
+      ' * as integers by StandardMessageCodec and fail strict Dart double casts.',
+    );
+    indent.writeln(
+      ' */',
+    );
+    indent.write('export class $_doubleBoxClassName ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('value: number;');
+      indent.writeScoped('constructor(value: number) {', '}', () {
+        indent.writeln('this.value = value;');
+      });
     });
   }
 
@@ -1278,6 +1321,11 @@ export abstract class ${toUpperCamelCase(func.name)}StreamHandler extends ${gene
 
     indent.newln();
     _writeErrorClass(indent);
+
+    if (_rootUsesDartDouble(root)) {
+      indent.newln();
+      _writeDoubleBoxClass(indent);
+    }
 
     if (hasHostApi) {
       indent.newln();
@@ -1572,6 +1620,23 @@ export abstract class ${toUpperCamelCase(func.name)}StreamHandler extends ${gene
         'writeValue(stream: ByteBuffer, value: ESObject): ESObject {',
         '}',
         () {
+        if (_rootUsesDartDouble(root)) {
+          indent.writeScoped(
+            'if (value instanceof $_doubleBoxClassName) {',
+            '} else ',
+            () {
+              indent.writeln(
+                'stream.writeInt8(this.getByte($_standardCodecFloat64Tag));',
+              );
+              indent.writeln('this.writeAlignment(stream, 8);');
+              indent.writeln(
+                'stream.writeFloat64((value as $_doubleBoxClassName).value, true);',
+              );
+              indent.writeln('return;');
+            },
+            addTrailingNewline: false,
+          );
+        }
         indent.write('');
         enumeratedTypes.forEach(writeEncodeLogic);
         indent.addScoped('{', '}', () {
@@ -2484,6 +2549,10 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
                   'let output: ESObject = ${_proxyApiEncodeEnum(method.returnType, 'pigeonEnumResult')}; '
                   'res.push(output);';
             }
+            if (_isDartDoubleType(method.returnType)) {
+              return 'let output: ESObject = $call; '
+                  'res.push(${_encodeDoubleForCodec(method.returnType, 'output')});';
+            }
             return 'let output: ESObject = $call; res.push(output);';
           },
         );
@@ -2558,7 +2627,9 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
                   ? 'null'
                   : (returnType.isEnum
                       ? _proxyApiEncodeEnum(returnType, 'result')
-                      : 'result');
+                      : _isDartDoubleType(returnType)
+                          ? _encodeDoubleForCodec(returnType, 'result')
+                          : 'result');
               indent.format('''
 class ResultImp implements Result<$resultType> {
   success(result: $resultType): void {
@@ -2649,7 +2720,9 @@ const pigeon_identifier: number = this.pigeonRegistrar.instanceManager.addHostCr
           sendParts.add(
             field.type.isEnum
                 ? _proxyApiEncodeEnum(field.type, argRef)
-                : argRef,
+                : _isDartDoubleType(field.type)
+                    ? _encodeDoubleForCodec(field.type, argRef)
+                    : argRef,
           );
         }
         indent.format('''
@@ -2709,7 +2782,9 @@ callback.reply(new FlutterError('new-instance-error', 'Attempting to create a ne
         // enum value (matches the data-class toList enum handling).
         return arg.type.isEnum
             ? _proxyApiEncodeEnum(arg.type, argName)
-            : argName;
+            : _isDartDoubleType(arg.type)
+                ? _encodeDoubleForCodec(arg.type, argName)
+                : argName;
       }),
     ];
 
@@ -2815,5 +2890,59 @@ channel.send([${sendParts.join(', ')}], channelReply => {
 
   String _proxyApiParamSig(Parameter p) {
     return '${_proxyApiSafeName(0, p)}: ${_arkTSTypeOrEsObject(p.type)}';
+  }
+
+  bool _isDartDoubleType(TypeDeclaration type) => type.baseName == 'double';
+
+  bool _typeDeclarationUsesDouble(TypeDeclaration type) {
+    if (type.baseName == 'double') {
+      return true;
+    }
+    for (final TypeDeclaration typeArg in type.typeArguments) {
+      if (_typeDeclarationUsesDouble(typeArg)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _rootUsesDartDouble(Root root) {
+    for (final Class klass in root.classes) {
+      for (final NamedType field in klass.fields) {
+        if (_typeDeclarationUsesDouble(field.type)) {
+          return true;
+        }
+      }
+    }
+    for (final Api api in root.apis) {
+      for (final Method method in api.methods) {
+        if (_typeDeclarationUsesDouble(method.returnType)) {
+          return true;
+        }
+        for (final NamedType param in method.parameters) {
+          if (_typeDeclarationUsesDouble(param.type)) {
+            return true;
+          }
+        }
+      }
+      if (api is AstProxyApi) {
+        for (final ApiField field in api.unattachedFields) {
+          if (_typeDeclarationUsesDouble(field.type)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Wraps [valueExpr] so [PigeonCodec] always serializes a Pigeon `double`
+  /// as float64 on the wire.
+  String _encodeDoubleForCodec(TypeDeclaration type, String valueExpr) {
+    assert(_isDartDoubleType(type));
+    if (type.isNullable) {
+      return '($valueExpr === null || $valueExpr === undefined ? null : new $_doubleBoxClassName($valueExpr))';
+    }
+    return 'new $_doubleBoxClassName($valueExpr)';
   }
 }
