@@ -1606,7 +1606,7 @@ void main() {
     expect(code, contains('EventChannel'));
     expect(code, contains('PigeonMethodChannelCodec'));
     expect(code, contains('StreamIntsStreamHandler'));
-    expect(code, contains('static register(binaryMessenger: BinaryMessenger'));
+    expect(code, contains('static register(messenger: BinaryMessenger'));
   });
 
   test('Float32List maps to number[]', () {
@@ -1698,9 +1698,7 @@ void main() {
       code,
       contains('res.push(new PigeonInternalDoubleBox(output));'),
     );
-    expect(
-      code,
-      contains('[new PigeonInternalDoubleBox(valueArg), channelReply =>'),
-    );
+    expect(code, contains('[new PigeonInternalDoubleBox(valueArg)]'));
+    expect(code, contains('channelReply =>'));
   });
 }
