@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/file_selector/file_selector
-      # ref: file_selector-v1.0.3-ohos-1.0.0
+      # ref: file_selector-v1.0.3-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
