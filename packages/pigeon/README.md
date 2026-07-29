@@ -22,7 +22,7 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
-      # ref: pigeon-v14.0.0-ohos-1.0.0
+      # ref: pigeon-v14.0.0-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 
 ```
@@ -35,11 +35,12 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `br_pigeon-v26.1.5_ohos` |
-| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `br_pigeon-v25.3.2_ohos` |
-| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
+| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `pigeon-v14.0.0-ohos-1.0.1` | `master` |
 
 <!-- tabs:end -->
 

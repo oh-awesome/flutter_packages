@@ -16,7 +16,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/url_launcher/url_launcher_ohos
-      # ref: url_launcher_v6.1.11-ohos-1.0.0
+      # ref: url_launcher_v6.1.11-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ```
 
@@ -28,13 +28,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.41 | `url_launcher_v6.3.2-ohos-1.0.0` | `br_url_launcher-v6.3.2_ohos` |
-| 3.35 | `url_launcher_v6.3.2-ohos-1.0.0` | `br_url_launcher-v6.3.2_ohos` |
-| 3.27 | `url_launcher_v6.3.1-ohos-1.0.0` | `br_url_launcher_v6.3.1_ohos` |
-| 3.22 | `url_launcher_v6.3.0-ohos-1.0.0` | `br_url_launcher-v6.3.0_ohos` |
-| 3.7 | `url_launcher_v6.1.11-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `url_launcher_v6.3.2-ohos-1.0.0` | `url_launcher_v6.3.2-ohos-1.0.1` | `br_url_launcher-v6.3.2_ohos` |
+| 3.35 | `url_launcher_v6.3.2-ohos-1.0.0` | `url_launcher_v6.3.2-ohos-1.0.1` | `br_url_launcher-v6.3.2_ohos` |
+| 3.27 | `url_launcher_v6.3.1-ohos-1.0.0` | `url_launcher_v6.3.1-ohos-1.0.1` | `br_url_launcher_v6.3.1_ohos` |
+| 3.22 | `url_launcher_v6.3.0-ohos-1.0.0` | `url_launcher_v6.3.0-ohos-1.0.1` | `br_url_launcher-v6.3.0_ohos` |
+| 3.7 | `url_launcher_v6.1.11-ohos-1.0.0` | `url_launcher_v6.1.11-ohos-1.0.1` | `master` |
 
 ## Constraints and Limitations
 

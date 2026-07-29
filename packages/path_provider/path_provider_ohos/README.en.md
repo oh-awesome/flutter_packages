@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/path_provider/path_provider
-      # ref: provider-v2.1.1-ohos-1.0.0
+      # ref: provider-v2.1.1-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ```
 
@@ -33,13 +33,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.41 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `br_path_provider-v2.1.4_ohos` |
-| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `provider-v2.1.4_ohos-1.0.1` | `br_path_provider-v2.1.4_ohos` |
+| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `provider-v2.1.1-ohos-1.0.1` | `master` |
 
 ## Constraints and Limitations
 
