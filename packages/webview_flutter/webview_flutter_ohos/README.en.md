@@ -22,7 +22,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
-      # ref: webview_flutter-v4.8.0-ohos-1.0.0
+      # ref: webview_flutter-v4.8.0-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ...
 ```
@@ -37,12 +37,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
-| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
-| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `br_webview_flutter-v4.8.0_ohos` |
-| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `webview_flutter-v4.13.1-ohos-1.0.0` | `br_webview_flutter-v4.13.1_ohos` |
+| 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `webview_flutter-v4.8.0-ohos-1.0.1` | `br_webview_flutter-v4.8.0_ohos` |
+| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `webview_flutter-v4.4.2-ohos-1.0.1` | `master` |
 
 ## 1.2 Example
 
