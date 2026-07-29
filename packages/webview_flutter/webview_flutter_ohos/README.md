@@ -22,7 +22,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
-      # ref: webview_flutter-v4.13.0-ohos-1.0.0
+      # ref: webview_flutter-v4.13.0-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
@@ -36,12 +36,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
-| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `br_webview_flutter-v4.13.0_ohos` |
-| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `br_webview_flutter-v4.8.0_ohos` |
-| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `webview_flutter-v4.13.1-ohos-1.0.0` | `br_webview_flutter-v4.13.1_ohos` |
+| 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
+| 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `webview_flutter-v4.8.0-ohos-1.0.1` | `br_webview_flutter-v4.8.0_ohos` |
+| 3.7 | `webview_flutter-v4.4.2-ohos-1.0.0` | `webview_flutter-v4.4.2-ohos-1.0.1` | `master` |
 
 ## 1.2 使用说明
 
