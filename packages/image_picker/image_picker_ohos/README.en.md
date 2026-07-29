@@ -18,7 +18,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/image_picker/image_picker_ohos
-      # ref: image_picker-v1.2.1-ohos-1.0.0
+      # ref: image_picker-v1.2.1-ohos-1.0.1
       ref: TAG  #   Please select the TAG according to the TAG version table below
 ```
 
@@ -31,13 +31,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.41 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
-| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `br_image_picker-v1.2.1_ohos` |
-| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
-| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `br_image_picker-v1.1.2_ohos` |
-| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `image_picker-v1.2.1-ohos-1.0.0` | `image_picker-v1.2.1-ohos-1.0.1` | `br_image_picker-v1.2.1_ohos` |
+| 3.35 | `image_picker-v1.2.1-ohos-1.0.0` | `image_picker-v1.2.1-ohos-1.0.1` | `br_image_picker-v1.2.1_ohos` |
+| 3.27 | `image_picker-v1.1.2-ohos-1.0.0` | `image_picker-v1.1.2-ohos-1.0.1` | `br_image_picker-v1.1.2_ohos` |
+| 3.22 | `image_picker-v1.1.2-ohos-1.0.0` | `image_picker-v1.1.2-ohos-1.0.1` | `br_image_picker-v1.1.2_ohos` |
+| 3.7 | `image_picker-v1.0.4-ohos-1.0.0` | `image_picker-v1.0.4-ohos-1.0.1` | `master` |
 
 ## Constraints and Limitations
 
