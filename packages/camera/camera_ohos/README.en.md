@@ -28,7 +28,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/camera/camera
-      # ref: camera-v0.11.3-ohos-1.0.0
+      # ref: camera-v0.11.3-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ...
 ```
@@ -43,12 +43,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.35 | `camera-v0.11.3-ohos-1.0.0` | `br_camera-v0.11.3_ohos` |
-| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `br_camera-v0.11.1_ohos` |
-| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `br_camera-v0.11.0+2_ohos` |
-| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `camera-v0.12.0_1-ohos-1.0.0` | `br_camera-v0.12.0_1_ohos` |
+| 3.35 | `camera-v0.11.3-ohos-1.0.0` | `camera-v0.11.3-ohos-1.0.1` | `br_camera-v0.11.3_ohos` |
+| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `camera-v0.11.1-ohos-1.0.1` | `br_camera-v0.11.1_ohos` |
+| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `camera-v0.11.0_2-ohos-1.0.1` | `br_camera-v0.11.0+2_ohos` |
+| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `camera-v0.10.5_5-ohos-1.0.1` | `master` |
 
 ## 1.2 Usage
 
