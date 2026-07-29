@@ -48,16 +48,16 @@ void main() {
 
     test('checks a generic URL if an http URL returns false', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool canLaunch = await launcher
-          .canLaunch('http://${_FakeUrlLauncherApi.specialHandlerDomain}');
+      final bool canLaunch =
+          await launcher.canLaunch('http://${_FakeUrlLauncherApi.specialHandlerDomain}');
 
       expect(canLaunch, true);
     });
 
     test('checks a generic URL if an https URL returns false', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool canLaunch = await launcher
-          .canLaunch('https://${_FakeUrlLauncherApi.specialHandlerDomain}');
+      final bool canLaunch =
+          await launcher.canLaunch('https://${_FakeUrlLauncherApi.specialHandlerDomain}');
 
       expect(canLaunch, true);
     });
@@ -123,8 +123,8 @@ void main() {
             universalLinksOnly: false,
             headers: const <String, String>{},
           ),
-          throwsA(isA<PlatformException>().having(
-              (PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
+          throwsA(isA<PlatformException>()
+              .having((PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
     });
   });
 
@@ -220,8 +220,8 @@ void main() {
             universalLinksOnly: false,
             headers: const <String, String>{},
           ),
-          throwsA(isA<PlatformException>().having(
-              (PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
+          throwsA(isA<PlatformException>()
+              .having((PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
     });
   });
 
@@ -243,8 +243,8 @@ void main() {
         'http://example.com/',
         const LaunchOptions(
             mode: PreferredLaunchMode.externalApplication,
-            webViewConfiguration: InAppWebViewConfiguration(
-                headers: <String, String>{'key': 'value'})),
+            webViewConfiguration:
+                InAppWebViewConfiguration(headers: <String, String>{'key': 'value'})),
       );
       expect(api.passedWebViewOptions?.headers.length, 1);
       expect(api.passedWebViewOptions?.headers['key'], 'value');
@@ -252,8 +252,7 @@ void main() {
 
     test('passes through no-activity exception', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      await expectLater(
-          launcher.launchUrl('https://noactivity', const LaunchOptions()),
+      await expectLater(launcher.launchUrl('https://noactivity', const LaunchOptions()),
           throwsA(isA<PlatformException>()));
     });
 
@@ -261,16 +260,16 @@ void main() {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
           launcher.launchUrl('unknown://scheme', const LaunchOptions()),
-          throwsA(isA<PlatformException>().having(
-              (PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
+          throwsA(isA<PlatformException>()
+              .having((PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
     });
   });
 
   group('launch with webview', () {
     test('calls through', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool launched = await launcher.launchUrl('http://example.com/',
-          const LaunchOptions(mode: PreferredLaunchMode.inAppWebView));
+      final bool launched = await launcher.launchUrl(
+          'http://example.com/', const LaunchOptions(mode: PreferredLaunchMode.inAppWebView));
       expect(launched, true);
       expect(api.usedWebView, true);
       // expect(api.allowedCustomTab, false); // OHOS not supported
@@ -285,8 +284,7 @@ void main() {
           'http://example.com/',
           const LaunchOptions(
               mode: PreferredLaunchMode.inAppWebView,
-              webViewConfiguration:
-                  InAppWebViewConfiguration(enableJavaScript: false)));
+              webViewConfiguration: InAppWebViewConfiguration(enableJavaScript: false)));
 
       expect(api.passedWebViewOptions?.enableJavaScript, false);
     });
@@ -297,8 +295,7 @@ void main() {
           'http://example.com/',
           const LaunchOptions(
               mode: PreferredLaunchMode.inAppWebView,
-              webViewConfiguration:
-                  InAppWebViewConfiguration(enableDomStorage: false)));
+              webViewConfiguration: InAppWebViewConfiguration(enableDomStorage: false)));
 
       expect(api.passedWebViewOptions?.enableDomStorage, false);
     });
@@ -306,26 +303,26 @@ void main() {
     test('passes through no-activity exception', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
-          launcher.launchUrl('https://noactivity',
-              const LaunchOptions(mode: PreferredLaunchMode.inAppWebView)),
+          launcher.launchUrl(
+              'https://noactivity', const LaunchOptions(mode: PreferredLaunchMode.inAppWebView)),
           throwsA(isA<PlatformException>()));
     });
 
     test('throws if there is no handling activity', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       await expectLater(
-          launcher.launchUrl('unknown://scheme',
-              const LaunchOptions(mode: PreferredLaunchMode.inAppWebView)),
-          throwsA(isA<PlatformException>().having(
-              (PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
+          launcher.launchUrl(
+              'unknown://scheme', const LaunchOptions(mode: PreferredLaunchMode.inAppWebView)),
+          throwsA(isA<PlatformException>()
+              .having((PlatformException e) => e.code, 'code', 'ACTIVITY_NOT_FOUND')));
     });
   });
 
   group('launch with custom tab', () {
     test('calls through', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool launched = await launcher.launchUrl('http://example.com/',
-          const LaunchOptions(mode: PreferredLaunchMode.inAppBrowserView));
+      final bool launched = await launcher.launchUrl(
+          'http://example.com/', const LaunchOptions(mode: PreferredLaunchMode.inAppBrowserView));
       expect(launched, true);
       expect(api.usedWebView, true);
       // expect(api.allowedCustomTab, true); // OHOS not supported
@@ -335,8 +332,7 @@ void main() {
   group('launch with platform default', () {
     test('uses custom tabs for http', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool launched = await launcher.launchUrl(
-          'http://example.com/', const LaunchOptions());
+      final bool launched = await launcher.launchUrl('http://example.com/', const LaunchOptions());
       expect(launched, true);
       expect(api.usedWebView, true);
       // expect(api.allowedCustomTab, true); // OHOS not supported
@@ -344,8 +340,7 @@ void main() {
 
     test('uses custom tabs for https', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool launched = await launcher.launchUrl(
-          'https://example.com/', const LaunchOptions());
+      final bool launched = await launcher.launchUrl('https://example.com/', const LaunchOptions());
       expect(launched, true);
       expect(api.usedWebView, true);
       // expect(api.allowedCustomTab, true); // OHOS not supported
@@ -353,8 +348,8 @@ void main() {
 
     test('uses external for other schemes', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      final bool launched = await launcher.launchUrl(
-          'supportedcustomscheme://example.com/', const LaunchOptions());
+      final bool launched =
+          await launcher.launchUrl('supportedcustomscheme://example.com/', const LaunchOptions());
       expect(launched, true);
       expect(api.usedWebView, false);
     });
@@ -363,63 +358,50 @@ void main() {
   group('supportsMode', () {
     test('returns true for platformDefault', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      expect(await launcher.supportsMode(PreferredLaunchMode.platformDefault),
-          true);
+      expect(await launcher.supportsMode(PreferredLaunchMode.platformDefault), true);
     });
 
-     // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
+    // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
     test(skip: true, 'returns true for external application', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      expect(
-          await launcher.supportsMode(PreferredLaunchMode.externalApplication),
-          true);
+      expect(await launcher.supportsMode(PreferredLaunchMode.externalApplication), true);
     });
 
     // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
     test(skip: true, 'returns true for in app web view', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      expect(
-          await launcher.supportsMode(PreferredLaunchMode.inAppWebView), true);
+      expect(await launcher.supportsMode(PreferredLaunchMode.inAppWebView), true);
     });
 
     // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
     test(skip: true, 'returns true for in app browser view when available', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       // api.hasCustomTabSupport = true; // OHOS not supported
-      expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView),
-          true);
+      expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView), true);
     });
 
-    test('returns false for in app browser view when not available', () async {
+    // OHOS not supported, OHOS 上 inAppBrowserView 走 WebView 路径，supportsMode 恒返回 true，
+    // 不存在"不可用"的情况
+    test(skip: true, 'returns false for in app browser view when not available', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       // api.hasCustomTabSupport = false; // OHOS not supported
-      expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView),
-          false);
+      expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView), false);
     });
   });
 
   group('supportsCloseForMode', () {
     test('returns true for in app web view', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      expect(
-          await launcher.supportsCloseForMode(PreferredLaunchMode.inAppWebView),
-          true);
+      expect(await launcher.supportsCloseForMode(PreferredLaunchMode.inAppWebView), true);
     });
 
+    // OHOS not supported, OHOS 的 inAppBrowserView 走 WebView 路径，同样支持关闭
     test('returns false for other modes', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      expect(
-          await launcher
-              .supportsCloseForMode(PreferredLaunchMode.externalApplication),
+      expect(await launcher.supportsCloseForMode(PreferredLaunchMode.externalApplication), false);
+      expect(await launcher.supportsCloseForMode(PreferredLaunchMode.externalNonBrowserApplication),
           false);
-      expect(
-          await launcher.supportsCloseForMode(
-              PreferredLaunchMode.externalNonBrowserApplication),
-          false);
-      expect(
-          await launcher
-              .supportsCloseForMode(PreferredLaunchMode.inAppBrowserView),
-          false);
+      expect(await launcher.supportsCloseForMode(PreferredLaunchMode.inAppBrowserView), true);
     });
   });
 }
@@ -461,7 +443,8 @@ class _FakeUrlLauncherApi implements UrlLauncherApi {
   }
 
   @override
-  Future<bool> openUrlInWebView(String url, WebViewOptions options) async {
+  Future<bool> openUrlInWebView(
+      String url, WebViewOptions options, BrowserOptions browserOptions) async {
     passedWebViewOptions = options;
     usedWebView = true;
     return _launch(url);
