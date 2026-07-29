@@ -33,13 +33,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.41 | `file_selector-v1.1.0-ohos-1.0.0` | `br_file_selector-v1.1.0_ohos` |
-| 3.35 | `file_selector-v1.1.0-ohos-1.0.0` | `br_file_selector-v1.1.0_ohos` |
-| 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
-| 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
-| 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `file_selector-v1.1.0-ohos-1.0.1` | `br_file_selector-v1.1.0_ohos` |
+| 3.35 | `-` | `file_selector-v1.1.0-ohos-1.0.1` | `br_file_selector-v1.1.0_ohos` |
+| 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `file_selector-v1.0.3-ohos-1.0.1` | `br_file_selector-v1.0.3_ohos` |
+| 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `file_selector-v1.0.3-ohos-1.0.1` | `br_file_selector-v1.0.3_ohos` |
+| 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `file_selector-v1.0.1-ohos-1.0.1` | `master` |
 
 ## 约束与限制
 
