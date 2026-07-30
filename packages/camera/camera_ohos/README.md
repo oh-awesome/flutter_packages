@@ -26,7 +26,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/camera/camera
-      # ref: camera-v0.11.1-ohos-1.0.0
+      # ref: camera-v0.11.1-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ...
 ```
@@ -41,12 +41,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.35 | `camera-v0.11.3-ohos-1.0.0` | `br_camera-v0.11.3_ohos` |
-| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `br_camera-v0.11.1_ohos` |
-| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `br_camera-v0.11.0+2_ohos` |
-| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `camera-v0.12.0_1-ohos-1.0.0` | `br_camera-v0.12.0_1_ohos` |
+| 3.35 | `camera-v0.11.3-ohos-1.0.0` | `camera-v0.11.3-ohos-1.0.1` | `br_camera-v0.11.3_ohos` |
+| 3.27 | `camera-v0.11.1-ohos-1.0.0` | `camera-v0.11.1-ohos-1.0.1` | `br_camera-v0.11.1_ohos` |
+| 3.22 | `camera-v0.11.0_2-ohos-1.0.0` | `camera-v0.11.0_2-ohos-1.0.1` | `br_camera-v0.11.0+2_ohos` |
+| 3.7 | `camera-v0.10.5_5-ohos-1.0.0` | `camera-v0.10.5_5-ohos-1.0.1` | `master` |
 
 ## 1.2 使用案例
 
