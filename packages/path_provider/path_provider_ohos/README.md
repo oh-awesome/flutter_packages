@@ -20,7 +20,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/path_provider/path_provider
-      # ref: provider-v2.1.4_ohos-1.0.0
+      # ref: provider-v2.1.4_ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ...
 ```
@@ -33,13 +33,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.41 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `br_path_provider-v2.1.5_ohos` |
-| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `br_path_provider-v2.1.4_ohos` |
-| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.35 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.27 | `provider-v2.1.5-ohos-1.0.0` | `provider-v2.1.5-ohos-1.0.1` | `br_path_provider-v2.1.5_ohos` |
+| 3.22 | `provider-v2.1.4_ohos-1.0.0` | `provider-v2.1.4_ohos-1.0.1` | `br_path_provider-v2.1.4_ohos` |
+| 3.7 | `provider-v2.1.1-ohos-1.0.0` | `provider-v2.1.1-ohos-1.0.1` | `master` |
 
 ## 约束与限制
 
