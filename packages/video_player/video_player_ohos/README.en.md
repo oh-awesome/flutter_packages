@@ -24,7 +24,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/video_player/video_player
-      # ref: video_player-v2.9.2-ohos-1.0.0
+      # ref: video_player-v2.9.2-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ```
 
@@ -36,12 +36,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.35 | `video_player-v2.10.1-ohos-1.0.0` | `br_video_player-v2.10.1_ohos` |
-| 3.27 | `video_player-v2.10.0-ohos-1.0.0` | `br_video_player-v2.10.0_ohos` |
-| 3.22 | `video_player-v2.9.2-ohos-1.0.0` | `br_video_player-v2.9.2_ohos` |
-| 3.7 | `video_player-v2.7.2-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `video_player-v2.11.1-ohos-1.0.0` | `br_video_player-v2.11.1_ohos` |
+| 3.35 | `-` | `video_player-v2.10.1-ohos-1.0.1` | `br_video_player-v2.10.1_ohos` |
+| 3.27 | `video_player-v2.10.0-ohos-1.0.0` | `video_player-v2.10.0-ohos-1.0.1` | `br_video_player-v2.10.0_ohos` |
+| 3.22 | `video_player-v2.9.2-ohos-1.0.0` | `video_player-v2.9.2-ohos-1.0.1` | `br_video_player-v2.9.2_ohos` |
+| 3.7 | `video_player-v2.7.2-ohos-1.0.0` | `video_player-v2.7.2-ohos-1.0.1` | `master` |
 
 <!-- tabs:end -->
 
