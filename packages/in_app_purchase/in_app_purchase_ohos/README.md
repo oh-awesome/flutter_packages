@@ -16,7 +16,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase
-      # ref: in_app_purchase_v3.2.3-ohos-1.0.0
+      # ref: in_app_purchase_v3.2.3-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
@@ -28,7 +28,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase_ohos
-      # ref: in_app_purchase_v3.2.3-ohos-1.0.0
+      # ref: in_app_purchase_v3.2.3-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
@@ -40,13 +40,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.41 | `-` | `br_in_app_purchase-v3.2.3_ohos` |
-| 3.35 | `-` | `br_in_app_purchase-v3.2.3_ohos` |
-| 3.27 | `-` | `br_in_app_purchase-v3.2.3_ohos` |
-| 3.22 | `-` | `br_in_app_purchase-v3.2.0_ohos` |
-| 3.7 | `-` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `in_app_purchase_v3.2.3-ohos-1.0.1` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.35 | `-` | `in_app_purchase_v3.2.3-ohos-1.0.1` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.27 | `-` | `in_app_purchase_v3.2.3-ohos-1.0.1` | `br_in_app_purchase-v3.2.3_ohos` |
+| 3.22 | `-` | `in_app_purchase_v3.2.0-ohos-1.0.1` | `br_in_app_purchase-v3.2.0_ohos` |
+| 3.7 | `-` | `in_app_purchase_v3.1.11-ohos-1.0.1` | `master` |
 
 ## 约束与限制
 
