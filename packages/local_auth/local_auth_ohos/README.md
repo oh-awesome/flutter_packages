@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/local_auth/local_auth
-      # ref: local_auth-v2.3.0-ohos-1.0.0
+      # ref: local_auth-v2.3.0-ohos-1.0.1
       ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
@@ -33,12 +33,13 @@ flutter pub get
 
 **TAG 版本对应表**
 
-| Flutter 框架版本 | TAG | 分支 |
-| :--- | :--- | :--- |
-| 3.35 | `local_auth-v3.0.0-ohos-1.0.0` | `br_local_auth-v3.0.0_ohos` |
-| 3.27 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
-| 3.22 | `local_auth-v2.3.0-ohos-1.0.0` | `br_local_auth-v2.3.0_ohos` |
-| 3.7 | `local_auth-v2.1.6-ohos-1.0.0` | `master` |
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `local_auth-v3.0.1-ohos-1.0.0` | `br_local_auth-v3.0.1_ohos` |
+| 3.35 | `local_auth-v3.0.0-ohos-1.0.0` | `local_auth-v3.0.0-ohos-1.0.1` | `br_local_auth-v3.0.0_ohos` |
+| 3.27 | `local_auth-v2.3.0-ohos-1.0.0` | `local_auth-v2.3.0-ohos-1.0.1` | `br_local_auth-v2.3.0_ohos` |
+| 3.22 | `local_auth-v2.3.0-ohos-1.0.0` | `local_auth-v2.3.0-ohos-1.0.1` | `br_local_auth-v2.3.0_ohos` |
+| 3.7 | `local_auth-v2.1.6-ohos-1.0.0` | `local_auth-v2.1.6-ohos-1.0.1` | `master` |
 
 <!-- tabs:end -->
 
