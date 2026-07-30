@@ -21,7 +21,7 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/file_selector/file_selector
-      # ref: file_selector-v1.0.1-ohos-1.0.0
+      # ref: file_selector-v1.0.1-ohos-1.0.1
       ref: TAG  #   Select a TAG according to the TAG version table below
 ```
 
@@ -33,13 +33,13 @@ flutter pub get
 
 **TAG Version Table**
 
-| Flutter Version | TAG | Branch |
-| :--- | :--- | :--- |
-| 3.41 | `-` | `br_file_selector-v1.1.0_ohos` |
-| 3.35 | `-` | `br_file_selector-v1.1.0_ohos` |
-| 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
-| 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `br_file_selector-v1.0.3_ohos` |
-| 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `master` |
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `file_selector-v1.1.0-ohos-1.0.1` | `br_file_selector-v1.1.0_ohos` |
+| 3.35 | `-` | `file_selector-v1.1.0-ohos-1.0.1` | `br_file_selector-v1.1.0_ohos` |
+| 3.27 | `file_selector-v1.0.3-ohos-1.0.0` | `file_selector-v1.0.3-ohos-1.0.1` | `br_file_selector-v1.0.3_ohos` |
+| 3.22 | `file_selector-v1.0.3-ohos-1.0.0` | `file_selector-v1.0.3-ohos-1.0.1` | `br_file_selector-v1.0.3_ohos` |
+| 3.7 | `file_selector-v1.0.1-ohos-1.0.0` | `file_selector-v1.0.1-ohos-1.0.1` | `master` |
 
 ## Constraints and Limitations
 
