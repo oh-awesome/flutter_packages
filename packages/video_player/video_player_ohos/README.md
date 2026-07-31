@@ -1,42 +1,55 @@
 # video\_player\_ohos
 
-This project provides the OpenHarmony adaptation of [video\_player@2.11.1](https://pub.dev/packages/video_player/versions/2.11.1).
+本项目基于 [video\_player@2.11.1](https://pub.dev/packages/video_player/versions/2.11.1) 进行 OpenHarmony 适配开发。
 
-## Introduction
+## 简介
 
-`video_player_ohos` is the OpenHarmony implementation of `video_player`, with support for player creation, playback control, position synchronization, event streaming, and audio track selection. In most apps, you depend on `video_player` directly and the OHOS backend is selected automatically.
+`video_player_ohos` 是 `video_player` 的 OpenHarmony 平台实现，提供视频创建、播放控制、进度同步、事件回调与音轨选择能力。应用侧通常直接依赖 `video_player`，本仓库中的 OHOS 实现会在平台层自动接管。
 
-## Installation
+## 下载安装
 
-Add dependency in your app `pubspec.yaml`:
+在业务工程 `pubspec.yaml` 中添加依赖：
 
 ```yaml
 dependencies:
   video_player:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/video_player/video_player
-      ref: br_video_player-v2.11.1_ohos
+      # ref: video_player-v2.11.1-ohos-1.0.1
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
-Install dependencies:
+执行依赖安装命令：
 
 ```bash
 flutter pub get
 ```
-## Constraints
 
-### Compatibility
+**TAG 版本对应表**
+
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `video_player-v2.11.1-ohos-1.0.0` | `br_video_player-v2.11.1_ohos` |
+| 3.35 | `-` | `video_player-v2.10.1-ohos-1.0.1` | `br_video_player-v2.10.1_ohos` |
+| 3.27 | `video_player-v2.10.0-ohos-1.0.0` | `video_player-v2.10.0-ohos-1.0.1` | `br_video_player-v2.10.0_ohos` |
+| 3.22 | `video_player-v2.9.2-ohos-1.0.0` | `video_player-v2.9.2-ohos-1.0.1` | `br_video_player-v2.9.2_ohos` |
+| 3.7 | `video_player-v2.7.2-ohos-1.0.0` | `video_player-v2.7.2-ohos-1.0.1` | `master` |
+
+
+## 约束与限制
+
+### 兼容性
 
 1.Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1 Developer Beta;
 
 2.Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1 Developer Beta;
 
-### Permission Requirements
+### 权限要求
 
-For network playback, declare network permission. For local-only playback, this permission is optional.
+网络播放场景需声明网络权限。若仅使用本地资源播放，可不配置该权限。
 
-`entry/src/main/module.json5` example:
+`entry/src/main/module.json5` 示例：
 
 ```json
 "requestPermissions": [
@@ -53,24 +66,24 @@ For network playback, declare network permission. For local-only playback, this 
 ]
 ```
 
-`entry/src/main/resources/base/element/string.json` example:
+`entry/src/main/resources/base/element/string.json` 示例：
 
 ```json
 {
   "string": [
     {
       "name": "network_reason",
-      "value": "Used for online video playback"
+      "value": "用于在线播放视频"
     }
   ]
 }
 ```
 
-> Note: If your app requests `system_basic` permissions but signature/level settings are not aligned, HAP installation may fail with `9568289`. Follow OpenHarmony permission-level requirements.
+> 注意：若应用声明了 `system_basic` 级权限但签名或等级不匹配，安装 HAP 时可能报错 `9568289`。请按 OpenHarmony 应用权限等级规范进行配置。
 
-## Usage Example
+## 使用示例
 
-The snippet below covers import, initialization, call flow, and result output:
+以下示例展示导入、初始化、调用与结果输出四个关键步骤：
 
 ```dart
 import 'package:flutter/material.dart';
@@ -89,22 +102,22 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
   @override
   void initState() {
     super.initState();
-    // 1) Initialize controller
+    // 1) 初始化控制器
     _controller = VideoPlayerController.networkUrl(
       Uri.parse('https://media.w3.org/2010/05/sintel/trailer.mp4'),
     );
-    // 2) Initialize and print result
+    // 2) 调用初始化并输出结果
     _controller.initialize().then((_) {
       debugPrint('Video initialized: ${_controller.value.size}');
       setState(() {});
-      // 3) Start playback
+      // 3) 开始播放
       _controller.play();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    // 4) Render playback result
+    // 4) 渲染播放结果
     return _controller.value.isInitialized
         ? AspectRatio(
             aspectRatio: _controller.value.aspectRatio,
@@ -121,118 +134,123 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 }
 ```
 
-## Usage Notes
+## 使用说明
 
-- This implementation renders video with `Texture` by default.
-- `platformView` video rendering is not exposed at the moment. This is not because OHOS lacks native `XComponent + AVPlayer` capability, but because the current `flutter_ohos` `PlatformView` path still relies on texture-based composition and does not match the media `XComponent` video output path well enough. In practice it can lead to cases such as audio playing without visible video, so it is not documented as a stable capability.
-- `DataSourceType.file` supports `fd://` file descriptor paths on OHOS.
-- `setPlaybackSpeed` supports: `0.125x`, `0.25x`, `0.5x`, `0.75x`, `1.0x`, `1.25x`, `1.5x`, `1.75x`, `2.0x`, `3.0x`.
-  - **Difference from Android**: Android's `ExoPlayer` tolerates a wider continuous range (typically `0.25x ~ 4.0x`), while OHOS `AVPlayer` only supports discrete preset speed levels. If the requested value is not in the OHOS supported list, the plugin will **map it to the nearest supported level**.
-  - **OHOS Playback Speed Mapping Table**:
+- 本实现默认使用 `Texture` 渲染视频画面。
+- 当前未开放 `platformView` 视频渲染选项。原因不是 OHOS 原生 `XComponent + AVPlayer` 能力缺失，而是当前 `flutter_ohos` 的 `PlatformView` 仍走纹理合成承载路径，和媒体 `XComponent` 的视频输出链路不完全匹配，实测会出现“有声音无画面”等问题，因此暂不作为正式能力开放。
+- `DataSourceType.file` 在 OHOS 下支持 `fd://` 形式文件描述符路径。
+- `formatHint` 当前支持：`VideoFormat.hls`、`VideoFormat.dash`。其中 ArkTS 原生层会把它们映射到 `MediaSource.setMimeType`。
+- `VideoFormat.ss` 当前为“尽力而为”：插件不会主动拦截，但若系统侧不存在可用的 MIME 映射或协议解析能力，播放可能失败并返回媒体不支持相关错误。
+- `setPlaybackSpeed` 在 OHOS 支持倍速：`0.125x`、`0.25x`、`0.5x`、`0.75x`、`1.0x`、`1.25x`、`1.5x`、`1.75x`、`2.0x`、`3.0x`。
+  - **与 Android 的差异**：Android 的 `ExoPlayer` 对播放速率的容忍度更高，通常支持 `0.25x ~ 4.0x` 的连续范围；而 OHOS 的 `AVPlayer` 仅支持离散的预设档位。若传入值不在 OHOS 支持列表中，插件会将其**就近映射**到支持的最接近档位。
+  - **OHOS 播放速率映射表**：
 
-    | Input Range | Effective Speed | Notes |
+    | 传入值范围 | 实际生效速率 | 说明 |
     | :--- | :--- | :--- |
-    | `< 0.125` | `0.125x` | Falls back to the minimum level |
-    | `0.125 ~ 0.25` | `0.25x` | Maps to `0.25x` |
-    | `0.25 ~ 0.5` | `0.5x` | Maps to `0.5x` |
-    | `0.5 ~ 0.75` | `0.75x` | Maps to `0.75x` |
-    | `0.75 ~ 1.0` | `1.0x` | Normal speed |
-    | `1.0 ~ 1.25` | `1.25x` | Maps to `1.25x` |
-    | `1.25 ~ 1.5` | `1.5x` | Maps to `1.5x` |
-    | `1.5 ~ 1.75` | `1.75x` | Maps to `1.75x` |
-    | `1.75 ~ 2.0` | `2.0x` | Maps to `2.0x` |
-    | `2.0 ~ 3.0` | `3.0x` | Maps to `3.0x` |
-    | `> 3.0` | `3.0x` | Falls back to the maximum level |
-- Audio track APIs are supported: `getAudioTracks`, `selectAudioTrack`, `isAudioTrackSupportAvailable`.
-- See [example](./example) for full demos.
+    | `< 0.125` | `0.125x` | 低于最小档位时取最小值 |
+    | `0.125 ~ 0.25` | `0.25x` | 就近映射到 `0.25x` |
+    | `0.25 ~ 0.5` | `0.5x` | 就近映射到 `0.5x` |
+    | `0.5 ~ 0.75` | `0.75x` | 就近映射到 `0.75x` |
+    | `0.75 ~ 1.0` | `1.0x` | 正常速率 |
+    | `1.0 ~ 1.25` | `1.25x` | 就近映射到 `1.25x` |
+    | `1.25 ~ 1.5` | `1.5x` | 就近映射到 `1.5x` |
+    | `1.5 ~ 1.75` | `1.75x` | 就近映射到 `1.75x` |
+    | `1.75 ~ 2.0` | `2.0x` | 就近映射到 `2.0x` |
+    | `2.0 ~ 3.0` | `3.0x` | 高于 `2.0x` 时取 `3.0x` |
+    | `> 3.0` | `3.0x` | 超过最大档位时取最大值 |
+- 支持音轨能力查询与切换：`getAudioTracks`、`selectAudioTrack`、`isAudioTrackSupportAvailable`。
+- `selectAudioTrack` 当前会等待 AVPlayer `trackChange` 事件确认后再完成 `Future<void>`；若 5 秒内未收到确认事件，则会显式超时失败。
+- `setMixWithOthers` 在 OHOS 映射为 AVPlayer 的 `audioInterruptMode`。这更接近播放器实例级中断模式，而不是 Android/iOS 的系统级音频焦点/共享会话语义；同应用与跨应用场景可能存在行为差异。
+- 示例工程见 [example](./example)。
 
-## API Reference
+## 接口说明
 
-### API Summary
+### 接口汇总
 
-> Note: In column "类型", only "方法" and "属性" are used for consistency with the Chinese README.
+> 说明：下表中的“类型”仅使用“方法”“属性”。
 
-| 名称                                  | 类型 | 参数类型                               | 返回值                             | ohos平台支持 | 描述                                                                  |
-| ----------------------------------- | -- | ---------------------------------- | ------------------------------- | -------- | ------------------------------------------------------------------- |
-| init                                | 方法 | 无                                  | `Future<void>`                  | 是        | Initializes the platform channel and clears stale player instances. |
-| dispose                             | 方法 | `int textureId`                    | `Future<void>`                  | 是        | Disposes resources for the specified player instance.               |
-| create                              | 方法 | `DataSource`                       | `Future<int?>`                  | 是        | Creates a player and returns `textureId`.                           |
-| setLooping                          | 方法 | `int textureId, bool looping`      | `Future<void>`                  | 是        | Sets whether playback loops.                                        |
-| play                                | 方法 | `int textureId`                    | `Future<void>`                  | 是        | Starts playback for the target player.                              |
-| pause                               | 方法 | `int textureId`                    | `Future<void>`                  | 是        | Pauses playback for the target player.                              |
-| setVolume                           | 方法 | `int textureId, double volume`     | `Future<void>`                  | 是        | Sets output volume, typically from `0.0` to `1.0`.                  |
-| seekTo                              | 方法 | `int textureId, Duration position` | `Future<void>`                  | 是        | Seeks playback to a target position.                                |
-| getPosition                         | 方法 | `int textureId`                    | `Future<Duration>`              | 是        | Gets current playback position.                                     |
-| videoEventsFor                      | 方法 | `int textureId`                    | `Stream<VideoEvent>`            | 是        | Subscribes to player event stream.                                  |
-| setMixWithOthers                    | 方法 | `bool mixWithOthers`               | `Future<void>`                  | 是        | Sets whether audio mixes with other sources.                        |
-| setPlaybackSpeed                    | 方法 | `int textureId, double speed`      | `Future<void>`                  | 是        | Sets playback speed, where `speed > 0`.                             |
-| getAudioTracks                      | 方法 | `int playerId`                     | `Future<List<VideoAudioTrack>>` | 是        | Returns available audio tracks of the current media.                |
-| selectAudioTrack                    | 方法 | `int playerId, String trackId`     | `Future<void>`                  | 是        | Switches to the specified audio track.                              |
-| sourceType                          | 属性 | 无                                  | `DataSourceType`                | 是        | Defines source mode: asset/network/file/contentUri.                 |
-| uri                                 | 属性 | 无                                  | `String?`                       | 是        | URI of the video source.                                            |
-| formatHint                          | 属性 | 无                                  | `VideoFormat`                   | 是        | Optional format hint that overrides default format detection.       |
-| asset                               | 属性 | 无                                  | `String?`                       | 是        | Name of the bundled asset.                                          |
-| package                             | 属性 | 无                                  | `String?`                       | 是        | Package name that provides the asset.                               |
-| httpHeaders                         | 属性 | 无                                  | `Map<String, String>`           | 是        | HTTP request headers.                                               |
-| DataSourceType.asset                | 属性 | 无                                  | `enum`                          | 是        | App asset source.                                                   |
-| DataSourceType.network              | 属性 | 无                                  | `enum`                          | 是        | Network source.                                                     |
-| DataSourceType.file                 | 属性 | 无                                  | `enum`                          | 是        | Local file source.                                                  |
-| DataSourceType.contentUri           | 属性 | 无                                  | `enum`                          | 否        | Video via contentUri, Android-only scenario.                        |
-| VideoFormat.dash                    | 属性 | 无                                  | `enum`                          | 是        | Dynamic Adaptive Streaming over HTTP (MPEG-DASH).                   |
-| VideoFormat.hls                     | 属性 | 无                                  | `enum`                          | 是        | HTTP Live Streaming (HLS).                                          |
-| VideoFormat.ss                      | 属性 | 无                                  | `enum`                          | 否        | Smooth Streaming.                                                   |
-| VideoFormat.other                   | 属性 | 无                                  | `enum`                          | 否        | Other formats.                                                      |
-| eventType                           | 属性 | 无                                  | `VideoEventType`                | 是        | Event type.                                                         |
-| duration                            | 属性 | 无                                  | `Duration?`                     | 是        | Video duration.                                                     |
-| size                                | 属性 | 无                                  | `Size?`                         | 是        | Video size.                                                         |
-| rotationCorrection                  | 属性 | 无                                  | `int?`                          | 是        | Clockwise rotation needed for correct display.                      |
-| buffered                            | 属性 | 无                                  | `List<DurationRange>?`          | 是        | Buffered ranges of the video.                                       |
-| isPlaying                           | 属性 | 无                                  | `bool?`                         | 是        | Whether the video is currently playing.                             |
-| VideoEventType.initialized          | 属性 | 无                                  | `enum`                          | 是        | Video initialization completed.                                     |
-| VideoEventType.completed            | 属性 | 无                                  | `enum`                          | 是        | Playback completed.                                                 |
-| VideoEventType.bufferingUpdate      | 属性 | 无                                  | `enum`                          | 是        | Buffering state updated.                                            |
-| VideoEventType.bufferingStart       | 属性 | 无                                  | `enum`                          | 是        | Buffering started.                                                  |
-| VideoEventType.bufferingEnd         | 属性 | 无                                  | `enum`                          | 是        | Buffering ended.                                                    |
-| VideoEventType.isPlayingStateUpdate | 属性 | 无                                  | `enum`                          | 是        | Playback state changed.                                             |
-| VideoEventType.unknown              | 属性 | 无                                  | `enum`                          | 是        | Unknown event received.                                             |
+| 名称                                  | 类型 | 参数类型                               | 返回值                             | ohos平台支持 | 描述                                      |
+| ----------------------------------- | -- | ---------------------------------- | ------------------------------- | -------- | --------------------------------------- |
+| init                                | 方法 | 无                                  | `Future<void>`                  | 是        | 初始化平台通道并清理历史播放器实例。                      |
+| dispose                             | 方法 | `int textureId`                    | `Future<void>`                  | 是        | 释放指定播放器实例关联资源。                          |
+| create                              | 方法 | `DataSource`                       | `Future<int?>`                  | 是        | 创建播放器并返回 `textureId`。                   |
+| setLooping                          | 方法 | `int textureId, bool looping`      | `Future<void>`                  | 是        | 设置是否循环播放。                               |
+| play                                | 方法 | `int textureId`                    | `Future<void>`                  | 是        | 播放指定视频。                                 |
+| pause                               | 方法 | `int textureId`                    | `Future<void>`                  | 是        | 暂停指定视频。                                 |
+| setVolume                           | 方法 | `int textureId, double volume`     | `Future<void>`                  | 是        | 设置音量，范围通常为 `0.0` 到 `1.0`。               |
+| seekTo                              | 方法 | `int textureId, Duration position` | `Future<void>`                  | 是        | 跳转到指定时间点。                               |
+| getPosition                         | 方法 | `int textureId`                    | `Future<Duration>`              | 是        | 获取当前播放进度。                               |
+| videoEventsFor                      | 方法 | `int textureId`                    | `Stream<VideoEvent>`            | 是        | 订阅播放器事件流。                               |
+| setMixWithOthers                    | 方法 | `bool mixWithOthers`               | `Future<void>`                  | 是        | 设置是否与其他音源混音播放。                          |
+| setPlaybackSpeed                    | 方法 | `int textureId, double speed`      | `Future<void>`                  | 是        | 设置播放速度，`speed > 0`。                     |
+| getAudioTracks                      | 方法 | `int playerId`                     | `Future<List<VideoAudioTrack>>` | 是        | 获取当前视频可用音轨列表。                           |
+| selectAudioTrack                    | 方法 | `int playerId, String trackId`     | `Future<void>`                  | 是        | 切换到指定音轨。                                |
+| sourceType                          | 属性 | 无                                  | `DataSourceType`                | 是        | 指定数据源类型（asset/network/file/contentUri）。 |
+| uri                                 | 属性 | 无                                  | `String?`                       | 是        | 视频文件的 URI。                              |
+| formatHint                          | 属性 | 无                                  | `VideoFormat`                   | 是        | 使用该格式提示覆盖默认格式识别。                        |
+| asset                               | 属性 | 无                                  | `String?`                       | 是        | 资源名称。                                   |
+| package                             | 属性 | 无                                  | `String?`                       | 是        | 资源所属包名。                                 |
+| httpHeaders                         | 属性 | 无                                  | `Map<String, String>`           | 是        | HTTP 请求头。                               |
+| DataSourceType.asset                | 属性 | 无                                  | `enum`                          | 是        | 应用资源文件。                                 |
+| DataSourceType.network              | 属性 | 无                                  | `enum`                          | 是        | 网络资源。                                   |
+| DataSourceType.file                 | 属性 | 无                                  | `enum`                          | 是        | 本地文件。                                   |
+| DataSourceType.contentUri           | 属性 | 无                                  | `enum`                          | 否        | 视频通过 contentUri 访问，仅适用于 Android。        |
+| VideoFormat.dash                    | 属性 | 无                                  | `enum`                          | 是        | HTTP 动态自适应流（MPEG-DASH）。                 |
+| VideoFormat.hls                     | 属性 | 无                                  | `enum`                          | 是        | HTTP 实时流媒体（HLS）。                        |
+| VideoFormat.ss                      | 属性 | 无                                  | `enum`                          | 否        | 平滑流媒体。                                  |
+| VideoFormat.other                   | 属性 | 无                                  | `enum`                          | 否        | 其他格式。                                   |
+| eventType                           | 属性 | 无                                  | `VideoEventType`                | 是        | 事件类型。                                   |
+| duration                            | 属性 | 无                                  | `Duration?`                     | 是        | 视频时长。                                   |
+| size                                | 属性 | 无                                  | `Size?`                         | 是        | 视频大小。                                   |
+| rotationCorrection                  | 属性 | 无                                  | `int?`                          | 是        | 视频顺时针旋转角度，用于确保正确显示。                     |
+| buffered                            | 属性 | 无                                  | `List<DurationRange>?`          | 是        | 视频已缓冲区间。                                |
+| isPlaying                           | 属性 | 无                                  | `bool?`                         | 是        | 当前视频是否正在播放。                             |
+| VideoEventType.initialized          | 属性 | 无                                  | `enum`                          | 是        | 视频初始化完成。                                |
+| VideoEventType.completed            | 属性 | 无                                  | `enum`                          | 是        | 播放结束。                                   |
+| VideoEventType.bufferingUpdate      | 属性 | 无                                  | `enum`                          | 是        | 缓冲状态更新。                                 |
+| VideoEventType.bufferingStart       | 属性 | 无                                  | `enum`                          | 是        | 开始缓冲。                                   |
+| VideoEventType.bufferingEnd         | 属性 | 无                                  | `enum`                          | 是        | 停止缓冲。                                   |
+| VideoEventType.isPlayingStateUpdate | 属性 | 无                                  | `enum`                          | 是        | 视频播放状态变化。                               |
+| VideoEventType.unknown              | 属性 | 无                                  | `enum`                          | 是        | 收到未知事件。                                 |
 
-## New Features
+## 新增特性
 
-- Supports audio track listing and track switching.
-- Supports local playback via OHOS file descriptor path (`fd://`).
+- 支持音轨列表读取与音轨切换能力。
+- 支持 OHOS 文件描述符模式（`fd://`）本地文件播放。
 
-## Known Issues
+## 遗留问题
 
-- Rendering is currently fixed to `Texture`; `platformView` mode is not exposed.
-- Obtain the legacy audio track data of the audio track and the differences (language, codec, bitrate) from other platforms.
-- Currently, resources of the mixed stream and separated stream types are not supported when switching audio tracks.
-- `setMixWithOthers` function still does not reach the system-level focus semantics of Android/iOS and can only provide the interruption mode mapping supported by OHOS AVPlayer.
+- 当前实现固定使用 `Texture` 渲染，未开放 `platformView` 渲染选项。
+- 获取音轨遗留音轨数据与其他平台差异(language、codec、bitrate)。
+- 切换音轨时混合流加分离流类型的资源目前不支持。
+- `setMixWithOthers` 仍未达到 Android/iOS 的系统级焦点语义，只能提供 OHOS AVPlayer 可支持的中断模式映射。
 
-## FAQ
+## 常见问题
 
-- Network video cannot play: verify `ohos.permission.INTERNET` is configured.
-- Local file fails: verify path accessibility, or pass a valid `fd://` source.
-- Playback speed has no effect: ensure the speed value is in the supported list.
+- 网络视频无法播放：检查是否已配置 `ohos.permission.INTERNET`。
+- 本地文件无法播放：确认文件路径可访问，或改用 `fd://` 形式输入。
+- 倍速设置不生效：确认输入倍速属于当前实现支持范围。
+- `formatHint` 使用建议：优先使用 `hls/dash`。`ss` 若播放失败，通常是系统底层协议解析能力或 MIME 映射缺失导致。
 
-## Directory Structure
+## 目录结构
 
 ```text
 video_player_ohos/
-├─ lib/                 # Dart-side implementation and exports
-├─ ohos/                # OpenHarmony native ETS implementation
-├─ pigeons/             # Pigeon message definitions
-├─ example/             # Example project
-├─ test/                # Dart unit tests
-└─ doc/                 # Adaptation notes and feature matrix
+├─ lib/                 # Dart 侧平台实现与导出入口
+├─ ohos/                # OpenHarmony 原生 ETS 实现
+├─ pigeons/             # Pigeon 消息定义
+├─ example/             # 示例工程
+├─ test/                # Dart 单元测试
+└─ doc/                 # 适配说明与能力矩阵
 ```
 
-## Contributing
+## 贡献代码
 
-Contributions are welcome through Issues and Pull Requests:
+欢迎提交 Issue 或 Pull Request 参与共建：
 
 - Issue: <https://gitcode.com/openharmony-tpc/flutter_packages/issues>
 - PR: <https://gitcode.com/openharmony-tpc/flutter_packages/pulls>
 
-## License
+## 开源协议
 
-Licensed under [The BSD-3-Clause License (BSD-3-Clause)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE).
+本项目基于 [The BSD-3-Clause License (BSD-3-Clause)](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/video_player/video_player_ohos/LICENSE) 开源发布。
