@@ -2,15 +2,15 @@
   <h1 align="center"> <code>local_auth</code> </h1>
 </p>
 
-This project is developed based on [local_auth@3.0.1](https://pub.dev/packages/local_auth/versions/3.0.1).
+本项目基于 [local_auth@3.0.1](https://pub.dev/packages/local_auth/versions/3.0.1) 开发。
 
-## Introduction
+## 简介
 
-`local_auth` is a Flutter plugin for local authentication. This OpenHarmony adaptation provides device capability checks, enrolled biometric queries, authentication, cancellation, and custom OHOS-side prompt messages.
+`local_auth` 是一个用于本地身份认证的 Flutter 插件。这个 OpenHarmony 适配实现提供设备能力检测、已注册生物特征查询、身份认证和取消认证能力，并支持自定义 OHOS 侧提示文案。
 
-## Installation
+## 下载安装
 
-Enter the project directory and add the following dependency in `pubspec.yaml`:
+进入工程目录并在 `pubspec.yaml` 中添加以下依赖：
 
 ```yaml
 dependencies:
@@ -18,28 +18,39 @@ dependencies:
     git:
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/local_auth/local_auth
-      ref: br_local_auth-v3.0.1_ohos
+      # ref: local_auth-v3.0.1-ohos-1.0.1
+      ref: TAG  #   请根据下方TAG版本对应表选择TAG
 ```
 
-Execute command:
+执行命令
 
 ```bash
 flutter pub get
 ```
 
-## Constraints and Limitations
+**TAG 版本对应表**
 
-### Compatibility
+| Flutter 框架版本 | TAG1 | TAG2 | 分支 |
+| :--- | :--- | :--- | :--- |
+| 3.41 | `-` | `local_auth-v3.0.1-ohos-1.0.0` | `br_local_auth-v3.0.1_ohos` |
+| 3.35 | `local_auth-v3.0.0-ohos-1.0.0` | `local_auth-v3.0.0-ohos-1.0.1` | `br_local_auth-v3.0.0_ohos` |
+| 3.27 | `local_auth-v2.3.0-ohos-1.0.0` | `local_auth-v2.3.0-ohos-1.0.1` | `br_local_auth-v2.3.0_ohos` |
+| 3.22 | `local_auth-v2.3.0-ohos-1.0.0` | `local_auth-v2.3.0-ohos-1.0.1` | `br_local_auth-v2.3.0_ohos` |
+| 3.7 | `local_auth-v2.1.6-ohos-1.0.0` | `local_auth-v2.1.6-ohos-1.0.1` | `master` |
 
-Verified with the following versions:
+## 约束与限制
+
+### 兼容性
+
+在以下版本中已验证通过：
 
 1. Flutter: 3.41.10-ohos-0.0.1; SDK: 6.1.0(23); IDE: DevEco Studio: 6.1.0.830; ROM: 6.23.0.100 SP6;
 
-### Permission Requirements
+### 权限要求
 
-This plugin requires the `ohos.permission.ACCESS_BIOMETRIC` permission.
+本插件需要申请 `ohos.permission.ACCESS_BIOMETRIC` 权限。
 
-Open `entry/src/main/module.json5` and add the following information:
+打开 `entry/src/main/module.json5`，添加：
 
 ```json
 {
@@ -60,7 +71,7 @@ Open `entry/src/main/module.json5` and add the following information:
 }
 ```
 
-Open `entry/src/main/resources/base/element/string.json` and add the following information:
+打开 `entry/src/main/resources/base/element/string.json`，添加：
 
 ```json
 {
@@ -73,7 +84,7 @@ Open `entry/src/main/resources/base/element/string.json` and add the following i
 }
 ```
 
-## Usage Example
+## 使用示例
 
 ```dart
 import 'package:flutter/material.dart';
@@ -102,11 +113,11 @@ class LocalAuthDemoPage extends StatefulWidget {
 
 class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
   final LocalAuthPlatform _localAuth = LocalAuthPlatform.instance;
-  String _status = 'Not authenticated';
+  String _status = '未认证';
 
   Future<void> _authenticate() async {
     final bool authenticated = await _localAuth.authenticate(
-      localizedReason: 'Please complete identity verification',
+      localizedReason: '请完成身份验证',
       authMessages: <AuthMessages>[
         const OhosAuthMessages(),
       ],
@@ -118,7 +129,7 @@ class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
     );
 
     setState(() {
-      _status = authenticated ? 'Authenticated' : 'Authentication failed';
+      _status = authenticated ? '认证成功' : '认证失败';
     });
   }
 
@@ -129,7 +140,7 @@ class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('local_auth example')),
+      appBar: AppBar(title: const Text('local_auth 示例')),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -137,11 +148,11 @@ class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
             Text(_status),
             ElevatedButton(
               onPressed: _authenticate,
-              child: const Text('Authenticate'),
+              child: const Text('开始认证'),
             ),
             ElevatedButton(
               onPressed: _cancelAuthentication,
-              child: const Text('Cancel authentication'),
+              child: const Text('取消认证'),
             ),
           ],
         ),
@@ -151,58 +162,58 @@ class _LocalAuthDemoPageState extends State<LocalAuthDemoPage> {
 }
 ```
 
-## Usage Notes
+## 使用说明
 
-`deviceSupportsBiometrics()` checks whether the device has biometric hardware; `isDeviceSupported()` checks whether local authentication is available; `getEnrolledBiometrics()` returns the biometric types enrolled on the device.
+`deviceSupportsBiometrics()` 用于检查设备是否具备生物识别硬件；`isDeviceSupported()` 用于检查设备是否支持本地认证流程；`getEnrolledBiometrics()` 用于获取设备上已注册的生物识别类型。
 
-`authenticate()` requires a non-empty `localizedReason`, and `OhosAuthMessages()` is recommended. Set `AuthenticationOptions.biometricOnly` to `true` when you want biometrics only; set `stickyAuth` to `true` when you want the authentication state to survive app backgrounding.
+`authenticate()` 需要传入非空的 `localizedReason`，建议同时传入 `OhosAuthMessages()`。当需要仅使用生物识别时，可以将 `AuthenticationOptions.biometricOnly` 设为 `true`；如需在应用切到后台后继续保持认证状态，可以将 `stickyAuth` 设为 `true`。
 
-`stopAuthentication()` cancels the authentication flow in progress.
+`stopAuthentication()` 可用于取消当前正在进行的认证。
 
-> `getEnrolledBiometrics()` currently returns only `face` and `fingerprint` on OHOS. `PIN` is an authentication mode configuration and is not returned as a biometric type.
+> `getEnrolledBiometrics()` 在 OHOS 端当前仅返回 `face` 和 `fingerprint`。`PIN` 属于认证方式配置，不会作为生物识别类型返回。
 
-If you need to customize OHOS dialog strings, use `OhosAuthMessages`. The `authType` field can be set to `FACE`, `FINGERPRINT`, or `PIN`. The other fields customize hints, button labels, and settings guidance text.
+如需自定义 OHOS 侧弹窗文案，可以使用 `OhosAuthMessages`，其中 `authType` 可取 `FACE`、`FINGERPRINT` 或 `PIN`。其他字段用于自定义提示语、按钮文案和设置引导文案。
 
-## API Reference
+## 接口说明
 
-### API
+## API
 
-> [!TIP] If the value in the **OHOS Platform Support** column is **yes**, it means that the OHOS platform supports this API or property; **no** means it is not supported; The usage is consistent across platforms, and the behavior matches iOS or Android.
+> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性，no 则表示不支持。使用方法跨平台一致，效果对标 IOS 或 Android 的效果。
 
-| Name                     | Type     | Parameter Type | Return Value                | OHOS Platform Support | Description                                      |
-| ------------------------ | -------- | -------------- | --------------------------- | --------------------- | ------------------------------------------------ |
-| deviceSupportsBiometrics | function | None           | Future<bool>                | yes                   | Check whether biometric hardware is supported    |
-| isDeviceSupported        | function | None           | Future<bool>                | yes                   | Check whether local authentication is supported  |
-| getEnrolledBiometrics    | function | None           | Future<List<BiometricType>> | yes                   | Get the biometrics enrolled on the device        |
-| authenticate             | function | None           | Future<bool>                | yes                   | Perform authentication                            |
-| stopAuthentication       | function | None           | Future<bool>                | yes                   | Cancel the current authentication                 |
+| 名称                     | 类型     | 参数类型 | 返回值                      | OHOS 平台支持 | 描述                    |
+| ------------------------ | -------- | -------- | --------------------------- | ------------- | ----------------------- |
+| deviceSupportsBiometrics | 方法 | 无       | Future<bool>                | yes           | 检查是否支持生物识别硬件 |
+| isDeviceSupported        | 方法 | 无       | Future<bool>                | yes           | 检查是否支持本地认证     |
+| getEnrolledBiometrics    | 方法 | 无       | Future<List<BiometricType>> | yes           | 获取设备上已注册的生物识别类型 |
+| authenticate             | 方法 | 无       | Future<bool>                | yes           | 执行身份验证             |
+| stopAuthentication       | 方法 | 无       | Future<bool>                | yes           | 取消当前认证             |
 
 ### BiometricType
 
-| Name        | Type  | Parameter Type | Return Value | OHOS Platform Support | Description         |
-| ----------- | ----- | -------------- | ------------ | --------------------- | ------------------- |
-| face        | property | enum           | None         | yes                   | Face recognition    |
-| fingerprint | property | enum           | None         | yes                   | Fingerprint recognition |
-| weak        | property | enum           | None         | yes                   | Weak biometric      |
-| strong      | property | enum           | None         | yes                   | Strong biometric    |
+| 名称        | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述     |
+| ----------- | ---- | -------- | ------ | ------------- | -------- |
+| face        | 属性 | enum       | 无     | yes           | 面容识别 |
+| fingerprint | 属性 | enum       | 无     | yes           | 指纹识别 |
+| weak        | 属性 | enum       | 无     | yes           | 弱生物识别 |
+| strong      | 属性 | enum       | 无     | yes           | 强生物识别 |
 
 ### AuthenticationOptions
 
-| Name            | Type      | Parameter Type | Return Value | OHOS Platform Support | Description                                           |
-| --------------- | --------- | -------------- | ------------ | --------------------- | ----------------------------------------------------- |
-| biometricOnly   | property  | bool           | None         | yes                   | Whether to use biometrics only                        |
-| useErrorDialogs | property  | bool           | None         | yes                   | Whether to use the default error dialog boxes         |
-| stickyAuth      | property  | bool           | None         | yes                   | Whether to maintain the auth state after the app is backgrounded |
+| 名称            | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述                         |
+| --------------- | ---- | -------- | ------ | ------------- | ---------------------------- |
+| biometricOnly   | 属性 | bool       | 无     | yes           | 是否仅使用生物识别           |
+| useErrorDialogs | 属性 | bool       | 无     | yes           | 是否使用默认错误提示对话框   |
+| stickyAuth      | 属性 | bool       | 无     | yes           | 应用退后台后是否维持认证状态 |
 
-## Known Issues
+## 遗留问题
 
-None
+无
 
-## Others
+## 其他
 
-None
+无
 
-## Directory Structure
+## 目录结构
 
 ```text
 local_auth_ohos/
@@ -224,10 +235,10 @@ local_auth_ohos/
 └─ pubspec.yaml
 ```
 
-## Contributing
+## 贡献代码
 
-Contributions, bug reports, and improvement suggestions are welcome through the GitCode repository. Before submitting code, please make sure the change does not alter the behavior of the public APIs above and keeps the Chinese and English documentation in sync.
+欢迎通过 GitCode 仓库提交问题反馈或改进建议。提交代码前，请先确认改动不会改变上述公开 API 的行为，并保持中文、英文文档内容一致。
 
-## License
+## 开源协议
 
-This project is licensed under [BSD 3-Clause License](LICENSE).
+本项目基于 [BSD 3-Clause License](LICENSE) 开源。
