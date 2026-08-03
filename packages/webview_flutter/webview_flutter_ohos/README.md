@@ -39,7 +39,7 @@ flutter pub get
 
 | Flutter 框架版本 | TAG1 | TAG2 | 分支 |
 | :--- | :--- | :--- | :--- |
-| 3.41 | `-` | `webview_flutter-v4.13.1-ohos-1.0.0` | `br_webview_flutter-v4.13.1_ohos` |
+| 3.41 | `-` | `webview_flutter-v4.13.1-ohos-1.0.1` | `br_webview_flutter-v4.13.1_ohos` |
 | 3.35 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
 | 3.27 | `webview_flutter-v4.13.0-ohos-1.0.0` | `webview_flutter-v4.13.0-ohos-1.0.1` | `br_webview_flutter-v4.13.0_ohos` |
 | 3.22 | `webview_flutter-v4.8.0-ohos-1.0.0` | `webview_flutter-v4.8.0-ohos-1.0.1` | `br_webview_flutter-v4.8.0_ohos` |
