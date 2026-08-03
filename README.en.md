@@ -145,8 +145,8 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td>3.22</td>
 <td><a href="https://pub.dev/packages/pigeon/versions/21.2.0">21.2.0</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/pigeon-v21.2.0/packages/pigeon">pigeon-v21.2.0</a></td>
-<td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/pigeon-v21.2.0/packages/pigeon">pigeon-v21.2.0</a></td>
-<td></td><td></td>
+<td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/pigeon-v21.2.0_dev/packages/pigeon">pigeon-v21.2.0_dev</a></td>
+<td>-</td><td>-</td>
 <td>Adapted</td>
 </tr>
 <tr>
@@ -172,7 +172,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/pigeon/versions/26.3.4">26.3.4</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_pigeon-v26.3.4_ohos/packages/pigeon">br_pigeon-v26.3.4_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_pigeon-v26.3.4_ohos_dev/packages/pigeon">br_pigeon-v26.3.4_ohos_dev</a></td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/pigeon-v26.3.4-ohos-1.0.0/packages/pigeon">pigeon-v26.3.4-ohos-1.0.0</a></td>
 <td>Adapted</td>
 </tr>
@@ -275,20 +275,20 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td rowspan="4">4</td>
 <td rowspan="4">animations</td>
 <td>3.7</td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/animations">master</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/dev/packages/animations">dev</a></td>
-<td></td>
-<td></td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td>3.22</td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/animations">master</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/dev/packages/animations">dev</a></td>
-<td></td>
-<td></td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
@@ -296,8 +296,8 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/animations/versions/2.0.11">2.0.11</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_animations-v2.0.11_ohos/packages/animations">br_animations-v2.0.11_ohos</a></td>
 <td>-</td>
-<td></td>
-<td></td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
@@ -305,8 +305,8 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/animations/versions/2.0.11">2.0.11</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_animations-v2.0.11_ohos/packages/animations">br_animations-v2.0.11_ohos</a></td>
 <td>-</td>
-<td></td>
-<td></td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
@@ -418,7 +418,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td>3.22</td>
 <td><a href="https://pub.dev/packages/path_provider/versions/2.1.4">2.1.4</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_path_provider-v2.1.4_ohos/packages/path_provider/path_provider">br_path_provider-v2.1.4_ohos</a></td>
-<td>-</td>
+<td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_path_provider-v2.1.4_ohos_dev/packages/path_provider/path_provider">br_path_provider-v2.1.4_ohos_dev</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/provider-v2.1.4_ohos-1.0.0/packages/path_provider/path_provider">provider-v2.1.4_ohos-1.0.0</a></td><td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/provider-v2.1.4_ohos-1.0.1/packages/path_provider/path_provider">provider-v2.1.4_ohos-1.0.1</a></td>
 <td>Adapted</td>
 </tr>
@@ -492,7 +492,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/local_auth/versions/3.0.1">3.0.1</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_local_auth-v3.0.1_ohos/packages/local_auth/local_auth">br_local_auth-v3.0.1_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_local_auth-v3.0.1_ohos_dev/packages/local_auth/local_auth">br_local_auth-v3.0.1_ohos_dev</a></td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/local_auth-v3.0.1-ohos-1.0.0/packages/local_auth/local_auth">local_auth-v3.0.1-ohos-1.0.0</a></td>
 <td>Adapted</td>
 </tr>
@@ -540,7 +540,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/camera/versions/0.12.0%2B1">0.12.0+1</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_camera-v0.12.0_1_ohos/packages/camera/camera">br_camera-v0.12.0_1_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_camera-v0.12.0+1_ohos_dev/packages/camera/camera">br_camera-v0.12.0+1_ohos_dev</a></td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/camera-v0.12.0_1-ohos-1.0.0/packages/camera/camera">camera-v0.12.0_1-ohos-1.0.0</a></td>
 <td>Adapted</td>
 </tr>
@@ -588,7 +588,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/video_player/versions/2.11.1">2.11.1</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_video_player-v2.11.1_ohos/packages/video_player/video_player">br_video_player-v2.11.1_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_video_player-v2.11.1_ohos_dev/packages/video_player/video_player">br_video_player-v2.11.1_ohos_dev</a></td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/video_player-v2.11.1-ohos-1.0.0/packages/video_player/video_player">video_player-v2.11.1-ohos-1.0.0</a></td>
 <td>Adapted</td>
 </tr>
@@ -636,7 +636,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://pub.dev/packages/webview_flutter/versions/4.13.1">4.13.1</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter">br_webview_flutter-v4.13.1_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_webview_flutter-v4.13.1_ohos_dev/packages/webview_flutter/webview_flutter">br_webview_flutter-v4.13.1_ohos_dev</a></td>
-<td></td>
+<td>-</td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/webview_flutter-v4.13.1-ohos-1.0.0/packages/webview_flutter/webview_flutter">webview_flutter-v4.13.1-ohos-1.0.0</a></td>
 <td>Adapted</td>
 </tr>
@@ -644,11 +644,11 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <tr>
 <td rowspan="1">12</td>
 <td rowspan="1">webview_flutter-v4.4.4</td>
-<td></td>
+<td>-</td>
 <td><a href="https://pub.dev/packages/webview_flutter-v4.4.4/versions/4.4.4">4.4.4</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/webview_flutter-v4.4.4">master</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/dev/packages/webview_flutter-v4.4.4">dev</a></td>
-<td></td><td></td>
+<td>-</td><td>-</td>
 <td>Adapted</td>
 </tr>
 <tr>
@@ -702,170 +702,187 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td rowspan="1">14</td>
 <td rowspan="1">css_colors</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">15</td>
 <td rowspan="1">flutter_adaptive_scaffold</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">16</td>
 <td rowspan="1">flutter_image</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">17</td>
 <td rowspan="1">flutter_lints</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">18</td>
 <td rowspan="1">flutter_markdown</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">19</td>
 <td rowspan="1">flutter_migrate</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">20</td>
 <td rowspan="1">go_router</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">21</td>
 <td rowspan="1">go_router_builder</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">22</td>
 <td rowspan="1">metrics_center</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">23</td>
 <td rowspan="1">multicast_dns</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">24</td>
 <td rowspan="1">palette_generator</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">25</td>
 <td rowspan="1">pointer_interceptor</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">26</td>
 <td rowspan="1">rfw</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">27</td>
 <td rowspan="1">standard_message_codec</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">28</td>
 <td rowspan="1">two_dimensional_scrollables</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">29</td>
 <td rowspan="1">web_benchmarks</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
 <td rowspan="1">30</td>
 <td rowspan="1">xdg_directories</td>
 <td>-</td>
-<td></td>
 <td>-</td>
 <td>-</td>
-<td></td>
+<td>-</td>
+<td>-</td>
+<td>-</td>
 <td>-</td>
 </tr>
 </table>
