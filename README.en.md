@@ -637,7 +637,7 @@ Reference examples: https://gitcode.com/openharmony-tpc/flutter_samples/tree/mas
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter">br_webview_flutter-v4.13.1_ohos</a></td>
 <td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/br_webview_flutter-v4.13.1_ohos_dev/packages/webview_flutter/webview_flutter">br_webview_flutter-v4.13.1_ohos_dev</a></td>
 <td>-</td>
-<td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/webview_flutter-v4.13.1-ohos-1.0.0/packages/webview_flutter/webview_flutter">webview_flutter-v4.13.1-ohos-1.0.0</a></td>
+<td><a href="https://gitcode.com/CPF-Flutter/flutter_packages/tree/webview_flutter-v4.13.1-ohos-1.0.1/packages/webview_flutter/webview_flutter">webview_flutter-v4.13.1-ohos-1.0.1</a></td>
 <td>Adapted</td>
 </tr>
 
