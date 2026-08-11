@@ -393,22 +393,22 @@ class OhosCamera extends CameraPlatform {
 
   @override
   Future<double> getMinExposureOffset(int cameraId) async {
-    final double? minExposureOffset = await _channel.invokeMethod<double>(
+    final dynamic minExposureOffset = await _channel.invokeMethod<dynamic>(
       'getMinExposureOffset',
       <String, dynamic>{'cameraId': cameraId},
     );
-
-    return minExposureOffset!;
+    double result = minExposureOffset * 1.0;
+    return result;
   }
 
   @override
   Future<double> getMaxExposureOffset(int cameraId) async {
-    final double? maxExposureOffset = await _channel.invokeMethod<double>(
+    final dynamic maxExposureOffset = await _channel.invokeMethod<dynamic>(
       'getMaxExposureOffset',
       <String, dynamic>{'cameraId': cameraId},
     );
-
-    return maxExposureOffset!;
+    double result = maxExposureOffset * 1.0;
+    return result;
   }
 
   @override

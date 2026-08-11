@@ -446,7 +446,8 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         cameraProperties,
         resolutionPreset,
         enableAudio,
-        this.cameraPermissions);
+        this.cameraPermissions,
+        this.textureRegistry);
 
     const reply: HashMap<String, Object> = new HashMap();
     reply.set('cameraId', this.textureId);
