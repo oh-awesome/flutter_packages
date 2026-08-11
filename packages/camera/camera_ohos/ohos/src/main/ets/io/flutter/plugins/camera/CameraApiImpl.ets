@@ -814,7 +814,9 @@ export class CameraApiImpl extends CameraApi {
         cameraProperties,
         resolutionPreset,
         enableAudio,
-        this.cameraPermissions);
+        this.cameraPermissions,
+        this.textureRegistry
+      );
 
     const reply: HashMap<String, Object> = new HashMap();
     reply.set('cameraId', this.textureId);

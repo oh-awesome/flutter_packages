@@ -8,6 +8,7 @@ import { CameraProperties } from '../CameraProperties';
 import { CameraFeatureFactory } from './CameraFeatureFactory';
 import Ability from '@ohos.app.ability.Ability';
 import { DartMessenger } from '../DartMessenger';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import { ResolutionPreset } from './resolution/ResolutionPreset';
 import { HashMap } from '@kit.ArkTS';
 import { CameraFeature } from './CameraFeature';
@@ -46,6 +47,7 @@ export class CameraFeatures {
     resolutionPreset: ResolutionPreset
   ): CameraFeatures {
     const cameraFeatures: CameraFeatures = new CameraFeatures();
+    const binaryMessenger: BinaryMessenger = dartMessenger.getBinaryMessenger();
     cameraFeatures.setAutoFocus(
       cameraFeatureFactory.createAutoFocusFeature(cameraProperties, false));
     cameraFeatures.setExposureLock(
@@ -54,7 +56,7 @@ export class CameraFeatures {
       cameraFeatureFactory.createExposureOffsetFeature(cameraProperties));
     let sensorOrientationFeature: SensorOrientationFeature =
       cameraFeatureFactory.createSensorOrientationFeature(
-        cameraProperties, ability, dartMessenger);
+        cameraProperties, ability, binaryMessenger);
     cameraFeatures.setSensorOrientation(sensorOrientationFeature);
     cameraFeatures.setExposurePoint(
       cameraFeatureFactory.createExposurePointFeature(

@@ -15,7 +15,7 @@ import { FpsRangeFeature } from './fpsrange/FpsRangeFeature';
 import { ResolutionFeature } from './resolution/ResolutionFeature';
 import { ResolutionPreset } from './resolution/ResolutionPreset';
 import { SensorOrientationFeature } from './sensororientation/SensorOrientationFeature';
-import { DartMessenger } from '../DartMessenger';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import { ZoomLevelFeature } from './zoomlevel/ZoomLevelFeature';
 import { ExposurePointFeature } from './exposurepoint/ExposurePointFeature';
 import { NoiseReductionFeature } from './noisereduction/NoiseReductionFeature';
@@ -104,7 +104,7 @@ export interface CameraFeatureFactory {
    * @param cameraProperties instance of the CameraProperties class containing information 
    *     about the cameras features.
    * @param activity current activity associated with the camera plugin.
-   * @param dartMessenger instance of the DartMessenger class, used to send state updates back to
+   * @param binaryMessenger instance of the BinaryMessenger class, used to send state updates back to
    *     Dart.
    * @return newly created instance of the SensorOrientationFeature class.
    */
@@ -112,7 +112,7 @@ export interface CameraFeatureFactory {
   createSensorOrientationFeature(
     cameraProperties: CameraProperties,
     ability: Ability,
-    dartMessenger: DartMessenger): SensorOrientationFeature;
+    binaryMessenger: BinaryMessenger): SensorOrientationFeature;
 
   /**
    * Creates a new instance of the zoom level feature.
