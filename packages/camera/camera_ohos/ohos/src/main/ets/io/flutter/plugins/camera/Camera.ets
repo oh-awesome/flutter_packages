@@ -11,7 +11,7 @@ import UIAbility from '@ohos.app.ability.UIAbility';
 import camera from '@ohos.multimedia.camera';
 import image from '@ohos.multimedia.image';
 import { buffer, HashMap, List } from '@kit.ArkTS';
-import { EventChannel, Log } from '@ohos/flutter_ohos';
+import { EventChannel, Log, TextureRegistry } from '@ohos/flutter_ohos';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { SurfaceTextureEntry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
 import { CameraFeatureFactory } from './features/CameraFeatureFactory';
@@ -73,6 +73,7 @@ export class Camera implements CameraCaptureStateListener {
   private resolutionPreset: ResolutionPreset;
   private enableAudio: boolean;
   private applicationContext: Context;
+  private textureRegistry: TextureRegistry | null = null;
   dartMessenger: DartMessenger;
   private cameraProperties: CameraProperties;
   private cameraFeatureFactory: CameraFeatureFactory;
@@ -119,14 +120,18 @@ export class Camera implements CameraCaptureStateListener {
   private permissions: CameraPermissions;
   private photoRotation: camera.ImageRotation | undefined;
   private nowZoom: number = 1;
-  private imageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
-  private displayChangeCallback: ((_displayId: number) => void) | null = null;
-  private lastDisplayRotation: number = -1;
-  private foldStatusChangeCallback: ((foldStatus: display.FoldStatus) => void) | null = null;
-  private isClosed: boolean = false;
+  private imageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;  
   private targetVideoBitrate: number | null = null;
   private targetAudioBitrate: number | null = null;
   private heifEncodingSupported: boolean | null = null;
+  private displayChangeCallback: ((_displayId: number) => void) | null = null;
+  private lastDisplayRotation: number = -1;
+  private foldStatusChangeCallback: ((foldStatus: display.FoldStatus) => void) | null = null;
+  private autoDeviceSwitchCallback: ((err: BusinessError, status: camera.AutoDeviceSwitchStatus) => void) | null = null;
+  private autoDeviceSwitchSession: camera.PhotoSession | camera.VideoSession | null = null;
+  public onAutoSwitchToRearCamera: (() => void) | null = null;
+  private lastDeviceDegree: number = -1;
+  private isClosed: boolean = false;
 
   constructor(
     ability: UIAbility,
@@ -137,6 +142,7 @@ export class Camera implements CameraCaptureStateListener {
     resolutionPreset: ResolutionPreset,
     enableAudio: boolean,
     permissions: CameraPermissions,
+    textureRegistry?: TextureRegistry,
   ) {
     if (ability == null) {
       throw new Error('No Ability available!');
@@ -151,6 +157,7 @@ export class Camera implements CameraCaptureStateListener {
     this.cameraProperties = cameraProperties;
     this.cameraFeatureFactory = cameraFeatureFactory;
     this.resolutionPreset = resolutionPreset;
+    this.textureRegistry = textureRegistry || null;
     this.cameraFeatures =
       CameraFeatures.init(
         cameraFeatureFactory, cameraProperties, ability, dartMessenger, resolutionPreset);
@@ -216,7 +223,8 @@ export class Camera implements CameraCaptureStateListener {
       if (!this.recordingVideo) {
         this.sendCameraInitializedEvent(resolutionFeature);
       }
-    }catch (err) {
+      this.registerFoldStatusChangeListener();
+    } catch (err) {
       await this.close();
       let errorDescription: string;
       switch (err.code) {
@@ -592,11 +600,12 @@ export class Camera implements CameraCaptureStateListener {
       this.photoRotation = this.photoOutPut?.getPhotoRotation(deviceDegree);
     }
 
+    const enableMirror = this.isFrontCamera() && (this.photoOutPut?.isMirrorSupported() ?? false);
     let settings: camera.PhotoCaptureSetting = {
       quality: camera.QualityLevel.QUALITY_LEVEL_HIGH,
       rotation: this.photoRotation,
       location: captureLocation,
-      mirror: false,
+      mirror: enableMirror,
     };
 
     this.cameraCaptureCallback.setCameraState(CameraState.STATE_CAPTURING);
@@ -614,32 +623,109 @@ export class Camera implements CameraCaptureStateListener {
     });
   }
 
-  getDeviceDegree(): Promise<number> {
-    return new Promise<number>((resolve) => {
+  private isFrontCamera(): boolean {
+    return this.cameraDevice?.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT;
+  }
+
+  private async enableVideoMirrorIfNeeded(): Promise<void> {
+    const isFront = this.isFrontCamera();
+    const mirrorSupported = this.videoOutput?.isMirrorSupported() ?? false;
+    Log.d(TAG, `enableVideoMirrorIfNeeded: isFrontCamera=${isFront}, isMirrorSupported=${mirrorSupported}`);
+    if (!isFront || !mirrorSupported) {
+      return;
+    }
+    this.videoOutput!.enableMirror(true);
+    if (this.avRecorder != null && this.avRecorder.state === 'prepared') {
       try {
-        sensor.getSingleSensor(sensor.SensorId.GRAVITY).then((data: sensor.Sensor) => {
-          sensor.once(sensor.SensorId.GRAVITY, (data: sensor.GravityResponse) => {
-            let x: number = data.x;
-            let y: number = data.y;
-            let z: number = data.z;
-            let deviceDegree: number;
-            if ((x * x + y * y) * 3 < z * z) {
-              deviceDegree = -1;
-            } else {
-              let sd: Decimal = Decimal.atan2(y, -x);
-              let sc: Decimal = Decimal.round(Number(sd) / 3.141592653589 * 180)
-              deviceDegree = 90 - Number(sc);
-              deviceDegree = deviceDegree >= 0 ? deviceDegree% 360 : deviceDegree% 360 + 360;
-            }
-            resolve(deviceDegree);
-          });
-        });
+        const deviceDegree = await this.getDeviceDegree();
+        const videoRotation = this.videoOutput!.getVideoRotation(deviceDegree);
+        await this.avRecorder.updateRotation(videoRotation);
+      } catch (e) {
+        Log.d(TAG, 'enableVideoMirrorIfNeeded updateRotation error: ' + e.toString());
+      }
+    }
+  }
+
+  private getRealSensorData(data: sensor.GravityResponse): number {
+    let x = data.x;
+    let y = data.y;
+    let z = data.z;
+    if ((x * x + y * y) * 3 < z * z) {
+      return this.lastDeviceDegree;
+    } else {
+      try {
+        let sd: Decimal = Decimal.atan2(y, -x);
+        let sc: Decimal = Decimal.round(Number(sd) / 3.141592653589 * 180);
+        this.lastDeviceDegree = 90 - Number(sc);
+        this.lastDeviceDegree = this.lastDeviceDegree >= 0
+          ? this.lastDeviceDegree % 360 : this.lastDeviceDegree % 360 + 360;
       } catch (error) {
         let err = error as BusinessError;
-        Log.e(TAG, "Failed to register gravity sensor: " + err.message);
-        resolve(-1); // 异常时返回默认值
+        console.error(TAG + ' Decimal failed, error: ' + err.code);
+      }
+    }
+    return this.lastDeviceDegree;
+  }
+
+  async getDeviceDegree(): Promise<number> {
+    let sensorList: sensor.Sensor[];
+    try {
+      sensorList = await sensor.getSensorList();
+    } catch (error) {
+      let err = error as BusinessError;
+      Log.e(TAG, "getSensorList failed, error: " + err.code);
+      return -1;
+    }
+
+    let isGravitySupported: boolean = false;
+    for (let i = 0; i < sensorList.length; i++) {
+      if (sensorList[i].sensorId === sensor.SensorId.GRAVITY) {
+        isGravitySupported = true;
+        break;
+      }
+    }
+
+    const SENSOR_TIMEOUT_MS = 3000;
+    const sensorName = isGravitySupported ? 'GRAVITY' : 'ACCELEROMETER';
+    const sensorPromise = new Promise<number>((resolve) => {
+      if (isGravitySupported) {
+        sensor.once(sensor.SensorId.GRAVITY, (data: sensor.GravityResponse) => {
+          resolve(this.getRealSensorData(data));
+        });
+      } else {
+        sensor.once(sensor.SensorId.ACCELEROMETER, (data: sensor.AccelerometerResponse) => {
+          resolve(this.getRealSensorData(data as sensor.GravityResponse));
+        });
       }
     });
+
+    let timerId: number = -1;
+    const timeoutPromise = new Promise<number>((resolve) => {
+      timerId = setTimeout(() => {
+        Log.w(TAG, `Sensor(${sensorName}) timed out, using lastDeviceDegree: ${this.lastDeviceDegree}`);
+        resolve(this.lastDeviceDegree);
+      }, SENSOR_TIMEOUT_MS);
+    });
+
+    const result = await Promise.race([sensorPromise, timeoutPromise]);
+    clearTimeout(timerId);
+    return result;
+  }
+
+  private async updateVideoRotation(): Promise<void> {
+    if (!this.videoOutput || !this.avRecorder) {
+      return;
+    }
+    try {
+      const deviceDegree = await this.getDeviceDegree();
+      const videoRotation = this.videoOutput.getVideoRotation(deviceDegree);
+      Log.d(TAG, 'video rotation is: ' + videoRotation);
+      if (this.avRecorder.state === 'prepared') {
+        await this.avRecorder.updateRotation(videoRotation);
+      }
+    } catch (e) {
+      Log.e(TAG, 'updateVideoRotation error: ' + e.toString());
+    }
   }
 
   unlockAutoFocus(): void {
@@ -728,8 +814,6 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startPreview() {
-
-    
     if (this.recordingVideo) {
       await this.startPreviewWithVideo();
     } else {
@@ -763,7 +847,14 @@ export class Camera implements CameraCaptureStateListener {
     this.videoSession?.addOutput(this.previewOutput);
     this.videoSession?.addOutput(this.videoOutput);
     await this.videoSession?.commitConfig();
+
+    this.updatePreviewRotation();
+    this.registerDisplayChangeListener();
+    await this.enableVideoMirrorIfNeeded();
+    await this.updateVideoRotation();
     await this.videoSession?.start();
+    this.enableAutoDeviceSwitch(this.videoSession!);
+    this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
 
     await this.applyFlashMode(this.videoSession!);
 
@@ -779,21 +870,20 @@ export class Camera implements CameraCaptureStateListener {
 
   // 开启拍照预览
   async startPreviewWithPhoto() {
-
     try {
       // 验证前置条件
       if (!this.cameraDevice) {
         throw new Error('相机设备未初始化');
       }
-      
+
       if (!this.cameraInput) {
         throw new Error('相机输入未初始化');
       }
-      
+
       if (!this.flutterTexture) {
         throw new Error('Flutter纹理未初始化');
       }
-      
+
       this.cameraOutputCapability =
         CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager);
 
@@ -813,11 +903,11 @@ export class Camera implements CameraCaptureStateListener {
       
       // 验证 Surface ID
       const surfaceId = this.flutterTexture.getSurfaceId();
-      
+
       if (surfaceId <= 0) {
         throw new Error(`无效的Flutter纹理Surface ID: ${surfaceId}`);
       }
-      
+
       const surfaceIdString = surfaceId.toString();
 
       let previewSize: camera.Size = this.cameraOutputCapability.previewProfiles[previewProfileIndex].size;
@@ -838,31 +928,26 @@ export class Camera implements CameraCaptureStateListener {
         this.mediaLibRequestBuffer(photoAsset);
       });
 
+    this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
+    this.photoSession.beginConfig();
+    this.photoSession.addInput(this.cameraInput);
+    this.photoSession.addOutput(this.previewOutput);
+    this.photoSession.addOutput(this.photoOutPut);
+    await this.photoSession.commitConfig();
 
-      this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
+    this.updatePreviewRotation();
+    this.registerDisplayChangeListener();
+    this.getCurSession().setZoomRatio(this.nowZoom);
+    await this.photoSession.start();
+    this.enableAutoDeviceSwitch(this.photoSession);
+    await this.applyFlashMode(this.photoSession);
 
-      this.photoSession.beginConfig();
-      
-
-      this.photoSession.addInput(this.cameraInput);
-      this.photoSession.addOutput(this.previewOutput);
-      this.photoSession.addOutput(this.photoOutPut);
-      
-
-      await this.photoSession.commitConfig();
-      this.getCurSession().setZoomRatio(this.nowZoom);
-      await this.photoSession.start();
-      
-      await this.applyFlashMode(this.photoSession);
-   
-      if (this.pausedPreview) {
-
-        await this.previewOutput.stop();
-      }
-      
-    } catch (error) {
-      
+    if (this.pausedPreview) {
+      await this.previewOutput.stop();
+    }
+  } catch (error) {
       // 清理资源
+      this.unregisterDisplayChangeListener();
       try {
         if (this.photoSession) {
           await this.photoSession.stop();
@@ -1084,7 +1169,10 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addOutput(this.previewOutput2);
     this.photoSession.addOutput(this.photoOutPut);
     await this.photoSession.commitConfig();
+    this.updatePreviewRotation();
+    this.registerDisplayChangeListener();
     await this.photoSession.start();
+    this.enableAutoDeviceSwitch(this.photoSession);
   }
 
   async prepareMediaRecorder(cameraManager: camera.CameraManager,
@@ -1147,8 +1235,14 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.videoSession?.addOutput(this.videoOutput);
           await this.videoSession?.commitConfig();
+          this.updatePreviewRotation();
+          this.registerDisplayChangeListener();
           this.getCurSession().setZoomRatio(this.nowZoom);
+          await this.enableVideoMirrorIfNeeded();
+          await this.updateVideoRotation();
           await this.videoSession?.start();
+          this.enableAutoDeviceSwitch(this.videoSession!);
+          this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
 
           await this.applyFlashMode(this.videoSession!);
 
@@ -1225,6 +1319,176 @@ export class Camera implements CameraCaptureStateListener {
     this.imageStreamReader.subscribeListener(this.captureProps, imageStreamSink);
   }
 
+  private getCurrentPreviewRotation(): camera.ImageRotation {
+    try {
+      const displayRotation = display.getDefaultDisplaySync().rotation * camera.ImageRotation.ROTATION_90;
+      return this.previewOutput!.getPreviewRotation(displayRotation);
+    } catch (e) {
+      Log.w(TAG, "Failed to get current preview rotation: " + e.message);
+      return camera.ImageRotation.ROTATION_0;
+    }
+  }
+
+  private setTextureBufferSize(width: number, height: number): void {
+    if (this.textureRegistry != null) {
+      const textureId = this.flutterTexture.getTextureId();
+      try {
+        this.textureRegistry.setTextureBufferSize(textureId, width, height);
+        Log.d(TAG, `setTextureBufferSize: textureId=${textureId}, size=${width}x${height}`);
+      } catch (e) {
+        Log.e(TAG, "Failed to set texture buffer size: " + e.message);
+      }
+    } else {
+      Log.w(TAG, "Cannot set texture buffer size: textureRegistry is null");
+    }
+  }
+
+  private updatePreviewRotation(): void {
+    if (this.previewOutput == null) {
+      Log.w(TAG, "updatePreviewRotation: previewOutput is null");
+      return;
+    }
+    try {
+      let previewRotation = this.getCurrentPreviewRotation();
+      const previewSize = this.cameraFeatures.getResolution().getPreviewSize();
+      const needSwap = (previewRotation === camera.ImageRotation.ROTATION_90 ||
+        previewRotation === camera.ImageRotation.ROTATION_270);
+      const bufferWidth = needSwap ? previewSize.height : previewSize.width;
+      const bufferHeight = needSwap ? previewSize.width : previewSize.height;
+      this.setTextureBufferSize(bufferWidth, bufferHeight);
+      this.previewOutput.setPreviewRotation(previewRotation, false);
+
+      Log.d(TAG, `Preview rotation updated: previewRotation=${previewRotation}, bufferSize=${bufferWidth}x${bufferHeight}, cameraProfileSize=${previewSize.width}x${previewSize.height}`);
+    } catch (error) {
+      Log.e(TAG, "Failed to update preview rotation: " + error.message);
+    }
+  }
+
+  private registerDisplayChangeListener(): void {
+    this.unregisterDisplayChangeListener();
+
+    try {
+      this.lastDisplayRotation = display.getDefaultDisplaySync().rotation;
+      this.displayChangeCallback = (_displayId: number) => {
+        const rotation = display.getDefaultDisplaySync().rotation;
+        if (rotation !== this.lastDisplayRotation) {
+          this.lastDisplayRotation = rotation;
+          this.updatePreviewRotation();
+        }
+      };
+      display.on('change', this.displayChangeCallback);
+      Log.d(TAG, "Display change listener registered");
+    } catch (error) {
+      Log.e(TAG, "Failed to register display change listener: " + error.message);
+    }
+  }
+
+  private isTriFoldDevice(): boolean {
+    try {
+      if (!display.isFoldable()) {
+        return false;
+      }
+      const foldCreaseRegion = display.getCurrentFoldCreaseRegion();
+      return foldCreaseRegion.creaseRects.length === 2;
+    } catch (e) {
+      Log.w(TAG, "Failed to detect tri-fold device: " + e.message);
+      return false;
+    }
+  }
+
+  private enableAutoDeviceSwitch(session: camera.PhotoSession | camera.VideoSession): void {
+    this.unregisterAutoDeviceSwitchListener();
+    if (!session.isAutoDeviceSwitchSupported()) {
+      Log.d(TAG, "Auto device switch is not supported on this device");
+      return;
+    }
+    try {
+      session.enableAutoDeviceSwitch(true);
+      Log.d(TAG, "Auto device switch enabled");
+    } catch (error) {
+      let err = error as BusinessError;
+      Log.e(TAG, `enableAutoDeviceSwitch failed, error code: ${err.code}, error message: ${err.message}`);
+      return;
+    }
+    this.autoDeviceSwitchCallback = (err: BusinessError, status: camera.AutoDeviceSwitchStatus): void => {
+      if (err !== undefined && err.code !== 0) {
+        Log.e(TAG, `autoDeviceSwitchStatusChange callback error, errorCode: ${err.code}`);
+        return;
+      }
+      Log.i(TAG, `autoDeviceSwitchStatusChange: isDeviceSwitched=${status.isDeviceSwitched}, isDeviceCapabilityChanged=${status.isDeviceCapabilityChanged}`);
+      if (status.isDeviceSwitched) {
+        if (this.previewOutput == null) {
+          Log.w(TAG, "autoDeviceSwitchCallback: previewOutput is null, skipping preview rotation update");
+        } else {
+          this.updatePreviewRotation();
+        }
+        if (this.recordingVideo) {
+          this.enableVideoMirrorIfNeeded().catch((e: Error): void =>
+          Log.w(TAG, "Failed to update video mirror after device switch: " + e.message));
+        }
+        this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
+        Log.d(TAG, "Preview rotation and initialized event updated after auto device switch");
+      }
+      if (status.isDeviceCapabilityChanged) {
+        try {
+          const minZoom = this.cameraFeatures.getZoomLevel().getMinimumZoomLevel(session);
+          session.setZoomRatio(minZoom);
+          this.nowZoom = minZoom;
+          Log.d(TAG, `Zoom reset to minimum ${minZoom} after device capability change`);
+        } catch (e) {
+          Log.w(TAG, "Failed to reset zoom after device capability change: " + e.message);
+        }
+      }
+    };
+    this.autoDeviceSwitchSession = session;
+    session.on('autoDeviceSwitchStatusChange', this.autoDeviceSwitchCallback);
+    Log.d(TAG, "Auto device switch listener registered");
+  }
+
+  private unregisterAutoDeviceSwitchListener(): void {
+    if (this.autoDeviceSwitchCallback != null && this.autoDeviceSwitchSession != null) {
+      try {
+        this.autoDeviceSwitchSession.off('autoDeviceSwitchStatusChange', this.autoDeviceSwitchCallback);
+        Log.d(TAG, "Auto device switch listener unregistered");
+      } catch (error) {
+        Log.e(TAG, "Failed to unregister auto device switch listener: " + error.message);
+      }
+    }
+    this.autoDeviceSwitchCallback = null;
+    this.autoDeviceSwitchSession = null;
+  }
+
+  private registerFoldStatusChangeListener(): void {
+    if (!this.isTriFoldDevice()) {
+      return;
+    }
+    this.unregisterFoldStatusChangeListener();
+    this.foldStatusChangeCallback = (foldStatus: display.FoldStatus) => {
+      if (this.isClosed) {
+        Log.w(TAG, "foldStatusChangeCallback: Camera is already closed, ignoring");
+        return;
+      }
+      if (foldStatus === display.FoldStatus.FOLD_STATUS_EXPANDED) {
+        if (this.cameraDevice?.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
+          Log.w(TAG, "Tri-fold device switched to dual-screen while using front camera, auto switching to rear");
+          if (this.onAutoSwitchToRearCamera != null) {
+            this.onAutoSwitchToRearCamera();
+          } else {
+            // Send error event before close() to ensure dartMessenger is still valid
+            this.sendCameraErrorEvent("FRONT_CAMERA_UNAVAILABLE");
+            this.close();
+          }
+        }
+      }
+    };
+    try {
+      display.on('foldStatusChange', this.foldStatusChangeCallback);
+      Log.d(TAG, "Fold status change listener registered");
+    } catch (error) {
+      Log.e(TAG, "Failed to register fold status change listener: " + error.message);
+    }
+  }
+
   // 关闭
   public async close(): Promise<void> {
     if (this.isClosed) {
@@ -1233,7 +1497,7 @@ export class Camera implements CameraCaptureStateListener {
     this.isClosed = true;
     this.unregisterDisplayChangeListener();
     this.unregisterFoldStatusChangeListener();
-
+    this.unregisterAutoDeviceSwitchListener();
     await this.stopAndReleaseCamera();
 
     try {

@@ -7,7 +7,7 @@
 import camera from '@ohos.multimedia.camera';
 import Ability from '@ohos.app.ability.Ability';
 import { CameraFeature } from '../CameraFeature';
-import { DartMessenger } from '../../DartMessenger';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import { CameraProperties } from '../../CameraProperties';
 import {  DeviceOrientationManager } from './DeviceOrientationManager';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
@@ -20,13 +20,13 @@ export class SensorOrientationFeature extends CameraFeature<number> {
   constructor(
     cameraProperties: CameraProperties,
     ability: Ability,
-    dartMessenger: DartMessenger) {
+    binaryMessenger: BinaryMessenger) {
     super(cameraProperties);
     this.setValue(cameraProperties.getSensorOrientation());
 
     let isFrontFacing: boolean = cameraProperties.getLensFacing() == camera.CameraPosition.CAMERA_POSITION_FRONT;
     this.deviceOrientationListener =
-      DeviceOrientationManager.create(ability, dartMessenger, isFrontFacing, this.currentSetting);
+      DeviceOrientationManager.create(ability, binaryMessenger, isFrontFacing, this.currentSetting);
     this.deviceOrientationListener.start();
   }
 
