@@ -1,0 +1,23 @@
+name: quick_actions_example
+description: Example for quick_actions_ohos plugin.
+publish_to: none
+
+environment:
+  sdk: ">=2.12.0 <4.0.0"
+  flutter: ">=3.7.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  quick_actions_ohos:
+    path: ../
+
+dev_dependencies:
+  espresso: ^0.4.0
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

@@ -1,0 +1,10 @@
+{
+  "name": "quick_actions_ohos",
+  "version": "1.0.0",
+  "description": "Flutter quick_actions plugin for OpenHarmony",
+  "main": "src/main/ets/QuickActionsPlugin.ets",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "@ohos/flutter_ohos": "file:har/flutter.har"
+  }
+}
