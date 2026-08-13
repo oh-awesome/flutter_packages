@@ -9,6 +9,7 @@ import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'src/event_channel_messages.g.dart';
 import 'src/messages.g.dart';
 import 'src/pigeon_test.g.dart';
 
@@ -108,6 +109,9 @@ class _MyHomePageState extends State<MyHomePage> {
 
   Object? _methodResult;
 
+  bool _eventChannelStarted = false;
+  Stream<String>? _eventStream;
+
   @override
   void initState() {
     super.initState();
@@ -157,6 +161,23 @@ class _MyHomePageState extends State<MyHomePage> {
               textAlign: TextAlign.center,
             ),
           ),
+         
+          if (_eventChannelStarted)
+            StreamBuilder<String>(
+              stream: _eventStream,
+              builder: (BuildContext context, AsyncSnapshot<String> snapshot) {
+                if (snapshot.hasData) {
+                  return Text(snapshot.data ?? '');
+                } else {
+                  return const CircularProgressIndicator();
+                }
+              },
+            )
+          else
+            ElevatedButton(
+              onPressed: _startEventChannel,
+              child: const Text('startEventChannel'),
+            ),
           Expanded(
             flex: 2,
             child: SingleChildScrollView(
@@ -515,4 +536,29 @@ class _MyHomePageState extends State<MyHomePage> {
     final result = await _hostApi.triggerPlatformInvokeAsync();
     _setResult(result);
   }
+
+  // ===== EventChannel =====
+
+  void _startEventChannel() {
+    setState(() {
+      _eventChannelStarted = true;
+      _eventStream = getEventStream();
+    });
+  }
+
+  // #docregion main-dart-event
+  Stream<String> getEventStream() async* {
+    final Stream<PlatformEvent> events = streamEvents();
+    await for (final PlatformEvent event in events) {
+      switch (event) {
+        case IntEvent():
+          final int intData = event.data;
+          yield '$intData, ';
+        case StringEvent():
+          final String stringData = event.data;
+          yield '$stringData, ';
+      }
+    }
+  }
+  // #enddocregion main-dart-event
 }

@@ -44,7 +44,7 @@ class HostApiImp extends StreamEventsStreamHandler {
   private eventSender: EventSender = new EventSender();
   private reconnectTimer: number | null = null;
 
-  override onListen(args: Object, sink: PigeonEventSink<PlatformEvent>): void {
+  override onListen(args: Object | undefined, sink: PigeonEventSink<PlatformEvent>): void {
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
@@ -52,7 +52,7 @@ class HostApiImp extends StreamEventsStreamHandler {
     this.eventSender.start(sink);
   }
 
-  override onCancel(args: Object): void {
+  override onCancel(args: Object | undefined): void {
     this.stopEventStream();
   }
 

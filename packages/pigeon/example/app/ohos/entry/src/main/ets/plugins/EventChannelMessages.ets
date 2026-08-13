@@ -19,7 +19,7 @@ import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/B
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
 import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';
-import { EventChannel, EventSink, StreamHandler } from '@ohos/flutter_ohos';
+import EventChannel, { EventSink, StreamHandler } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';
 
 
 /** Error class for passing custom error details to Flutter via a thrown PlatformException. */
@@ -44,23 +44,15 @@ export class FlutterError implements Error {
   }
 }
 
-/* Generated class from Pigeon that represents data sent in messages.*/
-export class PlatformEvent {
-  constructor() {
-  }
-
-  toList(): Array<Object | null> {
-    let arr: Array<Object | null> = new Array<Object | null>();
-    return arr;
-  }
-
-  static fromList(arr: Object[]): PlatformEvent {
-    return new PlatformEvent();
-  }
+/*
+*  Generated class from Pigeon that represents data sent in messages.
+*  This class should not be extended by any user class outside of the generated file.
+*/
+export abstract class PlatformEvent {
 }
 
 /* Generated class from Pigeon that represents data sent in messages.*/
-export class IntEvent {
+export class IntEvent extends PlatformEvent {
   private data: number;
 
   public setData(data: number): void {
@@ -72,6 +64,7 @@ export class IntEvent {
   }
 
   constructor(data: number) {
+    super();
     this.data = data;
   }
 
@@ -93,7 +86,7 @@ export class IntEvent {
 }
 
 /* Generated class from Pigeon that represents data sent in messages.*/
-export class StringEvent {
+export class StringEvent extends PlatformEvent {
   private data: string;
 
   public setData(data: string): void {
@@ -105,6 +98,7 @@ export class StringEvent {
   }
 
   constructor(data: string) {
+    super();
     this.data = data;
   }
 
@@ -161,34 +155,32 @@ export class PigeonCodec extends StandardMessageCodec {
   }
 }
 
-const PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec(PigeonCodec.INSTANCE);
+const EventChannelMessagesPigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec(PigeonCodec.INSTANCE);
 
 
-/**
- * Internal [StreamHandler] that delegates to a [PigeonEventChannelWrapper].
- */
-class PigeonStreamHandler<T> implements StreamHandler {
-  private readonly wrapper: PigeonEventChannelWrapper<T>;
+class EventChannelMessagesPigeonStreamHandler<T> implements StreamHandler {
+  private readonly wrapper: EventChannelMessagesPigeonEventChannelWrapper<T>;
   private pigeonSink: PigeonEventSink<T> | null = null;
 
-  constructor(wrapper: PigeonEventChannelWrapper<T>) {
+  constructor(wrapper: EventChannelMessagesPigeonEventChannelWrapper<T>) {
     this.wrapper = wrapper;
   }
 
-  onListen(args: Object, events: EventSink): void {
+  onListen(args: Object | undefined, events: EventSink): void {
     this.pigeonSink = new PigeonEventSink<T>(events);
     this.wrapper.onListen(args, this.pigeonSink!);
   }
 
-  onCancel(args: Object): void {
+  onCancel(args: Object | undefined): void {
     this.pigeonSink = null;
     this.wrapper.onCancel(args);
   }
 }
 
-export interface PigeonEventChannelWrapper<T> {
-  onListen(args: Object, sink: PigeonEventSink<T>): void;
-  onCancel(args: Object): void;
+export abstract class EventChannelMessagesPigeonEventChannelWrapper<T> {
+  abstract onListen(args: Object | undefined, sink: PigeonEventSink<T>): void;
+  onCancel(args: Object | undefined): void {
+  }
 }
 
 export class PigeonEventSink<T> {
@@ -202,7 +194,7 @@ export class PigeonEventSink<T> {
     this.sink.success(value);
   }
 
-  error(errorCode: string, errorMessage: string | null, errorDetails: Object | null): void {
+  error(errorCode: string, errorMessage: string | null, errorDetails: ESObject | null): void {
     this.sink.error(errorCode, errorMessage, errorDetails);
   }
 
@@ -211,23 +203,20 @@ export class PigeonEventSink<T> {
   }
 }
 
-export abstract class StreamEventsStreamHandler implements PigeonEventChannelWrapper<PlatformEvent> {
-  static register(binaryMessenger: BinaryMessenger, streamHandler: StreamEventsStreamHandler, instanceName: string = ''): void {
-    let channelName: string = 'dev.flutter.pigeon.pigeon_example_package.EventChannelMethods.streamEvents';
-    if (instanceName !== '') {
-      channelName += '.' + instanceName;
+export abstract class StreamEventsStreamHandler extends EventChannelMessagesPigeonEventChannelWrapper<PlatformEvent> {
+  static register(messenger: BinaryMessenger, streamHandler: StreamEventsStreamHandler, instanceName: string = ""): void {
+    let channelName: string = "dev.flutter.pigeon.pigeon_example_package.EventChannelMethods.streamEvents";
+    if (instanceName !== "") {
+      channelName += "." + instanceName;
     }
-    const internalStreamHandler: PigeonStreamHandler<PlatformEvent> =
-        new PigeonStreamHandler<PlatformEvent>(streamHandler);
-    const channel: EventChannel = new EventChannel(binaryMessenger, channelName, PigeonMethodChannelCodec);
+    const internalStreamHandler = new EventChannelMessagesPigeonStreamHandler<PlatformEvent>(streamHandler);
+    const channel = new EventChannel(messenger, channelName, EventChannelMessagesPigeonMethodChannelCodec);
     channel.setStreamHandler(internalStreamHandler);
   }
 
-  onListen(args: Object, sink: PigeonEventSink<PlatformEvent>): void {
-  }
+  abstract onListen(args: Object | undefined, sink: PigeonEventSink<PlatformEvent>): void;
 
-  onCancel(args: Object): void {
+  onCancel(args: Object | undefined): void {
   }
 }
-
 
