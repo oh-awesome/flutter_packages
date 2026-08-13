@@ -46,6 +46,7 @@ export class UrlLauncher implements UrlLauncherApi {
   static LAUNCH_TYPE_SMS: string = 'sms:';
   static LAUNCH_TYPE_FILE: string = 'file:';
   static LAUNCH_TYPE_APP_GALLERY: string = 'store:';
+  static LAUNCH_TYPE_ENTERPRISE: string = 'store://enterprise' // 添加企业安装方式
 
   static MMS_BUNDLE_NAME = "com.ohos.mms";
   static MMS_ABILITY_NAME = "com.ohos.mms.MainAbility";
@@ -124,6 +125,8 @@ export class UrlLauncher implements UrlLauncherApi {
       return this.launchSms(url);
     } else if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_FILE)) {
       return this.launchFile(url);
+    } else if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_ENTERPRISE)) {
+      return this.launchOther(url);
     } else if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_APP_GALLERY)) {
       return this.launchAppGallery(url);
     } else {
