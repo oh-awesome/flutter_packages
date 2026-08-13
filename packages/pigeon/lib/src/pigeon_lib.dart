@@ -183,13 +183,17 @@ class ProxyApi {
 /// defined return type of the method definition.
 class EventChannelApi {
   /// Constructor.
-  const EventChannelApi({this.kotlinOptions, this.swiftOptions});
+  const EventChannelApi(
+      {this.kotlinOptions, this.swiftOptions, this.arkTSOptions});
 
   /// Options for Kotlin generated code for Event Channels.
   final KotlinEventChannelOptions? kotlinOptions;
 
   /// Options for Swift generated code for Event Channels.
   final SwiftEventChannelOptions? swiftOptions;
+
+  /// Options for ArkTS generated code for Event Channels.
+  final ArkTSEventChannelOptions? arkTSOptions;
 }
 
 /// Metadata to annotation methods to control the selector used for objc output.
