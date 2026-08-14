@@ -1,0 +1,24 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "description"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "quick_actions_example"
+    },
+    {
+      "name": "action_one_label",
+      "value": "Action one"
+    },
+    {
+      "name": "action_two_label",
+      "value": "Action two"
+    }
+  ]
+}

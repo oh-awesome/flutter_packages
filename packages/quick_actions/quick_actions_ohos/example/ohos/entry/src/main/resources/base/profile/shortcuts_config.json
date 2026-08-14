@@ -1,0 +1,35 @@
+{
+  "shortcuts": [
+    {
+      "shortcutId": "action_two",
+      "label": "$string:action_two_label",
+      "icon": "$media:icon",
+      "wants": [
+        {
+          "bundleName": "com.example.quick_actions_example",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+
+          "parameters": {
+            "flutter_quick_action": "action_two"
+          }
+        }
+      ]
+    },
+    {
+      "shortcutId": "action_one",
+      "label": "$string:action_one_label",
+      "icon": "$media:icon",
+      "wants": [
+        {
+          "bundleName": "com.example.quick_actions_example",
+          "moduleName": "entry",
+          "abilityName": "EntryAbility",
+          "parameters": {
+            "flutter_quick_action": "action_one"
+          }
+        }
+      ]  
+    }
+  ]
+}
