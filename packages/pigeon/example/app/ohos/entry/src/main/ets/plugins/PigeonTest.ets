@@ -1,8 +1,18 @@
 /*
-* Copyright 2013 The Flutter Authors
-* Use of this source code is governed by a BSD-style license that can be
-* found in the LICENSE file.
-*/
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+ 
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
@@ -29,6 +39,18 @@ export class FlutterError implements Error {
     this.name = name;
     this.message = message;
     this.stack = stack;
+  }
+}
+
+/**
+ * Wrapper so PigeonCodec always serializes a Dart `double` as float64.
+ * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded
+ * as integers by StandardMessageCodec and fail strict Dart double casts.
+ */
+export class PigeonInternalDoubleBox {
+  value: number;
+  constructor(value: number) {
+    this.value = value;
   }
 }
 
@@ -590,7 +612,12 @@ export class PigeonCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer, value: ESObject): ESObject {
-    if (value instanceof IdentityEnum) {
+    if (value instanceof PigeonInternalDoubleBox) {
+      stream.writeInt8(this.getByte(6));
+      this.writeAlignment(stream, 8);
+      stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);
+      return;
+    } else     if (value instanceof IdentityEnum) {
       stream.writeUint8(this.getByte(129));
       this.writeValue(stream, value == null ? null : Identity[value.index as string]);
     } else if (value instanceof ProxyRoleEnum) {
@@ -860,7 +887,7 @@ export abstract class DemoHostApi {
               let res: Array<Object | null> = [];
               try {
                 let output: number = api!.sendDouble(args[0] as number);
-                res.push(output);
+                res.push(new PigeonInternalDoubleBox(output));
               } catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
                 res = wrappedError;
