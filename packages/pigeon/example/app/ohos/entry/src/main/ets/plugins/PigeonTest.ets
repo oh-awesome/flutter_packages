@@ -43,6 +43,18 @@ export class FlutterError implements Error {
   }
 }
 
+/**
+ * Wrapper so custom codecs always serialize a Dart `double` as float64.
+ * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded
+ * as integers by StandardMessageCodec and fail strict Dart double casts.
+ */
+export class PigeonInternalDoubleBox {
+  value: number;
+  constructor(value: number) {
+    this.value = value;
+  }
+}
+
 function wrapError(error: Error): Array<Object> {
   let errorList: Array<Object> = new Array<Object>(3);
   if (error instanceof FlutterError) {
@@ -189,7 +201,12 @@ class DemoHostApiCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer, value: ESObject): ESObject {
-    if (value instanceof Person) {
+    if (value instanceof PigeonInternalDoubleBox) {
+      stream.writeInt8(this.getByte(6));
+      this.writeAlignment(stream, 8);
+      stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);
+      return;
+    } else     if (value instanceof Person) {
       stream.writeUint8(this.getByte(128));
       this.writeValue(stream, (value as Person).toList());
     } else if (value instanceof Student) {
@@ -359,7 +376,7 @@ export abstract class DemoHostApi {
               let res: Array<Object> = [];
               try {
                 let output: number = api!.sendDouble(args[0] as number);
-                res.push(output);
+                res.push(new PigeonInternalDoubleBox(output));
               } catch (error) {
                 let wrappedError: Array<Object> = wrapError(error);
                 res = wrappedError;
