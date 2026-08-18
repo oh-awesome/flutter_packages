@@ -218,32 +218,6 @@ enum class PlatformBillingResponse(val raw: Int) {
   }
 }
 
-/** Response code for the in-app messaging API call. */
-enum class PlatformInAppMessageResponse(val raw: Int) {
-  /**
-   * The flow has finished and there is no action needed from developers.
-   *
-   * Note: The API callback won't indicate whether message is dismissed by the user or there is no
-   * message available to the user.
-   */
-  NO_ACTION_NEEDED(0),
-
-  /**
-   * The subscription status changed.
-   *
-   * For example, a subscription has been recovered from a suspended state. Developers should expect
-   * the purchase token to be returned with this response code and use the purchase token with the
-   * Google Play Developer API.
-   */
-  SUBSCRIPTION_STATUS_UPDATED(1);
-
-  companion object {
-    fun ofRaw(raw: Int): PlatformInAppMessageResponse? {
-      return values().firstOrNull { it.raw == raw }
-    }
-  }
-}
-
 enum class PlatformReplacementMode(val raw: Int) {
   UNKNOWN_REPLACEMENT_MODE(0),
   WITH_TIME_PRORATION(1),
@@ -279,10 +253,8 @@ enum class PlatformBillingChoiceMode(val raw: Int) {
    * Default state.
    */
   PLAY_BILLING_ONLY(0),
-
   /** Billing through app provided flow. */
   ALTERNATIVE_BILLING_ONLY(1),
-
   /** Users can choose Play billing or alternative billing. */
   USER_CHOICE_BILLING(2);
 
@@ -702,52 +674,6 @@ data class PlatformAlternativeBillingOnlyReportingDetailsResponse(
     var result = javaClass.hashCode()
     result = 31 * result + MessagesPigeonUtils.deepHash(this.billingResult)
     result = 31 * result + MessagesPigeonUtils.deepHash(this.externalTransactionToken)
-    return result
-  }
-}
-
-/**
- * Results related to in-app messaging.
- *
- * Generated class from Pigeon that represents data sent in messages.
- */
-data class PlatformInAppMessageResult(
-    /** Returns response code for the in-app messaging API call. */
-    val responseCode: PlatformInAppMessageResponse,
-    /** Returns token that identifies the purchase to be acknowledged, if any. */
-    val purchaseToken: String? = null
-) {
-  companion object {
-    fun fromList(pigeonVar_list: List<Any?>): PlatformInAppMessageResult {
-      val responseCode = pigeonVar_list[0] as PlatformInAppMessageResponse
-      val purchaseToken = pigeonVar_list[1] as String?
-      return PlatformInAppMessageResult(responseCode, purchaseToken)
-    }
-  }
-
-  fun toList(): List<Any?> {
-    return listOf(
-        responseCode,
-        purchaseToken,
-    )
-  }
-
-  override fun equals(other: Any?): Boolean {
-    if (other == null || other.javaClass != javaClass) {
-      return false
-    }
-    if (this === other) {
-      return true
-    }
-    val other = other as PlatformInAppMessageResult
-    return MessagesPigeonUtils.deepEquals(this.responseCode, other.responseCode) &&
-        MessagesPigeonUtils.deepEquals(this.purchaseToken, other.purchaseToken)
-  }
-
-  override fun hashCode(): Int {
-    var result = javaClass.hashCode()
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.responseCode)
-    result = 31 * result + MessagesPigeonUtils.deepHash(this.purchaseToken)
     return result
   }
 }
@@ -1570,110 +1496,104 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         return (readValue(buffer) as Long?)?.let { PlatformBillingResponse.ofRaw(it.toInt()) }
       }
       130.toByte() -> {
-        return (readValue(buffer) as Long?)?.let { PlatformInAppMessageResponse.ofRaw(it.toInt()) }
-      }
-      131.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformReplacementMode.ofRaw(it.toInt()) }
       }
-      132.toByte() -> {
+      131.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformProductType.ofRaw(it.toInt()) }
       }
-      133.toByte() -> {
+      132.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformBillingChoiceMode.ofRaw(it.toInt()) }
       }
-      134.toByte() -> {
+      133.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformBillingClientFeature.ofRaw(it.toInt()) }
       }
-      135.toByte() -> {
+      134.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformPurchaseState.ofRaw(it.toInt()) }
       }
-      136.toByte() -> {
+      135.toByte() -> {
         return (readValue(buffer) as Long?)?.let { PlatformRecurrenceMode.ofRaw(it.toInt()) }
       }
-      137.toByte() -> {
+      136.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformQueryProduct.fromList(it) }
       }
-      138.toByte() -> {
+      137.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformAccountIdentifiers.fromList(it) }
       }
-      139.toByte() -> {
+      138.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformBillingResult.fromList(it) }
       }
-      140.toByte() -> {
+      139.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformOneTimePurchaseOfferDetails.fromList(it)
         }
       }
-      141.toByte() -> {
+      140.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformProductDetails.fromList(it) }
       }
-      142.toByte() -> {
+      141.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformProductDetailsResponse.fromList(it)
         }
       }
-      143.toByte() -> {
+      142.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformAlternativeBillingOnlyReportingDetailsResponse.fromList(it)
         }
       }
-      144.toByte() -> {
-        return (readValue(buffer) as? List<Any?>)?.let { PlatformInAppMessageResult.fromList(it) }
-      }
-      145.toByte() -> {
+      143.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformBillingConfigResponse.fromList(it)
         }
       }
-      146.toByte() -> {
+      144.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformBillingFlowParams.fromList(it) }
       }
-      147.toByte() -> {
+      145.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformPricingPhase.fromList(it) }
       }
-      148.toByte() -> {
+      146.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformPurchase.fromList(it) }
       }
-      149.toByte() -> {
+      147.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformPendingPurchaseUpdate.fromList(it)
         }
       }
-      150.toByte() -> {
+      148.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformPurchaseHistoryRecord.fromList(it)
         }
       }
-      151.toByte() -> {
+      149.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformPurchaseHistoryResponse.fromList(it)
         }
       }
-      152.toByte() -> {
+      150.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformPurchasesResponse.fromList(it) }
       }
-      153.toByte() -> {
+      151.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformSubscriptionOfferDetails.fromList(it)
         }
       }
-      154.toByte() -> {
+      152.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformUserChoiceDetails.fromList(it) }
       }
-      155.toByte() -> {
+      153.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformUserChoiceProduct.fromList(it) }
       }
-      156.toByte() -> {
+      154.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformInstallmentPlanDetails.fromList(it)
         }
       }
-      157.toByte() -> {
+      155.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           PlatformPendingPurchasesParams.fromList(it)
         }
       }
-      158.toByte() -> {
+      156.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let { PlatformUnfetchedProduct.fromList(it) }
       }
       else -> super.readValueOfType(type, buffer)
@@ -1686,120 +1606,112 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
         stream.write(129)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformInAppMessageResponse -> {
+      is PlatformReplacementMode -> {
         stream.write(130)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformReplacementMode -> {
+      is PlatformProductType -> {
         stream.write(131)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformProductType -> {
+      is PlatformBillingChoiceMode -> {
         stream.write(132)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformBillingChoiceMode -> {
+      is PlatformBillingClientFeature -> {
         stream.write(133)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformBillingClientFeature -> {
+      is PlatformPurchaseState -> {
         stream.write(134)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformPurchaseState -> {
+      is PlatformRecurrenceMode -> {
         stream.write(135)
         writeValue(stream, value.raw.toLong())
       }
-      is PlatformRecurrenceMode -> {
-        stream.write(136)
-        writeValue(stream, value.raw.toLong())
-      }
       is PlatformQueryProduct -> {
-        stream.write(137)
+        stream.write(136)
         writeValue(stream, value.toList())
       }
       is PlatformAccountIdentifiers -> {
-        stream.write(138)
+        stream.write(137)
         writeValue(stream, value.toList())
       }
       is PlatformBillingResult -> {
-        stream.write(139)
+        stream.write(138)
         writeValue(stream, value.toList())
       }
       is PlatformOneTimePurchaseOfferDetails -> {
-        stream.write(140)
+        stream.write(139)
         writeValue(stream, value.toList())
       }
       is PlatformProductDetails -> {
-        stream.write(141)
+        stream.write(140)
         writeValue(stream, value.toList())
       }
       is PlatformProductDetailsResponse -> {
-        stream.write(142)
+        stream.write(141)
         writeValue(stream, value.toList())
       }
       is PlatformAlternativeBillingOnlyReportingDetailsResponse -> {
-        stream.write(143)
-        writeValue(stream, value.toList())
-      }
-      is PlatformInAppMessageResult -> {
-        stream.write(144)
+        stream.write(142)
         writeValue(stream, value.toList())
       }
       is PlatformBillingConfigResponse -> {
-        stream.write(145)
+        stream.write(143)
         writeValue(stream, value.toList())
       }
       is PlatformBillingFlowParams -> {
-        stream.write(146)
+        stream.write(144)
         writeValue(stream, value.toList())
       }
       is PlatformPricingPhase -> {
-        stream.write(147)
+        stream.write(145)
         writeValue(stream, value.toList())
       }
       is PlatformPurchase -> {
-        stream.write(148)
+        stream.write(146)
         writeValue(stream, value.toList())
       }
       is PlatformPendingPurchaseUpdate -> {
-        stream.write(149)
+        stream.write(147)
         writeValue(stream, value.toList())
       }
       is PlatformPurchaseHistoryRecord -> {
-        stream.write(150)
+        stream.write(148)
         writeValue(stream, value.toList())
       }
       is PlatformPurchaseHistoryResponse -> {
-        stream.write(151)
+        stream.write(149)
         writeValue(stream, value.toList())
       }
       is PlatformPurchasesResponse -> {
-        stream.write(152)
+        stream.write(150)
         writeValue(stream, value.toList())
       }
       is PlatformSubscriptionOfferDetails -> {
-        stream.write(153)
+        stream.write(151)
         writeValue(stream, value.toList())
       }
       is PlatformUserChoiceDetails -> {
-        stream.write(154)
+        stream.write(152)
         writeValue(stream, value.toList())
       }
       is PlatformUserChoiceProduct -> {
-        stream.write(155)
+        stream.write(153)
         writeValue(stream, value.toList())
       }
       is PlatformInstallmentPlanDetails -> {
-        stream.write(156)
+        stream.write(154)
         writeValue(stream, value.toList())
       }
       is PlatformPendingPurchasesParams -> {
-        stream.write(157)
+        stream.write(155)
         writeValue(stream, value.toList())
       }
       is PlatformUnfetchedProduct -> {
-        stream.write(158)
+        stream.write(156)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -1811,7 +1723,6 @@ private open class MessagesPigeonCodec : StandardMessageCodec() {
 interface InAppPurchaseApi {
   /** Wraps BillingClient#isReady. */
   fun isReady(): Boolean
-
   /** Wraps BillingClient#startConnection(BillingClientStateListener). */
   fun startConnection(
       callbackHandle: Long,
@@ -1819,34 +1730,27 @@ interface InAppPurchaseApi {
       pendingPurchasesParams: PlatformPendingPurchasesParams,
       callback: (Result<PlatformBillingResult>) -> Unit
   )
-
   /** Wraps BillingClient#endConnection(BillingClientStateListener). */
   fun endConnection()
-
   /**
    * Wraps BillingClient#getBillingConfigAsync(GetBillingConfigParams,
    * BillingConfigResponseListener).
    */
   fun getBillingConfigAsync(callback: (Result<PlatformBillingConfigResponse>) -> Unit)
-
   /** Wraps BillingClient#launchBillingFlow(Activity, BillingFlowParams). */
   fun launchBillingFlow(params: PlatformBillingFlowParams): PlatformBillingResult
-
   /**
    * Wraps BillingClient#acknowledgePurchase(AcknowledgePurchaseParams,
    * AcknowledgePurchaseResponseListener).
    */
   fun acknowledgePurchase(purchaseToken: String, callback: (Result<PlatformBillingResult>) -> Unit)
-
   /** Wraps BillingClient#consumeAsync(ConsumeParams, ConsumeResponseListener). */
   fun consumeAsync(purchaseToken: String, callback: (Result<PlatformBillingResult>) -> Unit)
-
   /** Wraps BillingClient#queryPurchasesAsync(QueryPurchaseParams, PurchaseResponseListener). */
   fun queryPurchasesAsync(
       productType: PlatformProductType,
       callback: (Result<PlatformPurchasesResponse>) -> Unit
   )
-
   /**
    * Wraps BillingClient#queryProductDetailsAsync(QueryProductDetailsParams,
    * ProductDetailsResponseListener).
@@ -1855,16 +1759,12 @@ interface InAppPurchaseApi {
       products: List<PlatformQueryProduct>,
       callback: (Result<PlatformProductDetailsResponse>) -> Unit
   )
-
   /** Wraps BillingClient#isFeatureSupported(String). */
   fun isFeatureSupported(feature: PlatformBillingClientFeature): Boolean
-
   /** Wraps BillingClient#isAlternativeBillingOnlyAvailableAsync(). */
   fun isAlternativeBillingOnlyAvailableAsync(callback: (Result<PlatformBillingResult>) -> Unit)
-
   /** Wraps BillingClient#showAlternativeBillingOnlyInformationDialog(). */
   fun showAlternativeBillingOnlyInformationDialog(callback: (Result<PlatformBillingResult>) -> Unit)
-
   /**
    * Wraps
    * BillingClient#createAlternativeBillingOnlyReportingDetailsAsync(AlternativeBillingOnlyReportingDetailsListener).
@@ -1873,13 +1773,9 @@ interface InAppPurchaseApi {
       callback: (Result<PlatformAlternativeBillingOnlyReportingDetailsResponse>) -> Unit
   )
 
-  /** Wraps BillingClient#showInAppMessages(). */
-  fun showInAppMessages(callback: (Result<PlatformInAppMessageResult>) -> Unit)
-
   companion object {
     /** The codec used by InAppPurchaseApi. */
     val codec: MessageCodec<Any?> by lazy { MessagesPigeonCodec() }
-
     /**
      * Sets up an instance of `InAppPurchaseApi` to handle messages through the `binaryMessenger`.
      */
@@ -2190,32 +2086,9 @@ interface InAppPurchaseApi {
           channel.setMessageHandler(null)
         }
       }
-      run {
-        val channel =
-            BasicMessageChannel<Any?>(
-                binaryMessenger,
-                "dev.flutter.pigeon.in_app_purchase_android.InAppPurchaseApi.showInAppMessages$separatedMessageChannelSuffix",
-                codec)
-        if (api != null) {
-          channel.setMessageHandler { _, reply ->
-            api.showInAppMessages { result: Result<PlatformInAppMessageResult> ->
-              val error = result.exceptionOrNull()
-              if (error != null) {
-                reply.reply(MessagesPigeonUtils.wrapError(error))
-              } else {
-                val data = result.getOrNull()
-                reply.reply(MessagesPigeonUtils.wrapResult(data))
-              }
-            }
-          }
-        } else {
-          channel.setMessageHandler(null)
-        }
-      }
     }
   }
 }
-
 /** Generated class from Pigeon that represents Flutter messages that can be called from Kotlin. */
 class InAppPurchaseCallbackApi(
     private val binaryMessenger: BinaryMessenger,
@@ -2225,7 +2098,6 @@ class InAppPurchaseCallbackApi(
     /** The codec used by InAppPurchaseCallbackApi. */
     val codec: MessageCodec<Any?> by lazy { MessagesPigeonCodec() }
   }
-
   /** Called for `BillingClientStateListener#onBillingServiceDisconnected()`. */
   fun onBillingServiceDisconnected(callbackHandleArg: Long, callback: (Result<Unit>) -> Unit) {
     val separatedMessageChannelSuffix =
@@ -2245,7 +2117,6 @@ class InAppPurchaseCallbackApi(
       }
     }
   }
-
   /** Called for `PurchasesUpdatedListener#onPurchasesUpdated(BillingResult, List<Purchase>)`. */
   fun onPurchasesUpdated(updateArg: PlatformPurchasesResponse, callback: (Result<Unit>) -> Unit) {
     val separatedMessageChannelSuffix =
@@ -2265,7 +2136,6 @@ class InAppPurchaseCallbackApi(
       }
     }
   }
-
   /** Called for `UserChoiceBillingListener#userSelectedAlternativeBilling(UserChoiceDetails)`. */
   fun userSelectedalternativeBilling(
       detailsArg: PlatformUserChoiceDetails,

@@ -545,9 +545,9 @@ class SK2TransactionMessage {
 
   String productId;
 
-  double? purchaseDate;
+  String? purchaseDate;
 
-  double? expirationDate;
+  String? expirationDate;
 
   int purchasedQuantity;
 
@@ -589,8 +589,8 @@ class SK2TransactionMessage {
       id: result[0]! as int,
       originalId: result[1]! as int,
       productId: result[2]! as String,
-      purchaseDate: result[3] as double?,
-      expirationDate: result[4] as double?,
+      purchaseDate: result[3] as String?,
+      expirationDate: result[4] as String?,
       purchasedQuantity: result[5]! as int,
       appAccountToken: result[6] as String?,
       receiptData: result[7] as String?,
