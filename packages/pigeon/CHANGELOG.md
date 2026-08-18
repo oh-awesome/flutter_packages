@@ -1,5 +1,6 @@
 ## 25.5.0
 
+* [arkts] Fixed double type value with a zero fractional part gets incorrectly converted  to an integer type when transferred from the ArkTS layer to the Dart layer.
 * [arkts] Ports full OpenHarmony ArkTS code generator from pigeon 26.3.4 OHOS branch,
   including `@ProxyApi`, `@EventChannelApi`, `messageChannelSuffix`, and `Float32List` support.
 * [arkts] Adds OHOS example app pigeonTest harness for on-device QA (HostApi/FlutterApi/ProxyApi).
