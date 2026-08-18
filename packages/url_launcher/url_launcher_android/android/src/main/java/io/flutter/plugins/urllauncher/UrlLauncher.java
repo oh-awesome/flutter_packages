@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.provider.Browser;
 import android.util.Log;
@@ -19,6 +18,9 @@ import androidx.annotation.Nullable;
 import androidx.annotation.VisibleForTesting;
 import androidx.browser.customtabs.CustomTabsClient;
 import androidx.browser.customtabs.CustomTabsIntent;
+import io.flutter.plugins.urllauncher.Messages.BrowserOptions;
+import io.flutter.plugins.urllauncher.Messages.UrlLauncherApi;
+import io.flutter.plugins.urllauncher.Messages.WebViewOptions;
 import java.util.Collections;
 import java.util.Locale;
 import java.util.Map;
@@ -48,7 +50,6 @@ final class UrlLauncher implements UrlLauncherApi {
     this.intentResolver = intentResolver;
   }
 
-  @SuppressWarnings("QueryPermissionsNeeded")
   UrlLauncher(@NonNull Context context) {
     this(
         context,
@@ -63,7 +64,7 @@ final class UrlLauncher implements UrlLauncherApi {
   }
 
   @Override
-  public boolean canLaunchUrl(@NonNull String url) {
+  public @NonNull Boolean canLaunchUrl(@NonNull String url) {
     Intent launchIntent = new Intent(Intent.ACTION_VIEW);
     launchIntent.setData(Uri.parse(url));
     String componentName = intentResolver.getHandlerComponentName(launchIntent);
@@ -79,8 +80,7 @@ final class UrlLauncher implements UrlLauncherApi {
   }
 
   @Override
-  public boolean launchUrl(
-      @NonNull String url, @NonNull Map<String, String> headers, boolean requireNonBrowser) {
+  public @NonNull Boolean launchUrl(@NonNull String url, @NonNull Map<String, String> headers) {
     ensureActivity();
     assert activity != null;
 
@@ -88,9 +88,6 @@ final class UrlLauncher implements UrlLauncherApi {
         new Intent(Intent.ACTION_VIEW)
             .setData(Uri.parse(url))
             .putExtra(Browser.EXTRA_HEADERS, extractBundle(headers));
-    if (requireNonBrowser && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-      launchIntent.addFlags(Intent.FLAG_ACTIVITY_REQUIRE_NON_BROWSER);
-    }
     try {
       activity.startActivity(launchIntent);
     } catch (ActivityNotFoundException e) {
@@ -101,9 +98,9 @@ final class UrlLauncher implements UrlLauncherApi {
   }
 
   @Override
-  public boolean openUrlInApp(
+  public @NonNull Boolean openUrlInApp(
       @NonNull String url,
-      boolean allowCustomTab,
+      @NonNull Boolean allowCustomTab,
       @NonNull WebViewOptions webViewOptions,
       @NonNull BrowserOptions browserOptions) {
     ensureActivity();
@@ -143,7 +140,7 @@ final class UrlLauncher implements UrlLauncherApi {
   }
 
   @Override
-  public boolean supportsCustomTabs() {
+  public @NonNull Boolean supportsCustomTabs() {
     return CustomTabsClient.getPackageName(applicationContext, Collections.emptyList()) != null;
   }
 
@@ -192,7 +189,7 @@ final class UrlLauncher implements UrlLauncherApi {
 
   private void ensureActivity() {
     if (activity == null) {
-      throw new FlutterError(
+      throw new Messages.FlutterError(
           "NO_ACTIVITY", "Launching a URL requires a foreground activity.", null);
     }
   }

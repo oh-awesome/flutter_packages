@@ -1,16 +1,16 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
 import 'package:pigeon/pigeon.dart';
 
-@ConfigurePigeon(
-  PigeonOptions(
-    dartOut: 'lib/src/messages.g.dart',
-    swiftOut: 'macos/url_launcher_macos/Sources/url_launcher_macos/messages.g.swift',
-    copyrightHeader: 'pigeons/copyright.txt',
-  ),
-)
+@ConfigurePigeon(PigeonOptions(
+  dartOut: 'lib/src/messages.g.dart',
+  swiftOut:
+      'macos/url_launcher_macos/Sources/url_launcher_macos/messages.g.swift',
+  copyrightHeader: 'pigeons/copyright.txt',
+))
+
 /// Possible error conditions for [UrlLauncherApi] calls.
 enum UrlLauncherError {
   /// The URL could not be parsed as an NSURL.

@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -23,7 +23,7 @@ public final class UrlLauncherPlugin implements FlutterPlugin, ActivityAware {
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
     urlLauncher = new UrlLauncher(binding.getApplicationContext());
-    UrlLauncherApi.Companion.setUp(binding.getBinaryMessenger(), urlLauncher);
+    Messages.UrlLauncherApi.setUp(binding.getBinaryMessenger(), urlLauncher);
   }
 
   @Override
@@ -33,7 +33,7 @@ public final class UrlLauncherPlugin implements FlutterPlugin, ActivityAware {
       return;
     }
 
-    UrlLauncherApi.Companion.setUp(binding.getBinaryMessenger(), null);
+    Messages.UrlLauncherApi.setUp(binding.getBinaryMessenger(), null);
     urlLauncher = null;
   }
 
