@@ -138,6 +138,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   _btn('sendInt', _sendInt),
                   //Send Double
                   _btn('sendDouble', _sendDouble),
+                  _btn('verifyIntegerShapedDoubles', _verifyIntegerShapedDoubles),
                   //Send String
                   _btn('sendString', _sendString),
                   //Send Uint8List
@@ -254,6 +255,26 @@ class _MyHomePageState extends State<MyHomePage> {
     /// Received message:
     String resultStr = "Received message: $result";
     _setResult(resultStr);
+  }
+
+  /// ArkTS 侧返回整型形态的 number（如 1、1.0）时，应被编码为 float64，
+  /// 不会在 StandardMessageCodec 中编码为 int，从而避免 `as double` 强转失败。
+  Future<void> _verifyIntegerShapedDoubles() async {
+    try {
+      final Object one = await _hostApi.sendDouble(1);
+      final Object onePointZero = await _hostApi.sendDouble(1.0);
+      final bool ok = one is double && onePointZero is double;
+      _setResult(
+        ok
+            ? 'verifyIntegerShapedDoubles OK: '
+                '1 -> $one (${one.runtimeType}), '
+                '1.0 -> $onePointZero (${onePointZero.runtimeType})'
+            : 'verifyIntegerShapedDoubles FAIL: unexpected runtime types '
+                '1 -> ${one.runtimeType}, 1.0 -> ${onePointZero.runtimeType}',
+      );
+    } catch (e, st) {
+      _setResult('verifyIntegerShapedDoubles FAIL: $e\n$st');
+    }
   }
 
   /// sendString
