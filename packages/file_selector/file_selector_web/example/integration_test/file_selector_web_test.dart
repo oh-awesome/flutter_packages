@@ -17,37 +17,44 @@ void main() {
 
     group('openFile', () {
       testWidgets('works', (WidgetTester _) async {
-        final XFile mockFile = createXFile('1001', 'identity.png', mimeType: 'image/png');
+        final XFile mockFile = createXFile('1001', 'identity.png');
 
-        final mockDomHelper = MockDomHelper(
+        final MockDomHelper mockDomHelper = MockDomHelper(
           files: <XFile>[mockFile],
           expectAccept: '.jpg,.jpeg,image/png,image/*',
         );
 
-        final plugin = FileSelectorWeb(domHelper: mockDomHelper);
+        final FileSelectorWeb plugin = FileSelectorWeb(
+          domHelper: mockDomHelper,
+        );
 
-        const typeGroup = XTypeGroup(
+        const XTypeGroup typeGroup = XTypeGroup(
           label: 'images',
           extensions: <String>['jpg', 'jpeg'],
           mimeTypes: <String>['image/png'],
           webWildCards: <String>['image/*'],
         );
 
-        final XFile? file = await plugin.openFile(acceptedTypeGroups: <XTypeGroup>[typeGroup]);
+        final XFile? file = await plugin.openFile(
+          acceptedTypeGroups: <XTypeGroup>[typeGroup],
+        );
 
         expect(file, isNotNull);
         expect(file!.name, mockFile.name);
-        expect(file.mimeType, 'image/png');
         expect(await file.length(), 4);
         expect(await file.readAsString(), '1001');
         expect(await file.lastModified(), isNotNull);
       });
 
-      testWidgets('returns null when getFiles returns an empty list', (WidgetTester _) async {
+      testWidgets('returns null when getFiles returns an empty list', (
+        WidgetTester _,
+      ) async {
         // Simulate returning an empty list of files from the DomHelper...
-        final mockDomHelper = MockDomHelper(files: <XFile>[]);
+        final MockDomHelper mockDomHelper = MockDomHelper(files: <XFile>[]);
 
-        final plugin = FileSelectorWeb(domHelper: mockDomHelper);
+        final FileSelectorWeb plugin = FileSelectorWeb(
+          domHelper: mockDomHelper,
+        );
 
         final XFile? file = await plugin.openFile();
 
@@ -60,15 +67,20 @@ void main() {
         final XFile mockFile1 = createXFile('123456', 'file1.txt');
         final XFile mockFile2 = createXFile('', 'file2.txt');
 
-        final mockDomHelper = MockDomHelper(
+        final MockDomHelper mockDomHelper = MockDomHelper(
           files: <XFile>[mockFile1, mockFile2],
           expectAccept: '.txt',
           expectMultiple: true,
         );
 
-        final plugin = FileSelectorWeb(domHelper: mockDomHelper);
+        final FileSelectorWeb plugin = FileSelectorWeb(
+          domHelper: mockDomHelper,
+        );
 
-        const typeGroup = XTypeGroup(label: 'files', extensions: <String>['.txt']);
+        const XTypeGroup typeGroup = XTypeGroup(
+          label: 'files',
+          extensions: <String>['.txt'],
+        );
 
         final List<XFile> files = await plugin.openFiles(
           acceptedTypeGroups: <XTypeGroup>[typeGroup],
@@ -90,7 +102,7 @@ void main() {
 
     group('getSavePath', () {
       testWidgets('returns non-null', (WidgetTester _) async {
-        final plugin = FileSelectorWeb();
+        final FileSelectorWeb plugin = FileSelectorWeb();
         final Future<String?> savePath = plugin.getSavePath();
         expect(await savePath, isNotNull);
       });
@@ -117,13 +129,21 @@ class MockDomHelper implements DomHelper {
     bool multiple = false,
     HTMLInputElement? input,
   }) {
-    expect(accept, _expectedAccept, reason: 'Expected "accept" value does not match.');
-    expect(multiple, _expectedMultiple, reason: 'Expected "multiple" value does not match.');
+    expect(
+      accept,
+      _expectedAccept,
+      reason: 'Expected "accept" value does not match.',
+    );
+    expect(
+      multiple,
+      _expectedMultiple,
+      reason: 'Expected "multiple" value does not match.',
+    );
     return Future<List<XFile>>.value(_files);
   }
 }
 
-XFile createXFile(String content, String name, {String mimeType = 'text/plain'}) {
-  final data = Uint8List.fromList(content.codeUnits);
-  return XFile.fromData(data, name: name, lastModified: DateTime.now(), mimeType: mimeType);
+XFile createXFile(String content, String name) {
+  final Uint8List data = Uint8List.fromList(content.codeUnits);
+  return XFile.fromData(data, name: name, lastModified: DateTime.now());
 }

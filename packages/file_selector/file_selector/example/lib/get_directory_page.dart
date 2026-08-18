@@ -14,8 +14,10 @@ class GetDirectoryPage extends StatelessWidget {
   final bool _isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
 
   Future<void> _getDirectoryPath(BuildContext context) async {
-    const confirmButtonText = 'Choose';
-    final String? directoryPath = await getDirectoryPath(confirmButtonText: confirmButtonText);
+    const String confirmButtonText = 'Choose';
+    final String? directoryPath = await getDirectoryPath(
+      confirmButtonText: confirmButtonText,
+    );
     if (directoryPath == null) {
       // Operation was canceled by the user.
       return;
@@ -63,9 +65,14 @@ class TextDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Selected Directory'),
-      content: Scrollbar(child: SingleChildScrollView(child: Text(directoryPath))),
+      content: Scrollbar(
+        child: SingleChildScrollView(child: Text(directoryPath)),
+      ),
       actions: <Widget>[
-        TextButton(child: const Text('Close'), onPressed: () => Navigator.pop(context)),
+        TextButton(
+          child: const Text('Close'),
+          onPressed: () => Navigator.pop(context),
+        ),
       ],
     );
   }

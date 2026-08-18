@@ -3,8 +3,8 @@
 // found in the LICENSE file.
 
 import FlutterMacOS
-import Testing
 import UniformTypeIdentifiers
+import XCTest
 
 @testable import file_selector_macos
 
@@ -40,9 +40,9 @@ class TestViewProvider: NSObject, ViewProvider {
   var window: NSWindow? = NSWindow()
 }
 
-@Suite @MainActor struct ExampleTests {
+class ExampleTests: XCTestCase {
 
-  @Test func openSimple() async throws {
+  func testOpenSimple() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -51,30 +51,32 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    #expect(panel.canChooseFiles)
-    // For consistency across platforms, directory selection is disabled.
-    #expect(!panel.canChooseDirectories)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      XCTAssertTrue(panel.canChooseFiles)
+      // For consistency across platforms, directory selection is disabled.
+      XCTAssertFalse(panel.canChooseDirectories)
+    }
   }
 
-  @Test func openWithArguments() async throws {
+  func testOpenWithArguments() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -83,34 +85,36 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions(
-          directoryPath: "/some/dir",
-          nameFieldStringValue: "a name",
-          prompt: "Open it!"))
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions(
+        directoryPath: "/some/dir",
+        nameFieldStringValue: "a name",
+        prompt: "Open it!"))
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    #expect(panel.directoryURL?.path == "/some/dir")
-    // nameFieldStringValue is not set for NSOpenPanel, only for NSSavePanel
-    #expect(panel.nameFieldStringValue != "a name")
-    #expect(panel.prompt == "Open it!")
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      XCTAssertEqual(panel.directoryURL?.path, "/some/dir")
+      // nameFieldStringValue is not set for NSOpenPanel, only for NSSavePanel
+      XCTAssertNotEqual(panel.nameFieldStringValue, "a name")
+      XCTAssertEqual(panel.prompt, "Open it!")
+    }
   }
 
-  @Test func openMultiple() async throws {
+  func testOpenMultiple() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -119,27 +123,29 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPaths = ["/foo/bar", "/foo/baz"]
     panelController.openURLs = returnPaths.map({ path in URL(fileURLWithPath: path) })
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == returnPaths)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths.count, returnPaths.count)
+        XCTAssertEqual(paths[0], returnPaths[0])
+        XCTAssertEqual(paths[1], returnPaths[1])
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    _ = try #require(panelController.openPanel)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
   }
 
-  @Test func openWithFilter() async throws {
+  func testOpenWithFilter() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -148,40 +154,42 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions(
-          allowedFileTypes: AllowedTypes(
-            extensions: ["txt", "json"],
-            mimeTypes: ["text/html"],
-            utis: ["public.text", "public.image"])))
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions(
+        allowedFileTypes: AllowedTypes(
+          extensions: ["txt", "json"],
+          mimeTypes: ["text/html"],
+          utis: ["public.text", "public.image"])))
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    if #available(macOS 11.0, *) {
-      #expect(panel.allowedContentTypes.contains(UTType.plainText))
-      #expect(panel.allowedContentTypes.contains(UTType.json))
-      #expect(panel.allowedContentTypes.contains(UTType.html))
-      #expect(panel.allowedContentTypes.contains(UTType.image))
-    } else {
-      // MIME type is not supported for the legacy codepath, but the rest should be set.
-      #expect(panel.allowedFileTypes == ["txt", "json", "public.text", "public.image"])
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      if #available(macOS 11.0, *) {
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.plainText))
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.json))
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.html))
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.image))
+      } else {
+        // MIME type is not supported for the legacy codepath, but the rest should be set.
+        XCTAssertEqual(panel.allowedFileTypes, ["txt", "json", "public.text", "public.image"])
+      }
     }
   }
 
-  @Test func filterUnknownFileExtension() async throws {
+  func testFilterUnknownFileExtension() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -191,41 +199,42 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions(
-          allowedFileTypes: AllowedTypes(
-            extensions: [unknownExtension],
-            mimeTypes: [],
-            utis: [])))
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions(
+        allowedFileTypes: AllowedTypes(
+          extensions: [unknownExtension],
+          mimeTypes: [],
+          utis: [])))
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    if #available(macOS 11.0, *) {
-      #expect(panel.allowedContentTypes.count == 1)
-      let allowedType = try #require(panel.allowedContentTypes.first)
-      #expect(allowedType.preferredFilenameExtension == unknownExtension)
-      // If this isn't true, the dynamic type created for the extension won't work as a file
-      // extension filter.
-      #expect(allowedType.conforms(to: UTType.data))
-    } else {
-      #expect(panel.allowedFileTypes == [unknownExtension])
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      if #available(macOS 11.0, *) {
+        XCTAssertEqual(panel.allowedContentTypes.count, 1)
+        XCTAssertEqual(panel.allowedContentTypes[0].preferredFilenameExtension, unknownExtension)
+        // If this isn't true, the dynamic type created for the extension won't work as a file
+        // extension filter.
+        XCTAssertTrue(panel.allowedContentTypes[0].conforms(to: UTType.data))
+      } else {
+        XCTAssertEqual(panel.allowedFileTypes, [unknownExtension])
+      }
     }
   }
 
-  @Test func openWithFilterLegacy() async throws {
+  func testOpenWithFilterLegacy() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -235,95 +244,70 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions(
-          allowedFileTypes: AllowedTypes(
-            extensions: ["txt", "json"],
-            mimeTypes: ["text/html"],
-            utis: ["public.text", "public.image"])))
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions(
+        allowedFileTypes: AllowedTypes(
+          extensions: ["txt", "json"],
+          mimeTypes: ["text/html"],
+          utis: ["public.text", "public.image"])))
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    // On the legacy path, the allowedFileTypes should be set directly.
-    #expect(panel.allowedFileTypes == ["txt", "json", "public.text", "public.image"])
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      // On the legacy path, the allowedFileTypes should be set directly.
+      XCTAssertEqual(panel.allowedFileTypes, ["txt", "json", "public.text", "public.image"])
 
-    // They should also be translated to corresponding allowed content types.
-    if #available(macOS 11.0, *) {
-      #expect(panel.allowedContentTypes.contains(UTType.plainText))
-      #expect(panel.allowedContentTypes.contains(UTType.json))
-      #expect(panel.allowedContentTypes.contains(UTType.image))
-      // MIME type is not supported for the legacy codepath.
-      #expect(!panel.allowedContentTypes.contains(UTType.html))
+      // They should also be translated to corresponding allowed content types.
+      if #available(macOS 11.0, *) {
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.plainText))
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.json))
+        XCTAssertTrue(panel.allowedContentTypes.contains(UTType.image))
+        // MIME type is not supported for the legacy codepath.
+        XCTAssertFalse(panel.allowedContentTypes.contains(UTType.html))
+      }
     }
   }
 
-  @Test func openCancel() async throws {
+  func testOpenCancel() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
       panelController: panelController)
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: false,
-        canChooseFiles: true,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths.isEmpty)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: false,
+      canChooseFiles: true,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths.count, 0)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    _ = try #require(panelController.openPanel)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
   }
 
-  @Test func saveSimple() async throws {
-    let panelController = TestPanelController()
-    let plugin = FileSelectorPlugin(
-      viewProvider: TestViewProvider(),
-      panelController: panelController)
-
-    let returnPath = "/foo/bar"
-    panelController.saveURL = URL(fileURLWithPath: returnPath)
-
-    await confirmation("completion") { called in
-      let options = SavePanelOptions()
-      plugin.displaySavePanel(options: options) { result in
-        switch result {
-        case .success(let path):
-          #expect(path == returnPath)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
-      }
-    }
-
-    let panel = try #require(panelController.savePanel)
-    // By default, "New Folder" button is visible for Save dialogs
-    #expect(panel.canCreateDirectories)
-  }
-
-  @Test func saveWithArguments() async throws {
+  func testSaveSimple() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -332,29 +316,27 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.saveURL = URL(fileURLWithPath: returnPath)
 
-    await confirmation("completion") { called in
-      let options = SavePanelOptions(
-        directoryPath: "/some/dir",
-        nameFieldStringValue: "a name",
-        prompt: "Save it!")
-      plugin.displaySavePanel(options: options) { result in
-        switch result {
-        case .success(let path):
-          #expect(path == returnPath)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = SavePanelOptions()
+    plugin.displaySavePanel(options: options) { result in
+      switch result {
+      case .success(let path):
+        XCTAssertEqual(path, returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.savePanel)
-    #expect(panel.directoryURL?.path == "/some/dir")
-    #expect(panel.nameFieldStringValue == "a name")
-    #expect(panel.prompt == "Save it!")
+    wait(for: [called])
+    XCTAssertNotNil(panelController.savePanel)
+    if let panel = panelController.savePanel {
+      // By default, "New Folder" button is visible for Save dialogs
+      XCTAssertTrue(panel.canCreateDirectories)
+    }
   }
 
-  @Test func saveNewFolderHidden() async throws {
+  func testSaveWithArguments() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -363,46 +345,82 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.saveURL = URL(fileURLWithPath: returnPath)
 
-    await confirmation("completion") { called in
-      let options = SavePanelOptions(canCreateDirectories: false)
-      plugin.displaySavePanel(options: options) { result in
-        switch result {
-        case .success(let path):
-          #expect(path == returnPath)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = SavePanelOptions(
+      directoryPath: "/some/dir",
+      nameFieldStringValue: "a name",
+      prompt: "Save it!")
+    plugin.displaySavePanel(options: options) { result in
+      switch result {
+      case .success(let path):
+        XCTAssertEqual(path, returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.savePanel)
-    #expect(!panel.canCreateDirectories)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.savePanel)
+    if let panel = panelController.savePanel {
+      XCTAssertEqual(panel.directoryURL?.path, "/some/dir")
+      XCTAssertEqual(panel.nameFieldStringValue, "a name")
+      XCTAssertEqual(panel.prompt, "Save it!")
+    }
   }
 
-  @Test func saveCancel() async throws {
+  func testSaveNewFolderHidden() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
       panelController: panelController)
 
-    await confirmation("completion") { called in
-      let options = SavePanelOptions()
-      plugin.displaySavePanel(options: options) { result in
-        switch result {
-        case .success(let path):
-          #expect(path == nil)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let returnPath = "/foo/bar"
+    panelController.saveURL = URL(fileURLWithPath: returnPath)
+
+    let called = XCTestExpectation()
+    let options = SavePanelOptions(canCreateDirectories: false)
+
+    plugin.displaySavePanel(options: options) { result in
+      switch result {
+      case .success(let path):
+        XCTAssertEqual(path, returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    _ = try #require(panelController.savePanel)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.savePanel)
+    if let panel = panelController.savePanel {
+      XCTAssertFalse(panel.canCreateDirectories)
+    }
   }
 
-  @Test func getDirectorySimple() async throws {
+  func testSaveCancel() throws {
+    let panelController = TestPanelController()
+    let plugin = FileSelectorPlugin(
+      viewProvider: TestViewProvider(),
+      panelController: panelController)
+
+    let called = XCTestExpectation()
+    let options = SavePanelOptions()
+    plugin.displaySavePanel(options: options) { result in
+      switch result {
+      case .success(let path):
+        XCTAssertNil(path)
+      case .failure(let error):
+        XCTFail("\(error)")
+      }
+      called.fulfill()
+    }
+
+    wait(for: [called])
+    XCTAssertNotNil(panelController.savePanel)
+  }
+
+  func testGetDirectorySimple() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -411,61 +429,63 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: true,
-        canChooseFiles: false,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: true,
+      canChooseFiles: false,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    #expect(panel.canChooseDirectories)
-    // For consistency across platforms, file selection is disabled.
-    #expect(!panel.canChooseFiles)
-    // The Dart API only allows a single directory to be returned, so users shouldn't be allowed
-    // to select multiple.
-    #expect(!panel.allowsMultipleSelection)
-    // By default, "New Folder" button is hidden for Choose Directory dialogs.
-    #expect(!panel.canCreateDirectories)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      XCTAssertTrue(panel.canChooseDirectories)
+      // For consistency across platforms, file selection is disabled.
+      XCTAssertFalse(panel.canChooseFiles)
+      // The Dart API only allows a single directory to be returned, so users shouldn't be allowed
+      // to select multiple.
+      XCTAssertFalse(panel.allowsMultipleSelection)
+      // By default, "New Folder" button is hidden for Choose Directory dialogs.
+      XCTAssertFalse(panel.canCreateDirectories)
+    }
   }
 
-  @Test func getDirectoryCancel() async throws {
+  func testGetDirectoryCancel() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
       panelController: panelController)
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: true,
-        canChooseFiles: false,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths.isEmpty)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: true,
+      canChooseFiles: false,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths.count, 0)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    _ = try #require(panelController.openPanel)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
   }
 
-  @Test func getDirectoriesMultiple() async throws {
+  func testGetDirectoriesMultiple() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -474,59 +494,61 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPaths = ["/foo/bar", "/foo/test"]
     panelController.openURLs = returnPaths.map({ path in URL(fileURLWithPath: path) })
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: true,
-        canChooseFiles: false,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == returnPaths)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: true,
+      canChooseFiles: false,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths, returnPaths)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    #expect(panel.canChooseDirectories)
-    // For consistency across platforms, file selection is disabled.
-    #expect(!panel.canChooseFiles)
-    #expect(panel.allowsMultipleSelection)
-    // By default, "New Folder" button is hidden for Choose Directory dialogs.
-    #expect(!panel.canCreateDirectories)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      XCTAssertTrue(panel.canChooseDirectories)
+      // For consistency across platforms, file selection is disabled.
+      XCTAssertFalse(panel.canChooseFiles)
+      XCTAssertTrue(panel.allowsMultipleSelection)
+      // By default, "New Folder" button is hidden for Choose Directory dialogs.
+      XCTAssertFalse(panel.canCreateDirectories)
+    }
   }
 
-  @Test func getDirectoryMultipleCancel() async throws {
+  func testGetDirectoryMultipleCancel() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
       panelController: panelController)
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: true,
-        canChooseDirectories: true,
-        canChooseFiles: false,
-        baseOptions: SavePanelOptions())
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths.isEmpty)
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: true,
+      canChooseDirectories: true,
+      canChooseFiles: false,
+      baseOptions: SavePanelOptions())
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths.count, 0)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    _ = try #require(panelController.openPanel)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
   }
 
-  @Test func getDirectoryNewFolderVisible() async throws {
+  func testGetDirectoryNewFolderVisible() throws {
     let panelController = TestPanelController()
     let plugin = FileSelectorPlugin(
       viewProvider: TestViewProvider(),
@@ -535,25 +557,27 @@ class TestViewProvider: NSObject, ViewProvider {
     let returnPath = "/foo/bar"
     panelController.openURLs = [URL(fileURLWithPath: returnPath)]
 
-    await confirmation("completion") { called in
-      let options = OpenPanelOptions(
-        allowsMultipleSelection: false,
-        canChooseDirectories: true,
-        canChooseFiles: false,
-        baseOptions: SavePanelOptions(canCreateDirectories: true))
+    let called = XCTestExpectation()
+    let options = OpenPanelOptions(
+      allowsMultipleSelection: false,
+      canChooseDirectories: true,
+      canChooseFiles: false,
+      baseOptions: SavePanelOptions(canCreateDirectories: true))
 
-      plugin.displayOpenPanel(options: options) { result in
-        switch result {
-        case .success(let paths):
-          #expect(paths == [returnPath])
-        case .failure(let error):
-          Issue.record("\(error)")
-        }
-        called()
+    plugin.displayOpenPanel(options: options) { result in
+      switch result {
+      case .success(let paths):
+        XCTAssertEqual(paths[0], returnPath)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      called.fulfill()
     }
 
-    let panel = try #require(panelController.openPanel)
-    #expect(panel.canCreateDirectories)
+    wait(for: [called])
+    XCTAssertNotNil(panelController.openPanel)
+    if let panel = panelController.openPanel {
+      XCTAssertTrue(panel.canCreateDirectories)
+    }
   }
 }

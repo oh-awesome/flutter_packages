@@ -15,12 +15,12 @@ class OpenMultipleImagesPage extends StatelessWidget {
   const OpenMultipleImagesPage({super.key});
 
   Future<void> _openImageFile(BuildContext context) async {
-    const jpgsTypeGroup = XTypeGroup(
+    const XTypeGroup jpgsTypeGroup = XTypeGroup(
       label: 'JPEGs',
       extensions: <String>['jpg', 'jpeg'],
       uniformTypeIdentifiers: <String>['public.jpeg'],
     );
-    const pngTypeGroup = XTypeGroup(
+    const XTypeGroup pngTypeGroup = XTypeGroup(
       label: 'PNGs',
       extensions: <String>['png'],
       uniformTypeIdentifiers: <String>['public.png'],
@@ -81,8 +81,11 @@ class MultipleImagesDisplay extends StatelessWidget {
         child: Row(
           children: <Widget>[
             ...files.map(
-              (XFile file) =>
-                  Flexible(child: kIsWeb ? Image.network(file.path) : Image.file(File(file.path))),
+              (XFile file) => Flexible(
+                child: kIsWeb
+                    ? Image.network(file.path)
+                    : Image.file(File(file.path)),
+              ),
             ),
           ],
         ),
