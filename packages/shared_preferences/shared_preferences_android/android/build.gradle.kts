@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
 group = "io.flutter.plugins.sharedpreferences"
 version = "1.0-SNAPSHOT"
 
@@ -29,11 +31,12 @@ tasks.withType<JavaCompile>().configureEach {
 
 plugins {
     id("com.android.library")
+    id("kotlin-android")
 }
 
 kotlin {
     compilerOptions {
-        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        jvmTarget = JvmTarget.fromTarget(JavaVersion.VERSION_17.toString())
     }
 }
 
@@ -67,7 +70,7 @@ android {
         testImplementation("androidx.test.ext:junit-ktx:1.3.0")
         testImplementation("org.robolectric:robolectric:4.16")
         testImplementation("org.mockito:mockito-inline:5.2.0")
-        testImplementation("io.mockk:mockk:1.14.11")
+        testImplementation("io.mockk:mockk:1.14.9")
     }
 
     testOptions {
