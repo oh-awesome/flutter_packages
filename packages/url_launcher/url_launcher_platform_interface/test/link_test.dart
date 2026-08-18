@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -12,14 +12,12 @@ import 'package:url_launcher_platform_interface/link.dart';
 
 void main() {
   testWidgets('Link with Navigator', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MaterialApp(
-        home: const Placeholder(key: Key('home')),
-        routes: <String, WidgetBuilder>{
-          '/a': (BuildContext context) => const Placeholder(key: Key('a')),
-        },
-      ),
-    );
+    await tester.pumpWidget(MaterialApp(
+      home: const Placeholder(key: Key('home')),
+      routes: <String, WidgetBuilder>{
+        '/a': (BuildContext context) => const Placeholder(key: Key('a')),
+      },
+    ));
     expect(find.byKey(const Key('home')), findsOneWidget);
     expect(find.byKey(const Key('a')), findsNothing);
     await tester.runAsync(() => pushRouteNameToFramework(null, '/a'));
@@ -32,12 +30,10 @@ void main() {
   });
 
   testWidgets('Link with Navigator', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      MaterialApp.router(
-        routeInformationParser: _RouteInformationParser(),
-        routerDelegate: _RouteDelegate(),
-      ),
-    );
+    await tester.pumpWidget(MaterialApp.router(
+      routeInformationParser: _RouteInformationParser(),
+      routerDelegate: _RouteDelegate(),
+    ));
     expect(find.byKey(const Key('/')), findsOneWidget);
     expect(find.byKey(const Key('/a')), findsNothing);
     await tester.runAsync(() => pushRouteNameToFramework(null, '/a'));
@@ -52,7 +48,8 @@ void main() {
 
 class _RouteInformationParser extends RouteInformationParser<RouteInformation> {
   @override
-  Future<RouteInformation> parseRouteInformation(RouteInformation routeInformation) {
+  Future<RouteInformation> parseRouteInformation(
+      RouteInformation routeInformation) {
     return SynchronousFuture<RouteInformation>(routeInformation);
   }
 
@@ -62,7 +59,8 @@ class _RouteInformationParser extends RouteInformationParser<RouteInformation> {
   }
 }
 
-class _RouteDelegate extends RouterDelegate<RouteInformation> with ChangeNotifier {
+class _RouteDelegate extends RouterDelegate<RouteInformation>
+    with ChangeNotifier {
   final Queue<RouteInformation> _history = Queue<RouteInformation>();
 
   @override

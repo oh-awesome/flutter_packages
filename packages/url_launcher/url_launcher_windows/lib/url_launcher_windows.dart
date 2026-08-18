@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -11,7 +11,9 @@ import 'src/messages.g.dart';
 /// An implementation of [UrlLauncherPlatform] for Windows.
 class UrlLauncherWindows extends UrlLauncherPlatform {
   /// Creates a new plugin implementation instance.
-  UrlLauncherWindows({@visibleForTesting UrlLauncherApi? api}) : _hostApi = api ?? UrlLauncherApi();
+  UrlLauncherWindows({
+    @visibleForTesting UrlLauncherApi? api,
+  }) : _hostApi = api ?? UrlLauncherApi();
 
   final UrlLauncherApi _hostApi;
 

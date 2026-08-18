@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -10,7 +10,7 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 import '../mocks/mock_url_launcher_platform.dart';
 
 void main() {
-  final mock = MockUrlLauncher();
+  final MockUrlLauncher mock = MockUrlLauncher();
   UrlLauncherPlatform.instance = mock;
 
   test('closeInAppWebView', () async {
@@ -142,7 +142,8 @@ void main() {
           showTitle: false,
         )
         ..setResponse(true);
-      expect(await launchUrl(url, mode: LaunchMode.externalApplication), isTrue);
+      expect(
+          await launchUrl(url, mode: LaunchMode.externalApplication), isTrue);
     });
 
     test('external non-browser only', () async {
@@ -159,7 +160,9 @@ void main() {
           showTitle: false,
         )
         ..setResponse(true);
-      expect(await launchUrl(url, mode: LaunchMode.externalNonBrowserApplication), isTrue);
+      expect(
+          await launchUrl(url, mode: LaunchMode.externalNonBrowserApplication),
+          isTrue);
     });
 
     test('in-app webview without javascript', () async {
@@ -177,13 +180,11 @@ void main() {
         )
         ..setResponse(true);
       expect(
-        await launchUrl(
-          url,
-          mode: LaunchMode.inAppWebView,
-          webViewConfiguration: const WebViewConfiguration(enableJavaScript: false),
-        ),
-        isTrue,
-      );
+          await launchUrl(url,
+              mode: LaunchMode.inAppWebView,
+              webViewConfiguration:
+                  const WebViewConfiguration(enableJavaScript: false)),
+          isTrue);
     });
 
     test('in-app browser view with show title', () async {
@@ -201,13 +202,12 @@ void main() {
         )
         ..setResponse(true);
       expect(
-        await launchUrl(
-          url,
-          mode: LaunchMode.inAppBrowserView,
-          browserConfiguration: const BrowserConfiguration(showTitle: true),
-        ),
-        isTrue,
-      );
+          await launchUrl(
+            url,
+            mode: LaunchMode.inAppBrowserView,
+            browserConfiguration: const BrowserConfiguration(showTitle: true),
+          ),
+          isTrue);
     });
 
     test('in-app webview without DOM storage', () async {
@@ -225,13 +225,11 @@ void main() {
         )
         ..setResponse(true);
       expect(
-        await launchUrl(
-          url,
-          mode: LaunchMode.inAppWebView,
-          webViewConfiguration: const WebViewConfiguration(enableDomStorage: false),
-        ),
-        isTrue,
-      );
+          await launchUrl(url,
+              mode: LaunchMode.inAppWebView,
+              webViewConfiguration:
+                  const WebViewConfiguration(enableDomStorage: false)),
+          isTrue);
     });
 
     test('in-app webview with headers', () async {
@@ -249,29 +247,22 @@ void main() {
         )
         ..setResponse(true);
       expect(
-        await launchUrl(
-          url,
-          mode: LaunchMode.inAppWebView,
-          webViewConfiguration: const WebViewConfiguration(
-            headers: <String, String>{'key': 'value'},
-          ),
-        ),
-        isTrue,
-      );
+          await launchUrl(url,
+              mode: LaunchMode.inAppWebView,
+              webViewConfiguration: const WebViewConfiguration(
+                  headers: <String, String>{'key': 'value'})),
+          isTrue);
     });
 
     test('cannot launch a non-web URL in a webview', () async {
       expect(
-        () async => launchUrl(
-          Uri(scheme: 'tel', path: '555-555-5555'),
-          mode: LaunchMode.inAppWebView,
-        ),
-        throwsA(isA<ArgumentError>()),
-      );
+          () async => launchUrl(Uri(scheme: 'tel', path: '555-555-5555'),
+              mode: LaunchMode.inAppWebView),
+          throwsA(isA<ArgumentError>()));
     });
 
     test('non-web URL with default options', () async {
-      final emailLaunchUrl = Uri(
+      final Uri emailLaunchUrl = Uri(
         scheme: 'mailto',
         path: 'smith@example.com',
         queryParameters: <String, String>{'subject': 'Hello'},
@@ -312,14 +303,16 @@ void main() {
     test('handles returning true', () async {
       mock.setResponse(true);
 
-      expect(await supportsCloseForLaunchMode(LaunchMode.inAppBrowserView), true);
+      expect(
+          await supportsCloseForLaunchMode(LaunchMode.inAppBrowserView), true);
       expect(mock.launchMode, PreferredLaunchMode.inAppBrowserView);
     });
 
     test('handles returning false', () async {
       mock.setResponse(false);
 
-      expect(await supportsCloseForLaunchMode(LaunchMode.inAppBrowserView), false);
+      expect(
+          await supportsCloseForLaunchMode(LaunchMode.inAppBrowserView), false);
       expect(mock.launchMode, PreferredLaunchMode.inAppBrowserView);
     });
   });

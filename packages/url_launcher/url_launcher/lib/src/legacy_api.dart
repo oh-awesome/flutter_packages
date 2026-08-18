@@ -1,4 +1,4 @@
-// Copyright 2013 The Flutter Authors
+// Copyright 2013 The Flutter Authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -75,31 +75,29 @@ Future<bool> launch(
   String? webOnlyWindowName,
 }) async {
   final Uri? url = Uri.tryParse(urlString.trimLeft());
-  final bool isWebURL = url != null && (url.scheme == 'http' || url.scheme == 'https');
+  final bool isWebURL =
+      url != null && (url.scheme == 'http' || url.scheme == 'https');
 
   if (((forceSafariVC ?? false) || forceWebView) && !isWebURL) {
     throw PlatformException(
-      code: 'NOT_A_WEB_SCHEME',
-      message:
-          'To use webview or safariVC, you need to pass '
-          'in a web URL. This $urlString is not a web URL.',
-    );
+        code: 'NOT_A_WEB_SCHEME',
+        message: 'To use webview or safariVC, you need to pass '
+            'in a web URL. This $urlString is not a web URL.');
   }
 
   /// [true] so that ui is automatically computed if [statusBarBrightness] is set.
-  var previousAutomaticSystemUiAdjustment = true;
+  bool previousAutomaticSystemUiAdjustment = true;
   final RenderView? renderViewToAdjust =
       statusBarBrightness != null && defaultTargetPlatform == TargetPlatform.iOS
-      ? _findImplicitRenderView()
-      : null;
+          ? _findImplicitRenderView()
+          : null;
   if (renderViewToAdjust != null) {
-    previousAutomaticSystemUiAdjustment = renderViewToAdjust.automaticSystemUiAdjustment;
+    previousAutomaticSystemUiAdjustment =
+        renderViewToAdjust.automaticSystemUiAdjustment;
     renderViewToAdjust.automaticSystemUiAdjustment = false;
-    SystemChrome.setSystemUIOverlayStyle(
-      statusBarBrightness == Brightness.light
-          ? SystemUiOverlayStyle.dark
-          : SystemUiOverlayStyle.light,
-    );
+    SystemChrome.setSystemUIOverlayStyle(statusBarBrightness == Brightness.light
+        ? SystemUiOverlayStyle.dark
+        : SystemUiOverlayStyle.light);
   }
 
   final bool result = await UrlLauncherPlatform.instance.launch(
@@ -114,7 +112,8 @@ Future<bool> launch(
   );
 
   if (renderViewToAdjust != null) {
-    renderViewToAdjust.automaticSystemUiAdjustment = previousAutomaticSystemUiAdjustment;
+    renderViewToAdjust.automaticSystemUiAdjustment =
+        previousAutomaticSystemUiAdjustment;
   }
 
   return result;
@@ -156,7 +155,8 @@ Future<void> closeWebView() async {
 /// therefore keeping url_launcher forward-compatible with future versions of
 /// Flutter for longer).
 RenderView? _findImplicitRenderView() {
-  final FlutterView? implicitFlutterView = WidgetsBinding.instance.platformDispatcher.implicitView;
+  final FlutterView? implicitFlutterView =
+      WidgetsBinding.instance.platformDispatcher.implicitView;
   if (implicitFlutterView == null) {
     return null;
   }
