@@ -1,6 +1,8 @@
-/*
- * Copyright (c) Huawei Technologies Co., Ltd. 2023-2023. All rights reserved.
- */
+
+// Copyright (c) 2024 Huawei Technologies Co., Ltd.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE_HW file.
+
 import { util } from '@kit.ArkTS';
 
 const centerLineRegex: RegExp = new RegExp('-', 'g');
