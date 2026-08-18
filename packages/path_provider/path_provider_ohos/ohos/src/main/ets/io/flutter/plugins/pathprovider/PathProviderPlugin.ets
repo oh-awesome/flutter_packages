@@ -161,7 +161,8 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
     if (!this.context) {
       return paths;
     }
-    const filePath = this.context.filesDir + "/" + this.getStorageDirectoryString(directory);
+    const subDir = this.getStorageDirectoryString(directory);
+    const filePath = subDir === "" ? this.context.filesDir : this.context.filesDir + "/" + subDir;
     if (!fs.accessSync(filePath)) {
       try {
         fs.mkdirSync(filePath);
