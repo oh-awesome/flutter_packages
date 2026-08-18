@@ -43,6 +43,7 @@ extension NonStandardFieldsOnMediaTrackSettings on MediaTrackSettings {
 
 /// Brought over from package:web 1.0.0
 extension type WebTweakMediaSettingsRange._(JSObject _) implements JSObject {
+  @JS('MediaSettingsRange')
   external factory WebTweakMediaSettingsRange({num max, num min, num step});
 
   external double get max;
@@ -62,5 +63,6 @@ extension WebTweakMethodVersions on MediaStreamTrack {
 /// Allows creating the MediaTrackConstraints that are needed.
 /// Brought over from package:web 1.0.0
 extension type WebTweakMediaTrackConstraints._(JSObject _) implements JSObject {
+  @JS('MediaTrackConstraints')
   external factory WebTweakMediaTrackConstraints({JSAny zoom, ConstrainBoolean torch});
 }

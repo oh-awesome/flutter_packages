@@ -138,7 +138,6 @@ void main() {
           AspectRatioStrategy? aspectRatioStrategy,
           ResolutionStrategy? resolutionStrategy,
           ResolutionFilter? resolutionFilter,
-          int? allowedResolutionMode,
         }) {
           return MockResolutionSelector();
         };
