@@ -13,12 +13,12 @@ class OpenMultipleImagesPage extends StatelessWidget {
   const OpenMultipleImagesPage({super.key});
 
   Future<void> _openImageFile(BuildContext context) async {
-    const jpgsTypeGroup = XTypeGroup(
+    const XTypeGroup jpgsTypeGroup = XTypeGroup(
       label: 'JPEGs',
       extensions: <String>['jpg', 'jpeg'],
       uniformTypeIdentifiers: <String>['public.jpeg'],
     );
-    const pngTypeGroup = XTypeGroup(
+    const XTypeGroup pngTypeGroup = XTypeGroup(
       label: 'PNGs',
       extensions: <String>['png'],
       uniformTypeIdentifiers: <String>['public.png'],
@@ -31,8 +31,8 @@ class OpenMultipleImagesPage extends StatelessWidget {
       return;
     }
 
-    final imageBytes = <Uint8List>[];
-    for (final file in files) {
+    final List<Uint8List> imageBytes = <Uint8List>[];
+    for (final XFile file in files) {
       imageBytes.add(await file.readAsBytes());
     }
     if (context.mounted) {
@@ -84,7 +84,10 @@ class MultipleImagesDisplay extends StatelessWidget {
         child: Row(
           children: <Widget>[
             for (int i = 0; i < fileBytes.length; i++)
-              Flexible(key: Key('result_image_name$i'), child: Image.memory(fileBytes[i])),
+              Flexible(
+                key: Key('result_image_name$i'),
+                child: Image.memory(fileBytes[i]),
+              ),
           ],
         ),
       ),

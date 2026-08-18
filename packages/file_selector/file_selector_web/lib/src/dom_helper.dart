@@ -26,7 +26,7 @@ class DomHelper {
     bool multiple = false,
     @visibleForTesting HTMLInputElement? input,
   }) {
-    final completer = Completer<List<XFile>>();
+    final Completer<List<XFile>> completer = Completer<List<XFile>>();
     final HTMLInputElement inputElement =
         input ?? (document.createElement('input') as HTMLInputElement)
           ..type = 'file';
@@ -47,8 +47,11 @@ class DomHelper {
     });
 
     inputElement.onError.first.then((Event event) {
-      final error = event as ErrorEvent;
-      final platformException = PlatformException(code: error.type, message: error.message);
+      final ErrorEvent error = event as ErrorEvent;
+      final PlatformException platformException = PlatformException(
+        code: error.type,
+        message: error.message,
+      );
       inputElement.remove();
       completer.completeError(platformException);
     });
@@ -68,7 +71,6 @@ class DomHelper {
   }
 
   XFile _convertFileToXFile(File file) => XFile(
-    mimeType: file.type,
     URL.createObjectURL(file),
     name: file.name,
     length: file.size,

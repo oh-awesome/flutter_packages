@@ -10,7 +10,8 @@ import 'src/messages.g.dart';
 /// An implementation of [FileSelectorPlatform] for iOS.
 class FileSelectorIOS extends FileSelectorPlatform {
   /// Creates a new plugin implementation instance.
-  FileSelectorIOS({@visibleForTesting FileSelectorApi? api}) : _hostApi = api ?? FileSelectorApi();
+  FileSelectorIOS({@visibleForTesting FileSelectorApi? api})
+    : _hostApi = api ?? FileSelectorApi();
 
   final FileSelectorApi _hostApi;
 
@@ -26,7 +27,9 @@ class FileSelectorIOS extends FileSelectorPlatform {
     String? confirmButtonText,
   }) async {
     final List<String> path = await _hostApi.openFile(
-      FileSelectorConfig(utis: _allowedUtiListFromTypeGroups(acceptedTypeGroups)),
+      FileSelectorConfig(
+        utis: _allowedUtiListFromTypeGroups(acceptedTypeGroups),
+      ),
     );
     return path.isEmpty ? null : XFile(path.first);
   }
@@ -51,12 +54,12 @@ class FileSelectorIOS extends FileSelectorPlatform {
   List<String> _allowedUtiListFromTypeGroups(List<XTypeGroup>? typeGroups) {
     // iOS requires a list of allowed types, so allowing all is expressed via
     // a root type rather than an empty list.
-    const allowAny = <String>['public.data'];
+    const List<String> allowAny = <String>['public.data'];
 
     if (typeGroups == null || typeGroups.isEmpty) {
       return allowAny;
     }
-    final allowedUTIs = <String>[];
+    final List<String> allowedUTIs = <String>[];
     for (final XTypeGroup typeGroup in typeGroups) {
       // If any group allows everything, no filtering should be done.
       if (typeGroup.allowsAny) {
