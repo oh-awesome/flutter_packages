@@ -12,6 +12,7 @@
 
 - (BOOL)application:(UIApplication *)application
     didFinishLaunchingWithOptions:(NSDictionary *)launchOptions {
+  [GeneratedPluginRegistrant registerWithRegistry:self];
   if (@available(iOS 14, *)) {
     // Seed the photo library with at least one image for tests to operate on.
     NSString *photoAddedKey = @"PhotoAdded";
@@ -42,10 +43,6 @@
     }
   }
   return [super application:application didFinishLaunchingWithOptions:launchOptions];
-}
-
-- (void)didInitializeImplicitFlutterEngine:(NSObject<FlutterImplicitEngineBridge> *)engineBridge {
-  [GeneratedPluginRegistrant registerWithRegistry:engineBridge.pluginRegistry];
 }
 
 @end

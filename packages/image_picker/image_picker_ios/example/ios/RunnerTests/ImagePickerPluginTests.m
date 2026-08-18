@@ -335,11 +335,7 @@
   OCMStub([mockAVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo])
       .andReturn(AVAuthorizationStatusAuthorized);
 
-  UIWindowScene *scene =
-      (UIWindowScene *)UIApplication.sharedApplication.connectedScenes.allObjects.firstObject;
-
-  UIWindow *window = [[UIWindow alloc] initWithWindowScene:scene];
-  window.frame = scene.coordinateSpace.bounds;
+  UIWindow *window = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
   UIViewController *rootViewController = [[UIViewController alloc] init];
   window.rootViewController = rootViewController;
   if ([rootViewController respondsToSelector:@selector(loadViewIfNeeded)]) {
