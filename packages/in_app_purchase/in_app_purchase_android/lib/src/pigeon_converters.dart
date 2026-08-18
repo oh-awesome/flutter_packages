@@ -131,23 +131,6 @@ alternativeBillingOnlyReportingDetailsWrapperFromPlatform(
   );
 }
 
-/// Converts [PlatformInAppMessageResponse] to its public API enum equivalent.
-InAppMessageResponse inAppMessageResponseFromPlatform(PlatformInAppMessageResponse responseCode) {
-  return switch (responseCode) {
-    PlatformInAppMessageResponse.noActionNeeded => InAppMessageResponse.noActionNeeded,
-    PlatformInAppMessageResponse.subscriptionStatusUpdated =>
-      InAppMessageResponse.subscriptionStatusUpdated,
-  };
-}
-
-/// Creates a [InAppMessageResultWrapper] from the Pigeon equivalent.
-InAppMessageResultWrapper inAppMessageResultWrapperFromPlatform(PlatformInAppMessageResult result) {
-  return InAppMessageResultWrapper(
-    responseCode: inAppMessageResponseFromPlatform(result.responseCode),
-    purchaseToken: result.purchaseToken,
-  );
-}
-
 /// Creates a [BillingConfigWrapper] from the Pigeon equivalent.
 BillingConfigWrapper billingConfigWrapperFromPlatform(PlatformBillingConfigResponse response) {
   return BillingConfigWrapper(
