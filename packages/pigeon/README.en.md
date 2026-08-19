@@ -51,7 +51,7 @@ For use cases [example](./example)
 
 This document is verified based on the following versions:
 
-1. Flutter version 3.22.1-ohos-1.1.0; SDK: 6.0.0.47 (API Version 20 Release); IDE: DevEco Studio: 6.0.0.858; ROM: 6.0.0.125 SP8;
+1. Flutter version 3.35.8-ohos-1.0.3-beta; SDK: 6.1.1.125 (API Version 24 Release); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
 
 ## 3. API
 
