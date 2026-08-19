@@ -124,7 +124,7 @@ export default class ImageResizer {
     Promise<string> {
     let imagePackerApi: image.ImagePacker | null = null;
     let outFile: fs.File | null = null;
-    let outFileName: string = this.context.cacheDir + "scaled_" + imageName;
+    let outFileName: string = this.context.cacheDir + "/scaled_" + imageName;
 
     try {
       imagePackerApi = image.createImagePacker();

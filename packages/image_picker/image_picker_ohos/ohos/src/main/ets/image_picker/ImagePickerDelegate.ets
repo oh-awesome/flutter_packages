@@ -17,7 +17,8 @@ import {
   VideoSelectionOptions,
   Result,
   CacheRetrievalResult,
-  CacheRetrievalResultBuilder,
+  CacheRetrievalError,
+  CacheRetrievalType,
   MediaSelectionOptions,
   GeneralOptions
 } from './Messages'
@@ -96,18 +97,19 @@ export default class ImagePickerDelegate {
     if (cacheMap.isEmpty()) {
       return null;
     }
-    let result = new CacheRetrievalResultBuilder(null, null, null, null);
+    // Dart 侧解码 CacheRetrievalResult 时对 type/paths 做非空断言（messages.g.dart result[0]!/result[2]!），
+    // 因此二者必须设置非空值，缺失时分别按 IMAGE 和空列表兜底，避免通道解码崩溃
+    let result = new CacheRetrievalResult();
     let type: ESObject = cacheMap.get(ImagePickerCache.MAP_KEY_TYPE);
-    if (type != null && result.setType) {
-      result.setType(type);
-    }
-    if (result.setError) {
-      result.setError(cacheMap.get(ImagePickerCache.MAP_KEY_ERROR));
+    result.setType(type != null ? type as CacheRetrievalType : CacheRetrievalType.IMAGE);
+    let error: ESObject = cacheMap.get(ImagePickerCache.MAP_KEY_ERROR);
+    if (error != null) {
+      result.setError(error as CacheRetrievalError);
     }
 
     let pathList: ArrayList<string> = cacheMap.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ArrayList<string>;
+    let newPathList: ArrayList<string> = new ArrayList();
     if (pathList != null) {
-      let newPathList: ArrayList<string> = new ArrayList();
       for (let path of pathList) {
         let maxWidth: number = cacheMap.get(ImagePickerCache.MAP_KEY_MAX_WIDTH) as number;
         let maxHeight: number = cacheMap.get(ImagePickerCache.MAP_KEY_MAX_HEIGHT) as number;
@@ -120,13 +122,10 @@ export default class ImagePickerDelegate {
           })
         );
       }
-      if (result.setPaths) {
-        result.setPaths(newPathList);
-      }
-
     }
+    result.setPaths(newPathList);
     this.cache.clear();
-    return result.build ? result.build() : null;
+    return result;
   }
 
   chooseMedia(maxMultiple: number, handleType: string, type?: photoAccessHelper.PhotoViewMIMETypes) {
@@ -143,6 +142,8 @@ export default class ImagePickerDelegate {
   }
 
   handleResultType(handleType: string, code: number, uris: Array<string>) {
+    // 先持久化本次选择的类型和缩放参数，进程被杀后 retrieveLostImage 才能恢复出完整结果
+    this.saveStateBeforeResult();
     switch (handleType) {
       case 'handleChooseVideoResult':
         this.handleChooseVideoResult(code, uris);
@@ -264,6 +265,7 @@ export default class ImagePickerDelegate {
       Log.i(ImagePickerDelegate.TAG, "launchTakeVideoWithCameraWant duration: " + options.getMaxDurationSeconds());
       this.launchTakeVideoWithCameraWant(options.getMaxDurationSeconds());
     }).catch((err: BusinessError) => {
+         this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
          result.error(new FlutterError("camera_permission_error",err.message, null));
          return;
     });
@@ -349,11 +351,13 @@ export default class ImagePickerDelegate {
       // 改为使用新增的异步权限请求方法
      this.checkAndRequestCameraPermission().then((hasCameraPermission: boolean) =>{
        if (!hasCameraPermission) {
+         this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
          result.error(new FlutterError("camera_access_denied", "The user did not allow camera access.", null));
          return;
        }
        this.launchTakeImageWithCameraWant();
       }).catch((err: BusinessError) => {
+                 this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
                  result.error(new FlutterError("camera_permission_error",err.message, null));
                  return;
             });
@@ -381,11 +385,13 @@ export default class ImagePickerDelegate {
   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
     result: Result<ArrayList<string>>): boolean {
     if (this.pendingCallState !== null && this.pendingCallState !== undefined) {
+      // 已有进行中的选择调用，返回 false 让调用方收到 already_active，
+      // 否则新调用方的 result 会被静默丢弃，Dart 侧 Future 永久挂起
       Log.i(ImagePickerDelegate.TAG, "There is already an open gallery, use it directly to select images");
-    } else {
-      Log.i(ImagePickerDelegate.TAG, "Prepare to awaken a new one");
-      this.pendingCallState = new PendingCallState(imageOptions, videoOptions, result);
+      return false;
     }
+    Log.i(ImagePickerDelegate.TAG, "Prepare to awaken a new one");
+    this.pendingCallState = new PendingCallState(imageOptions, videoOptions, result);
     this.cache.clear();
     return true;
   }
