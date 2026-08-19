@@ -1,17 +1,17 @@
 /*
-* Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-*
-*     http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
+ * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
 import {
   FlutterPlugin,
@@ -53,6 +53,11 @@ class HostApiImp extends StreamEventsStreamHandler {
   }
 
   override onCancel(args: Object): void {
+    this.stopEventStream();
+  }
+
+  /** Stops any pending or active event delivery (safe from engine detach). */
+  stopEventStream(): void {
     this.eventSender.stopSendingEvents();
   }
 
@@ -94,18 +99,21 @@ class ExampleHostApiAdapter extends ExampleHostApi {
 class EventSender {
   private count: number = 0;
   private timer: number | null = null;
+  private startTimer: number | null = null;
   private eventSink: PigeonEventSink<PlatformEvent> | null = null;
   private isActive: boolean = false;
 
   start(eventSink: PigeonEventSink<PlatformEvent>): void {
-    setTimeout(() => {
-      if (!eventSink) {
-        console.error('EventSink为null，无法启动事件发送');
+    this.forceStop();
+    this.eventSink = eventSink;
+    this.isActive = true;
+    this.count = 0;
+
+    this.startTimer = setTimeout(() => {
+      this.startTimer = null;
+      if (!this.isActive || !this.eventSink) {
         return;
       }
-
-      this.eventSink = eventSink;
-      this.isActive = true;
 
       this.timer = setInterval(() => {
         if (!this.isActive || !this.eventSink) {
@@ -141,8 +149,9 @@ class EventSender {
   }
 
   private forceStop(): void {
-    if (!this.isActive && !this.timer) {
-      return;
+    if (this.startTimer !== null) {
+      clearTimeout(this.startTimer);
+      this.startTimer = null;
     }
 
     this.isActive = false;
@@ -152,7 +161,10 @@ class EventSender {
       this.timer = null;
     }
 
-    this.eventSink = null;
+    if (this.eventSink !== null) {
+      this.eventSink.endOfStream();
+      this.eventSink = null;
+    }
   }
 
   isRunning(): boolean {
@@ -186,6 +198,7 @@ export default class MessagePlugin implements FlutterPlugin {
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
+    this.hostApiImp.stopEventStream();
     ExampleHostApi.setup(binding.getBinaryMessenger(), null);
     DemoHostApi.setup(binding.getBinaryMessenger(), null);
     if (this.proxyRegistrar !== null) {
