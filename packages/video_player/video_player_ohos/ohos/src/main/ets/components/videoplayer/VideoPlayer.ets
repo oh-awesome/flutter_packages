@@ -884,7 +884,6 @@ export class VideoPlayer {
       }
       const metadata = await extractor.fetchMetadata();
       const orientation = metadata.videoOrientation ? parseInt(metadata.videoOrientation) : 0;
-      orientation
       if (orientation === 0 || orientation === 90 || orientation === 180 || orientation === 270) {
         return orientation;
       }
