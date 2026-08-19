@@ -4,6 +4,7 @@
 
 import 'package:pigeon/src/ast.dart';
 import 'package:pigeon/src/arkts/arkts_generator.dart';
+import 'package:pigeon/src/generator_tools.dart';
 import 'package:pigeon/src/types/task_queue.dart';
 import 'package:test/test.dart';
 
@@ -54,6 +55,320 @@ void main() {
     expect(code, contains('private field1?: number;'));
     expect(code, contains('toList(): Array<Object | null>'));
     expect(code, contains('static fromList(arr: Object[]): Foobar'));
+  });
+
+  test('data class distinguishes required and nullable fields', () {
+    final codeEnum = Enum(
+      name: 'Code',
+      members: <EnumMember>[
+        EnumMember(name: 'one'),
+        EnumMember(name: 'two'),
+      ],
+    );
+    final classDefinition = Class(
+      name: 'MessageData',
+      fields: <NamedType>[
+        NamedType(
+          type: const TypeDeclaration(baseName: 'String', isNullable: true),
+          name: 'name',
+        ),
+        NamedType(
+          type: const TypeDeclaration(baseName: 'String', isNullable: true),
+          name: 'description',
+        ),
+        NamedType(
+          type: TypeDeclaration(
+            baseName: 'Code',
+            associatedEnum: codeEnum,
+            isNullable: false,
+          ),
+          name: 'code',
+        ),
+        NamedType(
+          type: const TypeDeclaration(
+            baseName: 'Map',
+            isNullable: false,
+            typeArguments: <TypeDeclaration>[
+              TypeDeclaration(baseName: 'String', isNullable: false),
+              TypeDeclaration(baseName: 'String', isNullable: false),
+            ],
+          ),
+          name: 'data',
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[classDefinition],
+      enums: <Enum>[codeEnum],
+    );
+    final sink = StringBuffer();
+    const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
+    const generator = ArkTSGenerator();
+    generator.generate(
+      arkTSOptions,
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(code, contains('private name?: string;'));
+    expect(code, contains('private description?: string;'));
+    expect(code, contains('private code: Code;'));
+    expect(code, contains('private data: Map<string, string>;'));
+    expect(code, contains('getName(): string | undefined'));
+    expect(code, contains('getCode(): Code'));
+    expect(
+      code,
+      contains(
+        'constructor(code: Code, data: Map<string, string>, name?: string, description?: string)',
+      ),
+    );
+    expect(code, contains('public setName(name: string | undefined): void'));
+    // Nullable fields guard before decode; required fields decode directly.
+    expect(
+      collapsed,
+      contains(
+        'let name: string | undefined = undefined; if (arr[0] !== null && arr[0] !== undefined) { let nameObject: Object = arr[0]; name = nameObject as string | undefined; }',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'const codeStr: string = arr[2] as string; const code: Code = Code[codeStr];',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'let dataObject: Object = arr[3]; const data: Map<string, string> = dataObject as Map<string, string>; return new MessageData(code, data, name, description);',
+      ),
+    );
+    expect(collapsed, isNot(contains('string | undefined | undefined')));
+  });
+
+  test(
+    'Dart String? field maps to omit-able constructor and nullable setter',
+    () {
+      final root = Root(
+        apis: <Api>[],
+        classes: <Class>[
+          Class(
+            name: 'Record',
+            fields: <NamedType>[
+              NamedType(
+                name: 'id',
+                type: const TypeDeclaration(baseName: 'int', isNullable: false),
+              ),
+              NamedType(
+                name: 'label',
+                type: const TypeDeclaration(
+                  baseName: 'String',
+                  isNullable: true,
+                ),
+              ),
+            ],
+          ),
+        ],
+        enums: <Enum>[],
+      );
+      final sink = StringBuffer();
+      const generator = ArkTSGenerator();
+      generator.generate(
+        const InternalArkTSOptions(arkTSOut: ''),
+        root,
+        sink,
+        dartPackageName: DEFAULT_PACKAGE_NAME,
+      );
+      final code = sink.toString();
+
+      // Dart `{this.label}` for `String? label`: omit-able + nullable.
+      expect(code, contains('constructor(id: number, label?: string)'));
+      expect(code, contains('private label?: string;'));
+      expect(code, contains('getLabel(): string | undefined'));
+      expect(
+        code,
+        contains('public setLabel(label: string | undefined): void'),
+      );
+    },
+  );
+
+  test('nullable enum fromList local uses single | undefined', () {
+    final testEnum = Enum(
+      name: 'TestEnum',
+      members: <EnumMember>[EnumMember(name: 'head')],
+    );
+    final classDefinition = Class(
+      name: 'WithEnum',
+      fields: <NamedType>[
+        NamedType(
+          type: TypeDeclaration(
+            baseName: 'TestEnum',
+            associatedEnum: testEnum,
+            isNullable: true,
+          ),
+          name: 'head',
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[classDefinition],
+      enums: <Enum>[testEnum],
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(code, contains('constructor(head?: TestEnum)'));
+    expect(
+      collapsed,
+      contains(
+        'let head: TestEnum | undefined = undefined; if (arr[0] !== null && arr[0] !== undefined) { const headStr: string = arr[0] as string; head = TestEnum[headStr]; }',
+      ),
+    );
+    expect(collapsed, isNot(contains('TestEnum | undefined | undefined')));
+  });
+
+  test('nullable Dart types map to ArkTS optional semantics by API kind', () {
+    final identity = Enum(
+      name: 'Identity',
+      members: <EnumMember>[EnumMember(name: 'student')],
+    );
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'DemoHostApi',
+          methods: <Method>[
+            Method(
+              name: 'sendNull',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(
+                baseName: 'Object',
+                isNullable: true,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: const TypeDeclaration(
+                    baseName: 'Object',
+                    isNullable: true,
+                  ),
+                ),
+              ],
+            ),
+            Method(
+              name: 'sendNullableEnum',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'DemoFlutterApi',
+          methods: <Method>[
+            Method(
+              name: 'platformEchoNullableEnum',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'value',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[
+        Class(
+          name: 'MessageData',
+          fields: <NamedType>[
+            NamedType(
+              name: 'code',
+              type: const TypeDeclaration(baseName: 'int', isNullable: false),
+            ),
+            NamedType(
+              name: 'name',
+              type: const TypeDeclaration(baseName: 'String', isNullable: true),
+            ),
+          ],
+        ),
+      ],
+      enums: <Enum>[identity],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    // Data class: nullable fields become omit-able constructor params (`?`).
+    expect(code, contains('constructor(code: number, name?: string)'));
+    expect(code, contains('public setName(name: string | undefined): void'));
+    expect(code, isNot(contains('constructor(name?: string, code:')));
+
+    // HostApi / FlutterApi: nullable means `| undefined` on the type; params are
+    // still required at the call site (Pigeon always passes every slot).
+    expect(
+      code,
+      contains(
+        'abstract sendNull(data: Object | undefined ): Object | undefined;',
+      ),
+    );
+    expect(
+      code,
+      contains(
+        'abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;',
+      ),
+    );
+    expect(
+      code,
+      contains(
+        'platformEchoNullableEnum(valueArg: Identity | undefined, callback: Reply<Identity | undefined>)',
+      ),
+    );
+    expect(collapsed, isNot(contains('sendNull(data?:')));
+    expect(collapsed, isNot(contains('sendNullableEnum(data?:')));
+    expect(collapsed, isNot(contains('platformEchoNullableEnum(valueArg?:')));
   });
 
   test('gen one enum', () {
@@ -651,7 +966,8 @@ void main() {
     final code = sink.toString();
     expect(code, contains('export enum Foo'));
     expect(code, contains('export class Bar'));
-    expect(code, contains('private field1?: Foo;'));
+    expect(code, contains('private field1: Foo;'));
+    expect(code, contains('constructor(field1: Foo)'));
     expect(code, contains('export class FooEnum'));
   });
 
@@ -985,6 +1301,124 @@ void main() {
     expect(
       code,
       contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'),
+    );
+  });
+
+  test('codec overflow utilities use ArkTS syntax', () {
+    // Enums are enumerated before classes, so use 127 enums + 1 class to
+    // force both enum and class decode paths into unwrap().
+    final List<Enum> enums = List<Enum>.generate(
+      totalCustomCodecKeysAllowed + 1,
+      (int i) => Enum(
+        name: 'OverflowEnum$i',
+        members: <EnumMember>[EnumMember(name: 'one')],
+      ),
+    );
+    final Class overflowClass = Class(
+      name: 'OverflowClass',
+      fields: <NamedType>[
+        NamedType(
+          name: 'value',
+          type: const TypeDeclaration(baseName: 'int', isNullable: false),
+        ),
+      ],
+    );
+    final root = Root(
+      apis: <Api>[AstHostApi(name: 'Api', methods: <Method>[])],
+      classes: <Class>[overflowClass],
+      enums: enums,
+      containsHostApi: true,
+    );
+    expect(root.requiresOverflowClass, isTrue);
+
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+
+    expect(
+      code,
+      contains('private static final class PigeonInternalCodecOverflow'),
+    );
+    expect(
+      collapsed,
+      contains(
+        'static fromList(list: Object[]): Object | null { const wrapper: PigeonInternalCodecOverflow = new PigeonInternalCodecOverflow(); wrapper.setType(list[0] as number); wrapper.setWrapped(list[1]); return wrapper.unwrap(); }',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'case 0: return OverflowEnum${totalCustomCodecKeysAllowed}[this.wrapped as string];',
+      ),
+    );
+    expect(
+      collapsed,
+      contains(
+        'case 1: return OverflowClass.fromList(this.wrapped as Object[]);',
+      ),
+    );
+    expect(code, isNot(contains('ArrayList<Object>')));
+    expect(code, isNot(contains('@Nullable')));
+    expect(code, isNot(contains('.values()')));
+  });
+
+  test('nullable custom enum types use | undefined in HostApi signatures', () {
+    final identity = Enum(
+      name: 'Identity',
+      members: <EnumMember>[EnumMember(name: 'student')],
+    );
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'sendNullableEnum',
+              location: ApiLocation.host,
+              returnType: TypeDeclaration(
+                baseName: 'Identity',
+                isNullable: true,
+                associatedEnum: identity,
+              ),
+              parameters: <Parameter>[
+                Parameter(
+                  name: 'data',
+                  type: TypeDeclaration(
+                    baseName: 'Identity',
+                    isNullable: true,
+                    associatedEnum: identity,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[identity],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(
+      code,
+      contains(
+        'abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;',
+      ),
     );
   });
 
