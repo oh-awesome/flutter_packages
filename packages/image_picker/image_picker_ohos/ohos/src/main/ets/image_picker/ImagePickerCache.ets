@@ -69,7 +69,7 @@ export default class ImagePickerCache {
 
   private setType(type: string): void {
     try {
-      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCES_NAME, type);
+      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_TYPE_KEY, type);
     } catch (err) {
       Log.e(TAG, "setType failed");
     }
