@@ -15,7 +15,10 @@ dependencies:
     sdk: flutter
   video_player_platform_interface: ^6.3.0
   pigeon:
-    path: ../../pigeon
+    git:
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
+      path: "packages/pigeon"
+      ref: "pigeon-v26.3.4-ohos-1.0.0"
 
   cupertino_icons: ^1.0.2
 
