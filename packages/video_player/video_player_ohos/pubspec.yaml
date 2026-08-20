@@ -1,0 +1,41 @@
+name: video_player_ohos
+description: HarmonyOS implementation of the video_player plugin for Flutter.
+repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/main/packages/video_player
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
+
+version: 1.0.0+2
+
+environment:
+  sdk: ^3.7.0
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  video_player_platform_interface: ^6.3.0
+  pigeon:
+    git:
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
+      path: "packages/pigeon"
+      ref: "pigeon-v26.3.4-ohos-1.0.0"
+
+  cupertino_icons: ^1.0.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  mockito: ^5.4.4
+  flutter_lints: ^2.0.0
+
+flutter:
+
+  uses-material-design: true
+  plugin:
+    implements: video_player
+    platforms:
+      ohos:
+        dartPluginClass: OhosVideoPlayer
+        package: io.flutter.plugins.videoplayer
+        pluginClass: VideoPlayerPlugin
+

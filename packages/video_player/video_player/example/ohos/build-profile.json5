@@ -1,0 +1,43 @@
+// Copyright (c) 2025 Huawei Device Co., Ltd.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE_HW file.
+// Based on Camera.java originally written by
+// Copyright 2013 The Flutter Authors.
+{
+  "app": {
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug",
+      },
+      {
+        "name": "release",
+      },
+      {
+        "name": "profile",
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}
