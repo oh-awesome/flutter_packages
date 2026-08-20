@@ -1,8 +1,6 @@
-// Copyright (c) 2025 Huawei Device Co., Ltd.
+// Copyright (c) 2025 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE_HW file.
-// Based on Camera.java originally written by
-// Copyright 2013 The Flutter Authors.
+// found in the LICENSE_ODID file.
 
 import { FlutterPlugin, FlutterPluginBinding} from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
 import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
