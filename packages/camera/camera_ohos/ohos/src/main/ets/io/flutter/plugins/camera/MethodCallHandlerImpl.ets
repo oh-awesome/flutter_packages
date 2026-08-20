@@ -191,7 +191,6 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           y = call.argument("y");
         }
         try {
-          this.camera!.getFocusMode(result)
           this.camera!.setExposurePoint(result, new Point(x, y));
         } catch (e) {
           this.handleException(e, result);
@@ -282,6 +281,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'getMaxZoomLevel': {
         if (this.camera == null) {
+          result.error("cameraNotFound", "Camera not found. Please call 'create' before this method.", null)
           return;
         }
         try {
@@ -294,6 +294,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'getMinZoomLevel': {
         if (this.camera == null) {
+          result.error("cameraNotFound", "Camera not found. Please call 'create' before this method.", null)
           return;
         }
         try {
@@ -306,6 +307,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'setZoomLevel': {
         if (this.camera == null) {
+          result.error("cameraNotFound", "Camera not found. Please call 'create' before this method.", null)
           return;
         }
         let zoom: number | null = call.argument('zoom');

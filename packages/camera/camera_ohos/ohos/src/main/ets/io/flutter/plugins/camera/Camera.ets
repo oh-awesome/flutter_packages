@@ -202,6 +202,14 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
+    // 重建前释放可能残留的旧资源, 避免覆盖引用导致泄漏
+    await this.releasePreviewOutput();
+    await this.releasePhotoOutput();
+    if (this.imageStreamReader != null) {
+      try { this.imageStreamReader.close(); } catch (e) {}
+      this.imageStreamReader = null;
+    }
+
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
     if (imageFormat == null) {
       Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. Defaulting to JPEG")
@@ -217,6 +225,8 @@ export class Camera implements CameraCaptureStateListener {
     // 增强相机设备获取的错误处理
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
+      this.imageStreamReader?.close();
+      this.imageStreamReader = null;
       this.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
       return;
     }
@@ -641,6 +651,8 @@ export class Camera implements CameraCaptureStateListener {
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
       if (err) {
         console.error(`Failed to capture the photo ${err.code}`);
+        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
+        this.takePictureResult = undefined;
         this.sendCameraErrorEvent(err.message);
         return;
       }
@@ -752,19 +764,6 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  unlockAutoFocus(): void {
-    if (this.photoSession == null) {
-      console.info("[unlockAutoFocus] captureSession null, returning");
-      return;
-    }
-    try {
-
-    } catch (e) {
-      this.sendCameraErrorEvent(e.message);
-      return;
-    }
-  }
-
   async startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
     this.prepareRecording(result);
 
@@ -781,7 +780,10 @@ export class Camera implements CameraCaptureStateListener {
       result.success(null);
     } catch (e) {
       this.recordingVideo = false;
-      this.captureFile = null;
+      if (this.captureFile) {
+        try { fs.close(this.captureFile); } catch (closeErr) {}
+        this.captureFile = null;
+      }
       result.error("videoRecordingFailed", e.message, null);
     }
   }
@@ -812,6 +814,30 @@ export class Camera implements CameraCaptureStateListener {
       Log.d(TAG, "videoSession stop error" + e.toString());
     } finally {
       try {
+        // 释放录像输出
+        if (this.videoOutput != null) {
+          try { await this.videoOutput.stop(); } catch (e) {}
+          try { await this.videoOutput.release(); } catch (e) {}
+          this.videoOutput = null;
+        }
+        // 释放视频 session
+        if (this.videoSession != null) {
+          try { await this.videoSession.stop(); } catch (e) {}
+          try { await this.videoSession.release(); } catch (e) {}
+          this.videoSession = null;
+        }
+        // 释放旧 previewOutput
+        if (this.previewOutput != null) {
+          try { await this.previewOutput.release(); } catch (e) {}
+          this.previewOutput = null;
+        }
+        // 释放 stream 录像/拍照相关辅助资源(previewOutput2/photoOutPut/imageStreamReader), 避免泄漏
+        await this.releasePreviewOutput();
+        await this.releasePhotoOutput();
+        if (this.imageStreamReader != null) {
+          try { this.imageStreamReader.close(); } catch (e) {}
+          this.imageStreamReader = null;
+        }
         fs.close(this.captureFile);
         this.captureFile = null;
         this.isVideoMode = false;
@@ -876,7 +902,7 @@ export class Camera implements CameraCaptureStateListener {
       await this.applyFlashMode(this.videoSession!);
 
       if (this.pausedPreview) {
-        this.previewOutput.stop();
+        await this.previewOutput.stop();
       }
       if (this.recordingVideo && this.avRecorder != undefined && this.avRecorder.state === 'paused') {
         // 录像中且暂停状态
@@ -884,6 +910,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.videoOutput.start();
       }
     } catch (e) {
+      await this.releaseCamera()
       console.error(TAG, `启用录像预览失败：${e}`)
     }
   }
@@ -967,12 +994,8 @@ export class Camera implements CameraCaptureStateListener {
           await this.photoSession.stop();
           this.photoSession = null;
         }
-        if (this.previewOutput) {
-          this.previewOutput = null;
-        }
-        if (this.photoOutPut) {
-          this.photoOutPut = null;
-        }
+        await this.releasePreviewOutput();
+        await this.releasePhotoOutput();
       } catch (cleanupError) {
         Log.e(TAG, 'startPreviewWithPhoto cleanup failed: ' + cleanupError.message);
       }
@@ -1100,8 +1123,9 @@ export class Camera implements CameraCaptureStateListener {
       }
 
     } catch (e) {
+      const err = e as BusinessError;
       Log.d(TAG, "pauseVideoRecording error")
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", err.message, null);
       return;
     }
     result.success(null);
@@ -1122,7 +1146,8 @@ export class Camera implements CameraCaptureStateListener {
         return;
       }
     } catch (e) {
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      const err = e as BusinessError;
+      result.error("videoRecordingFailed", err.message, null);
       return;
     }
 
@@ -1199,7 +1224,7 @@ export class Camera implements CameraCaptureStateListener {
 
   async startCapture(record: boolean, stream: boolean) {
     if (!this.pausedPreview) {
-      this.getCurSession().stop();
+      await this.getCurSession().stop();
     }
     this.photoSession = null;
     this.isVideoMode = true;
@@ -1285,13 +1310,28 @@ export class Camera implements CameraCaptureStateListener {
             await this.avRecorder.start();
           }
         } catch (e) {
-          Log.d(TAG, "startAVRecorder error")
+            const err = e as BusinessError;
+            Log.e(TAG, "startAVRecorder error: " + err.message);
+            throw err as Error;
         }
       } else {
         Log.e(TAG, "startVideo createAVRecorder fail : recorder is null");
       }
     } catch (error) {
       Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
+      // 清理已创建的资源
+      if (this.avRecorder) {
+        try { await this.avRecorder.release(); } catch (e) {}
+        this.avRecorder = null;
+      }
+      if (this.captureFile) {
+        try { fs.close(this.captureFile); } catch (e) {}
+        this.captureFile = null;
+      }
+      await this.releaseVideoOutput();
+      await this.releasePreviewOutput();
+      await this.releaseSession();
+      throw error as Error;  // 重新抛出，让调用者处理
     }
   }
 
@@ -1633,6 +1673,14 @@ export class Camera implements CameraCaptureStateListener {
     await this.releasePhotoOutput();
     // ③ 停止并释放 session
     await this.releaseSession();
+    if (this.imageStreamReader != null) {
+      try {
+        this.imageStreamReader.close();
+        this.imageStreamReader = null;
+      } catch (e) {
+        Log.e(TAG, "stopAndReleaseCamera: failed to close imageStreamReader: " + e.message);
+      }
+    }
 
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
@@ -1698,6 +1746,14 @@ export class Camera implements CameraCaptureStateListener {
         this.previewOutput = null;
       } catch (e) {
         Log.e(TAG, "releasePreviewOutput: failed to release previewOutput: " + e.message);
+      }
+    }
+    if (this.previewOutput2 != null) {
+      try {
+        await this.previewOutput2.release();
+        this.previewOutput2 = null;
+      } catch (e) {
+        Log.e(TAG, "releasePreviewOutput: failed to release previewOutput2: " + e.message);
       }
     }
   }
