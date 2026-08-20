@@ -326,7 +326,7 @@ export class CameraApiImpl extends CameraApi {
 
   // 添加正确的 create 方法实现以匹配 CameraApi 接口
   // 在 create 方法中增强错误处理
-  create(cameraName: string, mediaSettings: PlatformMediaSettings, result: Result<number>): void {
+  async create(cameraName: string, mediaSettings: PlatformMediaSettings, result: Result<number>): Promise<void> {
     try {
 
       console.log('mediaSettings:', JSON.stringify(mediaSettings));
@@ -338,7 +338,7 @@ export class CameraApiImpl extends CameraApi {
       this.curStatus = STATUS.CREATE_ING;
 
       if (this.camera) {
-        this.camera.releaseCamera();
+        await this.camera.releaseCamera();
       }
       if (this.textureId > -1) {
         this.unregisterTexture(this.textureId);

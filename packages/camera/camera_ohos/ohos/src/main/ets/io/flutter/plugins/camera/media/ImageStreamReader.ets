@@ -16,6 +16,7 @@ export class ImageStreamReader {
   private readonly dartImageFormat: number;
   private readonly imageReceiver: image.ImageReceiver;
   private readonly imageStreamReaderUtils: ImageStreamReaderUtils;
+  private imageArrivalListener: ((err: BusinessError) => void) | null = null;
 
   constructor(size: Size, imageFormat: number, maxImages: number) {
     this.dartImageFormat = imageFormat;
@@ -32,24 +33,25 @@ export class ImageStreamReader {
     try {
       let imageBuffer: HashMap<string, Object> = new HashMap();
 
-      imageBuffer.set("planes", this.parsePlanes(_image, imgComponent))
+      imageBuffer.set("planes", this.parsePlanes(_image, imgComponent));
       imageBuffer.set('width', _image.size.width);
       imageBuffer.set('height', _image.size.height);
       imageBuffer.set('format', this.dartImageFormat);
       imageBuffer.set('lensAperture', captureProps.getLastLensAperture());
-      imageBuffer.set('sensorExposureTime', captureProps.getLastSensorSensitivity());
+      imageBuffer.set('sensorExposureTime', captureProps.getLastSensorExposureTime());
       let sensorSensitivity: number = captureProps.getLastSensorSensitivity();
       imageBuffer.set('sensorSensitivity', sensorSensitivity == null ? null : sensorSensitivity);
 
-      imageStreamSink.success(imageBuffer)
-      await _image.release()
+      imageStreamSink.success(imageBuffer);
+      await _image.release();
 
     } catch (e) {
+      const err = e as BusinessError;
       imageStreamSink.error(
         "IllegalStateException",
-        "Caught IllegalStateException: " + e.getMessage(),
-        null)
-      await _image.release()
+        "Caught IllegalStateException: " + err.message,
+        null);
+      await _image.release();
     }
   }
 
@@ -73,7 +75,7 @@ export class ImageStreamReader {
 
   public async subscribeListener(captureProps: CameraCaptureProperties, imageStreamSink: EventSink) {
 
-    this.imageReceiver.on('imageArrival', () => {
+    this.imageArrivalListener = (err: BusinessError): void => {
       this.imageReceiver.readNextImage((err: BusinessError, nextImage: image.Image) => {
         if (err || nextImage === undefined) {
           console.error('readNextImage failed');
@@ -90,11 +92,15 @@ export class ImageStreamReader {
           }
         })
       })
-    });
+    };
+    this.imageReceiver.on('imageArrival', this.imageArrivalListener);
   }
 
   public removeListener(): void {
-    this.imageReceiver.release()
+    if (this.imageArrivalListener != null) {
+      this.imageReceiver.off('imageArrival', this.imageArrivalListener);
+      this.imageArrivalListener = null;
+    }
   }
 
   public close(): void {
