@@ -23,7 +23,8 @@ import {
   FileSelectorApiCodec,
   FileSelectorNativeException,
   FileSelectorExceptionCode,
-  FILE_SELECTOR_EXCEPTION_PLACEHOLDER_PATH
+  FILE_SELECTOR_EXCEPTION_PLACEHOLDER_PATH,
+  wrapError
 } from './GeneratedFileSelectorApi'
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
@@ -33,8 +34,7 @@ import common from '@ohos.app.ability.common';
 import {
   filePicker,
   getMimeTypeFromPath
-} from './FIleSelectorUtil'
-import ArrayList from '@ohos.util.ArrayList';
+} from './FileSelectorUtil'
 
 const TAG = "FileSelectorApiImpl";
 
@@ -93,7 +93,7 @@ export class FileSelectorApiImpl {
 
   openFileWithExtensions(initialDirectory: string, allowedTypes: FileTypes, result: Result<FileResponse>): void {
     Log.d(TAG, 'openFile types:' + allowedTypes.extensions + ' dir:' + initialDirectory)
-    filePicker(initialDirectory, allowedTypes, 1).then(async (filePickerResult: ESObject) => {
+    filePicker(initialDirectory, allowedTypes, this.getContext(), 1).then(async (filePickerResult: ESObject) => {
       if (filePickerResult == undefined) {
         Log.i(TAG, 'documentPickerSelect cancelled or no file selected');
         result.success(null);
@@ -127,7 +127,7 @@ export class FileSelectorApiImpl {
     Log.d(TAG, 'openFiles mimeTypes:' + allowedTypes.mimeTypes
       + ' extensions:' + allowedTypes.extensions + ' dir:' + initialDirectory);
 
-    filePicker(initialDirectory, allowedTypes).then(async (filePickerResult: ESObject) => {
+    filePicker(initialDirectory, allowedTypes, this.getContext()).then(async (filePickerResult: ESObject) => {
       if (filePickerResult == undefined) {
         Log.i(TAG, 'documentPickerSelect cancelled or no files selected');
         result.success([]);
@@ -236,7 +236,7 @@ export class FileSelectorApiImpl {
             wrapped.push(result);
             reply.reply(wrapped);
           },(error: Error): void => {
-            const wrappedError: ArrayList<ESObject> = msg.wrapError(error);
+            const wrappedError: Array<ESObject> = wrapError(error);
             reply.reply(wrappedError);
           })
           api.openFileWithExtensions(initialDirectoryArg, allowedTypesArg, resultCallback);
@@ -258,7 +258,7 @@ export class FileSelectorApiImpl {
             wrapped.push(result);
             reply.reply(wrapped);
           },(error: Error): void => {
-            const wrappedError: ArrayList<ESObject> = msg.wrapError(error);
+            const wrappedError: Array<ESObject> = wrapError(error);
             reply.reply(wrappedError);
           })
           api.openFilesWithExtensions(initialDirectoryArg, allowedTypesArg, resultCallback);
