@@ -34,6 +34,10 @@ void main() {
       extension = SharedPreferencesDevToolsExtensionData(fakePostEvent.call);
     });
 
+    tearDown(() {
+      SharedPreferencesAsyncPlatform.instance = null;
+    });
+
     test('should request all keys', () async {
       SharedPreferences.setMockInitialValues(<String, Object>{
         'key1': 1,
@@ -214,6 +218,20 @@ void main() {
           await asyncPreferences.getStringList(key),
           equals(expectedValue),
         );
+      });
+
+      test('should request removing a key from async api', () async {
+        const key = 'key';
+        await asyncPreferences.setString(key, 'value');
+
+        await extension.requestRemoveKey(key, false);
+
+        expect(fakePostEvent.eventLog.length, equals(1));
+        final (String eventKind, Map<String, Object?> eventData) =
+            fakePostEvent.eventLog.first;
+        expect(eventKind, equals('shared_preferences.remove'));
+        expect(eventData, equals(<String, Object?>{}));
+        expect(await asyncPreferences.getString(key), isNull);
       });
     });
 
@@ -400,6 +418,22 @@ void main() {
           (await SharedPreferences.getInstance()).getStringList(key),
           equals(expectedValue),
         );
+      });
+
+      test('should request removing a key from legacy api', () async {
+        const key = 'key';
+        SharedPreferences.setMockInitialValues(<String, Object>{
+          key: 'value',
+        });
+
+        await extension.requestRemoveKey(key, true);
+
+        expect(fakePostEvent.eventLog.length, equals(1));
+        final (String eventKind, Map<String, Object?> eventData) =
+            fakePostEvent.eventLog.first;
+        expect(eventKind, equals('shared_preferences.remove'));
+        expect(eventData, equals(<String, Object?>{}));
+        expect((await SharedPreferences.getInstance()).get(key), isNull);
       });
     });
   });

@@ -47,6 +47,12 @@ void main() {
     store.log.clear();
   });
 
+  // Reset the static singleton state (completer, prefix, allowList) so tests
+  // don't leak state into each other.
+  tearDown(() {
+    SharedPreferences.resetStatic();
+  });
+
   test('reading', () async {
     expect(preferences.get('String'), testString);
     expect(preferences.get('bool'), testBool);
@@ -59,6 +65,16 @@ void main() {
     expect(preferences.getDouble('double'), testDouble);
     expect(preferences.getStringList('List'), testList);
     expect(store.log, <Matcher>[]);
+  });
+
+  test('getting keys', () async {
+    expect(
+      preferences.getKeys(),
+      unorderedEquals(<String>['String', 'bool', 'int', 'double', 'List']),
+    );
+
+    await preferences.setString('newKey', 'test');
+    expect(preferences.getKeys(), contains('newKey'));
   });
 
   test('writing', () async {
@@ -99,6 +115,14 @@ void main() {
     expect(preferences.getDouble('double'), testDouble2);
     expect(preferences.getStringList('List'), testList2);
     expect(store.log, equals(<MethodCall>[]));
+  });
+
+  test('commit is a deprecated no-op that always returns true', () async {
+    // commit() is deprecated and intentionally does nothing; verify it
+    // completes with true without touching the platform store.
+    // ignore: deprecated_member_use_from_same_package
+    expect(await preferences.commit(), true);
+    expect(store.log, <Matcher>[]);
   });
 
   test('removing', () async {
