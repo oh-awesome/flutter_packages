@@ -43,8 +43,13 @@ export default class EntryAbility extends FlutterAbility {
     const preferences = data_preferences.getPreferencesSync(context, {
       name: preferencesName,
     });
-    preferences.putSync(PRESET_STRING_KEY, 'testString');
-    preferences.putSync(PRESET_INT_KEY, 5);
-    preferences.flushSync();
+    try {
+      preferences.putSync(PRESET_STRING_KEY, 'testString');
+      preferences.putSync(PRESET_INT_KEY, 5);
+      preferences.flushSync();
+    } finally {
+      // OHOS 无 Preferences.close()，从系统缓存移除实例并释放资源
+      data_preferences.removePreferencesFromCacheSync(context, preferencesName);
+    }
   }
 }

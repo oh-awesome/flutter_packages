@@ -38,12 +38,13 @@ dependencies:
   shared_preferences_windows: ^2.4.0
   shared_preferences_ohos:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences_ohos"
-      ref: "br_shared_preferences-v2.5.4_ohos"
+      ref: "oh-3.44.9-dev"
 
 
 dev_dependencies:
+  coverage: ^1.13.0
   flutter_test:
     sdk: flutter
   path: ^1.9.0

@@ -29,8 +29,14 @@ export function wrapError(exception: Error): Array<Object> {
     errorList.push(error.message);
     errorList.push(error.details);
   } else {
-    errorList.push(exception.toString());
-    errorList.push(exception.name);
+    // BusinessError（data_preferences 等 @ohos API 抛出的错误）通常是仅含
+    // code/message 的对象字面量，没有 name/toString 语义，兜底避免错误编码为 null
+    // 导致 Dart 侧 pigeon 消息 `replyList[0]!` 空检查崩溃。
+    const errName: string = exception.name ?? 'Error';
+    const errString: string = exception.toString();
+    errorList.push(errName);
+    errorList.push(
+    errString === '[object Object]' ? exception.message : errString);
     errorList.push(
       "Cause: " + exception.message + ", Stacktrace: " + exception.stack);
   }
@@ -42,28 +48,28 @@ export interface SharedPreferencesApi {
   remove(key: string): boolean;
 
   /** Adds property to shared preferences data set of type boolean. */
-  setBool(key: string, value: boolean): Promise<void>;
+  setBool(key: string, value: boolean): Promise<boolean>;
 
   /** Adds property to shared preferences data set of type string. */
-  setString(key: string, value: string): Promise<void>;
+  setString(key: string, value: string): Promise<boolean>;
 
   /** Adds property to shared preferences data set of type int. */
-  setInt(key: string, value: bigint): Promise<void>;
+  setInt(key: string, value: bigint): Promise<boolean>;
 
   /** Adds property to shared preferences data set of type double. */
-  setDouble(key: string, value: number): Promise<void>;
+  setDouble(key: string, value: number): Promise<boolean>;
 
   /** Adds property to shared preferences data set of type List<String> encoded as String. */
-  setEncodedStringList(key: string, value: string): Promise<void>;
+  setEncodedStringList(key: string, value: string): Promise<boolean>;
 
   /** Adds property to shared preferences data set of type deprecated platform encoded List<String>. */
-  setDeprecatedStringList(key: string, value: Array<string>): Promise<void>;
+  setDeprecatedStringList(key: string, value: Array<string>): Promise<boolean>;
 
   /** Removes all properties from shared preferences data set with matching prefix. */
-  clear(prefix: string, allowList: Array<string> | null): Promise<void>;
+  clear(prefix: string, allowList: Array<string> | null): Promise<boolean>;
 
   /** Gets all properties from shared preferences data set with matching prefix. */
-  getAll(prefix: string, allowList: Array<string> | null): Promise<Object>;
+  getAll(prefix: string, allowList: Array<string> | null): Promise<Map<string, Object>>;
 
   /** The codec used by SharedPreferencesApi. */
   getCodec(): MessageCodec<Object>;

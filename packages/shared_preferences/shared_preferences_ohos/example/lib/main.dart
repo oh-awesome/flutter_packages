@@ -9,6 +9,7 @@ import 'package:shared_preferences_ohos/src/shared_preferences_async_ohos.dart';
 import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
 import 'package:shared_preferences_ohos/shared_preferences_ohos.dart';
+import 'modification_test_page.dart';
 import 'spec_test_page.dart';
 
 void main() {
@@ -144,6 +145,14 @@ class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
     );
   }
 
+  void _openModificationTests() {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (BuildContext context) => const ModificationTestPage(),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -181,6 +190,16 @@ class SharedPreferencesDemoState extends State<SharedPreferencesDemo> {
               child: ElevatedButton(
                 onPressed: _openSpecTests,
                 child: const Text('Open Spec Tests'),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _openModificationTests,
+                child: const Text('Open Modification Tests'),
               ),
             ),
           ),
