@@ -10,19 +10,18 @@ dependencies:
   flutter:
     sdk: flutter
   shared_preferences:
+    # Use local shared_preferences package in this mono-repo.
+    path: ../../shared_preferences
+  shared_preferences_ohos:
     # When depending on this package from a real application you should use:
-    #   shared_preferences: ^x.y.z
+    #   shared_preferences_ohos: ^x.y.z
     # See https://dart.dev/tools/pub/dependencies#version-constraints
     # The example app is bundled with the plugin so we use a path dependency on
     # the parent directory to use the current plugin's version.
     path: ../
-  shared_preferences_android: ^2.4.0
-  shared_preferences_foundation: ^2.5.3
-  shared_preferences_linux: ^2.4.1
+
   shared_preferences_platform_interface: ^2.4.0
-  shared_preferences_windows: ^2.4.1
-  shared_preferences_ohos:
-    path: ../../shared_preferences_ohos
+
 
 dev_dependencies:
   build_runner: ^2.1.10
@@ -33,7 +32,7 @@ dev_dependencies:
 
 dependency_overrides:
   shared_preferences_ohos:
-    path: ../../shared_preferences_ohos
+    path: ../
 
 flutter:
   uses-material-design: true
