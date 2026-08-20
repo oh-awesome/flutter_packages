@@ -24,6 +24,8 @@ flutter:
         default_package: url_launcher_web
       windows:
         default_package: url_launcher_windows
+      ohos:
+        default_package: url_launcher_ohos
 
 dependencies:
   flutter:
@@ -37,7 +39,11 @@ dependencies:
   url_launcher_platform_interface: ^2.3.0
   url_launcher_web: ^2.2.0
   url_launcher_windows: ^3.1.0
-
+  url_launcher_ohos:
+    git:
+      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      path: "packages/url_launcher/url_launcher_ohos"
+      ref: "br_url_launcher-v6.3.2_ohos_dev"
 dev_dependencies:
   flutter_test:
     sdk: flutter
