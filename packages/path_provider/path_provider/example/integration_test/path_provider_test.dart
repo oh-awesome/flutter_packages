@@ -7,6 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 
+bool get _isOhos => Platform.operatingSystem == 'ohos';
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
@@ -43,7 +45,7 @@ void main() {
     if (Platform.isIOS) {
       final Directory result = await getLibraryDirectory();
       _verifySampleFile(result, 'library');
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final Future<Directory?> result = getLibraryDirectory();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
     }
@@ -53,7 +55,7 @@ void main() {
     if (Platform.isIOS) {
       final Future<Directory?> result = getExternalStorageDirectory();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final Directory? result = await getExternalStorageDirectory();
       _verifySampleFile(result, 'externalStorage');
     }
@@ -63,7 +65,7 @@ void main() {
     if (Platform.isIOS) {
       final Future<List<Directory>?> result = getExternalCacheDirectories();
       await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-    } else if (Platform.isAndroid) {
+    } else if (Platform.isAndroid || _isOhos) {
       final List<Directory>? directories = await getExternalCacheDirectories();
       expect(directories, isNotNull);
       for (final Directory result in directories!) {
@@ -88,7 +90,7 @@ void main() {
       if (Platform.isIOS) {
         final Future<List<Directory>?> result = getExternalStorageDirectories();
         await expectLater(result, throwsA(isInstanceOf<UnsupportedError>()));
-      } else if (Platform.isAndroid) {
+      } else if (Platform.isAndroid || _isOhos) {
         final List<Directory>? directories = await getExternalStorageDirectories(type: type);
         expect(directories, isNotNull);
         for (final Directory result in directories!) {
@@ -132,7 +134,7 @@ void _verifySampleFile(Directory? directory, String name, {bool createDirectory 
   expect(file.readAsStringSync(), 'Hello world!');
   // This check intentionally avoids using Directory.listSync on Android due to
   // https://github.com/dart-lang/sdk/issues/54287.
-  if (Platform.isAndroid) {
+  if (Platform.isAndroid || _isOhos) {
     expect(Process.runSync('ls', <String>[directory.path]).stdout, contains(name));
   } else {
     expect(directory.listSync(), isNotEmpty);
