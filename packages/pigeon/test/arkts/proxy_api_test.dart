@@ -115,6 +115,22 @@ void main() {
             'api!.pigeonRegistrar.instanceManager.addDartCreatedInstance(api!.pigeon_defaultConstructor(), pigeon_identifierArg);',
           ),
         );
+        // Parameter `as` casts must live inside the same try/catch as the handler
+        // body (matches the regular HostApi handler path in this generator).
+        expect(
+          collapsed,
+          contains(
+            'try { let pigeon_identifierArg: number = args[0] as number; api!.pigeonRegistrar.instanceManager.addDartCreatedInstance',
+          ),
+        );
+        expect(
+          collapsed,
+          isNot(
+            contains(
+              'let pigeon_identifierArg: number = args[0] as number; let res: Array',
+            ),
+          ),
+        );
       });
 
       test('named constructor with multiple parameters', () {
@@ -836,7 +852,7 @@ void main() {
         }
       });
 
-      test('remove unregisters FinalizationRegistry tracking', () {
+      test('remove drops strong reference but keeps finalization tracking', () {
         final root = Root(
           apis: <Api>[
             AstProxyApi(
@@ -854,7 +870,15 @@ void main() {
         expect(
           collapsed,
           contains(
-            'remove(identifier: number): ESObject | null { const instance: ESObject | undefined = this.strongInstances.get(identifier); if (instance === undefined) { return null; } this.strongInstances.delete(identifier); this.weakInstances.delete(identifier); this.instancesHeldForFinalization.delete(instance); this.finalizationRegistry.unregister(instance); return instance; }',
+            'remove(identifier: number): ESObject | null { const instance: ESObject | undefined = this.strongInstances.get(identifier); if (instance === undefined) { return null; } this.strongInstances.delete(identifier); this.instancesHeldForFinalization.delete(instance); return instance; }',
+          ),
+        );
+        expect(
+          collapsed,
+          isNot(
+            contains(
+              'this.strongInstances.delete(identifier); this.weakInstances.delete(identifier)',
+            ),
           ),
         );
       });
