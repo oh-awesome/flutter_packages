@@ -935,9 +935,15 @@ let $resultName: Result<$returnType> = new ResultImp();
               methodArgument.add(resultName);
             }
             final call = 'api!.${method.name}(${methodArgument.join(', ')})';
-            // indent.writeln('$call;');
             if (method.isAsynchronous) {
-              indent.writeln('$call;');
+              indent.write('try ');
+              indent.addScoped('{', '}', () {
+                indent.writeln('$call;');
+              });
+              indent.add(' catch (error) ');
+              indent.addScoped('{', '}', () {
+                indent.writeln('reply.reply(wrapError(error as Error));');
+              });
             } else {
               indent.writeln('let res: Array<Object | null> = [];');
               indent.write('try ');
@@ -971,11 +977,7 @@ let $resultName: Result<$returnType> = new ResultImp();
                 indent.writeln(
                   'let wrappedError: Array<Object | null> = wrapError(error);',
                 );
-                if (method.isAsynchronous) {
-                  indent.writeln('reply.reply(wrappedError);');
-                } else {
-                  indent.writeln('res = wrappedError;');
-                }
+                indent.writeln('res = wrappedError;');
               });
               indent.writeln('reply.reply(res);');
             }
@@ -1742,9 +1744,7 @@ export class $_instanceManagerClassName {
       return null;
     }
     this.strongInstances.delete(identifier);
-    this.weakInstances.delete(identifier);
     this.instancesHeldForFinalization.delete(instance);
-    this.finalizationRegistry.unregister(instance);
     return instance;
   }
 
@@ -2416,6 +2416,25 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
     indent.newln();
   }
 
+  void _writeProxyApiParameterDecoding(Indent indent, List<Parameter> parameters) {
+    for (var i = 0; i < parameters.length; i++) {
+      final Parameter param = parameters[i];
+      final safe = '${_proxyApiSafeName(i, param)}Arg';
+      if (param.type.isEnum) {
+        // The codec decodes an enum to its member-name string; convert
+        // back to the enum value the handler call expects. Held as
+        // ESObject to stay tolerant of null (nullable enums).
+        indent.writeln(
+          'let $safe: ESObject = ${_proxyApiDecodeEnum(param.type, 'args[$i]')};',
+        );
+      } else {
+        indent.writeln(
+          'let $safe: ${_arkTSTypeOrEsObject(param.type)} = args[$i] as ${_arkTSTypeOrEsObject(param.type)};',
+        );
+      }
+    }
+  }
+
   /// Emits one channel + handler block following the same pattern as
   /// `_writeMethodSetup`, but parameterised for ProxyApi semantics.
   void _writeProxyApiHandlerBlock(
@@ -2438,40 +2457,19 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
         indent.nest(2, () {
           indent.write('onMessage(message: Object, reply: Reply<Object>) ');
           indent.addScoped('{', '} });', () {
-            final argNames = <String>[];
+            final argNames = <String>[
+              for (var i = 0; i < parameters.length; i++)
+                '${_proxyApiSafeName(i, parameters[i])}Arg',
+            ];
             if (parameters.isNotEmpty) {
-              // Type-safety contract (intentionally matches the regular HostApi
-              // handler path and the Kotlin/Swift/Dart generators): the message
-              // shape is validated structurally by the precheck below (it must
-              // be a List of the expected arity), and individual argument types
-              // are guaranteed by the typed Codec plus the matched generated
-              // code on both sides. The `as` casts are NOT erasure like in
-              // TypeScript -- ArkTS checks them at runtime and throws on a
-              // mismatch, which the surrounding try/catch (sync handlers)
-              // surfaces as a wrapped error reply. ProxyApi instance arguments
-              // are resolved by the tag-128 codec, which throws if the
-              // identifier is unknown. Per-parameter `typeof` checks are
-              // therefore not emitted: they would diverge from every other
-              // path, miss most types (enums/lists/maps/custom/instances), and
-              // would have to assign null to non-nullable targets.
+              // Type-safety contract (matches the regular HostApi handler path in
+              // this generator): the message shape is validated structurally by
+              // the precheck below, and parameter `as` casts run inside the same
+              // try/catch as the handler body so runtime type mismatches are
+              // surfaced as wrapped error replies. ProxyApi instance arguments
+              // are resolved by the tag-128 codec. Per-parameter `typeof`
+              // checks are not emitted.
               _writeArkTsPigeonListMessagePrecheck(indent, parameters.length);
-              for (var i = 0; i < parameters.length; i++) {
-                final Parameter param = parameters[i];
-                final safe = '${_proxyApiSafeName(i, param)}Arg';
-                argNames.add(safe);
-                if (param.type.isEnum) {
-                  // The codec decodes an enum to its member-name string; convert
-                  // back to the enum value the handler call expects. Held as
-                  // ESObject to stay tolerant of null (nullable enums).
-                  indent.writeln(
-                    'let $safe: ESObject = ${_proxyApiDecodeEnum(param.type, 'args[$i]')};',
-                  );
-                } else {
-                  indent.writeln(
-                    'let $safe: ${_arkTSTypeOrEsObject(param.type)} = args[$i] as ${_arkTSTypeOrEsObject(param.type)};',
-                  );
-                }
-              }
             }
             if (isAsync) {
               final String resultType = isVoid
@@ -2498,11 +2496,24 @@ class ResultImp implements Result<$resultType> {
 let resultCallback: Result<$resultType> = new ResultImp();
 ''');
               argNames.add('resultCallback');
-              indent.writeln(handlerBody(argNames));
+              indent.write('try ');
+              indent.addScoped('{', '}', () {
+                if (parameters.isNotEmpty) {
+                  _writeProxyApiParameterDecoding(indent, parameters);
+                }
+                indent.writeln(handlerBody(argNames));
+              });
+              indent.add(' catch (error) ');
+              indent.addScoped('{', '}', () {
+                indent.writeln('reply.reply(wrapError(error as Error));');
+              });
             } else {
               indent.writeln('let res: Array<Object | null> = [];');
               indent.write('try ');
               indent.addScoped('{', '}', () {
+                if (parameters.isNotEmpty) {
+                  _writeProxyApiParameterDecoding(indent, parameters);
+                }
                 indent.writeln(handlerBody(argNames));
               });
               indent.add(' catch (error) ');

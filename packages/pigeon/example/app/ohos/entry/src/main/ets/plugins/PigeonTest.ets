@@ -187,9 +187,7 @@ export class PigeonInstanceManager {
       return null;
     }
     this.strongInstances.delete(identifier);
-    this.weakInstances.delete(identifier);
     this.instancesHeldForFinalization.delete(instance);
-    this.finalizationRegistry.unregister(instance);
     return instance;
   }
 
@@ -1249,7 +1247,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<Identity> = new ResultImp();
 
-              api!.sendAsyncEnum(Identity[args[0] as string], resultCallback);
+              try {
+                api!.sendAsyncEnum(Identity[args[0] as string], resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1285,7 +1288,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<Identity> = new ResultImp();
 
-              api!.triggerPlatformEchoEnum(Identity[args[0] as string], resultCallback);
+              try {
+                api!.triggerPlatformEchoEnum(Identity[args[0] as string], resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1321,7 +1329,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<Identity | undefined> = new ResultImp();
 
-              api!.triggerPlatformEchoNullableEnum((args[0] == null ? null : Identity[args[0] as string]), resultCallback);
+              try {
+                api!.triggerPlatformEchoNullableEnum((args[0] == null ? null : Identity[args[0] as string]), resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1370,7 +1383,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<string> = new ResultImp();
 
-              api!.flutterInvokeAsync(resultCallback);
+              try {
+                api!.flutterInvokeAsync(resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1397,7 +1415,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<string> = new ResultImp();
 
-              api!.errorHandling(resultCallback);
+              try {
+                api!.errorHandling(resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1446,7 +1469,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<string> = new ResultImp();
 
-              api!.triggerPlatformInvokeSync(resultCallback);
+              try {
+                api!.triggerPlatformInvokeSync(resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1473,7 +1501,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<string> = new ResultImp();
 
-              api!.triggerPlatformInvokeAsync(resultCallback);
+              try {
+                api!.triggerPlatformInvokeAsync(resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1500,7 +1533,12 @@ export abstract class DemoHostApi {
               }
               let resultCallback: Result<string> = new ResultImp();
 
-              api!.proxyApiHostCreateAndEcho(resultCallback);
+              try {
+                api!.proxyApiHostCreateAndEcho(resultCallback);
+              }
+ catch (error) {
+                reply.reply(wrapError(error as Error));
+              }
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1553,12 +1591,12 @@ export abstract class PigeonApiHostEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 4 argument(s).')));
                   return;
               }
-              let pigeon_identifierArg: number = args[0] as number;
-              let storedRoleArg: ESObject = ProxyRole[args[1] as string];
-              let initialArg: number = args[2] as number;
-              let roleArg: ESObject = ProxyRole[args[3] as string];
               let res: Array<Object | null> = [];
               try {
+                let pigeon_identifierArg: number = args[0] as number;
+                let storedRoleArg: ESObject = ProxyRole[args[1] as string];
+                let initialArg: number = args[2] as number;
+                let roleArg: ESObject = ProxyRole[args[3] as string];
                 api!.pigeonRegistrar.instanceManager.addDartCreatedInstance(api!.pigeon_defaultConstructor(storedRoleArg, initialArg, roleArg), pigeon_identifierArg); res.push(null);
               }
  catch (error) {
@@ -1584,10 +1622,10 @@ export abstract class PigeonApiHostEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let byArg: number = args[1] as number;
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let byArg: number = args[1] as number;
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
               }
  catch (error) {
@@ -1613,9 +1651,9 @@ export abstract class PigeonApiHostEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 1 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
               }
  catch (error) {
@@ -1641,10 +1679,10 @@ export abstract class PigeonApiHostEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let valueArg: ESObject = ProxyRole[args[1] as string];
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let valueArg: ESObject = ProxyRole[args[1] as string];
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
  catch (error) {
@@ -1670,10 +1708,10 @@ export abstract class PigeonApiHostEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
  catch (error) {
@@ -1793,12 +1831,12 @@ export abstract class PigeonApiEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 4 argument(s).')));
                   return;
               }
-              let pigeon_identifierArg: number = args[0] as number;
-              let storedRoleArg: ESObject = ProxyRole[args[1] as string];
-              let initialArg: number = args[2] as number;
-              let roleArg: ESObject = ProxyRole[args[3] as string];
               let res: Array<Object | null> = [];
               try {
+                let pigeon_identifierArg: number = args[0] as number;
+                let storedRoleArg: ESObject = ProxyRole[args[1] as string];
+                let initialArg: number = args[2] as number;
+                let roleArg: ESObject = ProxyRole[args[3] as string];
                 api!.pigeonRegistrar.instanceManager.addDartCreatedInstance(api!.pigeon_defaultConstructor(storedRoleArg, initialArg, roleArg), pigeon_identifierArg); res.push(null);
               }
  catch (error) {
@@ -1824,10 +1862,10 @@ export abstract class PigeonApiEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let byArg: number = args[1] as number;
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let byArg: number = args[1] as number;
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
               }
  catch (error) {
@@ -1853,9 +1891,9 @@ export abstract class PigeonApiEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 1 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
               }
  catch (error) {
@@ -1881,10 +1919,10 @@ export abstract class PigeonApiEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let valueArg: ESObject = ProxyRole[args[1] as string];
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let valueArg: ESObject = ProxyRole[args[1] as string];
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
  catch (error) {
@@ -1910,10 +1948,10 @@ export abstract class PigeonApiEnumCounter {
                   reply.reply(wrapError(new Error('Invalid Pigeon message: expected at least 2 argument(s).')));
                   return;
               }
-              let pigeon_instanceArg: ESObject = args[0] as ESObject;
-              let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
               let res: Array<Object | null> = [];
               try {
+                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
  catch (error) {

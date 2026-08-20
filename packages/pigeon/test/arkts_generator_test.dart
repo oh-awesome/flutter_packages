@@ -860,6 +860,18 @@ void main() {
     );
     expect(code, contains('success( result: T ): void;'));
     expect(code, contains('error( error: Error): void;'));
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+    expect(collapsed, contains('try { api!.doSomething('));
+    expect(
+      collapsed,
+      isNot(contains(
+        'let resultCallback: Result<Output> = new ResultImp(); api!.doSomething(',
+      )),
+    );
+    expect(
+      collapsed,
+      contains('} catch (error) { reply.reply(wrapError(error as Error)); }'),
+    );
   });
 
   test('gen one async Flutter Api', () {
