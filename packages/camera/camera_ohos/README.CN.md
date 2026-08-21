@@ -2,7 +2,7 @@
   <h1 align="center"> <code>camera_ohos</code> </h1>
 </p>
 
-本项目基于 [camera@0.12.0+1](https://pub.dev/packages/camera/versions/0.12.0+1) 开发。
+本项目基于 [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2) 开发。
 
 ## 1. 安装与使用
 
@@ -12,15 +12,15 @@
 
 <!-- tabs:start -->
 
-#### pubspec.yaml
+### pubspec.yaml
 
 ```yaml
 dependencies:
-  camera_ohos  :
+  camera_ohos:
     git: 
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/camera/camera_ohos
-      ref: br_camera-v0.12.0+1_ohos
+      ref: camera-v0.12.0+2-ohos-1.0.0
 ```
 
 执行命令
@@ -33,7 +33,50 @@ flutter pub get
 
 ### 1.2 使用案例
 
-使用案例详见 [example](./example)
+以下示例展示基本调用流程：导入包、枚举摄像头、创建并初始化相机、构建预览、拍照。
+
+```dart
+import 'package:camera_ohos/camera_ohos.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/material.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // OhosCamera 实例由插件自动注册。
+  final OhosCamera camera = CameraPlatform.instance as OhosCamera;
+
+  // 1. 枚举可用摄像头。
+  final List<CameraDescription> cameras = await camera.availableCameras();
+  final CameraDescription backCamera = cameras.first;
+
+  // 2. 创建未初始化的相机实例并初始化。
+  final int cameraId = await camera.createCamera(backCamera);
+  await camera.initializeCamera(cameraId);
+
+  // 3. 构建预览控件并拍照。
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: <Widget>[
+            camera.buildPreview(cameraId),
+            FloatingActionButton(
+              onPressed: () async {
+                final XFile photo = await camera.takePicture(cameraId);
+                debugPrint('照片已保存至 ${photo.path}');
+              },
+              child: const Icon(Icons.camera_alt),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+更多功能（录像、闪光灯/曝光/对焦控制、图像流等）详见 [example](./example)。
 
 ## 2. 约束与限制
 
@@ -41,13 +84,21 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.0.2.650; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.44.9+ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
+
+Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对应关系如下：
+
+| Flutter 框架版本 | TAG           | 分支                     |
+| ----------------- | ------------- | ------------------------ |
+| 3.44 | camera-v0.12.0+2-ohos-1.0.0 | oh-3.44.9-dev |
+
+> 说明：本包基于上游 [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2) 适配。上表分支即 §1.1 安装依赖中 `ref` 引用的分支；本包 `pubspec.yaml` 的包版本为 `0.10.10+11`，与上游 `camera` 版本相互独立。
 
 ### 2.2 权限要求
 
 以下权限中有`system_basic` 权限，而默认的应用权限是 `normal` ，只能使用 `normal` 等级的权限，所以可能会在安装hap包时报错**9568289**，请参考 [文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/bm-tool-V5#ZH-CN_TOPIC_0000001884757326__安装hap时提示code9568289-error-install-failed-due-to-grant-request-permissions-failed) 修改应用等级为 `system_basic`
 
-#### 2.2.1 在 entry 目录下的module.json5中添加权限
+### 2.2.1 在 entry 目录下的module.json5中添加权限
 
 打开 `entry/src/main/module.json5`，添加：
 
@@ -76,7 +127,7 @@ flutter pub get
     ]
 ```
 
-#### 2.2.2 在 entry 目录下添加申请以上权限的原因
+### 2.2.2 在 entry 目录下添加申请以上权限的原因
 
 打开 `entry/src/main/resources/base/element/string.json`，添加：
 
@@ -90,6 +141,23 @@ flutter pub get
   ]
 }
 ```
+
+### 2.3 环境搭建
+
+1. 安装 [DevEco Studio](https://developer.huawei.com/consumer/cn/deveco-studio/) 6.0.2.650 及以上版本，并在 SDK Manager 中安装 HarmonyOS SDK 5.0.0(12)。
+2. 使用 DevEco Studio 打开 `ohos` 平台工程（例如 `example/ohos`），并在 **File > Project Structure > Signing Configs** 中完成签名配置。应用安装到真机必须使用已签名的 HAP。
+3. 使用命令行编译与运行：
+
+   ```bash
+   # 编译 release 版 HAP（底层调用 hvigor）。
+   flutter build ohos --release
+
+   # 在已连接设备上运行。
+   flutter run -d <device-id>
+
+   # 或直接使用 hvigor 编译。
+   hvigorw assembleHap --mode module -p product=default
+   ```
 
 ## 3. API
 
@@ -107,6 +175,7 @@ flutter pub get
 | onCameraResolutionChanged(int cameraId)                                                                                                                        | Stream<CameraResolutionChangedEvent>                   | 监听相机分辨率变化事件                | function | yes          |
 | onCameraClosing(int cameraId)                                                                                                                                  | Stream<CameraClosingEvent>                             | 监听相机关闭事件                   | function | yes          |
 | onCameraError(int cameraId)                                                                                                                                    | Stream<CameraErrorEvent>                               | 监听相机错误事件                   | function | yes          |
+| onCameraSwitched(int cameraId)                                                                                                                                 | Stream<String>                                       | 监听相机自动切换事件                  | function | yes          |
 | onVideoRecordedEvent(int cameraId)                                                                                                                             | Stream<VideoRecordedEvent>                             | 监听录像完成事件                   | function | yes          |
 | onDeviceOrientationChanged()                                                                                                                                   | Stream<DeviceOrientationChangedEvent>                  | 监听设备方向变化事件                 | function | yes          |
 | lockCaptureOrientation(int cameraId,   [DeviceOrientation](#DeviceOrientation) orientation, )                                                                  | Future<void>                                           | 锁定拍摄方向                     | function | yes          |
@@ -121,6 +190,8 @@ flutter pub get
 | supportsImageStreaming()                                                                                                                                       | bool                                                   | 声明当前平台是否支持图像流              | function | yes          |
 | onStreamedFrameAvailable(int cameraId, {CameraImageStreamOptions? options})                                                                                    | Stream<CameraImageData>                                | 订阅相机图像帧数据流                 | function | yes          |
 | setFlashMode(int cameraId, [FlashMode](#FlashMode) mode)                                                                                                       | Future<void>                                           | 设置闪光灯模式                    | function | yes          |
+| setImageFileFormat(int cameraId, ImageFileFormat format)                                                                                                      | Future<void>                                             | 设置拍照生成图片的文件格式（如 JPEG）          | function | yes          |
+| setJpegImageQuality(int cameraId, int quality)                                                                                                                | Future<void>                                             | 设置拍照生成的 JPEG 图片质量（1-100）        | function | yes          |
 | setExposureMode(int cameraId, [ExposureMode](#ExposureMode) mode)                                                                                              | Future<void>                                           | 设置曝光模式                     | function | yes          |
 | setExposurePoint(int cameraId, Point<double>? point)                                                                                                           | Future<void>                                           | 设置自动曝光的曝光点位置               | function | yes          |
 | getMinExposureOffset(int cameraId)                                                                                                                             | Future<double>                                         | 获取最小曝光补偿值                  | function | yes          |
@@ -219,45 +290,49 @@ flutter pub get
 
 ### CameraImageStreamOptions
 
+空占位类，当前未使用，仅为平台接口 API 的未来扩展预留，不定义任何字段。
+
+### CameraImagePlane
+
 | Name          | Description        | Type      | ohos Support |
 | ------------- | ------------------ | --------- | ------------ |
 | bytes         | 表示该平面的字节           | Uint8List | yes          |
 | bytesPerRow   | 此颜色平面的行步长，以字节为单位   | int       | yes          |
-| bytesPerPixel | 当可用时，相邻像素样本之间的字节距离 | int       | yes          |
-| height        | 像素缓冲区的高度，如果可用      | int       | yes          |
-| width         | 像素缓冲区的宽度，如果可用      | int       | yes          |
+| bytesPerPixel | 当可用时，相邻像素样本之间的字节距离 | int?      | yes          |
+| height        | 像素缓冲区的高度，如果可用      | int?      | yes          |
+| width         | 像素缓冲区的宽度，如果可用      | int?      | yes          |
 
 ### FlashMode
 
 | Name             | Description        | Type      | ohos Support |
 | ---------------- | ------------------ | --------- | ------------ |
-| FlashMode.off    | 拍照时不要使用闪光灯         | Uint8List | yes          |
-| FlashMode.auto   | 让设备决定在拍照时是否闪烁相机    | int       | yes          |
-| FlashMode.always | 拍照时总是使用闪光灯         | int       | yes          |
-| FlashMode.torch  | 打开闪光灯，并保持打开状态，直到关闭 | int       | yes          |
+| FlashMode.off    | 拍照时不要使用闪光灯         | enum      | yes          |
+| FlashMode.auto   | 让设备决定在拍照时是否闪烁相机    | enum      | yes          |
+| FlashMode.always | 拍照时总是使用闪光灯         | enum      | yes          |
+| FlashMode.torch  | 打开闪光灯，并保持打开状态，直到关闭 | enum      | yes          |
 
 ### ExposureMode
 
 | Name                | Description | Type      | ohos Support |
 | ------------------- | ----------- | --------- | ------------ |
-| ExposureMode.auto   | 自动确定曝光设置    | Uint8List | yes          |
-| ExposureMode.locked | 锁定当前确定的曝光设置 | int       | yes          |
+| ExposureMode.auto   | 自动确定曝光设置    | enum      | yes          |
+| ExposureMode.locked | 锁定当前确定的曝光设置 | enum      | yes          |
 
 ### FocusMode
 
 | Name             | Description | Type      | ohos Support |
 | ---------------- | ----------- | --------- | ------------ |
-| FocusMode.auto   | 自动确定焦点设置    | Uint8List | yes          |
-| FocusMode.locked | 锁定当前确定的焦点设置 | int       | yes          |
+| FocusMode.auto   | 自动确定焦点设置    | enum      | yes          |
+| FocusMode.locked | 锁定当前确定的焦点设置 | enum      | yes          |
 
 ### VideoStabilizationMode
 
 | Name                          | Description | Type      | ohos Support |
 | ----------------------------- | ----------- | --------- | ------------ |
-| VideoStabilizationMode.off    | 视频防抖功能已禁用   | Uint8List | yes          |
-| VideoStabilizationMode.level1 | 最低防抖效果，延迟最低 | int       | yes          |
-| VideoStabilizationMode.level2 | 防抖效果较好，延迟较高 | int       | yes          |
-| VideoStabilizationMode.level3 | 防抖效果最佳，延迟最高 | int       | yes          |
+| VideoStabilizationMode.off    | 视频防抖功能已禁用   | enum      | yes          |
+| VideoStabilizationMode.level1 | 最低防抖效果，延迟最低 | enum      | yes          |
+| VideoStabilizationMode.level2 | 防抖效果较好，延迟较高 | enum      | yes          |
+| VideoStabilizationMode.level3 | 防抖效果最佳，延迟最高 | enum      | yes          |
 
 ## 5. 遗留问题
 
@@ -266,7 +341,9 @@ flutter pub get
   Camera switching is not supported while recording.
   ```
 - [ ] ohos 端设置FPS当前不生效
-- [ ] ohos 端 不支持录像准备接口`prepareForVideoRecording()，当前空实现`
+- [ ] ohos 端 不支持录像准备接口 `prepareForVideoRecording()`，当前为空实现
+- [ ] `getMaxZoomLevel` 无法在 `create()` 阶段从相机属性读取：OHOS 仅在已建立的相机会话中暴露变焦倍率范围，而该阶段会话尚未建立。`CameraPropertiesImpl.getScalerAvailableMaxDigitalZoom` 返回 0 作为未知标记，实际最大变焦由 `ZoomLevelFeature` 在运行时从会话读取。
+- [ ] `CameraDescription.sensorOrientation` 恒为 0：OHOS CameraKit 未暴露传感器方向。
 
 ## 6. 其他
 

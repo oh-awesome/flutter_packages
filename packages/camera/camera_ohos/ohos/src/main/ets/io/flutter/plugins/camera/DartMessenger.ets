@@ -4,39 +4,19 @@
 // Based on DartMessenger.java originally written by
 // Copyright 2013 The Flutter Authors.
 
-import { HashMap } from '@kit.ArkTS';
-import { MethodChannel } from '@ohos/flutter_ohos';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
-import { CameraUtils } from './CameraUtils';
-import { FocusMode } from './features/autofocus/FocusMode';
-import { ExposureMode } from './features/exposurelock/ExposureMode';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 import { CameraGlobalEventApi, PlatformDeviceOrientation } from './Messages';
-
-enum DeviceEventType {
-  ORIENTATION_CHANGED = "orientation_changed",
-}
-
-enum CameraEventType {
-  ERROR = "error",
-  CLOSING = "camera_closing",
-  INITIALIZED = "initialized",
-}
+import { Log } from '@ohos/flutter_ohos';
 
 export class DartMessenger {
   private binaryMessenger: BinaryMessenger;
-  private cameraChannel: MethodChannel;
-  private deviceChannel: MethodChannel;
   private cameraIdSuffix: string;
 
   constructor(messenger: BinaryMessenger, textureId?: number) {
     this.binaryMessenger = messenger;
     this.cameraIdSuffix = textureId != null ? textureId.toString() : '';
-    // 初始化相机事件通道
-    this.cameraChannel = new MethodChannel(messenger, `flutter.io/cameraPlugin/camera${this.cameraIdSuffix}`);
-    // 初始化设备事件通道
-    this.deviceChannel = new MethodChannel(messenger, 'flutter.io/cameraPlugin/device');
   }
 
   getCameraIdSuffix(): string {
@@ -44,9 +24,15 @@ export class DartMessenger {
   }
 
   sendDeviceOrientationChangeEvent(orientation: DeviceOrientation) {
-    const globalEventApi = new CameraGlobalEventApi(this.binaryMessenger);
-    const platformOrientation = this.toPlatformDeviceOrientation(orientation);
-    globalEventApi.deviceOrientationChanged(platformOrientation, { reply: (_) => {} });
+    try {
+      const globalEventApi = new CameraGlobalEventApi(this.binaryMessenger);
+      const platformOrientation = this.toPlatformDeviceOrientation(orientation);
+      globalEventApi.deviceOrientationChanged(platformOrientation, { reply: (_) => {} });
+    } catch (error) {
+      // 该方法在 display.on('change') 系统回调中被调用，需防御性捕获，避免异常冒泡导致回
+      // 调崩溃
+      Log.e('DartMessenger', 'sendDeviceOrientationChangeEvent failed: ' + (error as Error).message);
+    }
   }
 
   private toPlatformDeviceOrientation(orientation: DeviceOrientation): PlatformDeviceOrientation {
@@ -62,53 +48,6 @@ export class DartMessenger {
       default:
         return PlatformDeviceOrientation.portraitUp;
     }
-  }
-
-  sendCameraInitializedEvent(
-    previewWidth: number,
-    previewHeight: number,
-    exposureMode: ExposureMode,
-    focusMode: FocusMode,
-    exposurePointSupported: boolean,
-    focusPointSupported: boolean) {
-    if(previewWidth == null || previewHeight == null || exposureMode == null || focusMode == null ||exposurePointSupported==null || focusPointSupported == null){
-      return;
-    }
-
-    let args: HashMap<String, Object> = new HashMap();
-    args.set("previewWidth", previewWidth);
-    args.set("previewHeight", previewHeight);
-    args.set("exposureMode", 'auto');
-    args.set("focusMode", 'auto');
-    args.set("exposurePointSupported", exposurePointSupported);
-    args.set("focusPointSupported", focusPointSupported);
-    this.sendCameraEvent(CameraEventType.INITIALIZED, args);
-  }
-
-  sendCameraClosingEvent() {
-    this.sendCameraEvent(CameraEventType.CLOSING);
-  }
-
-  sendCameraErrorEvent(description?: string) {
-    const args: HashMap<String, Object> = new HashMap();
-    if (description) {
-      args.set('description', description);
-    }
-    this.sendCameraEvent(CameraEventType.ERROR, args);
-  }
-
-  sendCameraEvent(eventType: CameraEventType, args: HashMap<String, Object> = new HashMap()) {
-    if (this.cameraChannel == null) {
-      return;
-    }
-    this.cameraChannel.invokeMethod(eventType, args)
-  }
-
-  sendDeviceEvent(eventType: DeviceEventType, args: HashMap<String, Object> = new HashMap()) {
-    if (this.deviceChannel == null) {
-      return;
-    }
-    this.deviceChannel.invokeMethod(eventType, args)
   }
 
   finish(result: MethodResult, payload?: Object) {

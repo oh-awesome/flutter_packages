@@ -27,12 +27,6 @@ class OhosCamera extends CameraPlatform {
 
   final CameraApi _hostApi;
 
-  /// The name of the channel that device events from the platform side are
-  /// sent on.
-  @visibleForTesting
-  static const String deviceEventChannelName =
-      'plugins.flutter.io/camera_ohos/fromPlatform';
-
   /// The controller we need to broadcast the different events coming
   /// from handleMethodCall, specific to camera events.
   ///
@@ -449,6 +443,17 @@ class OhosCamera extends CameraPlatform {
   }
 
   @override
+  Future<void> setJpegImageQuality(int cameraId, int quality) async {
+    try {
+      await _hostApi.setJpegImageQuality(quality);
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    }
+  }
+
+  @override
+  // OHOS 平台限制：Camera Kit 无"录制中切换相机"API，原生侧恒返回
+  // setDescriptionWhileRecordingUnsupported 错误，此处透传为 CameraException。
   Future<void> setDescriptionWhileRecording(
       CameraDescription description) async {
     try {
@@ -517,9 +522,6 @@ class HostCameraMessageHandler implements CameraEventApi {
   void cameraSwitched(String newCameraName) {
     cameraSwitchedStreamController.add(newCameraName);
   }
-
-  @override
-  String? pigeon_getMessageChannelSuffix() => '$cameraId';
 
   @override
   void initialized(PlatformCameraState initialState) {

@@ -2,7 +2,7 @@
   <h1 align="center"> <code>camera_ohos</code> </h1>
 </p>
 
-This project is based on [camera@0.12.0+1](https://pub.dev/packages/camera/versions/0.12.0+1).
+This project is based on [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2).
 
 ## 1. Installation and Usage
 
@@ -12,7 +12,7 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 
 <!-- tabs:start -->
 
-#### pubspec.yaml
+### pubspec.yaml
 
 ```yaml
 dependencies:
@@ -20,7 +20,7 @@ dependencies:
     git: 
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/camera/camera_ohos
-      ref: br_camera-v0.12.0+1_ohos
+      ref: camera-v0.12.0+2-ohos-1.0.0
 ```
 
 Run the following command:
@@ -33,7 +33,50 @@ flutter pub get
 
 ### 1.2 Usage
 
-For usage examples, see [example](./example).
+The following example shows the basic flow: importing the package, enumerating cameras, creating and initializing a camera, building the preview, and taking a picture.
+
+```dart
+import 'package:camera_ohos/camera_ohos.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/material.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // The OhosCamera instance is registered automatically by the plugin.
+  final OhosCamera camera = CameraPlatform.instance as OhosCamera;
+
+  // 1. Enumerate the available camera devices.
+  final List<CameraDescription> cameras = await camera.availableCameras();
+  final CameraDescription backCamera = cameras.first;
+
+  // 2. Create an uninitialized camera instance and initialize it.
+  final int cameraId = await camera.createCamera(backCamera);
+  await camera.initializeCamera(cameraId);
+
+  // 3. Build the preview widget and take a picture.
+  runApp(
+    MaterialApp(
+      home: Scaffold(
+        body: Stack(
+          children: <Widget>[
+            camera.buildPreview(cameraId),
+            FloatingActionButton(
+              onPressed: () async {
+                final XFile photo = await camera.takePicture(cameraId);
+                debugPrint('Picture saved to ${photo.path}');
+              },
+              child: const Icon(Icons.camera_alt),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
+```
+
+For more features (video recording, flash/exposure/focus control, image streaming, etc.), see [example](./example).
 
 ## 2. Constraints
 
@@ -41,13 +84,21 @@ For usage examples, see [example](./example).
 
 This document is verified based on the following versions:
 
-1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.0.2.650; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.44.9+ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
+
+The correspondence between the Flutter framework version and the upstream `camera` TAG / code branch that this package is based on:
+
+| Flutter framework version | TAG           | Branch                    |
+| ------------------------- | ------------- | ------------------------- |
+| 3.44 | camera-v0.12.0+2-ohos-1.0.0 | oh-3.44.9-dev |
+
+> Note: This package is adapted from the upstream [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2). The branch above is the `ref` referenced by the installation dependency (§1.1); the local `pubspec.yaml` package version is `0.10.10+11`, which is independent of the upstream `camera` version.
 
 ### 2.2 **Permission Requirements**
 
-The following permissions include the `system_basic` permission, but the default application permission is `normal`. Only the `normal` permission can be used. Therefore, the error \*\*9568289 \*\* may be reported during the installation of the HAP package. For details, see [Document](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V5/bm-tool-V5#EN_TOPIC_0000001884757326__安装hap时提示code9568289-error-install-failed-due-to-grant-request-permissions-failed) Change the application level to `system_basic`.
+The following permissions include the `system_basic` permission, but the default application permission is `normal`. Only the `normal` permission can be used. Therefore, the error **9568289** may be reported during the installation of the HAP package. For details, see [Document](https://developer.huawei.com/consumer/en/doc/harmonyos-guides-V5/bm-tool-V5#EN_TOPIC_0000001884757326__安装hap时提示code9568289-error-install-failed-due-to-grant-request-permissions-failed) Change the application level to `system_basic`.
 
-#### 2.2.1 **Add permissions to the module.json5 file in the entry directory.**
+### 2.2.1 **Add permissions to the module.json5 file in the entry directory.**
 
 Open  `entry/src/main/module.json5` and add the following information:
 
@@ -76,7 +127,7 @@ Open  `entry/src/main/module.json5` and add the following information:
     ]
 ```
 
-#### 2.2.2 **Add the reason for applying for the preceding permission to the entry directory.**
+### 2.2.2 **Add the reason for applying for the preceding permission to the entry directory.**
 
 Open  `entry/src/main/resources/base/element/string.json` and add the following information:
 
@@ -90,6 +141,23 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
   ]
 }
 ```
+
+### 2.3 Development Environment Setup
+
+1. Install [DevEco Studio](https://developer.huawei.com/consumer/en/deveco-studio/) 6.0.2.650 or a later version, and install the HarmonyOS SDK 5.0.0(12) through the SDK Manager.
+2. Open the `ohos` platform project (for example, `example/ohos`) in DevEco Studio, then configure signing under **File > Project Structure > Signing Configs**. A signed HAP is required to install the application on a real device.
+3. Build and run from the command line:
+
+   ```bash
+   # Build the release HAP (invokes hvigor under the hood).
+   flutter build ohos --release
+
+   # Run on a connected device.
+   flutter run -d <device-id>
+
+   # Alternatively, build directly with hvigor.
+   hvigorw assembleHap --mode module -p product=default
+   ```
 
 ## 3. API
 
@@ -107,6 +175,7 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 | onCameraResolutionChanged(int cameraId)                                                                                                                        | Stream<CameraResolutionChangedEvent>                   | Listens for camera resolution changed events.                             | function | yes          |
 | onCameraClosing(int cameraId)                                                                                                                                  | Stream<CameraClosingEvent>                             | Listens for camera closing events.                                        | function | yes          |
 | onCameraError(int cameraId)                                                                                                                                    | Stream<CameraErrorEvent>                               | Listens for camera error events.                                          | function | yes          |
+| onCameraSwitched(int cameraId)                                                                                                                                 | Stream<String>                                       | Listens for camera auto-switch events.                                    | function | yes          |
 | onVideoRecordedEvent(int cameraId)                                                                                                                             | Stream<VideoRecordedEvent>                             | Listens for video recording completed events.                             | function | yes          |
 | onDeviceOrientationChanged()                                                                                                                                   | Stream<DeviceOrientationChangedEvent>                  | Listens for device orientation changed events.                            | function | yes          |
 | lockCaptureOrientation(int cameraId, [DeviceOrientation](#DeviceOrientation) orientation)                                                                      | Future<void>                                           | Locks the capture orientation.                                            | function | yes          |
@@ -121,6 +190,8 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 | supportsImageStreaming()                                                                                                                                       | bool                                                   | Indicates whether image streaming is supported on the current platform.   | function | yes          |
 | onStreamedFrameAvailable(int cameraId, {CameraImageStreamOptions? options})                                                                                    | Stream<CameraImageData>                                | Subscribes to the camera frame data stream.                               | function | yes          |
 | setFlashMode(int cameraId, [FlashMode](#FlashMode) mode)                                                                                                       | Future<void>                                           | Sets the flash mode.                                                      | function | yes          |
+| setImageFileFormat(int cameraId, ImageFileFormat format)                                                                                                      | Future<void>                                             | Sets the image file format (e.g. JPEG) for captured pictures.              | function | yes          |
+| setJpegImageQuality(int cameraId, int quality)                                                                                                                | Future<void>                                             | Sets the JPEG quality (1-100) for captured pictures.                       | function | yes          |
 | setExposureMode(int cameraId, [ExposureMode](#ExposureMode) mode)                                                                                              | Future<void>                                           | Sets the exposure mode.                                                   | function | yes          |
 | setExposurePoint(int cameraId, Point<double>? point)                                                                                                           | Future<void>                                           | Sets the auto-exposure metering point.                                    | function | yes          |
 | getMinExposureOffset(int cameraId)                                                                                                                             | Future<double>                                         | Gets the minimum exposure compensation value.                             | function | yes          |
@@ -219,45 +290,49 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
 
 ### CameraImageStreamOptions
 
+Empty placeholder class; currently unused and kept for future-proofing of the platform interface API. It defines no fields.
+
+### CameraImagePlane
+
 | Name          | Description                                                       | Type      | ohos Support |
 | ------------- | ----------------------------------------------------------------- | --------- | ------------ |
 | bytes         | Bytes representing the plane.                                     | Uint8List | yes          |
 | bytesPerRow   | Row stride of the color plane in bytes.                           | int       | yes          |
-| bytesPerPixel | Distance between adjacent pixel samples in bytes, when available. | int       | yes          |
-| height        | Height of the pixel buffer, when available.                       | int       | yes          |
-| width         | Width of the pixel buffer, when available.                        | int       | yes          |
+| bytesPerPixel | Distance between adjacent pixel samples in bytes, when available. | int?      | yes          |
+| height        | Height of the pixel buffer, when available.                       | int?      | yes          |
+| width         | Width of the pixel buffer, when available.                        | int?      | yes          |
 
 ### FlashMode
 
 | Name             | Description                                                       | Type      | ohos Support |
 | ---------------- | ----------------------------------------------------------------- | --------- | ------------ |
-| FlashMode.off    | Do not use flash when taking a picture.                           | Uint8List | yes          |
-| FlashMode.auto   | Let the device decide whether to use flash when taking a picture. | int       | yes          |
-| FlashMode.always | Always use flash when taking a picture.                           | int       | yes          |
-| FlashMode.torch  | Turn on the flashlight and keep it on until disabled.             | int       | yes          |
+| FlashMode.off    | Do not use flash when taking a picture.                           | enum      | yes          |
+| FlashMode.auto   | Let the device decide whether to use flash when taking a picture. | enum      | yes          |
+| FlashMode.always | Always use flash when taking a picture.                           | enum      | yes          |
+| FlashMode.torch  | Turn on the flashlight and keep it on until disabled.             | enum      | yes          |
 
 ### ExposureMode
 
 | Name                | Description                                       | Type      | ohos Support |
 | ------------------- | ------------------------------------------------- | --------- | ------------ |
-| ExposureMode.auto   | Automatically determines exposure settings.       | Uint8List | yes          |
-| ExposureMode.locked | Locks the currently determined exposure settings. | int       | yes          |
+| ExposureMode.auto   | Automatically determines exposure settings.       | enum      | yes          |
+| ExposureMode.locked | Locks the currently determined exposure settings. | enum      | yes          |
 
 ### FocusMode
 
 | Name             | Description                                    | Type      | ohos Support |
 | ---------------- | ---------------------------------------------- | --------- | ------------ |
-| FocusMode.auto   | Automatically determines focus settings.       | Uint8List | yes          |
-| FocusMode.locked | Locks the currently determined focus settings. | int       | yes          |
+| FocusMode.auto   | Automatically determines focus settings.       | enum      | yes          |
+| FocusMode.locked | Locks the currently determined focus settings. | enum      | yes          |
 
 ### VideoStabilizationMode
 
 | Name                          | Description                                                       | Type      | ohos Support |
 | ----------------------------- | ----------------------------------------------------------------- | --------- | ------------ |
-| VideoStabilizationMode.off    | Video stabilization is disabled                                   | Uint8List | yes          |
-| VideoStabilizationMode.level1 | Least stabilized video stabilization mode with the least latency. | int       | yes          |
-| VideoStabilizationMode.level2 | More stabilized video with more latency.                          | int       | yes          |
-| VideoStabilizationMode.level3 | Most stabilized video with the most latency.                      | int       | yes          |
+| VideoStabilizationMode.off    | Video stabilization is disabled                                   | enum      | yes          |
+| VideoStabilizationMode.level1 | Least stabilized video stabilization mode with the least latency. | enum      | yes          |
+| VideoStabilizationMode.level2 | More stabilized video with more latency.                          | enum      | yes          |
+| VideoStabilizationMode.level3 | Most stabilized video with the most latency.                      | enum      | yes          |
 
 ## 5. Known Issues
 
@@ -267,6 +342,8 @@ Open  `entry/src/main/resources/base/element/string.json` and add the following 
   ```
 - [ ] The FPS setting on the OHOS side is currently not effective.
 - [ ] The video preparation API `prepareForVideoRecording()` is not supported on the ohos platform and is currently a no-op implementation.
+- [ ] `getMaxZoomLevel` cannot be queried from the camera properties at `create()` time: OHOS exposes the zoom ratio range only through the camera session, which is not established yet at that stage. `CameraPropertiesImpl.getScalerAvailableMaxDigitalZoom` returns 0 as an unknown marker, and the actual maximum zoom is read at runtime by `ZoomLevelFeature` from the session.
+- [ ] `CameraDescription.sensorOrientation` is always 0: OHOS CameraKit does not expose the sensor direction.
 
 ## 6. Others
 

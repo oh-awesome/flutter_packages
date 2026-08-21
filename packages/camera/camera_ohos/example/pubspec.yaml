@@ -3,8 +3,8 @@ description: Demonstrates how to use the camera plugin.
 publish_to: none
 
 environment:
-  sdk: ^3.9.0
-  flutter: ">=3.35.0"
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
 
 dependencies:
   camera_ohos:
@@ -20,26 +20,26 @@ dependencies:
   quiver: ^3.0.0
   path_provider:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/path_provider/path_provider"
-      ref: "br_path_provider-v2.1.5_ohos"
+      ref: "provider-v2.1.5-ohos-1.0.1"
   video_player:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/video_player/video_player"
-      ref: "br_video_player-v2.10.1_ohos"
+      ref: "video_player-v2.10.1-ohos-1.0.1"
 
 dependency_overrides:
   path_provider_foundation:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/path_provider/path_provider_foundation"
-      ref: "br_path_provider-v2.1.5_ohos"
+      ref: "provider-v2.1.5-ohos-1.0.1"
   pigeon:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
-      ref: "br_pigeon-v26.1.5_ohos"
+      ref: "pigeon-v26.3.4-ohos-1.0.0"
 
 
 dev_dependencies:

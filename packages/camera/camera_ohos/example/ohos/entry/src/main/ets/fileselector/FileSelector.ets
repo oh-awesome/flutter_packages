@@ -4,13 +4,16 @@ import { Result, FileSelectorApiCodec} from './GeneratedFileSelectorApi'
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
-import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
+import { AbilityPluginBinding } from
+  '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
 import ArrayList from '@ohos.util.ArrayList';
 
-const TAG = "FileSelector";
+const TAG = 'FileSelector';
 export class FileSelector {
 
   binding: AbilityPluginBinding;
+  // 保存通道引用，供 dispose() 注销 handler 时使用
+  private channel: BasicMessageChannel<ESObject> | null = null;
 
   constructor(binding: AbilityPluginBinding) {
     this.binding = binding;
@@ -22,7 +25,7 @@ export class FileSelector {
       result.success(file.fd);
     } catch (err) {
       Log.e(TAG, 'open file failed with err: ' + err);
-      result.error(new Error("Failed to read file"));
+      result.error(new Error('Failed to read file'));
     }
   }
 
@@ -35,7 +38,8 @@ export class FileSelector {
     {
       this.binding = abilityPluginBinding;
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
-        binaryMessenger, "dev.flutter.FileSelectorApi.openFileByPath", FileSelector.getCodec());
+        binaryMessenger, 'dev.flutter.FileSelectorApi.openFileByPath', FileSelector.getCodec());
+      this.channel = channel;
       channel.setMessageHandler({
         onMessage(msg: ESObject, reply: Reply<ESObject>): void {
           Log.d(TAG, 'onMessage reply:' + reply)
@@ -52,6 +56,15 @@ export class FileSelector {
           api.openFileByPath(path, resultCallback);
         }
       });
+    }
+  }
+
+  // 注销通道 handler，切断闭包对 FileSelector 实例的引用链（对齐 CameraPlugin detach 的防御性释
+  // 放）
+  dispose(): void {
+    if (this.channel != null) {
+      this.channel.setMessageHandler(null);
+      this.channel = null;
     }
   }
 }

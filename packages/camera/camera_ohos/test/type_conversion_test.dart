@@ -4,6 +4,7 @@
 
 import 'dart:typed_data';
 
+import 'package:camera_ohos/src/messages.g.dart';
 import 'package:camera_ohos/src/type_conversion.dart';
 import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,4 +86,26 @@ void main() {
     );
     expect(cameraImage.format.group, ImageFormatGroup.nv21);
   });
+
+  // 测试用例：imageFileFormatToPlatform 应当将 jpeg 映射为 PlatformImageFileFormat.jpeg
+  test(
+    'imageFileFormatToPlatform should map jpeg to PlatformImageFileFormat.jpeg',
+    () {
+      expect(
+        imageFileFormatToPlatform(ImageFileFormat.jpeg),
+        PlatformImageFileFormat.jpeg,
+      );
+    },
+  );
+
+  // 测试用例：imageFileFormatToPlatform 应当将 heif 映射为 PlatformImageFileFormat.heif
+  test(
+    'imageFileFormatToPlatform should map heif to PlatformImageFileFormat.heif',
+    () {
+      expect(
+        imageFileFormatToPlatform(ImageFileFormat.heif),
+        PlatformImageFileFormat.heif,
+      );
+    },
+  );
 }

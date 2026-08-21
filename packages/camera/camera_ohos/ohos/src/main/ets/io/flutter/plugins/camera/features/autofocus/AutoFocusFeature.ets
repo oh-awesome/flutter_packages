@@ -7,9 +7,10 @@
 import { CameraProperties } from '../../CameraProperties';
 import { CameraFeature } from '../CameraFeature';
 import camera from '@ohos.multimedia.camera';
+import { Log } from '@ohos/flutter_ohos';
 
 export class AutoFocusFeature extends CameraFeature<camera.FocusMode> {
-  private currentSetting: camera.FocusMode = camera.FocusMode.FOCUS_MODE_AUTO;
+  private currentSetting: camera.FocusMode = camera.FocusMode.FOCUS_MODE_CONTINUOUS_AUTO;
   private readonly recordingVideo: boolean;
 
   constructor(cameraProperties: CameraProperties, recordingVideo: boolean) {
@@ -18,26 +19,21 @@ export class AutoFocusFeature extends CameraFeature<camera.FocusMode> {
   }
 
   getDebugName(): string {
-    return "AutoFocusFeature";
+    return 'AutoFocusFeature';
   }
 
   setValue(value: camera.FocusMode): void {
+    Log.d('AutoFocusFeature', 'setValue = ' + value)
     this.currentSetting = value;
   }
 
   getValue(): camera.FocusMode {
+    Log.d('AutoFocusFeature', 'getValue = ' + this.currentSetting)
     return this.currentSetting;
   }
 
   public checkIsSupported(): boolean {
-    let modes: number[] = this.cameraProperties.getControlAutoFocusAvailableModes();
-    const minFocus: number = this.cameraProperties.getLensInfoMinimumFocusDistance();
-
-    let isFixedLength = minFocus == null || minFocus == 0;
-
-    return!isFixedLength
-      && !(modes.length == 0
-        // || (modes.length == 1 && modes[0] == CameraCharacteristics.CONTROL_AF_MODE_OFF));
-        || (modes.length == 1 && modes[0] == 0)); // ohos没有CameraCharacteristics，待完善
+    // OHOS Camera Kit 支持 FocusMode（AUTO/CONTINUOUS_AUTO/LOCKED），对焦模式能力恒可用
+    return true;
   }
 }

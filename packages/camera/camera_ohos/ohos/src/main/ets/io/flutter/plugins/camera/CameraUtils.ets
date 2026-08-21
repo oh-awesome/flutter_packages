@@ -7,7 +7,6 @@
 import camera from '@ohos.multimedia.camera';
 import { BusinessError } from '@ohos.base';
 import { HashMap } from '@kit.ArkTS';
-import DateTimeUtil from './utlis/DateTimeUtil';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 
 
@@ -61,7 +60,8 @@ export class CameraUtils {
     }
   }
 
-  static getCameraInput(cameraDevice: camera.CameraDevice | undefined, cameraManager: camera.CameraManager): camera.CameraInput | undefined {
+  static getCameraInput(cameraDevice: camera.CameraDevice | undefined,
+    cameraManager: camera.CameraManager): camera.CameraInput | undefined {
     let cameraInput: camera.CameraInput | undefined = undefined;
     try {
       cameraInput = cameraManager.createCameraInput(cameraDevice);
@@ -75,37 +75,37 @@ export class CameraUtils {
 
   static serializeDeviceOrientation(orientation: DeviceOrientation): string {
     if (orientation == null)
-      throw new Error("Could not serialize null device orientation.");
+      throw new Error('Could not serialize null device orientation.');
     switch (orientation) {
       case DeviceOrientation.PORTRAIT_UP:
-        return "portraitUp";
+        return 'portraitUp';
       case DeviceOrientation.PORTRAIT_DOWN:
-        return "portraitDown";
+        return 'portraitDown';
       case DeviceOrientation.LANDSCAPE_LEFT:
-        return "landscapeLeft";
+        return 'landscapeLeft';
       case DeviceOrientation.LANDSCAPE_RIGHT:
-        return "landscapeRight";
+        return 'landscapeRight';
       default:
         throw new Error(
-          "Could not serialize device orientation: " + String(orientation));
+          'Could not serialize device orientation: ' + String(orientation));
     }
   }
 
   static deserializeDeviceOrientation(orientation: string): DeviceOrientation {
     if (orientation == null)
-      throw new Error("Could not deserialize null device orientation.");
+      throw new Error('Could not deserialize null device orientation.');
     switch (orientation) {
-      case "portraitUp":
+      case 'portraitUp':
         return DeviceOrientation.PORTRAIT_UP;
-      case "portraitDown":
+      case 'portraitDown':
         return DeviceOrientation.PORTRAIT_DOWN;
-      case "landscapeLeft":
+      case 'landscapeLeft':
         return DeviceOrientation.LANDSCAPE_LEFT;
-      case "landscapeRight":
+      case 'landscapeRight':
         return DeviceOrientation.LANDSCAPE_RIGHT;
       default:
         throw new Error(
-          "Could not deserialize device orientation: " + orientation);
+          'Could not deserialize device orientation: ' + orientation);
     }
   }
 
@@ -119,7 +119,7 @@ export class CameraUtils {
       for (let element of cameras) {
         const details: Map<String, Object> = new Map<String, Object>();
         details.set('name', element.cameraId);
-        details.set('sensorOrientation', camera.ImageRotation.ROTATION_0);
+        details.set('sensorOrientation', element.cameraOrientation);
 
         let position: camera.CameraPosition = element.cameraPosition;
         switch (position) {
@@ -141,52 +141,58 @@ export class CameraUtils {
     } catch (error) {
       let err = error as BusinessError;
       console.error(`The getAvailableCameras call failed. error code: ${err.code}`);
+      // 不再静默降级为空数组：失败向上抛，由 Pigeon 包装层转 PlatformException，
+      // 避免 Dart 侧误判为"无可用摄像头"
+      throw new Error(`getAvailableCameras failed: ${err.message}`);
     }
     return cameraArray;
   }
 
-  static getSupportedOutputCapability(device: camera.CameraDevice, mode: camera.SceneMode, manager: camera.CameraManager): camera.CameraOutputCapability {
+  static getSupportedOutputCapability(device: camera.CameraDevice, mode: camera.SceneMode,
+      manager: camera.CameraManager): camera.CameraOutputCapability {
     let capability: camera.CameraOutputCapability = manager.getSupportedOutputCapability(device, mode);
     return capability;
   }
 
   //检测是否有闪光灯
+  // 系统调用失败 ≠ 设备不支持：抛错由上层传播，避免被误报为"设备无闪光灯"
   public static hasFlash(captureSession: camera.PhotoSession | camera.VideoSession): boolean {
-    let status: boolean = false;
     try {
-      status = captureSession.hasFlash();
+      return captureSession.hasFlash();
     } catch (error) {
       // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The hasFlash call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return status;
   }
 
   //检测闪光灯模式是否支持
-  public static isFlashModeSupported(captureSession: camera.PhotoSession | camera.VideoSession, mode: camera.FlashMode): boolean {
-    let status: boolean = false;
+  // 系统调用失败 ≠ 模式不支持：抛错由上层传播，避免被误报为"该闪光灯模式不支持"
+  public static isFlashModeSupported(captureSession: camera.PhotoSession | camera.VideoSession,
+      mode: camera.FlashMode): boolean {
     try {
-      status = captureSession.isFlashModeSupported(mode);
+      return captureSession.isFlashModeSupported(mode);
     } catch (error) {
       // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The isFlashModeSupported call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return status;
   }
 
   // 检测曝光模式是否支持
-  public static isExposureModeSupported(captureSession: camera.PhotoSession | camera.VideoSession, mode: camera.ExposureMode): boolean {
-    let isSupported: boolean = false;
+  // 系统调用失败 ≠ 模式不支持：抛错由上层传播，避免被误报为"该曝光模式不支持"
+  public static isExposureModeSupported(captureSession: camera.PhotoSession | camera.VideoSession,
+      mode: camera.ExposureMode): boolean {
     try {
-      isSupported = captureSession.isExposureModeSupported(mode);
+      return captureSession.isExposureModeSupported(mode);
     } catch (error) {
       // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The isExposureModeSupported call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return isSupported;
   }
 
   // 获取支持的变焦范围
@@ -203,31 +209,39 @@ export class CameraUtils {
   }
 
   // 获取支持的最小变焦范围
+  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
+  // 值
   public static getMinZoomRatio(captureSession: camera.PhotoSession | camera.VideoSession): number {
-    let minZoomRatio: number = -10;
+    let zoomRatioRange: Array<number> = [];
     try {
-      let zoomRatioRange: Array<number> = captureSession.getZoomRatioRange();
-      minZoomRatio = Math.min(...zoomRatioRange);
+      zoomRatioRange = captureSession.getZoomRatioRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The getZoomRatioRange call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return minZoomRatio;
+    if (zoomRatioRange.length === 0) {
+      throw new Error('The getZoomRatioRange returned empty range');
+    }
+    return Math.min(...zoomRatioRange);
   }
 
   // 获取支持的最大变焦范围
+  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
+  // 值
   public static getMaxZoomRatio(captureSession: camera.PhotoSession | camera.VideoSession): number {
-    let maxZoomRatio: number = 10;
+    let zoomRatioRange: Array<number> = [];
     try {
-      let zoomRatioRange: Array<number> = captureSession.getZoomRatioRange();
-      maxZoomRatio = Math.max(...zoomRatioRange);
+      zoomRatioRange = captureSession.getZoomRatioRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The getZoomRatioRange call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return maxZoomRatio;
+    if (zoomRatioRange.length === 0) {
+      throw new Error('The getZoomRatioRange returned empty range');
+    }
+    return Math.max(...zoomRatioRange);
   }
 
   // 查询曝光补偿范围
@@ -244,35 +258,41 @@ export class CameraUtils {
   }
 
   // 查询最小曝光补偿值
+  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
+  // 值
   public static getMinExposureBias(captureSession: camera.PhotoSession | camera.VideoSession): number {
-    let minExposure: number = -10;
+    let biasRangeArray: Array<number> = new Array<number>();
     try {
-      let biasRangeArray = captureSession.getExposureBiasRange();
-      if (biasRangeArray.length > 1) {
-        minExposure = biasRangeArray[0];
-      }
+      biasRangeArray = captureSession.getExposureBiasRange();
     } catch (error) {
       // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The getExposureBiasRange call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return minExposure;
+    if (biasRangeArray.length === 0) {
+      throw new Error('The getExposureBiasRange returned empty range');
+    }
+    return biasRangeArray[0];
   }
 
   // 查询最大曝光补偿值
+  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
+  // 值
   public static getMaxExposureBias(captureSession: camera.PhotoSession | camera.VideoSession): number {
-    let maxExposure: number = 10;
+    let biasRangeArray: Array<number> = new Array<number>();
     try {
-      let biasRangeArray = captureSession.getExposureBiasRange();
-      if (biasRangeArray.length > 1) {
-        maxExposure = biasRangeArray[biasRangeArray.length-1];
-      }
+      biasRangeArray = captureSession.getExposureBiasRange();
     } catch (error) {
       // 失败返回错误码error.code并处理
       let err = error as BusinessError;
       console.error(`The getExposureBiasRange call failed. error code: ${err.code}`);
+      throw error as Error;
     }
-    return maxExposure;
+    if (biasRangeArray.length === 0) {
+      throw new Error('The getExposureBiasRange returned empty range');
+    }
+    return biasRangeArray[biasRangeArray.length - 1];
   }
 
 

@@ -31,7 +31,7 @@ export class SensorOrientationFeature extends CameraFeature<number> {
   }
 
   public getDebugName(): string {
-    return "SensorOrientationFeature";
+    return 'SensorOrientationFeature';
   }
 
   public getValue(): number {
@@ -48,6 +48,10 @@ export class SensorOrientationFeature extends CameraFeature<number> {
 
   public getDeviceOrientationManager(): DeviceOrientationManager {
     return this.deviceOrientationListener;
+  }
+
+  public dispose(): void {
+    this.deviceOrientationListener.stop();
   }
 
   public lockCaptureOrientation(orientation: DeviceOrientation) {

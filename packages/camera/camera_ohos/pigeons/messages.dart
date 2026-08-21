@@ -148,9 +148,11 @@ abstract class CameraApi {
   int create(String cameraName, PlatformMediaSettings mediaSettings);
 
   /// Initializes the camera with the given ID for the given image format.
+  @async
   void initialize(PlatformImageFormatGroup imageFormat);
 
   /// Disposes of the camera with the given ID.
+  @async
   void dispose();
 
   /// Locks the camera with the given ID to the given orientation.
@@ -165,16 +167,20 @@ abstract class CameraApi {
   String takePicture();
 
   /// Starts recording a video on the camera with the given ID.
+  @async
   void startVideoRecording(bool enableStream);
 
   /// Ends video recording on the camera with the given ID and returns the path
   /// to the resulting file.
+  @async
   String stopVideoRecording();
 
   /// Pauses video recording on the camera with the given ID.
+  @async
   void pauseVideoRecording();
 
   /// Resumes previously paused video recording on the camera with the given ID.
+  @async
   void resumeVideoRecording();
 
   /// Begins streaming frames from the camera.
@@ -186,6 +192,15 @@ abstract class CameraApi {
   /// Sets the file format used for captured still images.
   @async
   void setImageFileFormat(PlatformImageFileFormat format);
+
+  /// Sets the JPEG compression quality (1-100) for captured still images.
+  ///
+  /// OHOS does not support continuous JPEG quality via `PhotoCaptureSetting`
+  /// (only a 3-level enum), so the captured photo is re-encoded with the
+  /// requested quality after capture. Platforms that do not support this
+  /// setting ignore it.
+  @async
+  void setJpegImageQuality(int quality);
 
   /// Sets the flash mode of the camera with the given ID.
   @async
@@ -216,6 +231,7 @@ abstract class CameraApi {
   double setExposureOffset(double offset);
 
   /// Sets the focus mode of the camera with the given ID.
+  @async
   void setFocusMode(PlatformFocusMode focusMode);
 
   /// Sets the focus point of the camera with the given ID.
@@ -235,14 +251,17 @@ abstract class CameraApi {
   void setZoomLevel(double zoom);
 
   /// Pauses streaming of preview frames.
+  @async
   void pausePreview();
 
   /// Resumes previously paused streaming of preview frames.
+  @async
   void resumePreview();
 
   /// Changes the camera while recording video.
   ///
   /// This should be called only while video recording is active.
+  @async
   void setDescriptionWhileRecording(String description);
 
   /// Sets the video stabilization mode of the camera with the given ID.
@@ -270,8 +289,9 @@ abstract class CameraEventApi {
   /// Called when an error occurs in the camera.
   void error(String message);
 
+  /// Called when a camera is switched (e.g., on tri-fold devices).
+  void cameraSwitched(String newCameraName);
+
   /// Called when the camera closes.
   void closed();
-
-  String? pigeon_getMessageChannelSuffix();
 }

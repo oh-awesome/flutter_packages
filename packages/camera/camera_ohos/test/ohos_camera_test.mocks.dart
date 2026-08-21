@@ -160,6 +160,26 @@ class MockCameraApi extends _i1.Mock implements _i2.CameraApi {
           as _i3.Future<void>);
 
   @override
+  _i3.Future<void> setImageFileFormat(
+    _i2.PlatformImageFileFormat? arg_format,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#setImageFileFormat, [arg_format]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setJpegImageQuality(int? arg_quality) =>
+      (super.noSuchMethod(
+            Invocation.method(#setJpegImageQuality, [arg_quality]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
   _i3.Future<void> setFlashMode(_i2.PlatformFlashMode? arg_flashMode) =>
       (super.noSuchMethod(
             Invocation.method(#setFlashMode, [arg_flashMode]),

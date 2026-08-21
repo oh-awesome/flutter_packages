@@ -17,7 +17,7 @@ export class ExposureLockFeature extends CameraFeature<camera.ExposureMode> {
   }
 
   public getDebugName(): string {
-    return "ExposureLockFeature";
+    return 'ExposureLockFeature';
   }
 
   public getValue(): camera.ExposureMode {

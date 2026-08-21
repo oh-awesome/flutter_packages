@@ -10,7 +10,7 @@ import { CaptureTimeoutsWrapper } from './types/CaptureTimeoutsWrapper';
 
 
 export class CameraCaptureCallback {
-  private static TAG: String = "CameraCaptureCallback";
+  private static TAG: String = 'CameraCaptureCallback';
   private cameraStateListener: CameraCaptureStateListener;
   private cameraState: CameraState;
   private captureTimeouts: CaptureTimeoutsWrapper;

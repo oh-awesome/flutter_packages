@@ -17,7 +17,7 @@ export class ExposureOffsetFeature extends CameraFeature<Number> {
   }
 
   public getDebugName(): string {
-    return "ExposureOffsetFeature";
+    return 'ExposureOffsetFeature';
   }
 
   public getValue(): Number {
@@ -29,8 +29,11 @@ export class ExposureOffsetFeature extends CameraFeature<Number> {
   }
 
   public setValue(value: number, captureSession: camera.PhotoSession | camera.VideoSession): void {
-    let stepSize = this.getExposureOffsetStepSize(captureSession);
-    this.currentSetting = value / stepSize;
+    // currentSetting 存实际应用 EV 值：Dart 侧 CameraController.setExposureOffset 已按 stepSize 取整后
+    // 传入 EV 值，Camera.setExposureOffset 用 session.setExposureBias(value) 应用的正是该值。
+    // 此前此处换算成步进索引（value/stepSize），导致 setExposureOffset 返回值与契约（返回实
+    // 际应用值）不符。
+    this.currentSetting = value;
   }
 
 

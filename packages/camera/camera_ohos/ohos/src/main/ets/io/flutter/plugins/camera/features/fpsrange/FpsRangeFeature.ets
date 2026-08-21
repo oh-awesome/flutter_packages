@@ -14,7 +14,7 @@ export class FpsRangeFeature extends CameraFeature<number | null> {
   private targetFps: number | null = null;
 
   public getDebugName(): string {
-    return "FpsRangeFeature";
+    return 'FpsRangeFeature';
   }
 
   public getValue(): number | null {
@@ -34,7 +34,8 @@ export class FpsRangeFeature extends CameraFeature<number | null> {
     // 合理性检查：常见视频帧率范围是 1-240fps
     const MAX_REASONABLE_FPS = 240;
     if (value > MAX_REASONABLE_FPS) {
-      console.warn(TAG, `setValue: fps value ${value} exceeds reasonable range (>${MAX_REASONABLE_FPS}), will be clamped by device capability`);
+      console.warn(TAG, 'setValue: fps value ' + value +
+        ' exceeds reasonable range (>' + MAX_REASONABLE_FPS + '), will be clamped by device capability');
     }
 
     this.targetFps = value;

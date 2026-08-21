@@ -14,12 +14,10 @@ export class Timeout {
 
   constructor(timeoutMs: number) {
     this.timeoutMs = timeoutMs;
-    // this.timeStarted = SystemClock.elapsedRealtime();
-    this.timeStarted = 1;
+    this.timeStarted = Date.now();
   }
 
-  getIsExpired():boolean{
-    // return (SystemClock.elapsedRealtime() - timeStarted) > timeoutMs;
-    return false;
+  getIsExpired(): boolean {
+    return (Date.now() - this.timeStarted) > this.timeoutMs;
   }
 }
