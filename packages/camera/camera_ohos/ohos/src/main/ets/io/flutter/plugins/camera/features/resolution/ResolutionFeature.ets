@@ -10,7 +10,7 @@ import { ResolutionPreset } from './ResolutionPreset';
 import { CameraProperties } from '../../CameraProperties';
 import { Log } from '@ohos/flutter_ohos';
 
-const TAG = "ResolutionFeature";
+const TAG = 'ResolutionFeature';
 
 export class VideoSessionProfile {
   private previewProfile: camera.Profile | undefined = undefined;
@@ -231,8 +231,8 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
     }
 
     Log.i(TAG,
-      "bestPreviewProfileSize data: " + bestPreviewProfile!.size.width + " " + bestPreviewProfile!.size.height);
-    Log.i(TAG, "bestVideoProfileSize data: " + bestVideoProfile!.size.width + " " + bestVideoProfile!.size.height);
+      'bestPreviewProfileSize data: ' + bestPreviewProfile!.size.width + ' ' + bestPreviewProfile!.size.height);
+    Log.i(TAG, 'bestVideoProfileSize data: ' + bestVideoProfile!.size.width + ' ' + bestVideoProfile!.size.height);
     const videoSessionProfile: VideoSessionProfile = new VideoSessionProfile();
     videoSessionProfile.setPreviewProfile(bestPreviewProfile!);
     videoSessionProfile.setCaptureProfile(bestVideoProfile!);
@@ -352,7 +352,7 @@ export class ResolutionFeature extends CameraFeature<ResolutionPreset> {
   }
 
   public getDebugName(): string {
-    return "ResolutionFeature";
+    return 'ResolutionFeature';
 
   }
 

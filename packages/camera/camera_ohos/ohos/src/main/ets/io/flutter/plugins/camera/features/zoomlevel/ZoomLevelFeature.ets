@@ -6,42 +6,28 @@
 
 import { CameraProperties } from '../../CameraProperties';
 import { CameraFeature } from '../CameraFeature';
-import { Rect } from '@ohos.application.AccessibilityExtensionAbility';
 import { CameraUtils } from '../../CameraUtils';
 import camera from '@ohos.multimedia.camera';
-
 
 const DEFAULT_ZOOM_LEVEL = 1.0;
 
 export class ZoomLevelFeature extends CameraFeature<number> {
   private readonly hasSupport: boolean = false;
-  private readonly sensorArraySize: Rect;
   private currentSetting: number = DEFAULT_ZOOM_LEVEL;
   private minimumZoomLevel: number = this.currentSetting;
   private readonly maximumZoomLevel: number;
 
   constructor(cameraProperties: CameraProperties) {
     super(cameraProperties);
-
-
-    this.sensorArraySize = this.cameraProperties.getSensorInfoActiveArraySize();
-
-    if (this.sensorArraySize == null) {
-      this.maximumZoomLevel = this.minimumZoomLevel;
-      this.hasSupport = false;
-      return;
-    }
-    // this.minimumZoomLevel = CameraUtils.getMinZoomRatio(this.captureSession);
-    // this.maximumZoomLevel = CameraUtils.getMaxZoomRatio(this.captureSession);
-
+    // 最小/最大变焦范围运行时由 CameraUtils.getZoomRatioRange 从 session 读取
+    // （见 getMinimumZoomLevel/getMaximumZoomLevel），此处仅设置构造期默认值。
     this.minimumZoomLevel = 0;
     this.maximumZoomLevel = 1;
-
-    this.hasSupport = this.maximumZoomLevel > this.minimumZoomLevel;
+    this.hasSupport = true;
   }
 
   public getDebugName(): string {
-    return "ZoomLevelFeature";
+    return 'ZoomLevelFeature';
   }
 
   public getValue(): number {

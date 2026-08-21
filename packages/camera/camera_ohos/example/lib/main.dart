@@ -62,6 +62,12 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   ImageFileFormat _currentImageFileFormat = ImageFileFormat.jpeg;
   VideoStabilizationMode _currentVideoStabilizationMode =
       VideoStabilizationMode.off;
+  int _jpegQuality = 100;
+
+  // True when the current image file format is JPEG. The JPEG quality slider is
+  // only interactive in this case.
+  bool get _isJpegFormat => _currentImageFileFormat == ImageFileFormat.jpeg;
+
   double _minAvailableExposureOffset = 0.0;
   double _maxAvailableExposureOffset = 0.0;
   double _currentExposureOffset = 0.0;
@@ -369,77 +375,114 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   Widget _settingsRowWidget() {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: <Widget>[
-            const Text('FPS:', style: TextStyle(fontWeight: FontWeight.w600)),
-            const SizedBox(width: 8),
-            DropdownButton<int>(
-              value: _requestedFps,
-              onChanged: (int? newValue) {
-                if (newValue != null && newValue != _requestedFps) {
-                  unawaited(_onRequestedFpsChanged(newValue));
-                }
-              },
-              items: _fpsOptions.map<DropdownMenuItem<int>>((int fps) {
-                return DropdownMenuItem<int>(value: fps, child: Text('$fps'));
-              }).toList(),
-            ),
-            const SizedBox(width: 24),
-            const Text(
-              'Format:',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 8),
-            DropdownButton<ImageFileFormat>(
-              value: _currentImageFileFormat,
-              onChanged: (ImageFileFormat? newValue) {
-                if (newValue != null &&
-                    newValue != _currentImageFileFormat &&
-                    controller != null) {
-                  unawaited(_onImageFileFormatChanged(newValue));
-                }
-              },
-              items: ImageFileFormat.values
-                  .map<DropdownMenuItem<ImageFileFormat>>((
-                    ImageFileFormat format,
-                  ) {
-                    return DropdownMenuItem<ImageFileFormat>(
-                      value: format,
-                      child: Text(format.name),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <Widget>[
+                const Text(
+                  'FPS:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<int>(
+                  value: _requestedFps,
+                  onChanged: (int? newValue) {
+                    if (newValue != null && newValue != _requestedFps) {
+                      unawaited(_onRequestedFpsChanged(newValue));
+                    }
+                  },
+                  items: _fpsOptions.map<DropdownMenuItem<int>>((int fps) {
+                    return DropdownMenuItem<int>(
+                      value: fps,
+                      child: Text('$fps'),
                     );
-                  })
-                  .toList(),
+                  }).toList(),
+                ),
+                const SizedBox(width: 24),
+                const Text(
+                  'Format:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<ImageFileFormat>(
+                  value: _currentImageFileFormat,
+                  onChanged: (ImageFileFormat? newValue) {
+                    if (newValue != null &&
+                        newValue != _currentImageFileFormat &&
+                        controller != null) {
+                      unawaited(_onImageFileFormatChanged(newValue));
+                    }
+                  },
+                  items: ImageFileFormat.values
+                      .map<DropdownMenuItem<ImageFileFormat>>((
+                        ImageFileFormat format,
+                      ) {
+                        return DropdownMenuItem<ImageFileFormat>(
+                          value: format,
+                          child: Text(format.name),
+                        );
+                      })
+                      .toList(),
+                ),
+                const SizedBox(width: 24),
+                const Text(
+                  'Stabilization:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<VideoStabilizationMode>(
+                  value: _currentVideoStabilizationMode,
+                  onChanged: (VideoStabilizationMode? newValue) {
+                    if (newValue != null &&
+                        newValue != _currentVideoStabilizationMode &&
+                        controller != null) {
+                      unawaited(_onVideoStabilizationModeChanged(newValue));
+                    }
+                  },
+                  items: VideoStabilizationMode.values
+                      .map<DropdownMenuItem<VideoStabilizationMode>>((
+                        VideoStabilizationMode mode,
+                      ) {
+                        return DropdownMenuItem<VideoStabilizationMode>(
+                          value: mode,
+                          child: Text(mode.name),
+                        );
+                      })
+                      .toList(),
+                ),
+              ],
             ),
-            const SizedBox(width: 24),
-            const Text(
-              'Stabilization:',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 8),
-            DropdownButton<VideoStabilizationMode>(
-              value: _currentVideoStabilizationMode,
-              onChanged: (VideoStabilizationMode? newValue) {
-                if (newValue != null &&
-                    newValue != _currentVideoStabilizationMode &&
-                    controller != null) {
-                  unawaited(_onVideoStabilizationModeChanged(newValue));
-                }
-              },
-              items: VideoStabilizationMode.values
-                  .map<DropdownMenuItem<VideoStabilizationMode>>((
-                    VideoStabilizationMode mode,
-                  ) {
-                    return DropdownMenuItem<VideoStabilizationMode>(
-                      value: mode,
-                      child: Text(mode.name),
-                    );
-                  })
-                  .toList(),
-            ),
-          ],
-        ),
+          ),
+          // The JPEG quality slider is only interactive for JPEG captures. It
+          // lives outside the horizontal scroll view so that its horizontal
+          // drag gestures are not claimed by the scrollable row.
+          Row(
+            children: <Widget>[
+              const Text(
+                'Quality:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 140,
+                child: Slider(
+                  value: _isJpegFormat ? _jpegQuality.toDouble() : 100,
+                  min: 1,
+                  max: 100,
+                  divisions: 99,
+                  label: '${_isJpegFormat ? _jpegQuality : 100}',
+                  onChanged: _isJpegFormat && controller != null
+                      ? _onJpegQualityChanged
+                      : null,
+                ),
+              ),
+              Text(_isJpegFormat ? '$_jpegQuality' : '100'),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -914,7 +957,13 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
     try {
       await cameraController.initialize();
+      // OHOS: setImageFileFormat and setJpegImageQuality are ohos-specific
+      // extensions of the upstream camera API.
       await cameraController.setImageFileFormat(_currentImageFileFormat);
+      await CameraPlatform.instance.setJpegImageQuality(
+        cameraController.cameraId,
+        _jpegQuality,
+      );
       await Future.wait(<Future<Object?>>[
         // The exposure mode is currently not supported on the web.
         ...!kIsWeb
@@ -942,6 +991,8 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       _cameraErrorSubscription = CameraPlatform.instance
           .onCameraError(cameraController.cameraId)
           .listen((CameraErrorEvent event) {});
+      // OHOS: onCameraSwitched fires when the system auto-switches the camera
+      // in tri-fold dual-screen mode.
       final OhosCamera platform = CameraPlatform.instance as OhosCamera;
       _cameraSwitchedSubscription = platform
           .onCameraSwitched(cameraController.cameraId)
@@ -1011,6 +1062,11 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       }
       setState(() {
         _currentImageFileFormat = format;
+        // The JPEG quality setting only applies to JPEG captures. Reset it so
+        // the disabled slider shows 100 and switching back to JPEG starts over.
+        if (format != ImageFileFormat.jpeg) {
+          _jpegQuality = 100;
+        }
       });
       showInSnackBar('Image file format set to ${format.name}');
     } on CameraException catch (e) {
@@ -1032,6 +1088,25 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       } on CameraException catch (e) {
         _showCameraException(e);
       }
+    }
+  }
+
+  Future<void> _onJpegQualityChanged(double value) async {
+    final int quality = value.round();
+    setState(() {
+      _jpegQuality = quality;
+    });
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+    try {
+      await CameraPlatform.instance.setJpegImageQuality(
+        cameraController.cameraId,
+        quality,
+      );
+    } on CameraException catch (e) {
+      _showCameraException(e);
     }
   }
 
@@ -1321,6 +1396,8 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     }
     final VideoPlayerController vController;
     if (Platform.operatingSystem == 'ohos') {
+      // OHOS: on the ohos platform the video player must open the file by descriptor,
+      // so the file is opened through FileSelector.
       final FileSelector instance = FileSelector();
       int? fileFd = await instance.openFileByPath(videoFile!.path);
       vController = VideoPlayerController.fileFd(fileFd!);
@@ -1395,6 +1472,8 @@ Future<void> main() async {
   // Fetch the available cameras before initializing the app.
   try {
     WidgetsFlutterBinding.ensureInitialized();
+    // OHOS: availableCameras() requires the ohos.permission.CAMERA permission declared
+    // in entry/src/main/module.json5, otherwise a CameraAccessDenied error is thrown.
     _cameras = await CameraPlatform.instance.availableCameras();
   } on CameraException catch (e) {
     _logError(e.code, e.description);

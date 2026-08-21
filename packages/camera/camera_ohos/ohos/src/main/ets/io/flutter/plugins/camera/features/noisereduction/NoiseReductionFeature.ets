@@ -17,7 +17,7 @@ export class NoiseReductionFeature extends CameraFeature<NoiseReductionMode>{
   }
 
   public getDebugName(): string {
-    return "NoiseReductionFeature";
+    return 'NoiseReductionFeature';
   }
 
   public getValue(): NoiseReductionMode {
@@ -29,7 +29,7 @@ export class NoiseReductionFeature extends CameraFeature<NoiseReductionMode>{
   }
 
   public checkIsSupported(): boolean {
-    let modes = super.cameraProperties.getAvailableNoiseReductionModes();
-    return modes != null && modes.length > 0;
+    // OHOS Camera Kit 无降噪模式设置 API，恒不支持
+    return false;
   }
 }

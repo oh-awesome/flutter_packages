@@ -43,7 +43,7 @@ function wrapError(error: Error): Array<Object> {
   } else {
     errorList[0] = error.toString();
     errorList[1] = error.name;
-    errorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
+    errorList[2] = 'Cause: ' + error.message + ', Stacktrace: ' + error.stack;
   }
   return errorList;
 }
@@ -69,10 +69,10 @@ export enum PlatformExposureMode {
   locked
 }
 
-/* Pigeon equivalent of [FocusMode].*/
+/* Pigeon equivalent of [FocusMode]. Values align with Camera Kit `camera.FocusMode`. */
 export enum PlatformFocusMode {
-  auto,
-  locked
+  auto = 1,
+  locked = 3
 }
 
 /* Pigeon equivalent of [ResolutionPreset].*/
@@ -154,7 +154,8 @@ export class PlatformCameraDescription {
   }
 
   static fromList(arr: Object[]): PlatformCameraDescription {
-    let instance: PlatformCameraDescription = new PlatformCameraDescription(arr[0] as string, PlatformCameraLensDirection[PlatformCameraLensDirection[arr[1] as number]], arr[2] as number);
+    let instance: PlatformCameraDescription = new PlatformCameraDescription(arr[0] as string,
+        PlatformCameraLensDirection[PlatformCameraLensDirection[arr[1] as number]], arr[2] as number);
     return instance;
   }
 }
@@ -195,7 +196,8 @@ export class PlatformCameraState {
     return this.focusPointSupported;
   }
 
-  constructor(previewSize: PlatformSize | null, exposureMode: PlatformExposureMode, focusMode: PlatformFocusMode, exposurePointSupported: boolean, focusPointSupported: boolean) {
+  constructor(previewSize: PlatformSize | null, exposureMode: PlatformExposureMode, focusMode: PlatformFocusMode,
+      exposurePointSupported: boolean, focusPointSupported: boolean) {
     this.previewSize = previewSize;
     this.exposureMode = exposureMode;
     this.focusMode = focusMode;
@@ -349,7 +351,8 @@ export class PlatformMediaSettings {
     return this.enableAudio;
   }
 
-  constructor(resolutionPreset: PlatformResolutionPreset, fps: number, videoBitrate: number, audioBitrate: number, enableAudio: boolean) {
+  constructor(resolutionPreset: PlatformResolutionPreset, fps: number, videoBitrate: number, audioBitrate: number,
+      enableAudio: boolean) {
     this.resolutionPreset = resolutionPreset;
     this.fps = fps;
     this.videoBitrate = videoBitrate;
@@ -368,7 +371,9 @@ export class PlatformMediaSettings {
   }
 
   static fromList(arr: Object[]): PlatformMediaSettings {
-    let instance: PlatformMediaSettings = new PlatformMediaSettings(PlatformResolutionPreset[PlatformResolutionPreset[arr[0] as number]], arr[1] as number, arr[2] as number, arr[3] as number, arr[4] as boolean);
+    let instance: PlatformMediaSettings =
+        new PlatformMediaSettings(PlatformResolutionPreset[PlatformResolutionPreset[arr[0] as number]],
+          arr[1] as number, arr[2] as number, arr[3] as number, arr[4] as boolean);
     return instance;
   }
 }
@@ -441,16 +446,16 @@ export abstract class CameraApi {
   */
   abstract takePicture(result: Result<string>): void;
   /* Starts recording a video on the camera with the given ID.*/
-  abstract startVideoRecording(enableStream: boolean ): void;
+  abstract startVideoRecording(enableStream: boolean ): Promise<void>;
   /*
   *  Ends video recording on the camera with the given ID and returns the path
   *  to the resulting file.
   */
   abstract stopVideoRecording(result: Result<string>): void;
   /* Pauses video recording on the camera with the given ID.*/
-  abstract pauseVideoRecording(): void;
+  abstract pauseVideoRecording(): Promise<void>;
   /* Resumes previously paused video recording on the camera with the given ID.*/
-  abstract resumeVideoRecording(): void;
+  abstract resumeVideoRecording(): Promise<void>;
   /* Begins streaming frames from the camera.*/
   abstract startImageStream(): void;
   /* Stops streaming frames from the camera.*/
@@ -477,7 +482,7 @@ export abstract class CameraApi {
   */
   abstract setExposureOffset(offset: number , result: Result<number>): void;
   /* Sets the focus mode of the camera with the given ID.*/
-  abstract setFocusMode(focusMode: PlatformFocusMode ): void;
+  abstract setFocusMode(focusMode: PlatformFocusMode ): Promise<void>;
   /*
   *  Sets the focus point of the camera with the given ID.
   *
@@ -491,9 +496,9 @@ export abstract class CameraApi {
   /* Sets the zoom level of the camera with the given ID.*/
   abstract setZoomLevel(zoom: number , result: Result<void>): void;
   /* Pauses streaming of preview frames.*/
-  abstract pausePreview(): void;
+  abstract pausePreview(): Promise<void>;
   /* Resumes previously paused streaming of preview frames.*/
-  abstract resumePreview(): void;
+  abstract resumePreview(): Promise<void>;
   /*
   *  Changes the camera while recording video.
   *
@@ -506,6 +511,8 @@ export abstract class CameraApi {
   abstract getSupportedVideoStabilizationModes(result: Result<Array<PlatformVideoStabilizationMode>>): void;
   /* Sets the image file format of the camera with the given ID.*/
   abstract setImageFileFormat(format: PlatformImageFileFormat, result: Result<void>): void;
+  /* Sets the JPEG compression quality (1-100) for captured still images.*/
+  abstract setJpegImageQuality(quality: number, result: Result<void>): void;
   /** The codec used by CameraApi. */
   static getCodec(): MessageCodec<Object>{
     return CameraApiCodec.INSTANCE;
@@ -515,7 +522,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getAvailableCameras", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getAvailableCameras', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -537,7 +544,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.create", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.create', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -565,7 +572,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.initialize", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.initialize', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             async onMessage(message: Object ,reply: Reply<Object> ) {
@@ -588,7 +595,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.dispose", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.dispose', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             async onMessage(message: Object ,reply: Reply<Object> ) {
@@ -610,7 +617,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.lockCaptureOrientation", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.lockCaptureOrientation', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -633,7 +640,8 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.unlockCaptureOrientation", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.unlockCaptureOrientation',
+              CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -655,7 +663,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.takePicture", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.takePicture', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -682,14 +690,14 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.startVideoRecording", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.startVideoRecording', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let args: Array<Object> = message as Array<Object>;
               let res: Array<Object> = [];
               try {
-                api!.startVideoRecording(args[0] as boolean);
+                await api!.startVideoRecording(args[0] as boolean);
                 res.push(null);
               }
  catch (error) {
@@ -705,7 +713,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.stopVideoRecording", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.stopVideoRecording', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -733,13 +741,13 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.pauseVideoRecording", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.pauseVideoRecording', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let res: Array<Object> = [];
               try {
-                api!.pauseVideoRecording();
+                await api!.pauseVideoRecording();
                 res.push(null);
               }
  catch (error) {
@@ -755,13 +763,13 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.resumeVideoRecording", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.resumeVideoRecording', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let res: Array<Object> = [];
               try {
-                api!.resumeVideoRecording();
+                await api!.resumeVideoRecording();
                 res.push(null);
               }
  catch (error) {
@@ -777,7 +785,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.startImageStream", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.startImageStream', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -799,7 +807,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.stopImageStream", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.stopImageStream', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -821,7 +829,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setFlashMode", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setFlashMode', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -849,7 +857,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setExposureMode", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setExposureMode', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -877,7 +885,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setExposurePoint", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setExposurePoint', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -905,7 +913,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getMinExposureOffset", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getMinExposureOffset', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -927,7 +935,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getMaxExposureOffset", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getMaxExposureOffset', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -949,7 +957,8 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getExposureOffsetStepSize", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getExposureOffsetStepSize',
+              CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -971,7 +980,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setExposureOffset", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setExposureOffset', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -999,14 +1008,14 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setFocusMode", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setFocusMode', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let args: Array<Object> = message as Array<Object>;
               let res: Array<Object> = [];
               try {
-                api!.setFocusMode(args[0] as PlatformFocusMode);
+                await api!.setFocusMode(args[0] as PlatformFocusMode);
                 res.push(null);
               }
  catch (error) {
@@ -1022,7 +1031,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setFocusPoint", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setFocusPoint', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1050,7 +1059,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getMaxZoomLevel", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getMaxZoomLevel', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1072,7 +1081,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getMinZoomLevel", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getMinZoomLevel', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1094,7 +1103,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setZoomLevel", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setZoomLevel', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1122,13 +1131,13 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.pausePreview", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.pausePreview', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let res: Array<Object> = [];
               try {
-                api!.pausePreview();
+                await api!.pausePreview();
                 res.push(null);
               }
  catch (error) {
@@ -1144,13 +1153,13 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.resumePreview", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.resumePreview', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
-            onMessage(message: Object ,reply: Reply<Object> ) {
+            async onMessage(message: Object ,reply: Reply<Object> ) {
               let res: Array<Object> = [];
               try {
-                api!.resumePreview();
+                await api!.resumePreview();
                 res.push(null);
               }
  catch (error) {
@@ -1166,7 +1175,8 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setDescriptionWhileRecording", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setDescriptionWhileRecording',
+              CameraApi.getCodec());
       if (api != null) {
               channel.setMessageHandler({
           async onMessage(message: Object, reply: Reply<Object>) {
@@ -1176,13 +1186,8 @@ export abstract class CameraApi {
               await api!.setDescriptionWhileRecording(args[0] as string);
               res.push(null);
             } catch (error) {
-
-              let errorList: Array<Object> = new Array<Object>(3);
-              errorList[0] = "error";
-              errorList[1] = error.message.toString() ;
-              errorList[2] = null;
-              errorList[3] = null;
-              res = errorList;
+              let wrappedError: Array<Object> = wrapError(error);
+              res = wrappedError;
             }
             reply.reply(res);
           }
@@ -1194,7 +1199,8 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setVideoStabilizationMode", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setVideoStabilizationMode',
+              CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1222,7 +1228,8 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.getSupportedVideoStabilizationModes", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.getSupportedVideoStabilizationModes',
+              CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1249,7 +1256,7 @@ export abstract class CameraApi {
     {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
-              binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraApi.setImageFileFormat", CameraApi.getCodec());
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setImageFileFormat', CameraApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1269,6 +1276,34 @@ export abstract class CameraApi {
               let resultCallback: Result<void> = new ResultImp();
 
               api!.setImageFileFormat(args[0] as PlatformImageFileFormat, resultCallback);
+            } });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      let channel: BasicMessageChannel<Object> =
+          new BasicMessageChannel(
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setJpegImageQuality', CameraApi.getCodec());
+      if (api != null) {
+        channel.setMessageHandler({
+            onMessage(message: Object ,reply: Reply<Object> ) {
+              let args: Array<Object> = message as Array<Object>;
+              class ResultImp implements Result<void>{
+                    success(result: void): void {
+                      let res: Array<Object> = [];
+                      res.push(null);
+                      reply.reply(res);
+                    }
+
+                    error(error: Error): void {
+                      let wrappedError: Array<Object> = wrapError(error);
+                      reply.reply(wrappedError);
+                    }
+              }
+              let resultCallback: Result<void> = new ResultImp();
+
+              api!.setJpegImageQuality(args[0] as number, resultCallback);
             } });
       } else {
         channel.setMessageHandler(null);
@@ -1297,7 +1332,8 @@ export class CameraGlobalEventApi {
   deviceOrientationChanged(orientationArg: PlatformDeviceOrientation, callback: Reply<void>) {
     let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
-            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged", CameraGlobalEventApi.getCodec());
+            this.binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraGlobalEventApi.deviceOrientationChanged',
+            CameraGlobalEventApi.getCodec());
     channel.send(
         [orientationArg],
         channelReply => callback.reply(null));
@@ -1361,7 +1397,9 @@ export class CameraEventApi {
   initialized(initialStateArg: PlatformCameraState, callback: Reply<void>) {
     let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
-            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized" + this.messageChannelSuffix, CameraEventApi.getCodec());
+            this.binaryMessenger,
+            'dev.flutter.pigeon.camera_ohos.CameraEventApi.initialized' + this.messageChannelSuffix,
+            CameraEventApi.getCodec());
     channel.send(
         [initialStateArg],
         channelReply => callback.reply(null));
@@ -1370,7 +1408,8 @@ export class CameraEventApi {
   error(messageArg: string, callback: Reply<void>) {
     let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
-            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.error" + this.messageChannelSuffix, CameraEventApi.getCodec());
+            this.binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraEventApi.error' + this.messageChannelSuffix,
+            CameraEventApi.getCodec());
     channel.send(
         [messageArg],
         channelReply => callback.reply(null));
@@ -1380,7 +1419,9 @@ export class CameraEventApi {
   cameraSwitched(newCameraNameArg: string, callback: Reply<void>) {
     let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
-            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched" + this.messageChannelSuffix, CameraEventApi.getCodec());
+            this.binaryMessenger,
+            'dev.flutter.pigeon.camera_ohos.CameraEventApi.cameraSwitched' + this.messageChannelSuffix,
+            CameraEventApi.getCodec());
     channel.send(
         [newCameraNameArg],
         channelReply => callback.reply(null));
@@ -1389,7 +1430,9 @@ export class CameraEventApi {
   closed(callback: Reply<void>):void {
     let channel: BasicMessageChannel<Object> =
         new BasicMessageChannel<Object>(
-            this.binaryMessenger, "dev.flutter.pigeon.camera_ohos.CameraEventApi.closed" + this.messageChannelSuffix, CameraEventApi.getCodec());
+            this.binaryMessenger,
+            'dev.flutter.pigeon.camera_ohos.CameraEventApi.closed' + this.messageChannelSuffix,
+            CameraEventApi.getCodec());
     channel.send(
         null,
         channelReply => callback.reply(null));

@@ -33,9 +33,17 @@ enum PlatformExposureMode {
 }
 
 /// Pigeon equivalent of [FocusMode].
+/// Pigeon equivalent of [FocusMode].
+///
+/// Values align with `camera.FocusMode` in Camera Kit:
+/// `FOCUS_MODE_AUTO=1`, `FOCUS_MODE_LOCKED=3`.
 enum PlatformFocusMode {
-  auto,
-  locked,
+  auto(1),
+  locked(3);
+
+  final int value;
+
+  const PlatformFocusMode(this.value);
 }
 
 /// Pigeon equivalent of [ResolutionPreset].
@@ -131,7 +139,7 @@ class PlatformCameraState {
     return <Object?>[
       previewSize?.encode(),
       exposureMode.index,
-      focusMode.index,
+      focusMode.value,
       exposurePointSupported,
       focusPointSupported,
     ];
@@ -142,7 +150,10 @@ class PlatformCameraState {
     return PlatformCameraState(
       previewSize: result[0] != null ? PlatformSize.decode(result[0]! as List<Object?>) : null,
       exposureMode: PlatformExposureMode.values[result[1]! as int],
-      focusMode: PlatformFocusMode.values[result[2]! as int],
+      focusMode: PlatformFocusMode.values.firstWhere(
+        (PlatformFocusMode m) => m.value == result[2]! as int,
+        orElse: () => PlatformFocusMode.auto,
+      ),
       exposurePointSupported: result[3]! as bool,
       focusPointSupported: result[4]! as bool,
     );
@@ -629,6 +640,29 @@ class CameraApi {
     }
   }
 
+  /// Sets the JPEG compression quality (1-100) for captured still images.
+  Future<void> setJpegImageQuality(int arg_quality) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.camera_ohos.CameraApi.setJpegImageQuality', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_quality]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
   /// Sets the flash mode of the camera with the given ID.
   Future<void> setFlashMode(PlatformFlashMode arg_flashMode) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
@@ -817,7 +851,7 @@ class CameraApi {
         'dev.flutter.pigeon.camera_ohos.CameraApi.setFocusMode', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_focusMode.index]) as List<Object?>?;
+        await channel.send(<Object?>[arg_focusMode.value]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -1136,8 +1170,6 @@ abstract class CameraEventApi {
 
   /// Called when the camera closes.
   void closed();
-
-  String? pigeon_getMessageChannelSuffix() => '';
 
   static void setUp(CameraEventApi? api, {BinaryMessenger? binaryMessenger, String messageChannelSuffix = ''}) {
     messageChannelSuffix = messageChannelSuffix.isNotEmpty ? '.$messageChannelSuffix' : '';

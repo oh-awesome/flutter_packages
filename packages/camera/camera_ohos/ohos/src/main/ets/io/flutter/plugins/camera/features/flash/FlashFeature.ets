@@ -16,7 +16,7 @@ export class FlashFeature extends CameraFeature<camera.FlashMode> {
   }
 
   public getDebugName(): string {
-    return "FlashFeature";
+    return 'FlashFeature';
   }
 
   public getValue(): camera.FlashMode {
@@ -28,7 +28,8 @@ export class FlashFeature extends CameraFeature<camera.FlashMode> {
   }
 
   public checkIsSupported(): boolean {
-    let available = super.cameraProperties.getFlashInfoAvailable()
-    return available != null && available;
+    // OHOS Camera Kit 支持 FlashMode（CLOSE/OPEN/AUTO/ALWAYS_OPEN）；
+    // 是否真正带闪光灯由运行时 session.hasFlash() 判断，这里恒可用
+    return true;
   }
 }

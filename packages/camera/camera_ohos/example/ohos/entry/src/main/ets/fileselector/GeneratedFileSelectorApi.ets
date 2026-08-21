@@ -2,7 +2,7 @@ import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
 import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 
-const TAG = "GeneratedFileSelectorApi";
+const TAG = 'GeneratedFileSelectorApi';
 
 class FlutterError extends Error {
   /** The error code. */
@@ -29,7 +29,7 @@ export function wrapError(exception: Error): Array<ESObject> {
     errorList.push(exception.toString());
     errorList.push(exception.name);
     errorList.push(
-      "Cause: " + exception.message + ", Stacktrace: " + exception.stack);
+      'Cause: ' + exception.message + ', Stacktrace: ' + exception.stack);
   }
   return errorList;
 }
@@ -66,7 +66,7 @@ export class FileResponse {
 
   public setFd(setterArg: number): void {
     if (setterArg == null) {
-      throw new Error("Nonnull field \"fd\" is null.");
+      throw new Error('Nonnull field "fd" is null.');
     }
     this.fd = setterArg;
   }
@@ -103,7 +103,7 @@ export class FileTypes {
 
   setMimeTypes(setterArg: Array<string> | null): void {
     if (setterArg == null) {
-      throw new Error("Nonnull field \"mimeTypes\" is null.");
+      throw new Error('Nonnull field "mimeTypes" is null.');
     }
     this.mimeTypes = setterArg;
   }
@@ -116,7 +116,7 @@ export class FileTypes {
 
   setExtensions(setterArg: Array<string>): void {
     if (setterArg == null) {
-      throw new Error("Nonnull field \"extensions\" is null.");
+      throw new Error('Nonnull field "extensions" is null.');
     }
     this.extensions = setterArg;
   }
