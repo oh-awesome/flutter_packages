@@ -1,8 +1,8 @@
 name: video_player_ohos
 description: HarmonyOS implementation of the video_player plugin for Flutter.
-repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/main/packages/video_player
-publish_to: 'none' # Remove this line if you wish to publish to pub.dev
-issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
+repository: https://gitcode.com/CPF-Flutter/flutter_packages/tree/main/packages/video_player
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev 
+issue_tracker: https://gitcode.com/CPF-Flutter/flutter_packages/issues
 
 version: 1.0.0+2
 
@@ -27,6 +27,9 @@ dev_dependencies:
     sdk: flutter
   mockito: ^5.4.4
   flutter_lints: ^2.0.0
+  # 仅测试用：ClosedCaption 等主包 Widget 的 build 验证（path 依赖不影响发布）。
+  video_player:
+    path: ../video_player
 
 flutter:
 

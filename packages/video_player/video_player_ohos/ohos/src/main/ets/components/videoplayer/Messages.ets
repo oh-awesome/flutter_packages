@@ -40,11 +40,11 @@ export function wrapError(error: Error): Array<Object> {
   if (error instanceof FlutterError) {
     let err: FlutterError = error as FlutterError;
     errorList[0] = err.code;
-    errorList[1] = err.name;
-    errorList[2] = err.message;
+    errorList[1] = err.message;
+    errorList[2] = err.stack ?? err.name;
   } else {
-    errorList[0] = error.toString();
-    errorList[1] = error.name;
+    errorList[0] = error.name;
+    errorList[1] = error.toString();
     errorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
   }
   return errorList;
@@ -121,6 +121,16 @@ export class CreateMessage {
     this.viewType=viewTypeArg;
   }
 
+  private backBufferDurationMs: number | null = null;
+
+  public getBackBufferDurationMs(): number | null {
+    return this.backBufferDurationMs;
+  }
+
+  public setBackBufferDurationMs(setterArg: number | null): void {
+    this.backBufferDurationMs = setterArg;
+  }
+
   toList(): Array<Object> {
     let arr: Array<Object> = new Array<Object>();
     arr.push(this.asset);
@@ -129,6 +139,7 @@ export class CreateMessage {
     arr.push(this.formatHint);
     arr.push(this.httpHeaders);
     arr.push(this.viewType);
+    arr.push(this.backBufferDurationMs ?? 0);
     return arr;
   }
 
@@ -137,9 +148,13 @@ export class CreateMessage {
     pigeonResult.setAsset(list[0] as string);
     pigeonResult.setUri(list[1] as string);
     pigeonResult.setPackageName(list[2] as String);
-    pigeonResult.setFormatHint(list[3] as String);
+    const decodedFormatHint = list[3];
+    if (decodedFormatHint != null) {
+      pigeonResult.setFormatHint(decodedFormatHint as String);
+    }
     pigeonResult.setHttpHeaders(list[4] as Map<String, String>);
-    pigeonResult.setViewType(list[5] as number);
+    pigeonResult.setViewType(list[5] as PlatformVideoViewType);
+    pigeonResult.setBackBufferDurationMs(list[6] as number | null);
     return pigeonResult;
   }
 }
@@ -151,7 +166,7 @@ export abstract class OhosVideoPlayerApi {
 
   abstract create(msg: CreateMessage ): Promise<number>;
 
-  abstract dispose(playerId: number ): void;
+  abstract dispose(playerId: number ): Promise<void>;
 
   abstract setLooping(playerId: number , looping: boolean ): void;
 
@@ -168,6 +183,16 @@ export abstract class OhosVideoPlayerApi {
   abstract pause(playerId: number ): void;
 
   abstract setMixWithOthers(mixWithOthers: boolean ): void;
+
+  abstract getAudioTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
+
+  abstract selectAudioTrack(playerId: number , groupIndex: number , trackIndex: number ): Promise<void>;
+
+  abstract getVideoTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
+
+  abstract selectVideoTrack(playerId: number , groupIndex: number , trackIndex: number ): Promise<void>;
+
+  abstract enableAutoVideoQuality(playerId: number ): Promise<void>;
 
   /** The codec used by OhosVideoPlayerApi. */
   static getCodec(): MessageCodec<Object>{
@@ -206,18 +231,12 @@ export abstract class OhosVideoPlayerApi {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
               let args: Array<Object> = message as Array<Object>;
-              let res: Array<Object> = [];
-              try {
-                api!.create(args[0] as CreateMessage).catch((result:number)=>{
-                  let output: number = result;
-                  res.push(output);
-                });
-              }
- catch (error) {
+              api!.create(args[0] as CreateMessage).then((output: number) => {
+                reply.reply([output]);
+              }).catch((error: Error) => {
                 let wrappedError: Array<Object> = wrapError(error);
-                res = wrappedError;
-              }
-              reply.reply(res);
+                reply.reply(wrappedError);
+              });
             } });
       } else {
         channel.setMessageHandler(null);
@@ -233,14 +252,19 @@ export abstract class OhosVideoPlayerApi {
               let args: Array<Object> = message as Array<Object>;
               let res: Array<Object> = [];
               try {
-                api!.dispose(args[0] as number);
-                res.push(null);
+                api!.dispose(args[0] as number).then(() => {
+                  res.push(null);
+                  reply.reply(res);
+                }).catch((error: Error) => {
+                  res.length = 0;
+                  let wrappedError: Array<Object> = wrapError(error);
+                  reply.reply(wrappedError);
+                });
               }
  catch (error) {
                 let wrappedError: Array<Object> = wrapError(error);
                 res = wrappedError;
               }
-              reply.reply(res);
             } });
       } else {
         channel.setMessageHandler(null);

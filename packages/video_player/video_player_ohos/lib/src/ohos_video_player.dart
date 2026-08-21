@@ -38,12 +38,20 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<int?> createWithOptions(VideoCreationOptions options) async {
-    return _create(options.dataSource);
+    // 透传 backBufferDurationMs（2.12.0 引入）：OHOS 侧暂不使用该字段，
+    // 仅读取以确保与新版 VideoCreationOptions 序列化保持一致。
+    final int? backBufferDurationMs =
+        options.videoPlayerOptions?.backBufferDurationMs;
+    return _create(options.dataSource, backBufferDurationMs: backBufferDurationMs);
   }
 
-  Future<int?> _create(DataSource dataSource) async {
+  Future<int?> _create(
+    DataSource dataSource, {
+    int? backBufferDurationMs,
+  }) async {
     String? asset;
     String? uri;
+    int? openedFd;
     final String? packageName = dataSource.package;
     final String? formatHint = dataSource.formatHint == null
         ? null
@@ -61,9 +69,13 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
         uri = dataSource.uri;
         break;
       case DataSourceType.file:
-        uri = dataSource.uri?.startsWith('fd://') == true
-            ? dataSource.uri
-            : 'fd://${await VideoPlayerOhosChannel.getFileFdByPath(dataSource.uri!)}';
+        if (dataSource.uri?.startsWith('fd://') == true) {
+          uri = dataSource.uri;
+        } else {
+          openedFd = await VideoPlayerOhosChannel.getFileFdByPath(
+              dataSource.uri!);
+          uri = 'fd://$openedFd';
+        }
         break;
       default:
         uri = dataSource.uri;
@@ -76,9 +88,18 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       packageName: packageName,
       formatHint: formatHint,
       viewType: PlatformVideoViewType.textureView,
+      backBufferDurationMs: backBufferDurationMs,
     );
 
-    return _api.create(message);
+    try {
+      return await _api.create(message);
+    } catch (e) {
+      // create 失败时播放器不会接管 fd，需回收避免泄漏。
+      if (openedFd != null && openedFd >= 0) {
+        await VideoPlayerOhosChannel.closeFileFd(openedFd);
+      }
+      rethrow;
+    }
   }
 
   @override
@@ -169,6 +190,17 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
   }
 
   @override
+  Future<void> setPreventsDisplaySleepDuringVideoPlayback(
+    int playerId,
+    bool preventsDisplaySleepDuringVideoPlayback,
+  ) {
+    return VideoPlayerOhosChannel.setKeepScreenOn(
+      playerId,
+      preventsDisplaySleepDuringVideoPlayback,
+    );
+  }
+
+  @override
   Future<List<VideoAudioTrack>> getAudioTracks(int playerId) async {
     if (playerId < 0) {
       return <VideoAudioTrack>[];
@@ -197,6 +229,43 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   bool isAudioTrackSupportAvailable() {
+    return true;
+  }
+
+  @override
+  Future<List<VideoTrack>> getVideoTracks(int playerId) async {
+    if (playerId < 0) {
+      return <VideoTrack>[];
+    }
+    final List<Object?> nativeTracks = await _api.getVideoTracks(
+      playerId,
+    );
+    return nativeTracks
+        .map(
+          (Object? track) => _toVideoTrack(
+            (track! as Map<Object?, Object?>).cast<String, Object?>(),
+          ),
+        )
+        .where((track) => track.id.isNotEmpty)
+        .toList(growable: false);
+  }
+
+  @override
+  Future<void> selectVideoTrack(int playerId, VideoTrack? track) async {
+    if (playerId < 0) {
+      return;
+    }
+    if (track == null) {
+      // 传 null 表示恢复自适应/自动质量选择。
+      await _api.enableAutoVideoQuality(playerId);
+      return;
+    }
+    final (int groupIndex, int trackIndex) = _parseTrackId(track.id);
+    await _api.selectVideoTrack(playerId, groupIndex, trackIndex);
+  }
+
+  @override
+  bool isVideoTrackSupportAvailable() {
     return true;
   }
 
@@ -235,6 +304,40 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       channelCount: channelCount,
       codec: track['codec']?.toString(),
     );
+  }
+
+  VideoTrack _toVideoTrack(Map<String, dynamic> track) {
+    final int? bitrate = _toInt(track['bitrate']);
+    final int? width = _toInt(track['width']);
+    final int? height = _toInt(track['height']);
+    final double? frameRate = _toDouble(track['frameRate']);
+    final bool isSelected = track['isSelected'] == true;
+    // 与 Android 实现对齐：label 缺失时根据分辨率生成（如 "1080p"）。
+    final String? label = track['label']?.toString() ??
+        (width != null && height != null ? '${height}p' : null);
+    return VideoTrack(
+      id: track['id']?.toString() ?? '',
+      label: label,
+      isSelected: isSelected,
+      bitrate: bitrate,
+      width: width,
+      height: height,
+      frameRate: frameRate,
+      codec: track['codec']?.toString(),
+    );
+  }
+
+  double? _toDouble(Object? value) {
+    if (value is double) {
+      return value;
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
   }
 
   int? _toInt(Object? value) {
