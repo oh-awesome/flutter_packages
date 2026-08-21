@@ -34,7 +34,8 @@ class BrowserRouterParams {
 @Entry
 @Component
 export struct InAppBrowser {
-  webviewController: web_webview.WebviewController = new web_webview.WebviewController()
+  // 声明为可空类型，以便 aboutToDisappear 时置 null 尽早释放 Web 内核资源引用
+  webviewController: web_webview.WebviewController | null = new web_webview.WebviewController()
 
   private url?: string;
   private headers: Record<string, string> = {};
@@ -43,32 +44,69 @@ export struct InAppBrowser {
   private showTitle: boolean = false;
   private pageTitle: string = '';
   @State statusBarHeight: number = 32;
+  // 组件存活标志位，防止异步回调访问已销毁组件
+  private isAlive: boolean = true;
+  // 保存回调引用，emitter.off 时传入实现精确移除；可空类型以便销毁时置 null 释放引用
+  private closeWebViewCallback: (() => void) | null = () => {
+    console.info('closeWebView');
+    router.back();
+  };
+  // emitter 订阅状态追踪标志位，避免未订阅时调用 off 或重复订阅
+  private isEmitterSubscribed: boolean = false;
 
   aboutToDisappear() {
-    emitter.off("closeWebView");
+    this.isAlive = false;
+    // 仅在已订阅时执行 off，避免未订阅时调用 off 产生警告
+    if (this.isEmitterSubscribed && this.closeWebViewCallback !== null) {
+      emitter.off('closeWebView', this.closeWebViewCallback);
+      this.isEmitterSubscribed = false;
+    }
+    // 释放 WebviewController 持有的 Web 内核资源
+    try {
+      this.webviewController?.clearHistory();
+    } catch (e) {
+      // 组件销毁阶段控制器可能已失效，忽略
+    }
+    // 显式清理组件持有的引用，打破 InAppBrowser → Web 组件 → 回调 → InAppBrowser 潜在循环引用链
+    this.url = undefined;
+    this.headers = {};
+    this.pageTitle = '';
+    this.closeWebViewCallback = null;
+    // 释放 Web 内核资源引用，尽早让 GC 回收 WebviewController
+    this.webviewController = null;
   }
 
   aboutToAppear(){
-    let params = router.getParams() as BrowserRouterParams;
-    this.url = params.url ?? '';
-    this.enableJavaScript = (params.options?.['enableJavaScript'] as boolean) ?? true;
-    this.enableDomStorage = (params.options?.['enableDomStorage'] as boolean) ?? true;
-    if (params.headers !== undefined && params.headers !== null) {
+    // router.getParams() 可能返回 null（如直接通过路由跳转未传 params），需可选链防护
+    let params = router.getParams() as BrowserRouterParams | null;
+    this.url = params?.url ?? '';
+    this.enableJavaScript = (params?.options?.['enableJavaScript'] as boolean) ?? true;
+    this.enableDomStorage = (params?.options?.['enableDomStorage'] as boolean) ?? true;
+    if (params?.headers !== undefined && params?.headers !== null) {
       this.headers = params.headers;
     }
-    this.showTitle = (params.browserOptions?.['showTitle'] as boolean) ?? false;
-    emitter.once("closeWebView", () => {
-      console.info('closeWebView');
-      router.back();
-    });
+    this.showTitle = (params?.browserOptions?.['showTitle'] as boolean) ?? false;
+    if (this.closeWebViewCallback !== null && !this.isEmitterSubscribed) {
+      emitter.once('closeWebView', this.closeWebViewCallback);
+      this.isEmitterSubscribed = true;
+    }
+    // 显式声明 self 引用，提高闭包捕获意图可读性（ArkTS 箭头函数自动捕获 this，
+    // isAlive 标志位已缓解组件销毁后异步回调竞态访问）
+    const self = this;
     try {
-      let context = getContext(this) as common.UIAbilityContext;
+      let context = getContext(self) as common.UIAbilityContext;
       window.getLastWindow(context).then((win) => {
+        // 组件已销毁则不再更新状态，避免竞态访问
+        if (!self.isAlive) {
+          return;
+        }
         let avoidArea = win.getWindowAvoidArea(window.AvoidAreaType.TYPE_SYSTEM);
         let height = px2vp(avoidArea.topRect.height);
         if (height > 0) {
-          this.statusBarHeight = height;
+          self.statusBarHeight = height;
         }
+      }).catch((err: Error) => {
+        console.error('InAppBrowser: Failed to get last window: ' + JSON.stringify(err));
       });
     } catch (e) {
       console.error('InAppBrowser: Failed to get status bar height: ' + JSON.stringify(e));
@@ -76,7 +114,7 @@ export struct InAppBrowser {
   }
   build() {
     Column() {
-      Row() {  
+      Row() {
         if (this.showTitle) {
           Text(this.pageTitle || 'Loading...')
             .fontSize(16)
@@ -87,7 +125,7 @@ export struct InAppBrowser {
       .width('100%')
       .justifyContent(FlexAlign.Start)
 
-      Web({ src: '', controller: this.webviewController })
+      Web({ src: '', controller: this.webviewController! })
         .javaScriptAccess(this.enableJavaScript)
         .domStorageAccess(this.enableDomStorage)
         .layoutWeight(1)
@@ -100,6 +138,11 @@ export struct InAppBrowser {
         .onControllerAttached(() => {
           if (!this.url || this.url.length === 0) {
             console.error('InAppBrowser: url is empty, skip loadUrl');
+            return;
+          }
+          // webviewController 在 aboutToDisappear 后置 null，此处需非空检查
+          if (this.webviewController === null) {
+            console.error('InAppBrowser: webviewController is null, skip loadUrl');
             return;
           }
           let headerKeys = Object.keys(this.headers);

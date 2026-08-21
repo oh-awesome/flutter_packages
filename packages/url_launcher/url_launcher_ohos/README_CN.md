@@ -14,9 +14,10 @@ url_launcher_ohos 是 url_launcher 插件的 OpenHarmony 平台实现，用于�
 dependencies:
   url_launcher_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages
+      url: https://gitcode.com/CPF-Flutter/flutter_packages
       path: packages/url_launcher/url_launcher_ohos
-      ref: br_url_launcher-v6.3.2_ohos
+      # ref: 根据下方表格选择不同框架适配的TAG版本
+      ref: TAG  # 请根据下方TAG版本对应表选择TAG
 ```
 
 执行命令
@@ -25,14 +26,23 @@ dependencies:
 flutter pub get
 ```
 
+### TAG 版本对应表
+
+ | Flutter 框架版本 | TAG 名称 | 分支名 |
+ |---|---|---|
+ | 3.35 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 |
+ | 3.41 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 |
+ | 3.44 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 | 
+
 ## 约束与限制
 
 ### 兼容性
 
 在以下版本中已测试通过：
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
+2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
+3. Flutter: 3.44.9-ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
 
 ### 权限要求
 
@@ -108,7 +118,7 @@ class UrlLaunchDemo extends StatefulWidget {
 
     // 检查Widget是否仍在树中
     if (!mounted) {
-      return; 
+      return;
     }
     if (!canLaunch) {
       // 显示友好的提示信息而非抛出异常
@@ -130,7 +140,7 @@ class UrlLaunchDemo extends StatefulWidget {
 
     // 再次检查
     if (!mounted) {
-      return; 
+      return;
     }
 
     if (!launched) {
@@ -258,16 +268,23 @@ if (await launcher.canLaunch(url)) {
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
-#### UrlLauncherPlatform
+### UrlLauncherPlatform
 
 | 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
 |------|------|----------|--------|---------------|------|
 | canLaunch() | 方法 | String url | Future<bool> | yes | 检查设备是否可以启动一个特定的URL方案 |
-| launch | 方法 | String url,<br/>required bool useSafariVC,<br/>required bool useWebView,<br/>required bool enableJavaScript,<br/>required bool enableDomStorage,<br/>required bool universalLinksOnly,<br/>required Map<String, String> headers,<br/>String? webOnlyWindowName | Future<bool> | yes | 指定跳转参数Url路径 |
-| launchUrl() | 方法 | String url,<br/>[LaunchOptions](#LaunchOptions) options | Future<bool> | yes | 指定跳转浏览器并打开Url |
+| launch | 方法 | String url,<br/>required bool useSafariVC,<br/>required bool useWebView,<br/>required bool enableJavaScript,<br/>required bool enableDomStorage,<br/>required bool universalLinksOnly,<br/>required Map<String, String> headers,<br/>String? webOnlyWindowName | Future<bool> | yes | 指定跳转参数和 URL 路径 |
+| launchUrl() | 方法 | String url,<br/>[LaunchOptions](#LaunchOptions) options | Future<bool> | yes | 指定跳转浏览器并打开 URL |
 | closeWebView() | 方法 | / | Future<void> | yes | 关闭WebView页面 |
 
-#### LaunchOptions
+### UrlLauncherOhos 扩展接口
+
+| 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
+|------|------|----------|--------|---------------|------|
+| supportsMode() | 方法 | [PreferredLaunchMode](#PreferredLaunchMode) mode | Future<bool> | yes | 检查当前平台是否支持指定的启动模式（OHOS 平台不支持 externalNonBrowserApplication 模式，该模式返回 false） |
+| supportsCloseForMode() | 方法 | [PreferredLaunchMode](#PreferredLaunchMode) mode | Future<bool> | yes | 检查当前平台是否支持关闭指定启动模式打开的页面（OHOS 平台仅支持 inAppWebView 和 inAppBrowserView 模式） |
+
+### LaunchOptions
 
 | 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
 |------|------|----------|--------|---------------|------|
@@ -275,29 +292,30 @@ if (await launcher.canLaunch(url)) {
 | webViewConfiguration | 属性 | / | [InAppWebViewConfiguration](#InAppWebViewConfiguration) | yes | 在 [PreferredLaunchMode.inAppWebView] 模式下配置 Web 视图 |
 | webOnlyWindowName | 属性 | / | String? | yes | 取消设置时的默认行为应该是在新选项卡中打开 URL |
 
-#### PreferredLaunchMode
+### PreferredLaunchMode
 
 | 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
 |------|------|----------|--------|---------------|------|
 | platformDefault | 枚举值 | / | enum | yes | 启动方式由平台决定 |
 | inAppWebView | 枚举值 | / | enum | yes | 加载到inAppWebView |
+| inAppBrowserView | 枚举值 | / | enum | yes | 加载到应用内浏览器视图（OHOS 平台行为与 inAppWebView 一致） |
 | externalApplication | 枚举值 | / | enum | yes | 将 URL 传递给外部应用程序处理 |
-| externalNonBrowserApplication | 枚举值 | / | enum | yes | 将 URL 传递给外部非浏览器应用程序处理 |
+| externalNonBrowserApplication | 枚举值 | / | enum | yes | 将 URL 传递给外部非浏览器应用程序处理（OHOS 平台按外部应用方式处理） |
 
-#### InAppWebViewConfiguration
+### InAppWebViewConfiguration
 
 | 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
 |------|------|----------|--------|---------------|------|
 | enableJavaScript | 属性 | / | bool | yes | 如果设置为true，则在WebView中启用JavaScript |
 | enableDomStorage | 属性 | / | bool | yes | 当该值设置为true，WebView启用DOM存储 |
-| headers | 属性 | / | Map<String, String> | yes | 在网页中打开Url时的请求头参数 |
+| headers | 属性 | / | Map<String?, String?> | yes | 在网页中打开 URL 时的请求头参数 |
 
-#### launch 方法参数
+### launch 方法参数
 
 | 名称 | 类型 | 参数类型 | 返回值 | OHOS 平台支持 | 描述 |
 |------|------|----------|--------|---------------|------|
 | url | 参数 | String | / | yes | 跳转地址 |
-| useSafariVC | 参数 | bool | / | yes | 是否在Safari视图控制器中打开URL |
+| useSafariVC | 参数 | bool | / | yes | 该参数源自 iOS 平台的 Safari 视图控制器；在 OHOS 平台上等价于应用内 WebView 模式（true 时配合 useWebView 使用应用内 WebView 打开） |
 | useWebView | 参数 | bool | / | yes | 如果设置为false，则在设备的默认浏览器中打开URL；否则，在WebView中启动URL |
 | enableJavaScript | 参数 | bool | / | yes | 如果设置为true，则在WebView中启用JavaScript |
 | enableDomStorage | 参数 | bool | / | yes | 当该值设置为true，WebView启用DOM存储 |
@@ -339,8 +357,7 @@ flutter_packages/
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
-
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
 ## 开源协议
 

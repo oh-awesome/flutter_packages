@@ -23,7 +23,7 @@ import {
 import { UrlLauncherApi } from './Messages';
 import { UrlLauncher } from './UrlLauncher';
 
-const TAG = "UrlLauncherPlugin"
+const TAG = 'UrlLauncherPlugin'
 
 export default class UrlLauncherPlugin implements FlutterPlugin, AbilityAware {
 
@@ -31,7 +31,7 @@ export default class UrlLauncherPlugin implements FlutterPlugin, AbilityAware {
   private urlLauncherApi: UrlLauncherApi | null = null;
 
   getUniqueClassName(): string {
-    return "UrlLauncherPlugin"
+    return 'UrlLauncherPlugin'
   }
 
   onAttachedToAbility(binding: AbilityPluginBinding): void {
@@ -41,17 +41,22 @@ export default class UrlLauncherPlugin implements FlutterPlugin, AbilityAware {
       this.pluginBinding?.getBinaryMessenger() ?? null, this.urlLauncherApi);
   }
   onDetachedFromAbility(): void {
-    this.urlLauncherApi?.setup(null, null);
+    this.urlLauncherApi?.setup(this.pluginBinding?.getBinaryMessenger() ?? null, null);
+    this.urlLauncherApi = null;
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     console.debug(TAG, 'onAttachedToEngine')
     this.pluginBinding = binding;
+    if (this.urlLauncherApi !== null) {
+      this.urlLauncherApi.setup(this.pluginBinding.getBinaryMessenger(), this.urlLauncherApi);
+    }
   }
 
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
     this.urlLauncherApi?.setup(this.pluginBinding?.getBinaryMessenger() ?? null, null);
+    this.urlLauncherApi = null;
     this.pluginBinding = null;
   }
 }

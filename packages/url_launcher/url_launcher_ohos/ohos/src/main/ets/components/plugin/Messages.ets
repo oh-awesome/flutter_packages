@@ -22,10 +22,10 @@ const TAG = 'UrlLauncher'
 
 export class FlutterError extends Error {
   /** The error code. */
-  public code: string = '';
+  public code: string;
 
   /** The error details. Must be a datatype supported by the api codec. */
-  public details: ESObject | null;
+  public details: ESObject;
 
   constructor(code: string, message: string, details: ESObject) {
     super(message);
@@ -43,8 +43,8 @@ export function wrapError(exception: Error): Array<Object> {
     errorList.push(error.details);
   } else {
     errorList.push(exception.name);
-    errorList.push(
-      "Cause: " + exception.message + ", Stacktrace: " + exception.stack);
+    errorList.push(exception.message ?? '');
+    errorList.push('Stacktrace: ' + exception.stack);
   }
   return errorList;
 }
@@ -62,7 +62,7 @@ export class WebViewOptions {
 
   public setEnableJavaScript(setterArg: boolean): void {
     if (setterArg == null) {
-      throw new ReferenceError("Nonnull field \"enableJavaScript\" is null.");
+      throw new ReferenceError('Nonnull field "enableJavaScript" is null.');
     }
     this.enableJavaScript = setterArg;
   }
@@ -73,9 +73,9 @@ export class WebViewOptions {
     return this.enableDomStorage;
   }
 
-  public setEnableDomStorage(setterArg: boolean) {
+  public setEnableDomStorage(setterArg: boolean): void {
     if (setterArg == null) {
-      throw new ReferenceError("Nonnull field \"enableDomStorage\" is null.");
+      throw new ReferenceError('Nonnull field "enableDomStorage" is null.');
     }
     this.enableDomStorage = setterArg;
   }
@@ -88,9 +88,17 @@ export class WebViewOptions {
 
   public setHeaders(setterArg: Map<string, string>) {
     if (setterArg == null) {
-      throw new ReferenceError("Nonnull field \"headers\" is null.");
+      throw new ReferenceError('Nonnull field "headers" is null.');
     }
-    this.headers = setterArg;
+    // 防御性过滤：Dart 侧 Pigeon 生成 Map<String?, String?> 允许 null key/value，
+    // OHOS 侧 Map<string, string> 不接受 null，过滤掉可能的 null entry 避免运行时异常
+    let filtered = new Map<string, string>();
+    setterArg.forEach((value: string, key: string) => {
+      if (key != null && value != null) {
+        filtered.set(key, value);
+      }
+    });
+    this.headers = filtered;
   }
 
   toList(): Array<ESObject> {
@@ -102,6 +110,9 @@ export class WebViewOptions {
   }
 
   static fromList(list: Array<Object>): WebViewOptions {
+    if (!list || list.length < 3) {
+      throw new FlutterError('INVALID_DATA', 'WebViewOptions list requires at least 3 elements', null);
+    }
     let result = new WebViewOptions();
     let enableJavaScript = list[0] as boolean;
     result.setEnableJavaScript(enableJavaScript);
@@ -160,7 +171,7 @@ export class BrowserOptions {
 
   public setShowTitle(setterArg: boolean): void {
     if (setterArg == null) {
-      throw new ReferenceError("Nonnull field \"showTitle\" is null.");
+      throw new ReferenceError('Nonnull field "showTitle" is null.');
     }
     this.showTitle = setterArg;
   }
@@ -173,7 +184,7 @@ export class BrowserOptions {
 
   static fromList(list: Array<Object>): BrowserOptions {
     if (!list || list.length < 1) {
-      throw new FlutterError("INVALID_DATA", "BrowserOptions list is empty", null);
+      throw new FlutterError('INVALID_DATA', 'BrowserOptions list is empty', null);
     }
     let result = new BrowserOptions();
     let showTitle = list[0] as boolean;
@@ -189,14 +200,16 @@ export interface UrlLauncherApi {
   /** Returns true if the URL can definitely be launched. */
   canLaunchUrl(url: string): boolean;
 
-  /** Opens the URL externally, returning true if successful. */
-  launchUrl(url: string, headers: Map<string, string>): boolean;
+  /** Opens the URL externally, returning true if successful.
+   *  异步接口：startAbility() 返回 Promise，需 await 后反映实际启动结果 */
+  launchUrl(url: string, headers: Map<string, string>): Promise<boolean>;
 
-  /** Opens the URL in an in-app WebView, returning true if it opens successfully. */
-  openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): boolean;
+  /** Opens the URL in an in-app WebView, returning true if it opens successfully.
+   *  异步接口：router.pushUrl() 返回 Promise，需 await 后反映实际启动结果 */
+  openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): Promise<boolean>;
 
   /** Closes the view opened by [openUrlInSafariViewController]. */
-  closeWebView(): boolean;
+  closeWebView(): void;
 
   /** The codec used by UrlLauncherApi. */
   getCodec(): MessageCodec<ESObject>;
