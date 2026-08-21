@@ -19,7 +19,7 @@ import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/B
 import { PathProviderApi, StorageDirectory } from './Messages';
 import fs from '@ohos.file.fs';
 
-const TAG: string = "PathProviderPlugin";
+const TAG: string = 'PathProviderPlugin';
 
 export default class PathProviderPlugin extends PathProviderApi implements FlutterPlugin, AbilityAware {
   private pluginBinding: FlutterPluginBinding | null = null;
@@ -44,14 +44,19 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
+    if (binding) {
+      PathProviderApi.setup(binding.getBinaryMessenger(), null);
+    }
+    this.context = null;
     this.pluginBinding = null;
   }
 
   onAttachedToAbility(binding: AbilityPluginBinding): void {
-    Log.i(TAG, "onAttachedToAbility");
+    Log.i(TAG, 'onAttachedToAbility');
   }
 
   onDetachedFromAbility(): void {
+    Log.i(TAG, 'onDetachedFromAbility');
   }
 
   static registerWith(): void {
@@ -60,10 +65,10 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
   setup(messenger: BinaryMessenger, context: common.Context) {
     try {
       PathProviderApi.setup(messenger, this);
+      this.context = context;
     } catch (err) {
-      Log.e(TAG, "Received exception while setting up PathProviderPlugin", err);
+      Log.e(TAG, 'Received exception while setting up PathProviderPlugin', err);
     }
-    this.context = context;
   }
 
   getTemporaryPath(): string {
@@ -82,7 +87,7 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
     if (this.context) {
       return this.context.cacheDir;
     }
-    return "";
+    return '';
   }
 
   getExternalStoragePath(): string {
@@ -101,22 +106,28 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
     if (this.context) {
       return this.context.cacheDir;
     }
-    return "";
+    return '';
   }
 
   private getApplicationSupportDirectory(): string {
-    return PathUtils.getFilesDir(this.context);
+    if (this.context) {
+      return PathUtils.getFilesDir(this.context);
+    }
+    return '';
   }
 
   private getPathProviderApplicationDocumentsDirectory(): string {
-    return PathUtils.getDataDirectory(this.context) ?? "";
+    if (this.context) {
+      return PathUtils.getDataDirectory(this.context) ?? '';
+    }
+    return '';
   }
 
   private getPathProviderStorageDirectory(): string {
     if (this.context) {
       return this.context.filesDir;
     }
-    return "";
+    return '';
   }
 
   private getPathProviderExternalCacheDirectories(): Array<string> {
@@ -130,29 +141,29 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
   private getStorageDirectoryString(directory: StorageDirectory): string {
     switch (directory) {
       case StorageDirectory.ROOT:
-        return "";
+        return '';
       case StorageDirectory.MUSIC:
-        return "music";
+        return 'music';
       case StorageDirectory.PODCASTS:
-        return "podcasts";
+        return 'podcasts';
       case StorageDirectory.RINGTONES:
-        return "ringtones";
+        return 'ringtones';
       case StorageDirectory.ALARMS:
-        return "alarms";
+        return 'alarms';
       case StorageDirectory.NOTIFICATIONS:
-        return "notifications";
+        return 'notifications';
       case StorageDirectory.PICTURES:
-        return "pictures";
+        return 'pictures';
       case StorageDirectory.MOVIES:
-        return "movies";
+        return 'movies';
       case StorageDirectory.DOWNLOADS:
-        return "downloads";
+        return 'downloads';
       case StorageDirectory.DCIM:
-        return "dcim";
+        return 'dcim';
       case StorageDirectory.DOCUMENTS:
-        return "documents";
+        return 'documents';
       default:
-        throw new Error("Unrecognized directory: " + directory);
+        throw new Error('Unrecognized directory: ' + directory);
     }
   }
 
@@ -161,14 +172,22 @@ export default class PathProviderPlugin extends PathProviderApi implements Flutt
     if (!this.context) {
       return paths;
     }
-    const filePath = this.context.filesDir + "/" + this.getStorageDirectoryString(directory);
-    if (!fs.accessSync(filePath)) {
+    const subDir = this.getStorageDirectoryString(directory);
+    const filePath = subDir === "" ? this.context.filesDir : this.context.filesDir + "/" + subDir;
+    let accessible = false;
+    try {
+      accessible = fs.accessSync(filePath);
+    } catch (err) {
+      Log.e(TAG, 'accessSync failed for ' + filePath + ': ' + err);
+      throw new Error('Failed to access directory ' + filePath + ': ' + err);
+    }
+    if (!accessible) {
       try {
         fs.mkdirSync(filePath);
         paths.push(filePath);
-        Log.i(TAG, "no directory " + filePath + " create success");
+        Log.i(TAG, 'no directory ' + filePath + ' create success');
       } catch (err) {
-        Log.e(TAG, "mkdirSync failed err:" + err);
+        Log.e(TAG, 'mkdirSync failed err:' + err);
       }
     } else {
       paths.push(filePath);

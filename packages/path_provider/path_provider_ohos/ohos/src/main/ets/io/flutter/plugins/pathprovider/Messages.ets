@@ -24,7 +24,7 @@ export enum StorageDirectory {
   DOCUMENTS = 10
 }
 
-const TAG: string = "Message";
+const TAG: string = 'Message';
 
 export default class Messages {
   static wrapError(exception: Error): Array<ESObject> {
@@ -73,17 +73,17 @@ export abstract class PathProviderApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: PathProviderApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: PathProviderApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getTemporaryPath",
+        'dev.flutter.pigeon.PathProviderApi.getTemporaryPath',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getTemporaryPath();
@@ -103,12 +103,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getApplicationSupportPath",
+        'dev.flutter.pigeon.PathProviderApi.getApplicationSupportPath',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getApplicationSupportPath();
@@ -128,12 +128,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getApplicationDocumentsPath",
+        'dev.flutter.pigeon.PathProviderApi.getApplicationDocumentsPath',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getApplicationDocumentsPath();
@@ -153,12 +153,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getApplicationCachePath",
+        'dev.flutter.pigeon.PathProviderApi.getApplicationCachePath',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getApplicationCachePath();
@@ -178,12 +178,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getExternalStoragePath",
+        'dev.flutter.pigeon.PathProviderApi.getExternalStoragePath',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getExternalStoragePath();
@@ -203,12 +203,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getExternalCachePaths",
+        'dev.flutter.pigeon.PathProviderApi.getExternalCachePaths',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             try {
               const output = api.getExternalCachePaths();
@@ -228,12 +228,12 @@ export abstract class PathProviderApi {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
         binaryMessenger,
-        "dev.flutter.pigeon.PathProviderApi.getExternalStoragePaths",
+        'dev.flutter.pigeon.PathProviderApi.getExternalStoragePaths',
         PathProviderApi.getCodec());
       if (api != null) {
         channel.setMessageHandler({
           onMessage: (message: ESObject, reply: ESObject) => {
-            Log.i(TAG, "setup on message : " + message);
+            Log.i(TAG, 'setup on message : ' + message);
             let wrapped: Array<ESObject> = new Array<ESObject>();
             let args: Array<ESObject> = message;
             const directoryArg: StorageDirectory = args[0] == null ? null : args[0];

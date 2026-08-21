@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path_provider_ohos/messages.g.dart' as messages;
 import 'package:path_provider_ohos/path_provider_ohos.dart';
@@ -16,24 +17,39 @@ const String kExternalCachePaths = 'externalCachePaths';
 const String kExternalStoragePaths = 'externalStoragePaths';
 
 class _Api implements TestPathProviderApi {
-  _Api({this.returnsExternalStoragePaths = true});
+  _Api({
+    this.returnsExternalStoragePaths = true,
+    this.returnsNullPaths = false,
+    this.returnsEmptyCachePaths = false,
+  });
 
   final bool returnsExternalStoragePaths;
+  final bool returnsNullPaths;
+  final bool returnsEmptyCachePaths;
 
   @override
-  String? getApplicationDocumentsPath() => kApplicationDocumentsPath;
+  String? getApplicationDocumentsPath() =>
+      returnsNullPaths ? null : kApplicationDocumentsPath;
 
   @override
-  String? getApplicationSupportPath() => kApplicationSupportPath;
+  String? getApplicationSupportPath() =>
+      returnsNullPaths ? null : kApplicationSupportPath;
 
   @override
-  String? getApplicationCachePath() => kApplicationCachePath;
+  String? getApplicationCachePath() =>
+      returnsNullPaths ? null : kApplicationCachePath;
 
   @override
-  List<String?> getExternalCachePaths() => <String>[kExternalCachePaths];
+  List<String?> getExternalCachePaths() {
+    if (returnsEmptyCachePaths) {
+      return <String?>[];
+    }
+    return <String>[kExternalCachePaths];
+  }
 
   @override
-  String? getExternalStoragePath() => kExternalStoragePaths;
+  String? getExternalStoragePath() =>
+      returnsNullPaths ? null : kExternalStoragePaths;
 
   @override
   List<String?> getExternalStoragePaths(messages.StorageDirectory directory) {
@@ -41,7 +57,7 @@ class _Api implements TestPathProviderApi {
   }
 
   @override
-  String? getTemporaryPath() => kTemporaryPath;
+  String? getTemporaryPath() => returnsNullPaths ? null : kTemporaryPath;
 }
 
 void main() {
@@ -53,6 +69,10 @@ void main() {
     setUp(() async {
       pathProvider = PathProviderOhos();
       TestPathProviderApi.setup(_Api());
+    });
+
+    tearDown(() {
+      TestPathProviderApi.setup(null);
     });
 
     test('getTemporaryPath', () async {
@@ -71,17 +91,20 @@ void main() {
     });
 
     test('getLibraryPath fails', () async {
-      try {
-        await pathProvider.getLibraryPath();
-        fail('should throw UnsupportedError');
-      } catch (e) {
-        expect(e, isUnsupportedError);
-      }
+      expect(
+        () => pathProvider.getLibraryPath(),
+        throwsA(isA<UnsupportedError>()),
+      );
     });
 
     test('getApplicationDocumentsPath', () async {
       final String? path = await pathProvider.getApplicationDocumentsPath();
       expect(path, kApplicationDocumentsPath);
+    });
+
+    test('getExternalStoragePath', () async {
+      final String? path = await pathProvider.getExternalStoragePath();
+      expect(path, kExternalStoragePaths);
     });
 
     test('getExternalCachePaths succeeds', () async {
@@ -91,6 +114,7 @@ void main() {
     });
 
     for (final StorageDirectory? type in <StorageDirectory?>[
+      null,
       ...StorageDirectory.values
     ]) {
       test('getExternalStoragePaths (type: $type) ohos succeeds', () async {
@@ -99,7 +123,7 @@ void main() {
         expect(result!.length, 1);
         expect(result.first, kExternalStoragePaths);
       });
-    } // end of for-loop
+    }
 
     test('getDownloadsPath succeeds', () async {
       final String? path = await pathProvider.getDownloadsPath();
@@ -113,6 +137,127 @@ void main() {
       TestPathProviderApi.setup(_Api(returnsExternalStoragePaths: false));
       final String? path = await pathProvider.getDownloadsPath();
       expect(path, null);
+    });
+
+    test('registerWith should set PathProviderPlatform.instance', () {
+      PathProviderOhos.registerWith();
+      expect(PathProviderPlatform.instance, isA<PathProviderOhos>());
+    });
+  });
+
+  group('PathProviderOhos null and empty results', () {
+    late PathProviderOhos pathProvider;
+
+    setUp(() {
+      pathProvider = PathProviderOhos();
+      TestPathProviderApi.setup(_Api(
+        returnsNullPaths: true,
+        returnsExternalStoragePaths: false,
+        returnsEmptyCachePaths: true,
+      ));
+    });
+
+    tearDown(() {
+      TestPathProviderApi.setup(null);
+    });
+
+    test('getTemporaryPath returns null when platform returns null', () async {
+      expect(await pathProvider.getTemporaryPath(), isNull);
+    });
+
+    test('getApplicationSupportPath returns null when platform returns null',
+        () async {
+      expect(await pathProvider.getApplicationSupportPath(), isNull);
+    });
+
+    test('getApplicationDocumentsPath returns null when platform returns null',
+        () async {
+      expect(await pathProvider.getApplicationDocumentsPath(), isNull);
+    });
+
+    test('getApplicationCachePath returns null when platform returns null',
+        () async {
+      expect(await pathProvider.getApplicationCachePath(), isNull);
+    });
+
+    test('getExternalStoragePath returns null when platform returns null',
+        () async {
+      expect(await pathProvider.getExternalStoragePath(), isNull);
+    });
+
+    test('getExternalCachePaths returns empty list when platform returns empty',
+        () async {
+      final List<String>? result = await pathProvider.getExternalCachePaths();
+      expect(result, isEmpty);
+    });
+
+    test(
+        'getExternalStoragePaths returns empty list when platform returns empty',
+        () async {
+      final List<String>? result = await pathProvider.getExternalStoragePaths();
+      expect(result, isEmpty);
+    });
+  });
+
+  group('PathProviderOhos when platform channel is unregistered', () {
+    late PathProviderOhos pathProvider;
+
+    setUp(() {
+      pathProvider = PathProviderOhos();
+      TestPathProviderApi.setup(null);
+    });
+
+    test('getTemporaryPath throws PlatformException channel-error', () async {
+      expect(
+        pathProvider.getTemporaryPath(),
+        throwsA(
+          isA<PlatformException>().having(
+            (PlatformException e) => e.code,
+            'code',
+            'channel-error',
+          ),
+        ),
+      );
+    });
+
+    test('getExternalStoragePath throws PlatformException channel-error',
+        () async {
+      expect(
+        pathProvider.getExternalStoragePath(),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+  });
+
+  group('PathProviderOhos concurrent calls', () {
+    late PathProviderOhos pathProvider;
+
+    setUp(() {
+      pathProvider = PathProviderOhos();
+      TestPathProviderApi.setup(_Api());
+    });
+
+    tearDown(() {
+      TestPathProviderApi.setup(null);
+    });
+
+    test(
+        'getTemporaryPath getApplicationSupportPath getExternalStoragePath '
+        'return consistent results when called concurrently', () async {
+      final List<String?> results = await Future.wait(<Future<String?>>[
+        pathProvider.getTemporaryPath(),
+        pathProvider.getApplicationSupportPath(),
+        pathProvider.getApplicationDocumentsPath(),
+        pathProvider.getApplicationCachePath(),
+        pathProvider.getExternalStoragePath(),
+      ]);
+      expect(results, <String>[
+        kTemporaryPath,
+        kApplicationSupportPath,
+        kApplicationDocumentsPath,
+        kApplicationCachePath,
+        kExternalStoragePaths,
+      ]);
     });
   });
 }
