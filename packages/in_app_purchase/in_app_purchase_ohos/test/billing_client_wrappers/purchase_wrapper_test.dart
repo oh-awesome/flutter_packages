@@ -418,5 +418,80 @@ void main() {
       expect(map['productIdentifier'], 'com.example.consumable');
       expect(map['productType'], 0); // CONSUMABLE = 0
     });
+
+    test('serializes each product type to its numeric value', () {
+      final List<(ProductType?, int?)> cases = <(ProductType?, int?)>[
+        (ProductType.CONSUMABLE, 0),
+        (ProductType.NONCONSUMABLE, 1),
+        (ProductType.AUTORENEWABLE, 2),
+        (ProductType.NONRENEWABLE, 3),
+        (null, null),
+      ];
+      for (final (ProductType? type, int? expected) in cases) {
+        final IKPaymentTransactionWrapper transaction =
+            IKPaymentTransactionWrapper(
+          payment: IKPaymentWrapper(
+            productId: 'com.example.product',
+            productType: type,
+          ),
+          transactionState: IKPaymentTransactionStateWrapper.purchased,
+          transactionIdentifier: 'txn_type',
+        );
+        expect(transaction.toFinishMap()['productType'], expected);
+      }
+    });
+  });
+
+  // 新鸿蒙test：测试 IKPaymentTransactionWrapper 的相等性、hashCode 与 toString
+  group('IKPaymentTransactionWrapper equality, hash and toString', () {
+    test('== should return false for transactions with different fields', () {
+      final IKPaymentTransactionWrapper first = IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn1',
+      );
+      final IKPaymentTransactionWrapper second = IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn2',
+      );
+      expect(first == second, isFalse);
+    });
+
+    test('== should return false when compared with another runtime type', () {
+      final IKPaymentTransactionWrapper transaction =
+          IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+      );
+      expect(transaction == Object(), isFalse);
+    });
+
+    test('hashCode should be consistent for equal transactions', () {
+      final IKPaymentTransactionWrapper first = IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn1',
+        transactionTimeStamp: 1700000000.0,
+      );
+      final IKPaymentTransactionWrapper second = IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn1',
+        transactionTimeStamp: 1700000000.0,
+      );
+      expect(first.hashCode, second.hashCode);
+    });
+
+    test('toString should contain the serialized transaction data', () {
+      final IKPaymentTransactionWrapper transaction =
+          IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn1',
+      );
+      expect(transaction.toString(), contains('com.example.product'));
+      expect(transaction.toString(), contains('txn1'));
+    });
   });
 }

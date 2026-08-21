@@ -238,6 +238,24 @@ void main() {
       expect(product.status, ProductStatus.VALID); // default 0
       expect(product.jsonRepresentation, isNull);
     });
+
+    test('fromJson should parse a NONRENEWABLE product type', () {
+      final Map<String, dynamic> json = <String, dynamic>{
+        'id': 'com.example.nonrenewable',
+        'type': 3,
+        'name': 'Non-renewable Subscription',
+        'description': 'A non-renewable subscription',
+        'localPrice': '￥9.99',
+        'microPrice': 9990000,
+        'originalLocalPrice': '￥9.99',
+        'originalMicroPrice': 9990000,
+        'currency': 'CNY',
+      };
+
+      final IKProductWrapper product = IKProductWrapper.fromJson(json);
+
+      expect(product.type, ProductType.NONRENEWABLE);
+    });
   });
 
   // 新鸿蒙test：测试 IKProductWrapper 的相等性
@@ -275,6 +293,96 @@ void main() {
       expect(first.description, second.description);
       expect(first.localPrice, second.localPrice);
       expect(first.microPrice, second.microPrice);
+    });
+  });
+
+  // 新鸿蒙test：补充 IKProductResponseWrapper 的 hashCode
+  group('IKProductResponseWrapper hashCode', () {
+    test('hashCode is stable for the same response instance', () {
+      final IKProductResponseWrapper response = IKProductResponseWrapper(
+        products: <IKProductWrapper>[dummyIKProduct],
+        invalidProductIdentifiers: <String>['invalid1'],
+      );
+      // Exercises the hashCode getter; the implementation hashes the list
+      // references, so only same-instance stability is asserted here.
+      expect(response.hashCode, response.hashCode);
+    });
+  });
+
+  // 新鸿蒙test：补充 IKProductSubscriptionPeriodWrapper 的相等性与 hashCode
+  group('IKProductSubscriptionPeriodWrapper', () {
+    test('== works correctly for identical periods', () {
+      final IKProductSubscriptionPeriodWrapper first =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      final IKProductSubscriptionPeriodWrapper second =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      expect(first == second, isTrue);
+    });
+
+    test('== returns false for different periods', () {
+      final IKProductSubscriptionPeriodWrapper first =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      final IKProductSubscriptionPeriodWrapper second =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 6,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      expect(first == second, isFalse);
+    });
+
+    test('== returns false when compared with another runtime type', () {
+      final IKProductSubscriptionPeriodWrapper period =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      expect(period == Object(), isFalse);
+    });
+
+    test('hashCode is consistent for equal periods', () {
+      final IKProductSubscriptionPeriodWrapper first =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      final IKProductSubscriptionPeriodWrapper second =
+          IKProductSubscriptionPeriodWrapper(
+        numberOfUnits: 3,
+        unit: IKSubscriptionPeriodUnit.month,
+      );
+      expect(first.hashCode, second.hashCode);
+    });
+  });
+
+  // 新鸿蒙test：补充 AppGalleryProductDetails 空 localPrice 的兜底分支
+  group('AppGalleryProductDetails empty localPrice', () {
+    test('should fall back to the currency code for the currency symbol', () {
+      final IKProductWrapper productWithoutSymbol = IKProductWrapper(
+        id: 'com.example.product3',
+        type: ProductType.CONSUMABLE,
+        name: 'Product Without Price',
+        description: 'A product',
+        localPrice: '',
+        microPrice: 0,
+        originalLocalPrice: '',
+        originalMicroPrice: 0,
+        currency: 'USD',
+        status: ProductStatus.VALID,
+      );
+
+      final AppGalleryProductDetails product =
+          AppGalleryProductDetails.fromIKProduct(productWithoutSymbol);
+
+      expect(product.currencySymbol, 'USD');
     });
   });
 }

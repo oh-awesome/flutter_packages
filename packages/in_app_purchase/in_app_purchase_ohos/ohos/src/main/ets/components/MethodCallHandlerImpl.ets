@@ -40,12 +40,6 @@ interface QueryPurchasesParameterCompat extends iap.QueryPurchasesParameter {
   continuationToken?: string
 }
 
-export class IKError {
-  code: number = 0
-  domain: string = ''
-  userInfo: Map<String, Any> = new Map()
-}
-
 export class MethodCallHandlerImpl implements MethodCallHandler {
   private context: common.UIAbilityContext | null = null
   private methodChannel: MethodChannel
@@ -59,9 +53,6 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     productType: iap.ProductType,
     err: BusinessError,
   ): boolean {
-     if (deviceInfo.sdkApiVersion < 14) {
- 	       console.error('Verification is required on devices with an API level of 14 or higher.')
- 	     }
     return productType === iap.ProductType.NONRENEWABLE && err.code === 401
   }
 
@@ -77,9 +68,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     switch (call.method) {
       case MethodNames.START_OBSERVING_TRANSACTION_QUEUE:
         this.startObserver()
+        result.success(null)
         break;
       case MethodNames.STOP_OBSERVING_TRANSACTION_QUEUE:
         this.stopObserver()
+        result.success(null)
         break;
       case MethodNames.TRANSACTIONS:
         void this.transactions(result)
@@ -88,7 +81,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         this.isFeatureSupported(result)
         break;
       case MethodNames.COUNTRY_CODE:
-        result.success(i18n.System.getSystemRegion())
+        try {
+          result.success(i18n.System.getSystemRegion())
+        } catch (e) {
+          result.error('COUNTRY_CODE_ERROR', `Failed to get system region: ${e}`, null)
+        }
         break;
       case MethodNames.QUERY_PRODUCTS:
         let productList: Array<string> = call.args as Array<string> ?? []
@@ -104,7 +101,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         void this.refreshReceipt(result)
         break;
       case MethodNames.FINISH_PURCHASE:
-        this.iapFinishPurchase(call, result)
+        this.handleFinishPurchase(call, result)
         break;
       case MethodNames.RESTORE_TRANSACTIONS:
         void this.restoreTransactions(result)
@@ -115,6 +112,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   }
 
   isFeatureSupported(result: MethodResult): void {
+    if (!this.context) {
+      result.success(false);
+      return;
+    }
     try {
       iap.queryEnvironmentStatus(this.context).then(() => {
         result.success(true);
@@ -129,59 +130,79 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   }
 
   queryProductDetails(list: Array<string>, result: MethodResult) {
-    let productList: Array<Map<string, Object>> = []
-    let count: number = 0
-    let validProductsList: Array<string> = []
-    let invalidProductIdentifiers: Array<string> = []
-    let firstError: BusinessError | null = null
-    ProductType.forEach((type) => {
-      const queryProductParam: iap.QueryProductsParameter = {
-        productType: type,
-        productIds: list
-      };
-      iap.queryProducts(this.context, queryProductParam).then((result) => {
-        let resultTemp = result.map((value) => {
-          validProductsList.push(value.id)
-          this.productDetailsMap.set(value.id, value)
-          return ObjToMap(value)
-        })
-        productList.push(...resultTemp)
-      }).catch((err: BusinessError) => {
-        Log.e(TAG, `Failed to query products. Code is ${err.code}, message is ${err.message}`);
-        if (!firstError) {
-          firstError = err
-        }
-      }).finally(() => {
-        count++
-        if (count === ProductType.length) {
-          if (firstError) {
-            result.error('' + firstError.code, firstError.message, firstError)
-            return
-          }
-
-          let productDetailsResponse: HashMap<String, Object> = new HashMap()
-          productDetailsResponse.set('products', productList)
-          list.forEach((id) => {
-            if (!validProductsList.includes(id)) {
-              invalidProductIdentifiers.push(id)
-            }
+    if (!this.context) {
+      result.error('UNAVAILABLE', 'context is null!', null);
+      return;
+    }
+    try {
+      let productList: Array<Map<string, Object>> = []
+      let count: number = 0
+      let validProductsList: Array<string> = []
+      let invalidProductIdentifiers: Array<string> = []
+      let firstError: BusinessError | null = null
+      ProductType.forEach((type) => {
+        const queryProductParam: iap.QueryProductsParameter = {
+          productType: type,
+          productIds: list
+        };
+        iap.queryProducts(this.context, queryProductParam).then((result) => {
+          let resultTemp = result.map((value) => {
+            validProductsList.push(value.id)
+            this.productDetailsMap.set(value.id, value)
+            return ObjToMap(value)
           })
-          productDetailsResponse.set('invalidProductIdentifiers', invalidProductIdentifiers)
-          result.success(productDetailsResponse)
-        }
+          productList.push(...resultTemp)
+        }).catch((err: BusinessError) => {
+          Log.e(TAG, `Failed to query products. Code is ${err.code}, message is ${err.message}`);
+          if (!firstError) {
+            firstError = err
+          }
+        }).finally(() => {
+          count++
+          if (count === ProductType.length) {
+            if (firstError) {
+              result.error('IAP_' + firstError.code, firstError.message, firstError)
+              return
+            }
+
+            let productDetailsResponse: HashMap<String, Object> = new HashMap()
+            productDetailsResponse.set('products', productList)
+            list.forEach((id) => {
+              if (!validProductsList.includes(id)) {
+                invalidProductIdentifiers.push(id)
+              }
+            })
+            productDetailsResponse.set('invalidProductIdentifiers', invalidProductIdentifiers)
+            result.success(productDetailsResponse)
+          }
+        })
       })
-    })
+    } catch (e) {
+      const err = e as BusinessError
+      Log.e(TAG, `Failed to query product details. Code is ${err.code}, message is ${err.message}`)
+      result.error('IAP_' + err.code, err.message, err)
+    }
   }
 
   purchaseGoods(args: Any, result: MethodResult) {
-    let map: Map<string, Object> = args as Map<string, Object>
-    let id: string = map.get('productId') as string
-    // 拉起支付接口前更新状态为支付中
-    let mapRes: Map<string, Any> = new Map()
-    mapRes.set('payment', args)
-    mapRes.set('transactionState', TransactionState.purchasing)
-    this.observer?.invokeMethod('updatedTransactions', [mapRes])
-    this.createPurchase(id, map, result)
+    try {
+      let map: Map<string, Object> = args as Map<string, Object>
+      let id: string = map.get('productId') as string
+      if (!id || id.length === 0) {
+        result.error('UNAVAILABLE', 'productId is null or empty!', null)
+        return
+      }
+      // 拉起支付接口前更新状态为支付中
+      let mapRes: Map<string, Any> = new Map()
+      mapRes.set('payment', args)
+      mapRes.set('transactionState', TransactionState.purchasing)
+      this.observer?.invokeMethod('updatedTransactions', [mapRes])
+      this.createPurchase(id, map, result)
+    } catch (e) {
+      const err = e as BusinessError
+      Log.e(TAG, `Failed to purchase. Code is ${err.code}, message is ${err.message}`)
+      result.error('IAP_' + err.code, err.message, err)
+    }
   }
 
   private extractVerificationData(purchaseData: string): string {
@@ -343,15 +364,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     const updateSeq = this.beginVerificationDataUpdateScope()
     let pendingTransactions: Array<Map<string, Object>> = []
     let firstError: BusinessError | null = null
-    const transactionTypes: Array<iap.ProductType> = deviceInfo.sdkApiVersion >= 14 ? [
+    const transactionTypes: Array<iap.ProductType> = [
   iap.ProductType.CONSUMABLE,
   iap.ProductType.NONCONSUMABLE,
   iap.ProductType.AUTORENEWABLE,
   iap.ProductType.NONRENEWABLE
-] : [
-  iap.ProductType.CONSUMABLE,
-  iap.ProductType.NONCONSUMABLE,
-  iap.ProductType.AUTORENEWABLE
 ]
 
     for (let i = 0; i < transactionTypes.length; i++) {
@@ -390,7 +407,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       return
     }
 
-    result.error('' + firstError.code, firstError.message, firstError)
+    result.error('IAP_' + firstError.code, firstError.message, firstError)
   }
 
   private async restoreTransactions(result: MethodResult): Promise<void> {
@@ -402,15 +419,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     const updateSeq = this.beginVerificationDataUpdateScope()
     let restoredTransactions: Array<Map<string, Object>> = []
     let firstError: BusinessError | null = null
-    const restoreTypes: Array<iap.ProductType> = deviceInfo.sdkApiVersion >= 14 ? [
+    const restoreTypes: Array<iap.ProductType> = [
       iap.ProductType.NONCONSUMABLE,
       iap.ProductType.AUTORENEWABLE,
       iap.ProductType.NONRENEWABLE,
-    ] : [
-      iap.ProductType.NONCONSUMABLE,
-      iap.ProductType.AUTORENEWABLE,
     ]
-
     for (let i = 0; i < restoreTypes.length; i++) {
       try {
         let purchaseDataList = await this.collectPurchaseDataListByType(
@@ -443,13 +456,17 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     }
 
     if (restoredTransactions.length > 0) {
-      this.observer?.invokeMethod('updatedTransactions', restoredTransactions)
+      try {
+        this.observer?.invokeMethod('updatedTransactions', restoredTransactions)
+      } catch (notifyErr) {
+        Log.e(TAG, `Failed to notify restored transactions. err: ${JSON.stringify(notifyErr)}`)
+      }
       result.success(null)
       return
     }
 
     if (firstError) {
-      result.error('' + firstError.code, firstError.message, firstError)
+      result.error('IAP_' + firstError.code, firstError.message, firstError)
       return
     }
 
@@ -465,15 +482,11 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     const updateSeq = this.beginVerificationDataUpdateScope()
     let firstError: BusinessError | null = null
     let hasUpdated: boolean = false
-    const refreshTypes: Array<iap.ProductType> = deviceInfo.sdkApiVersion >= 14 ? [
+    const refreshTypes: Array<iap.ProductType> = [
       iap.ProductType.CONSUMABLE,
       iap.ProductType.NONCONSUMABLE,
       iap.ProductType.AUTORENEWABLE,
       iap.ProductType.NONRENEWABLE,
-    ] : [
-      iap.ProductType.CONSUMABLE,
-      iap.ProductType.NONCONSUMABLE,
-      iap.ProductType.AUTORENEWABLE,
     ]
 
     for (let i = 0; i < refreshTypes.length; i++) {
@@ -508,7 +521,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       return
     }
 
-    result.error('' + firstError.code, firstError.message, firstError)
+    result.error('IAP_' + firstError.code, firstError.message, firstError)
   }
 
   createPurchase(id: string, args: Map<string, Object>, result: MethodResult) {
@@ -556,33 +569,36 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           code: -1,
           message: 'Failed to parse purchase data.'
         } as BusinessError
-        this.errorPurchase(args, parseError)
-        result.success(null)
+        this.handlePurchaseError(args, parseError)
+        result.error('IAP_' + parseError.code, parseError.message, parseError)
       }).catch((err: BusinessError) => {
         Log.e(TAG, `Failed to create purchase1. Code is ${err.code}, message is ${err.message}`);
-        this.errorPurchase(args, err);
-        result.success(null)
+        this.handlePurchaseError(args, err);
+        result.error('IAP_' + err.code, err.message, err);
       })
     } catch (err) {
       const e: BusinessError = err as BusinessError;
       const msg: string = `Failed to create purchase. Code is ${e.code}, message is ${e.message}`;
       Log.e(TAG, msg);
-      this.errorPurchase(args, err);
-      result.success(null)
+      this.handlePurchaseError(args, err);
+      result.error('IAP_' + e.code, e.message, e);
     }
   }
 
-  errorPurchase(args: Map<string, Object>, err: BusinessError) {
+  handlePurchaseError(args: Map<string, Object>, err: BusinessError) {
     let map: Map<string, Any> = new Map();
-    let iKError: IKError = new IKError()
-    if (err) {
-      iKError.code = err.code
-      iKError.domain = err.message
-    }
-    map.set('error', iKError)
+    let errorMap: Map<string, Object> = new Map()
+    errorMap.set('code', err ? err.code : 0)
+    errorMap.set('domain', err ? err.message : '')
+    errorMap.set('userInfo', new Map<string, Object>())
+    map.set('error', errorMap)
     map.set('payment', args)
     map.set('transactionState', TransactionState.failed)
-    this.observer?.invokeMethod('updatedTransactions', [map])
+    try {
+      this.observer?.invokeMethod('updatedTransactions', [map])
+    } catch (notifyErr) {
+      Log.e(TAG, `Failed to notify purchase error. err: ${JSON.stringify(notifyErr)}`)
+    }
   }
 
   finishPurchase(
@@ -592,6 +608,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     result?: MethodResult,
     removedTransaction?: Map<string, Object> | null,
   ) {
+    if (!this.context) {
+      result?.error('UNAVAILABLE', 'context is null!', null);
+      return;
+    }
     let finishPurchaseParam: iap.FinishPurchaseParameter = {
       productType: productType,
       purchaseToken: purchaseToken,
@@ -602,10 +622,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       if (removedTransaction) {
         this.observer?.invokeMethod('removedTransactions', [removedTransaction])
       }
-      result?.success(true);
+      result?.success(null);
     }).catch((err: BusinessError) => {
       Log.e(TAG, `Failed to finish purchase. Code is ${err.code}, message is ${err.message}`);
-      result?.error('' + err.code, err.message, err);
+      result?.error('IAP_' + err.code, err.message, err);
     });
   }
 
@@ -617,7 +637,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       )
       if (purchaseDataList === undefined || purchaseDataList.length <= 0) {
         Log.i(TAG, 'No unfinished purchase matched while finishing purchase. Treating as already finished.');
-        result.success(true);
+        result.success(null);
         return;
       }
       this.purchaseCompletionByTypeProcessing(purchaseDataList, transactionIdentifier, result)
@@ -625,7 +645,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       const businessError: BusinessError = err as BusinessError
       Log.e(TAG,
         `Failed to query purchases. Code is ${businessError.code}, message is ${businessError.message}`)
-      result.error('' + businessError.code, businessError.message, businessError);
+      result.error('IAP_' + businessError.code, businessError.message, businessError);
     }
   }
 
@@ -636,49 +656,63 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   ) {
     for (let i = 0; i < purchaseDataList.length; i++) {
       let purchaseData = purchaseDataList[i];
-      let type: number = JSON.parse(purchaseData).type
+      let type: number = 0
       let purchaseToken = ''
       let purchaseOrderId = ''
-      //自动订阅类型
-      if (type == iap.ProductType.AUTORENEWABLE) {
-        let jwsSubscriptionStatus = (JSON.parse(purchaseData) as PurchaseData).jwsSubscriptionStatus;
-        if (!jwsSubscriptionStatus) {
-          Log.e(TAG, 'queryPurchases, jwsSubscriptionStatus invalid');
-          continue;
+      try {
+        type = JSON.parse(purchaseData).type
+        //自动订阅类型
+        if (type == iap.ProductType.AUTORENEWABLE) {
+          let jwsSubscriptionStatus = (JSON.parse(purchaseData) as PurchaseData).jwsSubscriptionStatus;
+          if (!jwsSubscriptionStatus) {
+            Log.e(TAG, 'queryPurchases, jwsSubscriptionStatus invalid');
+            continue;
+          }
+          let purchaseStr = JWTUtil.decodeJwtObj(jwsSubscriptionStatus);
+          let purchaseOrderPayload = JSON.parse(purchaseStr) as PurchaseSubGroupStatusPayload;
+          if (!purchaseOrderPayload.lastSubscriptionStatus) {
+            Log.e(TAG, 'queryPurchases, lastSubscriptionStatus invalid');
+            continue;
+          }
+          if (!purchaseOrderPayload.lastSubscriptionStatus.purchaseToken
+            || purchaseOrderPayload.lastSubscriptionStatus.purchaseToken.length <= 0) {
+            Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.purchaseToken invalid');
+            continue;
+          }
+          if (!purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder) {
+            Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.lastPurchaseOrder invalid');
+            continue;
+          }
+          if (!purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId
+            || purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId.length <= 0) {
+            Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId invalid');
+            continue;
+          }
+          purchaseToken = purchaseOrderPayload.lastSubscriptionStatus.purchaseToken
+          purchaseOrderId = purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId
+        } else {
+          //非自动订阅类型
+          let jwsPurchaseOrder = (JSON.parse(purchaseData) as PurchaseData).jwsPurchaseOrder;
+          if (!jwsPurchaseOrder) {
+            Log.e(TAG, 'queryPurchases, jwsPurchaseOrder invalid');
+            continue;
+          }
+          let purchaseStr = JWTUtil.decodeJwtObj(jwsPurchaseOrder);
+          let purchaseOrderPayload = JSON.parse(purchaseStr) as PurchaseOrderPayload;
+          purchaseToken = purchaseOrderPayload.purchaseToken
+          purchaseOrderId = purchaseOrderPayload.purchaseOrderId
+          if (!purchaseToken || purchaseToken.length <= 0) {
+            Log.e(TAG, 'queryPurchases, purchaseToken invalid');
+            continue;
+          }
+          if (!purchaseOrderId || purchaseOrderId.length <= 0) {
+            Log.e(TAG, 'queryPurchases, purchaseOrderId invalid');
+            continue;
+          }
         }
-        let purchaseStr = JWTUtil.decodeJwtObj(jwsSubscriptionStatus);
-        let purchaseOrderPayload = JSON.parse(purchaseStr) as PurchaseSubGroupStatusPayload;
-        if (!purchaseOrderPayload.lastSubscriptionStatus) {
-          Log.e(TAG, 'queryPurchases, lastSubscriptionStatus invalid');
-          continue;
-        }
-        if (!purchaseOrderPayload.lastSubscriptionStatus.purchaseToken
-          || purchaseOrderPayload.lastSubscriptionStatus.purchaseToken.length <= 0) {
-          Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.purchaseToken invalid');
-          continue;
-        }
-        if (!purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder) {
-          Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.lastPurchaseOrder invalid');
-          continue;
-        }
-        if (!purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId
-          || purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId.length <= 0) {
-          Log.e(TAG, 'queryPurchases, lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId invalid');
-          continue;
-        }
-        purchaseToken = purchaseOrderPayload.lastSubscriptionStatus.purchaseToken
-        purchaseOrderId = purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId
-      } else {
-        //非自动订阅类型
-        let jwsPurchaseOrder = (JSON.parse(purchaseData) as PurchaseData).jwsPurchaseOrder;
-        if (!jwsPurchaseOrder) {
-          Log.e(TAG, 'queryPurchases, jwsPurchaseOrder invalid');
-          continue;
-        }
-        let purchaseStr = JWTUtil.decodeJwtObj(jwsPurchaseOrder);
-        let purchaseOrderPayload = JSON.parse(purchaseStr) as PurchaseOrderPayload;
-        purchaseToken = purchaseOrderPayload.purchaseToken
-        purchaseOrderId = purchaseOrderPayload.purchaseOrderId
+      } catch (err) {
+        Log.e(TAG, `queryPurchases, failed to parse purchase data. err: ${JSON.stringify(err)}`)
+        continue
       }
 
       if (transactionIdentifier.length > 0 && purchaseOrderId !== transactionIdentifier) {
@@ -701,37 +735,43 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
 
     Log.i(TAG,
       `No unfinished purchase matched transaction ${transactionIdentifier}. Treating as already finished.`)
-    result.success(true)
+    result.success(null)
   }
 
-  iapFinishPurchase(call: MethodCall, result: MethodResult) {
-    let finishPurchaseMap: Map<string, Object> = call.args as Map<string, Object>
-    let transactionIdentifier: string = finishPurchaseMap.get('transactionIdentifier') as string
-    if (!transactionIdentifier || transactionIdentifier.length <= 0) {
-      result.error('UNAVAILABLE', 'transactionIdentifier is null!', null)
-      return
-    }
-
-    let productType: iap.ProductType | undefined = undefined
-    const requestType = finishPurchaseMap.get('productType') as number
-    if (requestType !== undefined && requestType !== null) {
-      productType = requestType as iap.ProductType
-    } else {
-      let productIdentifier: string = finishPurchaseMap.get('productIdentifier') as string
-      let product: iap.Product = this.productDetailsMap.get(productIdentifier)
-      if (!product) {
-        Log.i(TAG, `Failed to get product for ${productIdentifier}.`);
-        result.error('UNAVAILABLE', 'product is null!', null);
-        return;
+  handleFinishPurchase(call: MethodCall, result: MethodResult) {
+    try {
+      let finishPurchaseMap: Map<string, Object> = call.args as Map<string, Object>
+      let transactionIdentifier: string = finishPurchaseMap.get('transactionIdentifier') as string
+      if (!transactionIdentifier || transactionIdentifier.length <= 0) {
+        result.error('UNAVAILABLE', 'transactionIdentifier is null!', null)
+        return
       }
-      productType = product.type
-    }
-    if (productType === undefined) {
-      Log.i(TAG, `Failed to get productType.`);
-      result.error('UNAVAILABLE', 'productType is null!', null);
-      return;
-    } else {
-      this.queryPurchasesAsync(productType, transactionIdentifier, result);
+
+      let productType: iap.ProductType | undefined = undefined
+      const requestType = finishPurchaseMap.get('productType') as number
+      if (requestType !== undefined && requestType !== null) {
+        productType = requestType as iap.ProductType
+      } else {
+        let productIdentifier: string = finishPurchaseMap.get('productIdentifier') as string
+        let product: iap.Product = this.productDetailsMap.get(productIdentifier)
+        if (!product) {
+          Log.i(TAG, `Failed to get product for ${productIdentifier}.`);
+          result.error('UNAVAILABLE', 'product is null!', null);
+          return;
+        }
+        productType = product.type
+      }
+      if (productType === undefined) {
+        Log.i(TAG, `Failed to get productType.`);
+        result.error('UNAVAILABLE', 'productType is null!', null);
+        return;
+      } else {
+        this.queryPurchasesAsync(productType, transactionIdentifier, result);
+      }
+    } catch (e) {
+      const err = e as BusinessError
+      Log.e(TAG, `handleFinishPurchase error: ${err.message}`)
+      result.error('IAP_FINISH_ERROR', `Failed to finish purchase: ${err.message}`, err)
     }
   }
 
@@ -741,5 +781,12 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
 
   stopObserver() {
     this.observer = null
+  }
+
+  clearCache(): void {
+    this.productDetailsMap.clear()
+    this.latestVerificationData = ''
+    this.latestVerificationDataUpdateSeq = 0
+    this.verificationDataUpdateSeqSeed = 0
   }
 }

@@ -29,7 +29,6 @@ class IKProductResponseWrapper {
   ///
   /// This method should only be used with `map` values returned by [IKRequestMaker.startProductRequest].
   factory IKProductResponseWrapper.fromJson(Map<String, dynamic> map) {
-    var maptt = _$SkProductResponseWrapperFromJson(map);
     return _$SkProductResponseWrapperFromJson(map);
   }
 

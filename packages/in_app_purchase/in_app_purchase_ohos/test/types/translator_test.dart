@@ -248,4 +248,28 @@ void main() {
       expect(converter.toJson(IKProductDiscountType.subscription), 1);
     });
   });
+
+  // 新鸿蒙test：补充转换器在运行期实例化的构造分支
+  group('Converter runtime construction', () {
+    test('IKProductDiscountPaymentModeConverter can be constructed at runtime',
+        () {
+      // Non-const on purpose so the runtime constructor path is covered.
+      // ignore: prefer_const_constructors
+      final IKProductDiscountPaymentModeConverter runtimeConverter =
+          IKProductDiscountPaymentModeConverter();
+
+      expect(runtimeConverter.fromJson(1), IKProductDiscountPaymentMode.payUpFront);
+      expect(runtimeConverter.toJson(IKProductDiscountPaymentMode.freeTrail), 2);
+    });
+
+    test('IKProductDiscountTypeConverter can be constructed at runtime', () {
+      // Non-const on purpose so the runtime constructor path is covered.
+      // ignore: prefer_const_constructors
+      final IKProductDiscountTypeConverter runtimeConverter =
+          IKProductDiscountTypeConverter();
+
+      expect(runtimeConverter.fromJson(1), IKProductDiscountType.subscription);
+      expect(runtimeConverter.toJson(IKProductDiscountType.introductory), 0);
+    });
+  });
 }
