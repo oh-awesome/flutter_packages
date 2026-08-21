@@ -107,7 +107,9 @@ class InAppPurchaseOhosPlatform extends InAppPurchasePlatform {
       await _skPaymentQueueWrapper.addPayment(
         _paymentFromPurchaseParam(purchaseParam),
       );
-      return true; // There's no error feedback from ohos here to return.
+      // Returns false (via PlatformException) when the purchase request fails
+      // to be sent, e.g. createPurchase fails on the native side.
+      return true;
     } on PlatformException {
       return false;
     }
@@ -162,7 +164,6 @@ class InAppPurchaseOhosPlatform extends InAppPurchasePlatform {
     PlatformException? exception;
     try {
       response = await requestMaker.startProductRequest(identifiers.toList());
-      print('InAppPurchasePlugin productDetailResponse response');
     } on PlatformException catch (e) {
       exception = e;
       response = IKProductResponseWrapper(
@@ -317,7 +318,6 @@ class _TransactionObserver implements IKTransactionObserverWrapper {
 
   Future<void> _handleTransationUpdates(
       List<IKPaymentTransactionWrapper> transactions) async {
-    print('MethodCallHandlerImpl _handleTransationUpdates ');
     if (_transactionRestoreState ==
             _TransactionRestoreState.waitingForTransactions &&
         transactions.any((IKPaymentTransactionWrapper transaction) =>

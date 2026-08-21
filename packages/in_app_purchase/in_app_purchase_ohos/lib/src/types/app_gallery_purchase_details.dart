@@ -28,7 +28,6 @@ class AppGalleryPurchaseDetails extends PurchaseDetails {
     IKPaymentTransactionWrapper transaction,
     String base64EncodedReceipt,
   ) {
-    print('MethodCallHandlerImpl AppGalleryPurchaseDetails.fromIKTransaction ');
     final AppGalleryPurchaseDetails purchaseDetails = AppGalleryPurchaseDetails(
       productID: transaction.payment.productId,
       purchaseID: transaction.transactionIdentifier,

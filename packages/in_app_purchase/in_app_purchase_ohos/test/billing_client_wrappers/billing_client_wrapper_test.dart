@@ -56,6 +56,15 @@ void main() {
     );
   });
 
+  // 重置 mock handler，避免测试间状态泄漏
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/in_app_purchase'),
+      null,
+    );
+  });
+
   // 原安卓test：isReady true/false
   // 改造原因：鸿蒙版使用 IKPaymentQueueWrapper.queryEnvironmentStatus()
   // 替代 BillingClient.isReady()，方法名和语义不同
@@ -588,6 +597,320 @@ void main() {
         transactionIdentifier: 'txn1',
       );
       expect(first == second, isTrue);
+    });
+  });
+
+  // 新鸿蒙test：补充 IKError 的 hashCode、toString 与跨类型比较
+  group('IKError equality and hash', () {
+    test('== returns false when compared with another runtime type', () {
+      const IKError error = IKError(
+          code: 2, domain: 'SKErrorDomain', userInfo: <String, dynamic>{});
+      expect(error == Object(), isFalse);
+    });
+
+    test('== returns false when only the userInfo differs', () {
+      const IKError first = IKError(
+          code: 2, domain: 'SKErrorDomain', userInfo: <String, dynamic>{'a': 1});
+      const IKError second = IKError(
+          code: 2, domain: 'SKErrorDomain', userInfo: <String, dynamic>{'b': 2});
+      expect(first == second, isFalse);
+    });
+
+    test('hashCode is consistent for equal errors', () {
+      const IKError first = IKError(
+          code: 2, domain: 'SKErrorDomain', userInfo: <String, dynamic>{'a': 1});
+      const IKError second = IKError(
+          code: 2, domain: 'SKErrorDomain', userInfo: <String, dynamic>{'a': 1});
+      expect(first.hashCode, second.hashCode);
+    });
+  });
+
+  // 新鸿蒙test：补充 IKPaymentWrapper 的相等性、hashCode 与 toString
+  group('IKPaymentWrapper equality, hash and toString', () {
+    test('== compares every field for non-identical instances', () {
+      final IKPaymentWrapper first = IKPaymentWrapper(
+        productId: 'com.example.product',
+        productType: ProductType.CONSUMABLE,
+        developerPayload: 'payload',
+        reservedInfo: 'reserved',
+        promotionalOfferId: 'offer',
+        applicationUserName: 'user',
+        jwsRepresentation: 'jws',
+      );
+      final IKPaymentWrapper second = IKPaymentWrapper(
+        productId: 'com.example.product',
+        productType: ProductType.CONSUMABLE,
+        developerPayload: 'payload',
+        reservedInfo: 'reserved',
+        promotionalOfferId: 'offer',
+        applicationUserName: 'user',
+        jwsRepresentation: 'jws',
+      );
+      expect(first == second, isTrue);
+    });
+
+    test('== returns false when a single optional field differs', () {
+      final IKPaymentWrapper first = IKPaymentWrapper(
+        productId: 'com.example.product',
+        developerPayload: 'payload',
+      );
+      final IKPaymentWrapper second = IKPaymentWrapper(
+        productId: 'com.example.product',
+        developerPayload: 'different',
+      );
+      expect(first == second, isFalse);
+    });
+
+    test('== returns false when compared with another runtime type', () {
+      final IKPaymentWrapper payment =
+          IKPaymentWrapper(productId: 'com.example.product');
+      expect(payment == Object(), isFalse);
+    });
+
+    test('hashCode is consistent for equal payments', () {
+      final IKPaymentWrapper first = IKPaymentWrapper(
+        productId: 'com.example.product',
+        productType: ProductType.AUTORENEWABLE,
+        developerPayload: 'payload',
+      );
+      final IKPaymentWrapper second = IKPaymentWrapper(
+        productId: 'com.example.product',
+        productType: ProductType.AUTORENEWABLE,
+        developerPayload: 'payload',
+      );
+      expect(first.hashCode, second.hashCode);
+    });
+
+    test('toString serializes the payment fields', () {
+      final IKPaymentWrapper payment = IKPaymentWrapper(
+        productId: 'com.example.product',
+        productType: ProductType.CONSUMABLE,
+      );
+      expect(payment.toString(), contains('com.example.product'));
+      expect(payment.toString(), contains('productType'));
+    });
+  });
+
+  // 新鸿蒙test：补充 IKPaymentWrapper.fromJson 对订阅类型的解析
+  group('IKPaymentWrapper.fromJson product types', () {
+    test('fromJson parses an AUTORENEWABLE product type', () {
+      final Map<String, dynamic> json = <String, dynamic>{
+        'productId': 'com.example.subscription',
+        'productType': 2,
+      };
+
+      final IKPaymentWrapper payment = IKPaymentWrapper.fromJson(json);
+
+      expect(payment.productType, ProductType.AUTORENEWABLE);
+    });
+
+    test('fromJson parses a NONRENEWABLE product type', () {
+      final Map<String, dynamic> json = <String, dynamic>{
+        'productId': 'com.example.nonrenewable',
+        'productType': 3,
+      };
+
+      final IKPaymentWrapper payment = IKPaymentWrapper.fromJson(json);
+
+      expect(payment.productType, ProductType.NONRENEWABLE);
+    });
+  });
+
+  // 新鸿蒙test：补充 IKRequestMaker.startProductRequest 无响应的异常路径
+  group('IKRequestMaker.startProductRequest no response', () {
+    test('should throw a PlatformException when the platform returns null',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#queryProducts') {
+            return null;
+          }
+          return null;
+        },
+      );
+
+      final IKRequestMaker requestMaker = IKRequestMaker();
+
+      await expectLater(
+        requestMaker.startProductRequest(<String>['com.example.product']),
+        throwsA(isA<PlatformException>()),
+      );
+    });
+  });
+
+  // 新鸿蒙test：补充 IKPaymentQueueWrapper 异常场景
+  group('IKPaymentQueueWrapper.addPayment failure', () {
+    test('should propagate a PlatformException when createPurchase fails',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#createPurchase') {
+            throw PlatformException(code: 'IAP_3', message: 'create failed');
+          }
+          return null;
+        },
+      );
+
+      final TestTransactionObserver observer = TestTransactionObserver();
+      paymentQueue.setTransactionObserver(observer);
+      const IKPaymentWrapper payment = IKPaymentWrapper(
+        productId: 'com.example.consumable',
+      );
+
+      await expectLater(
+        paymentQueue.addPayment(payment),
+        throwsA(isA<PlatformException>().having(
+            (PlatformException e) => e.code, 'code', 'IAP_3')),
+      );
+    });
+
+    test(
+        'should propagate a timeout PlatformException when createPurchase '
+        'times out', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#createPurchase') {
+            throw PlatformException(
+                code: 'timeout', message: 'request timed out');
+          }
+          return null;
+        },
+      );
+
+      final TestTransactionObserver observer = TestTransactionObserver();
+      paymentQueue.setTransactionObserver(observer);
+      const IKPaymentWrapper payment = IKPaymentWrapper(
+        productId: 'com.example.consumable',
+      );
+
+      await expectLater(
+        paymentQueue.addPayment(payment),
+        throwsA(isA<PlatformException>().having(
+            (PlatformException e) => e.code, 'code', 'timeout')),
+      );
+    });
+  });
+
+  group('IKPaymentQueueWrapper.transactions edge cases', () {
+    test('should return an empty list when the platform returns no transactions',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#transactions') {
+            return <dynamic>[];
+          }
+          return null;
+        },
+      );
+
+      final List<IKPaymentTransactionWrapper> transactions =
+          await paymentQueue.transactions();
+
+      expect(transactions, isEmpty);
+    });
+
+    test('should propagate a PlatformException when the platform errors',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#transactions') {
+            throw PlatformException(
+                code: 'IAP_1', message: 'service disconnected');
+          }
+          return null;
+        },
+      );
+
+      await expectLater(
+        paymentQueue.transactions(),
+        throwsA(isA<PlatformException>().having(
+            (PlatformException e) => e.code, 'code', 'IAP_1')),
+      );
+    });
+  });
+
+  group('IKPaymentQueueWrapper.restoreTransactions failure', () {
+    test('should propagate a PlatformException when restore fails', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#restoreTransactions') {
+            throw PlatformException(code: 'IAP_6', message: 'restore failed');
+          }
+          return null;
+        },
+      );
+
+      await expectLater(
+        paymentQueue.restoreTransactions(applicationUserName: 'user1'),
+        throwsA(isA<PlatformException>().having(
+            (PlatformException e) => e.code, 'code', 'IAP_6')),
+      );
+    });
+  });
+
+  group('IKPaymentQueueWrapper.finishTransaction edge cases', () {
+    test('should send a null transactionIdentifier without crashing',
+        () async {
+      final List<MethodCall> log = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          log.add(methodCall);
+          return null;
+        },
+      );
+
+      final IKPaymentTransactionWrapper transaction =
+          IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: null,
+      );
+
+      await paymentQueue.finishTransaction(transaction);
+
+      expect(log, hasLength(1));
+      expect(log.first.arguments['transactionIdentifier'], isNull);
+    });
+
+    test('should propagate a PlatformException when finish fails', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+        const MethodChannel('plugins.flutter.io/in_app_purchase'),
+        (MethodCall methodCall) async {
+          if (methodCall.method == 'iap#finishPurchase') {
+            throw PlatformException(
+                code: 'IAP_4', message: 'purchase not found');
+          }
+          return null;
+        },
+      );
+
+      final IKPaymentTransactionWrapper transaction =
+          IKPaymentTransactionWrapper(
+        payment: const IKPaymentWrapper(productId: 'com.example.product'),
+        transactionState: IKPaymentTransactionStateWrapper.purchased,
+        transactionIdentifier: 'txn001',
+      );
+
+      await expectLater(
+        paymentQueue.finishTransaction(transaction),
+        throwsA(isA<PlatformException>().having(
+            (PlatformException e) => e.code, 'code', 'IAP_4')),
+      );
     });
   });
 }

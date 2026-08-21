@@ -32,7 +32,6 @@ class IKTransactionStatusConverter
   /// Converts an [IKPaymentTransactionStateWrapper] to a [PurchaseStatus].
   PurchaseStatus toPurchaseStatus(
       IKPaymentTransactionStateWrapper object, IKError? error) {
-    print('MethodCallHandlerImpl toPurchaseStatus. $object');
     switch (object) {
       case IKPaymentTransactionStateWrapper.purchasing:
       case IKPaymentTransactionStateWrapper.deferred:

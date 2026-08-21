@@ -23,10 +23,6 @@ class InAppPurchaseOhosPlatformAddition
           serverVerificationData: receipt,
           source: kIAPSource);
     } catch (e) {
-      // ignore: avoid_print
-      print(
-          'Something is wrong while fetching the receipt, this normally happens when the app is '
-          'running on a simulator: $e');
       return null;
     }
   }

@@ -33,7 +33,11 @@ export class InAppPurchasePlugin implements FlutterPlugin, AbilityAware {
   private context: common.UIAbilityContext | null = null
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
-    this.setUpMethodChannel(binding.getBinaryMessenger(), binding.getApplicationContext());
+    try {
+      this.setUpMethodChannel(binding.getBinaryMessenger(), binding.getApplicationContext());
+    } catch (e) {
+      Log.e(TAG, `Failed to set up method channel on engine attach. err: ${JSON.stringify(e)}`);
+    }
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
@@ -47,6 +51,12 @@ export class InAppPurchasePlugin implements FlutterPlugin, AbilityAware {
 
   onDetachedFromAbility(): void {
     this.methodCallHandler?.setContext(null)
+    // Clear cached product/receipt state so a re-attached ability does not
+    // reuse stale data. The observer is intentionally NOT stopped here:
+    // the Dart purchaseStream stays subscribed across ability re-attach and
+    // would stop receiving transaction updates if the observer were nulled.
+    this.methodCallHandler?.clearCache()
+    this.context = null
   }
 
   getUniqueClassName(): string {
@@ -61,6 +71,10 @@ export class InAppPurchasePlugin implements FlutterPlugin, AbilityAware {
   }
 
   teardownMethodChannel() {
+    // Release resources in order: stop the observer, clear caches, then
+    // unregister the handler and drop references.
+    this.methodCallHandler?.stopObserver();
+    this.methodCallHandler?.clearCache();
     this.methodChannel?.setMethodCallHandler(null);
     this.methodChannel = null;
     this.methodCallHandler = null;

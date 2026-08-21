@@ -97,7 +97,6 @@ class IKPaymentQueueWrapper {
   Future<dynamic> handleObserverCallbacks(MethodCall call) async {
     assert(_observer != null,
         '[in_app_purchase]: (Fatal)The observer has not been set but we received a purchase transaction notification. Please ensure the observer has been set using `setTransactionObserver`. Make sure the observer is added right at the App Launch.');
-    print('MethodCallHandlerImpl handleObserverCallbacks : ' + call.method);
     final IKTransactionObserverWrapper observer = _observer!;
     switch (call.method) {
       case 'updatedTransactions':
