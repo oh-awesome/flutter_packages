@@ -12,6 +12,7 @@ import 'fileselector/file_selector.dart';
 import 'fileselector/x_type_group.dart';
 import 'mini_controller.dart';
 import 'mix_with_others_demo.dart';
+import 'video_tracks_demo.dart';
 
 final RouteObserver<PageRoute<dynamic>> _routeObserver =
     RouteObserver<PageRoute<dynamic>>();
@@ -103,6 +104,19 @@ class _AppState extends State<_App> with RouteAware {
                   context,
                   MaterialPageRoute<AudioTracksDemo>(
                     builder: (BuildContext context) => const AudioTracksDemo(),
+                  ),
+                );
+              },
+            ),
+            IconButton(
+              key: const ValueKey<String>('video_tracks_demo'),
+              icon: const Icon(Icons.high_quality),
+              tooltip: 'Video Tracks Demo',
+              onPressed: () {
+                Navigator.push<VideoTracksDemo>(
+                  context,
+                  MaterialPageRoute<VideoTracksDemo>(
+                    builder: (BuildContext context) => const VideoTracksDemo(),
                   ),
                 );
               },

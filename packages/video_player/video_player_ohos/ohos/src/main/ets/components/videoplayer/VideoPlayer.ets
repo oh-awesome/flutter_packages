@@ -66,15 +66,24 @@ export class VideoPlayer {
   private eventSink: QueuingEventSink | null = null;
   private interruptMode: audio.InterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
   private fd: number | null = null;
+  // 由插件侧（getFileFdByPath）打开、通过 fd://<n> 传入的外部 fd
+  // AVPlayer 不会接管其关闭，需在本播放器 release 时统一关闭，避免 fd 泄漏
+  private externalFd: number | null = null;
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private selectedAudioTrackIndex: number = -1;
   private isWindowKeepScreenOn: boolean = false;
+  // Dart 层 preventsDisplaySleepDuringVideoPlayback 透传标志，默认与主包一致为 true。
+  private keepScreenOnDuringPlayback: boolean = true;
   private cachedAudioTracks: Array<AudioTrackNativeMap> | null = null;
   private tracksCacheValid: boolean = false;
+  private selectedVideoTrackIndex: number = -1;
+  private cachedVideoTracks: Array<AudioTrackNativeMap> | null = null;
+  private videoTracksCacheValid: boolean = false;
   private isPrepared: boolean = false;
   private pendingPlay: boolean = false;
+  private pendingReplayAfterSeek: boolean = false;
   private pendingSeekPosition: number | null = null;
   private isSeeking: boolean = false;
   private seekPosition: number = 0;
@@ -84,8 +93,13 @@ export class VideoPlayer {
   private bufferingInfoTimer: number = -1;
   private isPollingPlaybackInfo: boolean = false;
   private cachedRotationCorrection: number = 0;
+  private actionEndTimer: number = -1;
+  // 幂等保护：dispose 与引擎 detach 可能并发触发 release，避免二次释放。
+  private released: boolean = false;
+  // 事件订阅追踪标志：记录 AVPlayer 事件回调是否已绑定，保证 on/off 对称。
+  private eventsBound: boolean = false;
 
-  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: Boolean, headers: Record<string, string> | null) {
+  constructor(playerModel: PlayerModel, textureEntry: SurfaceTextureEntry, rawFile: resourceManager.RawFileDescriptor | null, url: string | null, eventChannel: EventChannel, AudioFocus: boolean, headers: Record<string, string> | null) {
     this.playerModel = playerModel;
     this.textureEntry = textureEntry;
     this.surfaceId = textureEntry.getSurfaceId().toString();
@@ -100,22 +114,22 @@ export class VideoPlayer {
     }
     if (AudioFocus == true) {
       this.interruptMode = audio.InterruptMode.SHARE_MODE;
-      Log.i(TAG, "set interruptMode : " + this.interruptMode);
+      Log.i(TAG, 'set interruptMode : ' + this.interruptMode);
     }
-    Log.i(TAG, "surfaceId : " + this.surfaceId);
+    Log.i(TAG, 'surfaceId : ' + this.surfaceId);
   }
 
   /**
    * Creates a videoPlayer object.
    */
   async createAVPlayer() {
-    Log.i(TAG + ":" + this.textureEntry.getTextureId(), " createAVPlayer");
+    Log.i(TAG + ':' + this.textureEntry.getTextureId(), ' createAVPlayer');
     if (this.avPlayer == null) {
       this.avPlayer = await media.createAVPlayer();
     }
     if (this.avPlayer != null) {
       this.eventSink = new QueuingEventSink();
-      Log.i(TAG, "enter setStreamHandler");
+      Log.i(TAG, 'enter setStreamHandler');
       this.eventChannel?.setStreamHandler(
         new StreamHandlerImpl(this.eventSink)
       );
@@ -124,10 +138,15 @@ export class VideoPlayer {
 
       /// 同时使用avPlayer.url和avPlayer.setMediaSource会导致直播视频无法正确播放
       if (!(this.url && this.url.startsWith('http'))) {
-        if (this.url) {
-          this.avPlayer.url = this.getIUri();
-        } else {
-          this.avPlayer.fdSrc = this.rawFile!;
+        try {
+          if (this.url) {
+            this.avPlayer.url = this.getUri();
+          } else {
+            this.avPlayer.fdSrc = this.rawFile!;
+          }
+        } catch (e) {
+          Log.e(TAG, 'set url/fdSrc failed: ' + JSON.stringify(e));
+          this.sendError(e instanceof Error ? e : new Error(`${e}`));
         }
       } else {
         let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
@@ -146,24 +165,33 @@ export class VideoPlayer {
    * AVPlayer binding event.
    */
   async bindState() {
-    Log.i(TAG, "enter bindState");
+    Log.i(TAG, 'enter bindState');
     if (this.avPlayer == null) {
-      Log.e(TAG, "bindState, avPlayer is null");
+      Log.e(TAG, 'bindState, avPlayer is null');
       return;
     }
+    // 事件订阅幂等保护：避免 reset 后重复 bind 造成重复订阅。
+    if (this.eventsBound) {
+      Log.w(TAG, 'bindState, events already bound, skip');
+      return;
+    }
+    this.eventsBound = true;
     this.avPlayer.on(Events.STATE_CHANGE, async (state: media.AVPlayerState) => {
       let avplayerStatus: string = state;
-      Log.i(TAG, "bindState, on avPlayer, step1");
+      Log.i(TAG, 'bindState, on avPlayer, step1');
       if (this.avPlayer == null) {
-        Log.e(TAG, "bindState, avPlayer is null, step2");
+        Log.e(TAG, 'bindState, avPlayer is null, step2');
         return;
       }
-      Log.i(TAG, "bindState, on STATE_CHANGE, avplayerStatus=" + avplayerStatus);
+      Log.i(TAG, 'bindState, on STATE_CHANGE, avplayerStatus=' + avplayerStatus);
       switch (avplayerStatus) {
         case AvplayerStatus.IDLE:
           this.cachedAudioTracks = null;
           this.tracksCacheValid = false;
           this.selectedAudioTrackIndex = -1;
+          this.cachedVideoTracks = null;
+          this.videoTracksCacheValid = false;
+          this.selectedVideoTrackIndex = -1;
           this.isPrepared = false;
           this.pendingPlay = false;
           this.pendingSeekPosition = null;
@@ -176,22 +204,50 @@ export class VideoPlayer {
             Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
           }
           if (this.url) {
-            const iUri = this.getIUri();
-            if (iUri) {
-              this.avPlayer.url = iUri;
+            if (this.url.startsWith('http')) {
+              // 与 createAVPlayer 保持一致：http 网络源走 setMediaSource
+              // 保留 httpHeaders；reset 后重设 avPlayer.url 会丢弃这些配置
+              let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
+              let playbackStrategy: media.PlaybackStrategy | undefined = undefined;
+              if (deviceInfo.sdkApiVersion >= 17) {
+                playbackStrategy = { showFirstFrameOnPrepare: true } as media.PlaybackStrategy;
+              }
+              this.avPlayer.setMediaSource(mediaSource, playbackStrategy).catch((e: Error) => {
+                Log.e(TAG, 'setMediaSource failed: ' + JSON.stringify(e));
+                this.sendError(e);
+              });
             } else {
-              Log.e(TAG, 'IDLE: getIUri returned empty, cannot set url for: ' + this.url);
-              // 可选择上报错误给Flutter层
-              this.sendError(new Error('Failed to open file: ' + this.url));
+              const iUri = this.getUri();
+              try {
+                if (iUri) {
+                  this.avPlayer.url = iUri;
+                } else {
+                  Log.e(TAG, 'IDLE: getUri returned empty, cannot set url for: ' + this.url);
+                  this.sendError(new Error('Failed to open file: ' + this.url));
+                }
+              } catch (e) {
+                Log.e(TAG, 'set url failed: ' + JSON.stringify(e));
+                this.sendError(e instanceof Error ? e : new Error(`${e}`));
+              }
             }
           } else {
-            this.avPlayer.fdSrc = this.rawFile!;
+            try {
+              this.avPlayer.fdSrc = this.rawFile!;
+            } catch (e) {
+              Log.e(TAG, 'set fdSrc failed: ' + JSON.stringify(e));
+              this.sendError(e instanceof Error ? e : new Error(`${e}`));
+            }
           }
           break;
         case AvplayerStatus.INITIALIZED:
           this.isPrepared = false;
-          this.avPlayer.surfaceId = this.surfaceId;
-          this.avPlayer.prepare();
+          try {
+            this.avPlayer.surfaceId = this.surfaceId;
+            await this.avPlayer.prepare();
+          } catch (e) {
+            Log.e(TAG, 'surfaceId/prepare failed: ' + JSON.stringify(e));
+            this.sendError(e instanceof Error ? e : new Error(`${e}`));
+          }
           break;
         case AvplayerStatus.PREPARED:
           this.isPrepared = true;
@@ -202,28 +258,39 @@ export class VideoPlayer {
           this.duration = this.avPlayer.duration;
           this.startBufferingInfoTimer();
           if (this.pendingSeekPosition !== null) {
-            this.avPlayer.seek(this.pendingSeekPosition, media.SeekMode.SEEK_CLOSEST);
+            const seekPosition = this.pendingSeekPosition;
             this.pendingSeekPosition = null;
+            try {
+              await this.avPlayer.seek(seekPosition, media.SeekMode.SEEK_CLOSEST);
+            } catch (e) {
+              Log.e(TAG, 'seek failed: ' + JSON.stringify(e));
+              this.sendError(e instanceof Error ? e : new Error(`${e}`));
+            }
           }
           if (this.pendingPlay) {
             this.pendingPlay = false;
-            this.avPlayer.play();
+            this.play();
           }
           break;
         case AvplayerStatus.PLAYING:
           this.status = CommonConstants.STATUS_START;
           this.watchStatus();
+          this.sendIsPlayingStateUpdate(true);
           break;
         case AvplayerStatus.PAUSED:
           this.status = CommonConstants.STATUS_PAUSE;
           this.watchStatus();
+          this.sendIsPlayingStateUpdate(false);
           break;
         case AvplayerStatus.COMPLETED:
           if (this.playerModel != null) {
             this.playerModel.playSpeed = PlayConstants.PLAY_SPEED;
           }
+          this.status = CommonConstants.STATUS_PAUSE;
+          this.watchStatus();
+          this.playTime = this.duration;
+          this.pendingReplayAfterSeek = false;
           this.sendCompleted();
-          this.duration = PlayConstants.PLAYER_DURATION;
           if (!this.loop) {
             let curIndex = this.index + PlayConstants.PLAYER_NEXT;
             let globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
@@ -244,6 +311,9 @@ export class VideoPlayer {
           this.cachedAudioTracks = null;
           this.tracksCacheValid = false;
           this.selectedAudioTrackIndex = -1;
+          this.cachedVideoTracks = null;
+          this.videoTracksCacheValid = false;
+          this.selectedVideoTrackIndex = -1;
           this.isPrepared = false;
           this.pendingPlay = false;
           this.pendingSeekPosition = null;
@@ -264,10 +334,20 @@ export class VideoPlayer {
       this.playTime = time;
     });
 
-    this.avPlayer.on(Events.SEEK_DONE, (time: number) => {
+    this.avPlayer.on(Events.SEEK_DONE, async (time: number) => {
       if (this.isSeeking) {
         this.isSeeking = false;
         this.endSeekBuffering();
+      }
+      this.playTime = time;
+      if (this.pendingReplayAfterSeek && this.avPlayer !== null) {
+        this.pendingReplayAfterSeek = false;
+        try {
+          await this.avPlayer.play();
+        } catch (e) {
+          Log.e(TAG, 'play failed after seek: ' + JSON.stringify(e));
+          this.sendError(e instanceof Error ? e : new Error(`${e}`));
+        }
       }
     });
 
@@ -277,18 +357,43 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.ERROR, (err: BusinessError) => {
       if (err.code == OPERATE_ERROR) {
-        Log.e(TAG, "AvPlayer Avoid Error Reporting: " + JSON.stringify(err));
+        // 直播落后播放窗口场景：与 Android ERROR_CODE_BEHIND_LIVE_WINDOW 一致，
+        // 静默回到默认位置继续播放，不上报错误
+        Log.e(TAG, 'AvPlayer Avoid Error Reporting: ' + JSON.stringify(err));
+        try {
+          this.avPlayer?.seekToDefaultPosition?.();
+        } catch (e) {
+          Log.e(TAG, 'seekToDefaultPosition failed: ' + JSON.stringify(e));
+        }
         return;
       }
-      Log.e(TAG, "avPlayer Events.ERROR: " + JSON.stringify(err));
+      Log.e(TAG, 'avPlayer Events.ERROR: ' + JSON.stringify(err));
+      // 出错后播放器将被 reset，及时停止缓冲轮询，避免无效轮询直至 release
+      this.stopBufferingInfoTimer();
       this.resetBufferingState();
-      this.avPlayer?.reset();
+      this.avPlayer?.reset().catch((e: Error) => {
+        Log.e(TAG, 'reset failed: ' + JSON.stringify(e));
+      });
       this.sendError(err);
     })
   }
 
   /**
-   * 设置音频焦点模式
+   * 设置音频焦点/混音模式（对应 platform 接口 setMixWithOthers）。
+   *
+   * Android 参考实现：创建 ExoPlayer 时通过 AudioAttributes 设置
+   * handleAudioFocus = !mixWithOthers 控制是否申请系统级音频焦点
+   * （true 不申请焦点，可与其他应用音频混播；false 申请独占焦点）。
+   *
+   * OHOS 差异说明：AVPlayer 未暴露系统级 AudioFocusManager 接口，
+   * 而是通过 player 的 audioInterruptMode 实现等价语义。
+   *   - SHARE_MODE（共享模式）：等价 Android mixWithOthers=true，
+   *     与其他音频会话共享，不中断其他应用播放。
+   *   - INDEPENDENT_MODE（独立模式）：等价 Android mixWithOthers=false，
+   *     当前播放器独占音频焦点，其他音频被暂停/弱化。
+   * 注意：系统级焦点 API（audio.requestAudioFocus）需 MANAGE_SYSTEM_AUDIO_EFFECTS
+   * 权限且主要面向 audio.AudioRenderer 场景，AVPlayer 场景下官方推荐的
+   * 混音控制方式即为 audioInterruptMode，故此处保持 player 级实现。
    *
    * @param mixWithOthers 是否与其他音频混合播放
    *                      true: 共享模式，与其他音频混合
@@ -296,7 +401,7 @@ export class VideoPlayer {
    */
   setAudioFocus(mixWithOthers: boolean): void {
     if (this.avPlayer == null) {
-      Log.w(TAG, "setAudioFocus: avPlayer is null, cannot set audio focus");
+      Log.w(TAG, 'setAudioFocus: avPlayer is null, cannot set audio focus');
       return;
     }
 
@@ -315,28 +420,84 @@ export class VideoPlayer {
    * Release the video player.
    */
   async release() {
+    if (this.released) {
+      Log.w(TAG, 'release already done, skip duplicated release');
+      return;
+    }
+    this.released = true;
+    if (this.actionEndTimer !== -1) {
+      clearTimeout(this.actionEndTimer);
+      this.actionEndTimer = -1;
+    }
     this.stopBufferingInfoTimer();
     this.resetBufferingState();
-    if (this.avPlayer !== null) {
-      await this.avPlayer.release();
-      this.avPlayer = null;
-      this.eventChannel?.setStreamHandler(null);
-    }
-    if (this.fd != null) {
-      fs.closeSync(this.fd!);
-      this.fd = null;
+    // 释放时恢复窗口常亮原始状态，避免直接释放（未经过 PAUSED/COMPLETED）时亮屏残留
+    this.status = CommonConstants.STATUS_STOP;
+    this.watchStatus();
+    try {
+      if (this.avPlayer !== null) {
+        // 显式取消事件订阅，避免 release 后回调仍被触发
+        try {
+          if (this.eventsBound) {
+            this.avPlayer.off(Events.STATE_CHANGE);
+            this.avPlayer.off(Events.TIME_UPDATE);
+            this.avPlayer.off(Events.SEEK_DONE);
+            this.avPlayer.off(Events.BUFFER_UPDATE);
+            this.avPlayer.off(Events.ERROR);
+            this.eventsBound = false;
+          }
+          await this.avPlayer.release();
+        } catch (e) {
+          Log.w(TAG, 'avPlayer release/off failed: ' + JSON.stringify(e));
+        }
+        this.avPlayer = null;
+        this.eventChannel?.setStreamHandler(null);
+      }
+    } finally {
+      // fd 由本插件打开并负责关闭（AVPlayer 不会接管），必须保证在 release
+      // 的任何异常路径下都能关闭，避免 fd 泄漏（Too many open files）。
+      if (this.fd != null) {
+        try {
+          fs.closeSync(this.fd!);
+        } catch (e) {
+          Log.w(TAG, 'close fd failed: ' + JSON.stringify(e));
+        }
+        this.fd = null;
+      }
+      if (this.externalFd != null) {
+        try {
+          fs.closeSync(this.externalFd!);
+        } catch (e) {
+          Log.w(TAG, 'close external fd failed: ' + JSON.stringify(e));
+        }
+        this.externalFd = null;
+      }
     }
   }
 
-
   play() {
-    if (this.avPlayer !== null) {
-      if (!this.isPrepared) {
-        this.pendingPlay = true;
-        return;
-      }
-      this.avPlayer.play();
+    if (this.avPlayer == null) {
+      return;
     }
+    if (!this.isPrepared) {
+      this.pendingPlay = true;
+      return;
+    }
+    if (this.shouldReplayFromStart()) {
+      this.pendingReplayAfterSeek = true;
+      this.prepareSeek(PlayConstants.PLAYER_DURATION);
+      try {
+        this.avPlayer.seek(PlayConstants.PLAYER_DURATION, media.SeekMode.SEEK_CLOSEST);
+      } catch (e) {
+        Log.e(TAG, 'seek failed for replay: ' + JSON.stringify(e));
+        this.sendError(e instanceof Error ? e : new Error(`${e}`));
+      }
+      return;
+    }
+    this.avPlayer.play().catch((e: Error) => {
+      Log.e(TAG, 'play failed: ' + JSON.stringify(e));
+      this.sendError(e);
+    });
   }
 
   /**
@@ -348,7 +509,13 @@ export class VideoPlayer {
         this.pendingPlay = false;
         return;
       }
-      this.avPlayer.pause();
+      if (this.status !== CommonConstants.STATUS_START) {
+        return;
+      }
+      this.avPlayer.pause().catch((e: Error) => {
+        Log.e(TAG, 'pause failed: ' + JSON.stringify(e));
+        this.sendError(e);
+      });
     }
   }
 
@@ -359,7 +526,12 @@ export class VideoPlayer {
         return;
       }
       this.prepareSeek(position);
-      this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
+      try {
+        this.avPlayer.seek(position, media.SeekMode.SEEK_CLOSEST);
+      } catch (e) {
+        Log.e(TAG, 'seek failed: ' + JSON.stringify(e));
+        this.sendError(e instanceof Error ? e : new Error(`${e}`));
+      }
     }
   }
 
@@ -369,12 +541,17 @@ export class VideoPlayer {
     this.seekPosition = position;
   }
 
+  private shouldReplayFromStart(): boolean {
+    return this.duration > 0 && this.getPosition() >= this.duration;
+  }
+
   getPosition(): number {
     if (this.isSeeking) {
       return this.seekPosition;
     }
     if (this.avPlayer !== null) {
-      return Math.max(0, this.avPlayer.currentTime);
+      // Dart 侧以 int（毫秒）接收，取整规避 currentTime 为小数时的强转风险
+      return Math.trunc(Math.max(0, this.avPlayer.currentTime));
     } else {
       return 0;
     }
@@ -469,6 +646,158 @@ export class VideoPlayer {
 	    Log.e(TAG, 'selectAudioTrack exception: ' + errMsg);
 	    throw new Error(errMsg);
     }
+  }
+
+  /**
+   * Gets the available video tracks (quality variants).
+   *
+   * For HLS/DASH streams, this returns the different quality levels.
+   * For regular videos, this returns a single video track (or empty).
+   * The track id format is '{groupIndex}_{trackIndex}' to keep
+   * compatibility with the platform interface.
+   */
+  async getVideoTracks(): Promise<Array<AudioTrackNativeMap>> {
+    if (this.videoTracksCacheValid && this.cachedVideoTracks !== null) {
+      return this.cachedVideoTracks;
+    }
+    const tracks: Array<AudioTrackNativeMap> = [];
+    if (!this.avPlayer) {
+      return tracks;
+    }
+    try {
+      const descriptions: Array<media.MediaDescription> = await this.avPlayer.getTrackDescription();
+      for (let i = 0; i < descriptions.length; i++) {
+        const desc = descriptions[i];
+        const trackIndex = this.getTrackIndexFromDescription(desc);
+        if (trackIndex < 0) {
+          continue;
+        }
+        const trackType = this.getTrackTypeFromDescription(desc);
+        if (trackType != null && trackType !== media.MediaType.MEDIA_TYPE_VID) {
+          if (ENABLE_AUDIO_TRACK_DEBUG) {
+            Log.i(TAG, `videoTrack[${i}] skip(type=${trackType} idx=${trackIndex}): ` + JSON.stringify(desc));
+          }
+          continue;
+        }
+        const rec = desc as Object as TrackDescriptionRecord;
+        const nativeTrack = new Map<string, NativeAudioTrackValue>();
+        const label = this.pickTrackLabelFromRecord(rec);
+        const codec = this.getStringFromRecord(rec, ['codec_mime', 'codec', 'codecName', 'codecMimeType']);
+        const bitrate = this.getIntFromRecord(rec, ['bit_rate', 'bitrate']);
+        const width = this.getIntFromRecord(rec, ['width', 'video_width']);
+        const height = this.getIntFromRecord(rec, ['height', 'video_height']);
+        const frameRate = this.getNumberFromRecord(rec, ['frame_rate', 'frameRate', 'framerate']);
+
+        if (this.selectedVideoTrackIndex < 0) {
+          this.selectedVideoTrackIndex = trackIndex;
+        }
+
+        nativeTrack.set('id', `0_${trackIndex}`);
+        nativeTrack.set('label', label);
+        nativeTrack.set('isSelected', this.selectedVideoTrackIndex == trackIndex);
+        nativeTrack.set('bitrate', bitrate);
+        nativeTrack.set('width', width);
+        nativeTrack.set('height', height);
+        nativeTrack.set('frameRate', frameRate);
+        nativeTrack.set('codec', codec);
+        tracks.push(nativeTrack);
+
+        if (ENABLE_AUDIO_TRACK_DEBUG) {
+          Log.i(TAG, `videoTrack id=${trackIndex}
+        selected=${this.selectedVideoTrackIndex == trackIndex}
+        info=` + JSON.stringify(desc));
+        }
+      }
+      this.cachedVideoTracks = tracks;
+      this.videoTracksCacheValid = true;
+    } catch (e) {
+      Log.e(TAG, 'getVideoTracks exception: ' + JSON.stringify(e));
+      throw new Error(e.message);
+    }
+    return tracks;
+  }
+
+  async selectVideoTrack(groupIndex: number, trackIndex: number): Promise<void> {
+    if (this.avPlayer == null) {
+      throw new Error('avPlayer is null');
+    }
+    if (groupIndex !== 0) {
+      throw new Error(`Unsupported video track groupIndex: ${groupIndex}`);
+    }
+    if (trackIndex < 0) {
+      throw new Error('Invalid trackId');
+    }
+    try {
+      await this.avPlayer.selectTrack(trackIndex);
+      this.selectedVideoTrackIndex = trackIndex;
+      if (this.cachedVideoTracks) {
+        for (const track of this.cachedVideoTracks) {
+          track.set('isSelected', track.get('id') === `0_${trackIndex}`);
+        }
+      }
+      // 切换视频轨道后分辨率可能变化，重新设置 surfaceId 强制渲染器刷新，
+      // 否则可能出现画面未更新/黑屏的情况（与播放状态下重设 surfaceId 的语义一致）。
+      if (this.avPlayer.surfaceId) {
+        this.avPlayer.surfaceId = this.surfaceId;
+      }
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      Log.e(TAG, 'selectVideoTrack exception: ' + errMsg);
+      throw new Error(errMsg);
+    }
+  }
+
+  /**
+   * Restores the automatic/adaptive video quality selection.
+   *
+   * When selecting a specific video track (e.g. lock 1080p), call
+   * selectVideoTrack(groupIndex, trackIndex) to lock the quality. This
+   * method reverts to the player default (adaptive streaming).
+   *
+   * OHOS 差异说明：Android 实现通过 TrackSelector 调用
+   * clearOverridesOfType(C.TRACK_TYPE_VIDEO) 清除视频轨道 override 以
+   * 直接恢复自适应码流。OHOS AVPlayer 未提供等价的"清除单条视频轨道
+   * 选择"接口（deselectTrack 仅支持音频/字幕轨道），因此本实现采用
+   * 重新 selectTrack 初始默认轨道索引的方式恢复自适应行为，语义等价。
+   */
+  async enableAutoVideoQuality(): Promise<void> {
+    if (this.avPlayer == null) {
+      throw new Error('avPlayer is null');
+    }
+    try {
+      // AVPlayer does not expose a dedicated API to clear a single track
+      // selection; selecting the current default track index (stored during
+      // getVideoTracks) restores the initial behavior.
+      if (this.selectedVideoTrackIndex >= 0) {
+        await this.avPlayer.selectTrack(this.selectedVideoTrackIndex);
+      }
+      this.selectedVideoTrackIndex = -1;
+      if (this.cachedVideoTracks) {
+        for (const track of this.cachedVideoTracks) {
+          track.set('isSelected', false);
+        }
+      }
+    } catch (e) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      Log.e(TAG, 'enableAutoVideoQuality exception: ' + errMsg);
+      throw new Error(errMsg);
+    }
+  }
+
+  private getNumberFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): number | null {
+    for (let i = 0; i < keys.length; i++) {
+      const v = rec[keys[i]];
+      if (typeof v === 'number') {
+        return Number.isFinite(v) ? v : null;
+      }
+      if (typeof v === 'string') {
+        const parsed = Number.parseFloat(v);
+        if (!Number.isNaN(parsed)) {
+          return parsed;
+        }
+      }
+    }
+    return null;
   }
 
   private getTrackIndexFromDescription(desc: media.MediaDescription): number {
@@ -594,7 +923,11 @@ export class VideoPlayer {
       return;
     }
     this.playerModel.playSpeed = PlayConstants.PLAY_SPEED;
-    let globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
+    const globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
+    if (!Array.isArray(globalVideoList) || globalVideoList.length === 0) {
+      Log.w(TAG, 'previousVideo: globalVideoList is empty or missing');
+      return;
+    }
     let curIndex = this.index - PlayConstants.CONTROL_NEXT;
     this.index = (curIndex === -PlayConstants.CONTROL_NEXT) ?
       (globalVideoList.length - PlayConstants.CONTROL_NEXT) : curIndex;
@@ -606,7 +939,13 @@ export class VideoPlayer {
     this.cachedAudioTracks = null;
     this.tracksCacheValid = false;
     this.selectedAudioTrackIndex = -1;
-    this.avPlayer.reset();
+    this.cachedVideoTracks = null;
+    this.videoTracksCacheValid = false;
+    this.selectedVideoTrackIndex = -1;
+    this.avPlayer.reset().catch((e: Error) => {
+      Log.e(TAG, 'reset failed: ' + JSON.stringify(e));
+      this.sendError(e);
+    });
   }
 
   /**
@@ -620,7 +959,11 @@ export class VideoPlayer {
       return;
     }
     this.playerModel.playSpeed = PlayConstants.PLAY_SPEED;
-    let globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
+    const globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
+    if (!Array.isArray(globalVideoList) || globalVideoList.length === 0) {
+      Log.w(TAG, 'nextVideo: globalVideoList is empty or missing');
+      return;
+    }
     let curIndex = this.index + PlayConstants.CONTROL_NEXT;
     this.index = (curIndex === globalVideoList.length) ?
       PlayConstants.CONTROL_FIRST : curIndex;
@@ -632,7 +975,13 @@ export class VideoPlayer {
     this.cachedAudioTracks = null;
     this.tracksCacheValid = false;
     this.selectedAudioTrackIndex = -1;
-    this.avPlayer.reset();
+    this.cachedVideoTracks = null;
+    this.videoTracksCacheValid = false;
+    this.selectedVideoTrackIndex = -1;
+    this.avPlayer.reset().catch((e: Error) => {
+      Log.e(TAG, 'reset failed: ' + JSON.stringify(e));
+      this.sendError(e);
+    });
   }
 
   /**
@@ -643,9 +992,9 @@ export class VideoPlayer {
       return;
     }
     if (this.status === CommonConstants.STATUS_START) {
-      this.avPlayer.pause();
+      this.pause();
     } else {
-      this.avPlayer.play();
+      this.play();
     }
   }
 
@@ -668,7 +1017,12 @@ export class VideoPlayer {
       this.seekTime = value * this.duration / CommonConstants.ONE_HUNDRED;
       if (this.avPlayer !== null) {
         this.prepareSeek(this.seekTime);
-        this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
+        try {
+          this.avPlayer.seek(this.seekTime, media.SeekMode.SEEK_PREV_SYNC);
+        } catch (e) {
+          Log.e(TAG, 'seek failed: ' + JSON.stringify(e));
+          this.sendError(e instanceof Error ? e : new Error(`${e}`));
+        }
       }
     }
   }
@@ -680,8 +1034,12 @@ export class VideoPlayer {
     if (this.playerModel == null) {
       return;
     }
-    let windowClass = GlobalContext.getContext().getObject('windowClass') as window.Window;
-    windowClass.setWindowBrightness(this.playerModel.bright);
+    try {
+      let windowClass = GlobalContext.getContext().getObject('windowClass') as window.Window;
+      windowClass.setWindowBrightness(this.playerModel.bright);
+    } catch (e) {
+      Log.e(TAG, 'setWindowBrightness failed: ' + JSON.stringify(e));
+    }
   }
 
   /**
@@ -760,7 +1118,11 @@ export class VideoPlayer {
     }
     if (this.playerModel.brightShow === false) {
       this.playerModel.volumeShow = true;
-      let screenWidth = GlobalContext.getContext().getObject('screenWidth') as number;
+      const screenWidth = GlobalContext.getContext().getObject('screenWidth') as number;
+      if (typeof screenWidth !== 'number' || screenWidth <= 0) {
+        Log.w(TAG, 'onVolumeActionUpdate: screenWidth is missing');
+        return;
+      }
       let changeVolume = (event.offsetX - this.positionX) / screenWidth;
       let volume: number = this.playerModel.volume;
       let currentVolume = volume + changeVolume;
@@ -801,13 +1163,18 @@ export class VideoPlayer {
    * Gesture method onActionEnd.
    */
   onActionEnd() {
-    setTimeout(() => {
+    if (this.actionEndTimer !== -1) {
+      clearTimeout(this.actionEndTimer);
+      this.actionEndTimer = -1;
+    }
+    this.actionEndTimer = setTimeout(() => {
       if (this.playerModel) {
         this.playerModel.volumeShow = false;
         this.playerModel.brightShow = false;
       }
       this.positionX = PlayConstants.POSITION_X;
       this.positionY = PlayConstants.POSITION_Y;
+      this.actionEndTimer = -1;
     }, PlayConstants.DISAPPEAR_TIME);
   }
 
@@ -815,12 +1182,22 @@ export class VideoPlayer {
    * Sets whether the screen is a constant based on the playback status.
    */
   watchStatus() {
-    let windowClass = GlobalContext.getContext().getObject('windowClass') as window.Window;
-    if (this.status === CommonConstants.STATUS_START) {
-      windowClass.setWindowKeepScreenOn(true);
-    } else {
-      windowClass.setWindowKeepScreenOn(this.isWindowKeepScreenOn);
+    try {
+      let windowClass = GlobalContext.getContext().getObject('windowClass') as window.Window;
+      if (this.status === CommonConstants.STATUS_START) {
+        windowClass.setWindowKeepScreenOn(this.keepScreenOnDuringPlayback); // 由平台标志驱动
+      } else {
+        windowClass.setWindowKeepScreenOn(this.isWindowKeepScreenOn);
+      }
+    } catch (e) {
+      Log.e(TAG, 'setWindowKeepScreenOn failed: ' + JSON.stringify(e));
     }
+  }
+
+  setKeepScreenOnDuringPlayback(keepScreenOn: boolean): void {
+    this.keepScreenOnDuringPlayback = keepScreenOn;
+    // 标志变化时立即按新值刷新常亮状态，无需等待下一次状态切换。
+    this.watchStatus();
   }
 
   /**
@@ -854,13 +1231,20 @@ export class VideoPlayer {
   }
 
   sendInitialized(): void {
-    Log.i(TAG, "sendInitialized")
+    Log.i(TAG, 'sendInitialized')
     let event: HashMap<string, Object> = new HashMap<string, Object>();
-    event.set("event", "initialized");
-    event.set("duration", this.avPlayer?.duration);
-    event.set("width", this.avPlayer?.width);
-    event.set("height", this.avPlayer?.height);
-    event.set("rotationCorrection", this.cachedRotationCorrection);
+    event.set('event', 'initialized');
+    event.set('duration', this.avPlayer?.duration);
+    event.set('width', this.avPlayer?.width);
+    event.set('height', this.avPlayer?.height);
+    event.set('rotationCorrection', this.cachedRotationCorrection);
+    this.eventSink?.success(event);
+  }
+
+  sendIsPlayingStateUpdate(isPlaying: boolean): void {
+    let event: HashMap<string, Object> = new HashMap<string, Object>();
+    event.set('event', 'isPlayingStateUpdate');
+    event.set('isPlaying', isPlaying);
     this.eventSink?.success(event);
   }
 
@@ -869,7 +1253,7 @@ export class VideoPlayer {
     let fd: fs.File | null = null;
     try {
       extractor = await media.createAVMetadataExtractor();
-      if (this.url?.startsWith("file://")) {
+      if (this.url?.startsWith('file://')) {
         fd = fs.openSync(this.url.substring(7), fs.OpenMode.READ_ONLY);
         extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
       } else if (this.url) {
@@ -902,7 +1286,7 @@ export class VideoPlayer {
 
   sendCompleted(): void {
     let event: HashMap<string, Object> = new HashMap<string, Object>();
-    event.set("event", "completed");
+    event.set('event', 'completed');
     this.eventSink?.success(event);
   }
 
@@ -927,7 +1311,7 @@ export class VideoPlayer {
     }
     this.isBuffering = shouldBuffering;
     let event: HashMap<string, Object> = new HashMap<string, Object>();
-    event.set("event", shouldBuffering ? "bufferingStart" : "bufferingEnd");
+    event.set('event', shouldBuffering ? 'bufferingStart' : 'bufferingEnd');
     this.eventSink?.success(event);
   }
 
@@ -988,7 +1372,7 @@ export class VideoPlayer {
         this.sendBufferingUpdate(media.BufferingInfoType.CACHED_DURATION, bufferDurationObject * CommonConstants.A_THOUSAND);
       }
     } catch (e) {
-      console.error(TAG, "reportBufferedPositionFromPlaybackInfo error:" + JSON.stringify(e))
+      console.error(TAG, 'reportBufferedPositionFromPlaybackInfo error:' + JSON.stringify(e))
     } finally {
       this.isPollingPlaybackInfo = false;
     }
@@ -1011,7 +1395,7 @@ export class VideoPlayer {
       this.sendBufferingEnd();
       return;
     } else if (infoType == media.BufferingInfoType.CACHED_DURATION) {
-      event.set("event", "bufferingUpdate");
+      event.set('event', 'bufferingUpdate');
       let bufferedDuration = this.playTime + bufferingPosition;
       if (bufferedDuration > this.bufferTimeTemp) {
         this.bufferTimeTemp = bufferedDuration;
@@ -1024,21 +1408,29 @@ export class VideoPlayer {
       range.add(this.bufferTimeTemp);
       let valuesList: ArrayList<ArrayList<number>> = new ArrayList<ArrayList<number>>();
       valuesList.add(range);
-      event.set("values", valuesList);
+      event.set('values', valuesList);
     } else {
-      event.set("event", "unknown");
+      event.set('event', 'unknown');
     }
     this.eventSink?.success(event);
   }
 
   sendError(error: Object): void {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    this.eventSink?.error("VideoError", `Video player had error: ${errorMessage}`, error);
+    this.eventSink?.error('VideoError', `Video player had error: ${errorMessage}`, error);
   }
 
-  getIUri(): string {
+  getUri(): string {
     let iUrl = this.url;
     const ohosFilePrefix = 'file://';
+    const fdPrefix = 'fd://';
+    if (iUrl != null && iUrl.startsWith(fdPrefix)) {
+      // 外部传入的 fd（插件侧 getFileFdByPath 打开），记录以便 release 时关闭
+      const parsedFd = Number.parseInt(iUrl.substring(fdPrefix.length));
+      if (!Number.isNaN(parsedFd) && parsedFd >= 0) {
+        this.externalFd = parsedFd;
+      }
+    }
     if (iUrl != null && iUrl.startsWith(ohosFilePrefix)) {
       try {
         if (this.fd != null) {
@@ -1048,7 +1440,7 @@ export class VideoPlayer {
         this.fd = fs.openSync(iUrl, fs.OpenMode.READ_ONLY).fd;
         iUrl = `fd://${this.fd!.toString()}`;
       } catch (e) {
-        Log.e(TAG, 'getIUri fs.openSync failed: ' + JSON.stringify(e));
+        Log.e(TAG, 'getUri fs.openSync failed: ' + JSON.stringify(e));
         this.fd = null;
         return '';
       }

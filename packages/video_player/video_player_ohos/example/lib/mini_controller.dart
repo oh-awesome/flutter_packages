@@ -434,6 +434,41 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     return _platform.isAudioTrackSupportAvailable();
   }
 
+  /// Gets the available video tracks (quality variants) for the current video.
+  Future<List<VideoTrack>> getVideoTracks() async {
+    if (_textureId == kUninitializedTextureId || !value.isInitialized) {
+      return <VideoTrack>[];
+    }
+    return _platform.getVideoTracks(_textureId);
+  }
+
+  /// Selects a video track (quality variant) by [trackId].
+  ///
+  /// Passing `null` restores the automatic/adaptive quality selection.
+  Future<void> selectVideoTrack(String? trackId) async {
+    if (_textureId == kUninitializedTextureId || !value.isInitialized) {
+      return;
+    }
+    if (trackId == null) {
+      await _platform.selectVideoTrack(_textureId, null);
+      return;
+    }
+    final List<VideoTrack> tracks = await _platform.getVideoTracks(_textureId);
+    VideoTrack? target;
+    for (final VideoTrack track in tracks) {
+      if (track.id == trackId) {
+        target = track;
+        break;
+      }
+    }
+    await _platform.selectVideoTrack(_textureId, target);
+  }
+
+  /// Returns whether video track API is supported by current platform.
+  bool isVideoTrackSupportAvailable() {
+    return _platform.isVideoTrackSupportAvailable();
+  }
+
   void _updatePosition(Duration position) {
     value = value.copyWith(position: position);
   }

@@ -28,13 +28,14 @@ class CreateMessage {
   String? formatHint;
   Map<String?, String?> httpHeaders;
   PlatformVideoViewType? viewType;
+  int? backBufferDurationMs;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class OhosVideoPlayerApi {
   void initialize();
   int create(CreateMessage msg);
-  void dispose(int playerId);
+  Future<void> dispose(int playerId);
   void setLooping(int playerId, bool looping);
   void setVolume(int playerId, double volume);
   void setPlaybackSpeed(int playerId, double speed);
@@ -45,4 +46,7 @@ abstract class OhosVideoPlayerApi {
   void setMixWithOthers(bool mixWithOthers);
   List<Object?> getAudioTracks(int playerId);
   void selectAudioTrack(int playerId, int groupIndex, int trackIndex);
+  List<Object?> getVideoTracks(int playerId);
+  void selectVideoTrack(int playerId, int groupIndex, int trackIndex);
+  void enableAutoVideoQuality(int playerId);
 }

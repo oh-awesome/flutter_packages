@@ -114,6 +114,7 @@ class CreateMessage {
     this.formatHint,
     required this.httpHeaders,
     this.viewType,
+    this.backBufferDurationMs,
   });
 
   String? asset;
@@ -128,6 +129,8 @@ class CreateMessage {
 
   PlatformVideoViewType? viewType;
 
+  int? backBufferDurationMs;
+
   List<Object?> _toList() {
     return <Object?>[
       asset,
@@ -136,6 +139,7 @@ class CreateMessage {
       formatHint,
       httpHeaders,
       viewType,
+      backBufferDurationMs,
     ];
   }
 
@@ -151,6 +155,7 @@ class CreateMessage {
       formatHint: result[3] as String?,
       httpHeaders: (result[4] as Map<Object?, Object?>?)!.cast<String?, String?>(),
       viewType: result[5] as PlatformVideoViewType?,
+      backBufferDurationMs: result[6] as int?,
     );
   }
 
@@ -450,6 +455,61 @@ class OhosVideoPlayerApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[playerId, groupIndex, trackIndex]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<List<Object?>> getVideoTracks(int playerId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.getVideoTracks$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[playerId]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object pigeonVar_replyValue = _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: false,
+    )
+    !;
+    return pigeonVar_replyValue as List<Object?>;
+  }
+
+  Future<void> selectVideoTrack(int playerId, int groupIndex, int trackIndex) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.selectVideoTrack$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[playerId, groupIndex, trackIndex]);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    _extractReplyValueOrThrow(
+        pigeonVar_replyList,
+        pigeonVar_channelName,
+        isNullValid: true,
+    )
+    ;
+  }
+
+  Future<void> enableAutoVideoQuality(int playerId) async {
+    final pigeonVar_channelName = 'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.enableAutoVideoQuality$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(<Object?>[playerId]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     _extractReplyValueOrThrow(

@@ -38,7 +38,7 @@ import common from '@ohos.app.ability.common';
 import ArrayList from '@ohos.util.ArrayList';
 import { BusinessError } from '@kit.BasicServicesKit';
 
-const TAG = "FileSelector";
+const TAG = 'FileSelector';
 export class FileSelector {
 
   binding: AbilityPluginBinding;
@@ -54,7 +54,7 @@ export class FileSelector {
       let file_suffix: Array<string> = [];
       if (allowedTypes.extensions != null) {
         for (let extensionType of allowedTypes.extensions) {
-          file_suffix.push("." + extensionType);
+          file_suffix.push('.' + extensionType);
         }
       }
       documentSelectOptions.fileSuffixFilters = file_suffix;
@@ -62,7 +62,7 @@ export class FileSelector {
       const documentViewPicker = new picker.DocumentViewPicker();
       documentViewPicker.select(documentSelectOptions).then((documentSelectResult: Array<string>) => {
         if (documentSelectResult == null || documentSelectResult.length === 0) {
-          result.error(new Error("No file selected"));
+          result.error(new Error('No file selected'));
           return;
         }
         uris = documentSelectResult;
@@ -72,11 +72,11 @@ export class FileSelector {
         result.success(response);
       }).catch((err: BusinessError) => {
         Log.e(TAG, 'Invoke documentPickerSelect failed with err: ' + err);
-        result.error(new Error("Failed to read file: " + err.message));
+        result.error(new Error('Failed to read file: ' + err.message));
       })
     } catch (err) {
       Log.e(TAG, 'documentPickerSelect select failed with err: ' + err);
-      result.error(new Error("Failed to read file"));
+      result.error(new Error('Failed to read file'));
     }
   }
 
@@ -89,7 +89,7 @@ export class FileSelector {
     {
       this.binding = abilityPluginBinding;
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
-        binaryMessenger, "dev.flutter.FileSelectorApi.openFile", FileSelector.getCodec());
+        binaryMessenger, 'dev.flutter.FileSelectorApi.openFile', FileSelector.getCodec());
       channel.setMessageHandler({
         onMessage(msg: ESObject, reply: Reply<ESObject>): void {
           Log.d(TAG, 'onMessage reply:' + reply)
@@ -107,6 +107,12 @@ export class FileSelector {
         }
       });
     }
+  }
+
+  teardown(binaryMessenger: BinaryMessenger): void {
+    const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+      binaryMessenger, 'dev.flutter.FileSelectorApi.openFile', FileSelector.getCodec());
+    channel.setMessageHandler(null);
   }
 }
 

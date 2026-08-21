@@ -12,7 +12,7 @@ export interface VideoPlayerApi {
 
   create(arg: CreateMessage): Promise<number>;
 
-  dispose(playerId: number): void;
+  dispose(playerId: number): Promise<void>;
 
   setLooping(playerId: number, looping: boolean): void;
 
@@ -33,6 +33,12 @@ export interface VideoPlayerApi {
   getAudioTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
 
   selectAudioTrack(playerId: number, groupIndex: number, trackIndex: number): Promise<void>;
+
+  getVideoTracks(playerId: number): Promise<Array<Map<string, string | number | boolean | null>>>;
+
+  selectVideoTrack(playerId: number, groupIndex: number, trackIndex: number): Promise<void>;
+
+  enableAutoVideoQuality(playerId: number): Promise<void>;
 
   setup(binaryMessenger: BinaryMessenger): void;
 }
