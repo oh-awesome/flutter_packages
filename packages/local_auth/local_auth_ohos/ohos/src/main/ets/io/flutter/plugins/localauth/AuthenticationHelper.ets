@@ -22,6 +22,7 @@ import MethodCall from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodCall
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { AuthCallback } from './LocalAuthPlugin';
+import { OhosAuthErrorCode } from './OhosAuthErrorCode';
 
 /**
  * Authenticates the user with biometrics and sends corresponding response back to Flutter.
@@ -30,7 +31,7 @@ import { AuthCallback } from './LocalAuthPlugin';
  * method calls.
  */
 
-const TAG = "AuthenticationHelper";
+const TAG = 'AuthenticationHelper';
 
 export class AuthenticationHelper {
   private binding: AbilityPluginBinding | null = null;
@@ -59,7 +60,10 @@ export class AuthenticationHelper {
         authType: [],
         authTrustLevel: userAuth.AuthTrustLevel.ATL1,
       };
-      const argAuthType:string = call.argument("authType")
+      const argAuthTypeRaw: ESObject = call.argument('authType');
+      const argAuthType: string = (argAuthTypeRaw != null && typeof argAuthTypeRaw === 'string')
+        ? argAuthTypeRaw as string
+        : '';
       switch (argAuthType) {
         case 'FACE':
           this.authParam.authType.push(userAuth.UserAuthType.FACE);
@@ -78,8 +82,11 @@ export class AuthenticationHelper {
           ];
           break;
       }
+      const localizedReasonRaw: ESObject = call.argument('localizedReason');
+      const localizedReason: string = (localizedReasonRaw != null && typeof localizedReasonRaw === 'string')
+      ? localizedReasonRaw as string : 'Authentication required';
       this.widgetParam = {
-        title: call.argument("localizedReason"),
+        title: localizedReason,
       }
     }
     this.userAuthInstance = userAuth.getUserAuthInstance(this.authParam, this.widgetParam);
@@ -90,21 +97,61 @@ export class AuthenticationHelper {
     return this.binding?.getAbility().context;
   }
 
-  /** Start the biometric listener. */
-  authenticate(methodResult: MethodResult): void {
+  /**
+   * Start the biometric listener.
+   *
+   * onComplete (optional) is invoked once after the terminal auth result is delivered and
+   * resources are released, so the caller can drop its reference to this helper. It is also
+   * invoked on the synchronous start() failure path, so the caller can treat both terminal
+   * cases uniformly.
+   */
+  authenticate(methodResult: MethodResult, onComplete?: () => void): void {
     try {
-      this.authCallback = new AuthCallback(methodResult, true);
-      let that = this.authCallback;
-      this.userAuthInstance?.on('result', {
-        onResult(result) {
-          that.onResult(result);
+      let callback = new AuthCallback(methodResult);
+      this.authCallback = callback;
+      let instance = this.userAuthInstance;
+      let helper = this;
+      instance?.on('result', {
+        onResult(result: userAuth.UserAuthResult): void {
+          // Deliver the terminal result to Flutter first.
+          callback.onResult(result);
+          // The auth result is terminal (fired exactly once). Break the reference chain
+          // UserAuthInstance -> this listener -> AuthCallback -> MethodResult so the
+          // MethodResult (and its underlying reply callback) is not retained after auth
+          // completes. Cleanup errors must not affect the already-delivered result.
+          try {
+            instance?.off('result');
+            helper.authCallback = null;
+            helper.userAuthInstance = null;
+          } catch (e) {
+            Log.e(TAG, 'auth result cleanup error: ' + JSON.stringify(e));
+          } finally {
+            if (onComplete) {
+              onComplete();
+            }
+          }
         }
       });
 
-      this.userAuthInstance?.start();
+      instance?.start();
       Log.i(TAG, 'auth start success');
     } catch (error) {
+      // start() failed synchronously: the on('result') listener registered above is still
+      // attached. If we leave it, UserAuthInstance retains the listener (memory leak) and a
+      // later result event would invoke the callback with an already-consumed MethodResult.
+      // Remove the listener and drop references before reporting the error to Flutter.
       Log.e(TAG, 'auth catch error: ' + JSON.stringify(error));
+      try {
+        this.userAuthInstance?.off('result');
+      } catch (e) {
+        Log.e(TAG, 'auth start cleanup error: ' + JSON.stringify(e));
+      }
+      this.userAuthInstance = null;
+      this.authCallback = null;
+      methodResult.error(OhosAuthErrorCode.GENERAL_ERROR, 'Failed to start authentication: ' + JSON.stringify(error), null);
+      if (onComplete) {
+        onComplete();
+      }
     }
   }
 
@@ -113,8 +160,12 @@ export class AuthenticationHelper {
     try {
       this.userAuthInstance?.cancel();
       Log.i(TAG, 'auth cancel success');
+      this.userAuthInstance = null;
+      this.authCallback = null;
     } catch (error) {
       Log.e(TAG, 'auth catch error: ' + JSON.stringify(error));
+      this.userAuthInstance = null;
+      this.authCallback = null;
     }
   }
 }

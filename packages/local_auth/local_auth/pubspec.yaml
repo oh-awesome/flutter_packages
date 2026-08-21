@@ -31,9 +31,9 @@ dependencies:
   local_auth_windows: ^2.0.0
   local_auth_ohos:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/local_auth/local_auth_ohos"
-      ref: "br_local_auth-v3.0.1_ohos_dev"
+      ref: "oh-3.44.9-dev"
 
 dev_dependencies:
   flutter_test:
