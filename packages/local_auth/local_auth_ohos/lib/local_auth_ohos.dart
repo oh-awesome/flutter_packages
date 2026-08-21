@@ -117,7 +117,7 @@ class LocalAuthOhos extends LocalAuthPlatform {
         );
       case OhosAuthErrorCode.notAvailable:
         return const LocalAuthException(
-          code: LocalAuthExceptionCode.noBiometricHardware,
+          code: LocalAuthExceptionCode.noCredentialsSet,
           description: 'Required security features not enabled',
         );
       default:

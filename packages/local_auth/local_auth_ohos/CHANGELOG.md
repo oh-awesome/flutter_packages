@@ -1,3 +1,21 @@
+local_auth-v3.0.2-ohos-1.0.0
+
+* add: Version & Environment
+Package version upgraded from 3.0.1 to 3.0.2 (both main package and example synchronized);
+Dart SDK constraint updated from ^3.9.0 to ^3.10.0, and minimum Flutter version raised from >=3.35.0 to >=3.38.0.
+* add: Documentation Refactoring
+Removed legacy README.md / README_CN.md, replaced with README.OpenHarmony.md and README.OpenHarmony_CN.md, which include a complete API table, full property descriptions for OhosAuthMessages, parameter tables for authenticate, and multiple code examples;
+Added CHANGELOG.OpenHarmony.md to track all changes.
+* add: Native Code Quality Hardening (AuthenticationHelper.ets & LocalAuthPlugin.ets)
+Unified exception handling for all MethodChannel handlers, ensuring that result is always called back exactly once;
+Cut off the reference chain: UserAuthInstance → Listener → AuthCallback → MethodResult, fixing the memory leak caused by unreleased listeners/resources after authentication (covering both the start() sync-failure path and the stopAuthentication path);
+Changed the global authInProgress flag to a plugin instance field, eliminating state cross-talk under multi-engine scenarios;
+Cleaned up redundant fields and dead code in AuthCallback.
+* add: Testing (local_auth_test.dart)
+Added four new test groups covering parameter validation, permission/availability errors, edge cases, and concurrency scenarios;
+Fixed one assertion mapping error;
+All 52 test cases now pass successfully.
+
 ## 2.0.0
 
 * Switches to `LocalAuthException` for error reporting.

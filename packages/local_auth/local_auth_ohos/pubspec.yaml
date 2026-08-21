@@ -15,11 +15,11 @@ name: local_auth_ohos
 description: Ohos implementation of the local_auth plugin.
 repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/local_auth/local_auth_ohos
 issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
-version: 3.0.1
+version: 3.0.2
 
 environment:
-  sdk: "^3.9.0"
-  flutter: ">=3.35.0"
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
 
 flutter:
   plugin:
@@ -40,3 +40,4 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  coverage: ^1.6.0

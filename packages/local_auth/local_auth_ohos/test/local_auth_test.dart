@@ -346,10 +346,10 @@ void main() {
       );
     });
 
-    test('maps notAvailable to noBiometricHardware', () async {
+    test('maps notAvailable to noCredentialsSet', () async {
       await expectAuthenticateException(
         code: OhosAuthErrorCode.notAvailable,
-        expectedCode: LocalAuthExceptionCode.noBiometricHardware,
+        expectedCode: LocalAuthExceptionCode.noCredentialsSet,
         expectedDescription: 'Required security features not enabled',
       );
     });
@@ -360,6 +360,315 @@ void main() {
         expectedCode: LocalAuthExceptionCode.unknownError,
         expectedDescription: 'Unknown error: unexpected',
       );
+    });
+
+    group('argument validation', () {
+      test('asserts when localizedReason is empty', () async {
+        // The plugin guards a non-empty reason with an assert. In test mode asserts
+        // throw AssertionError, which surfaces as a failing assert rather than a
+        // silent success.
+        _setMockHandler((MethodCall call) async => true);
+
+        await expectLater(
+          plugin.authenticate(
+            localizedReason: '',
+            authMessages: <AuthMessages>[],
+          ),
+          throwsA(isA<AssertionError>()),
+        );
+      });
+
+      test('accepts all options set to non-default values', () async {
+        final List<MethodCall> calls = <MethodCall>[];
+        _setMockHandler((MethodCall call) async {
+          calls.add(call);
+          return false;
+        });
+
+        final bool result = await plugin.authenticate(
+          localizedReason: 'reason',
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
+          options: const AuthenticationOptions(
+            stickyAuth: true,
+            biometricOnly: true,
+            sensitiveTransaction: false,
+            useErrorDialogs: false,
+          ),
+        );
+
+        expect(result, isFalse);
+        final Map<dynamic, dynamic> args =
+            calls.single.arguments as Map<dynamic, dynamic>;
+        expect(args['stickyAuth'], isTrue);
+        expect(args['biometricOnly'], isTrue);
+        expect(args['sensitiveTransaction'], isFalse);
+      });
+
+      test('falls back to defaults when only required args are provided',
+          () async {
+        final List<MethodCall> calls = <MethodCall>[];
+        _setMockHandler((MethodCall call) async {
+          calls.add(call);
+          return true;
+        });
+
+        await plugin.authenticate(
+          localizedReason: 'reason',
+          authMessages: <AuthMessages>[const OhosAuthMessages()],
+        );
+
+        final Map<dynamic, dynamic> args =
+            calls.single.arguments as Map<dynamic, dynamic>;
+        // AuthenticationOptions defaults.
+        expect(args['stickyAuth'], isFalse);
+        expect(args['biometricOnly'], isFalse);
+        expect(args['sensitiveTransaction'], isTrue);
+        // Default Ohos authType.
+        expect(args['authType'], '');
+      });
+    });
+  });
+
+  group('permission and availability errors', () {
+    test(
+      'authenticate maps notAvailable when security features are not enabled',
+      () async {
+        _setMockHandler((MethodCall call) async {
+          expect(call.method, 'authenticate');
+          throw PlatformException(
+            code: OhosAuthErrorCode.notAvailable,
+            message: 'Required security features not enabled',
+          );
+        });
+
+        await expectLater(
+          plugin.authenticate(
+            localizedReason: 'reason',
+            authMessages: <AuthMessages>[],
+          ),
+          throwsA(
+            isA<LocalAuthException>()
+                .having(
+                  (LocalAuthException e) => e.code,
+                  'code',
+                  LocalAuthExceptionCode.noCredentialsSet,
+                )
+                .having(
+                  (LocalAuthException e) => e.description,
+                  'description',
+                  'Required security features not enabled',
+                ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'authenticate maps noAbility when no foreground ability is available',
+      () async {
+        _setMockHandler((MethodCall call) async {
+          expect(call.method, 'authenticate');
+          throw PlatformException(
+            code: OhosAuthErrorCode.noAbility,
+            message: 'local_auth plugin requires a foreground ability',
+          );
+        });
+
+        await expectLater(
+          plugin.authenticate(
+            localizedReason: 'reason',
+            authMessages: <AuthMessages>[],
+          ),
+          throwsA(
+            isA<LocalAuthException>().having(
+              (LocalAuthException e) => e.code,
+              'code',
+              LocalAuthExceptionCode.uiUnavailable,
+            ),
+          ),
+        );
+      },
+    );
+
+    test('authenticate surfaces a missing-plugin error when no handler is set',
+        () async {
+      // With no mock handler, the channel has nothing to respond and the invoke
+      // fails before any LocalAuthException mapping can occur. This documents the
+      // "missing backend" / unregistered-permission path: a MissingPluginException
+      // escapes unchanged (it is not a PlatformException, so it bypasses mapping).
+      _clearMockHandler();
+
+      await expectLater(
+        plugin.authenticate(
+          localizedReason: 'reason',
+          authMessages: <AuthMessages>[],
+        ),
+        throwsA(isA<MissingPluginException>()),
+      );
+    });
+  });
+
+  group('boundary scenarios', () {
+    test('deviceSupportsBiometrics throws on a non-bool result type', () async {
+      // invokeMethod<bool> casts the result; a non-bool (e.g. a String) fails the
+      // `as bool?` cast before the `?? false` fallback can apply. This documents the
+      // boundary behavior when the OHOS side returns an unexpected runtime type.
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'deviceSupportsBiometrics');
+        return 'unsupported';
+      });
+
+      await expectLater(
+        plugin.deviceSupportsBiometrics(),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
+    test('isDeviceSupported returns false on a null result', () async {
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'isDeviceSupported');
+        return null;
+      });
+
+      expect(await plugin.isDeviceSupported(), isFalse);
+    });
+
+    test('getEnrolledBiometrics handles an empty list', () async {
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'getEnrolledBiometrics');
+        return <String>[];
+      });
+
+      expect(await plugin.getEnrolledBiometrics(), isEmpty);
+    });
+
+    test('getEnrolledBiometrics handles a large list with mixed values',
+        () async {
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'getEnrolledBiometrics');
+        return <String>[
+          'face',
+          'fingerprint',
+          'face', // duplicate
+          'unknown', // ignored
+          'fingerprint',
+        ];
+      });
+
+      expect(
+        await plugin.getEnrolledBiometrics(),
+        <BiometricType>[
+          BiometricType.face,
+          BiometricType.fingerprint,
+          BiometricType.face,
+          BiometricType.fingerprint,
+        ],
+      );
+    });
+
+    test('repeated calls keep returning fresh results', () async {
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'deviceSupportsBiometrics');
+        return true;
+      });
+
+      expect(await plugin.deviceSupportsBiometrics(), isTrue);
+      expect(await plugin.deviceSupportsBiometrics(), isTrue);
+      expect(await plugin.deviceSupportsBiometrics(), isTrue);
+    });
+  });
+
+  group('concurrency', () {
+    test('runs multiple authenticate calls concurrently', () async {
+      // Concurrent invokes should each receive their own result. The mock returns
+      // per-call based on the localizedReason so we can tell them apart.
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'authenticate');
+        final Map<dynamic, dynamic> args =
+            call.arguments as Map<dynamic, dynamic>;
+        return args['localizedReason'] == 'ok';
+      });
+
+      final List<Future<bool>> futures = <Future<bool>>[
+        plugin.authenticate(
+          localizedReason: 'ok',
+          authMessages: <AuthMessages>[],
+        ),
+        plugin.authenticate(
+          localizedReason: 'no',
+          authMessages: <AuthMessages>[],
+        ),
+        plugin.authenticate(
+          localizedReason: 'ok',
+          authMessages: <AuthMessages>[],
+        ),
+      ];
+
+      final List<bool> results = await Future.wait(futures);
+      expect(results, <bool>[true, false, true]);
+    });
+
+    test('mixed concurrent queries across different methods', () async {
+      _setMockHandler((MethodCall call) {
+        switch (call.method) {
+          case 'isDeviceSupported':
+            return Future<bool>.value(true);
+          case 'deviceSupportsBiometrics':
+            return Future<bool>.value(false);
+          case 'getEnrolledBiometrics':
+            return Future<List<String>>.value(<String>['face']);
+          case 'stopAuthentication':
+            return Future<bool>.value(true);
+          default:
+            return Future<dynamic>.value();
+        }
+      });
+
+      final List<dynamic> results = await Future.wait<dynamic>(
+        <Future<dynamic>>[
+          plugin.isDeviceSupported(),
+          plugin.deviceSupportsBiometrics(),
+          plugin.getEnrolledBiometrics(),
+          plugin.stopAuthentication(),
+          plugin.isDeviceSupported(),
+        ],
+      );
+
+      expect(results, <dynamic>[
+        true,
+        false,
+        <BiometricType>[BiometricType.face],
+        true,
+        true,
+      ]);
+    });
+
+    test('concurrent authenticate calls preserve per-call args', () async {
+      final List<Map<dynamic, dynamic>> captured = <Map<dynamic, dynamic>>[];
+      _setMockHandler((MethodCall call) async {
+        expect(call.method, 'authenticate');
+        captured.add(call.arguments as Map<dynamic, dynamic>);
+        return true;
+      });
+
+      await Future.wait(<Future<bool>>[
+        plugin.authenticate(
+          localizedReason: 'first',
+          authMessages: <AuthMessages>[const OhosAuthMessages(authType: 'FACE')],
+        ),
+        plugin.authenticate(
+          localizedReason: 'second',
+          authMessages: <AuthMessages>[
+            const OhosAuthMessages(authType: 'FINGERPRINT'),
+          ],
+        ),
+      ]);
+
+      expect(captured, hasLength(2));
+      expect(captured[0]['localizedReason'], 'first');
+      expect(captured[0]['authType'], 'FACE');
+      expect(captured[1]['localizedReason'], 'second');
+      expect(captured[1]['authType'], 'FINGERPRINT');
     });
   });
 }
