@@ -47,6 +47,13 @@ class HomePage extends StatelessWidget {
               onPressed: () => Navigator.pushNamed(context, '/open/mime'),
             ),
             const SizedBox(height: 10),
+            ElevatedButton(
+              style: style,
+              child: const Text('getDirectoryPath (unsupported)'),
+              onPressed: () =>
+                  Navigator.pushNamed(context, '/open/directory'),
+            ),
+            const SizedBox(height: 10),
           ],
         ),
       ),

@@ -42,7 +42,10 @@ export default class FileSelectorOhosPlugin implements FlutterPlugin, AbilityAwa
   }
 
   onDetachedFromAbility(): void {
-    this.fileSelectorApi = null;
+    if (this.fileSelectorApi != null) {
+      this.fileSelectorApi.teardown();
+      this.fileSelectorApi = null;
+    }
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
@@ -51,6 +54,10 @@ export default class FileSelectorOhosPlugin implements FlutterPlugin, AbilityAwa
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
+    if (this.fileSelectorApi != null) {
+      this.fileSelectorApi.teardown();
+      this.fileSelectorApi = null;
+    }
     this.pluginBinding = null;
   }
 }

@@ -7,6 +7,7 @@ import 'package:file_selector_platform_interface/file_selector_platform_interfac
 import 'package:flutter/material.dart';
 import 'package:flutter_driver/driver_extension.dart';
 
+import 'get_directory_page.dart';
 import 'home_page.dart';
 import 'open_image_page.dart';
 import 'open_multiple_images_page.dart';
@@ -45,6 +46,7 @@ class MyApp extends StatelessWidget {
             const OpenMultipleImagesPage(),
         '/open/text': (BuildContext context) => const OpenTextPage(),
         '/open/mime': (BuildContext context) => const OpenWithMimeTypesPage(),
+        '/open/directory': (BuildContext context) => const GetDirectoryPage(),
       },
     );
   }
