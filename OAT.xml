@@ -100,7 +100,19 @@
                 <filteritem type="filename" name="*TestAbility.ets" desc="项目工程默认文件，不需要添加版权头"/>
                 <filteritem type="filename" name="*OpenHarmonyTestRunner.ts" desc="项目工程默认文件，不需要添加版权头"/>
                 <filteritem type="filename" name="*GeneratedPluginRegistrant.ets" desc="项目工程默认文件，不需要添加版权头"/>
+                <filteritem type="filename" name="*.puml" desc="PlantUML图表文件，文档用途"/>
+                <filteritem type="filename" name=".flutter-plugins" desc="Flutter生成的插件列表文件"/>
+                <filteritem type="filename" name=".flutter-plugins-dependencies" desc="Flutter生成的插件依赖文件"/>
+                <filteritem type="filename" name="flutter_export_environment.sh" desc="Flutter生成的环境导出脚本"/>
+                <filteritem type="filename" name="*.entitlements" desc="macOS/iOS权限配置文件"/>
+                <filteritem type="filename" name="*.manifest" desc="Windows清单文件"/>
+                <filteritem type="filename" name="*.xib" desc="macOS/iOS界面构建器文件"/>
+                <filteritem type="filename" name="GeneratedPluginRegistrant.*" desc="Flutter生成的插件注册文件"/>
+                <filteritem type="filename" name="Package.swift" desc="Swift包管理器文件"/>
+                <filteritem type="filename" name="FlutterGeneratedPluginSwiftPackage.swift" desc="Flutter生成的Swift包文件"/>
+                <filteritem type="filename" name="generated_plugin_registrant.*" desc="Flutter生成的插件注册文件"/>
                 <filteritem type="filepath" name="**/example/*" desc="example文件，不需要添加版权头"/>
+                <filteritem type="filepath" name="**/ephemeral/*" desc="Flutter生成的临时文件"/>
                 <filteritem type="filepath" name="**/camera/utlis/*" desc="工具文件，不需要添加版权头"/>
                 <filteritem type="filepath" name="**/videoplayer/util/*" desc="工具文件，不需要添加版权头"/>
                 <filteritem type="filepath" name="**/iap_kit_wrappers/*" desc="desc files"/>
@@ -263,9 +275,9 @@
                 <filteritem type="filename" name=".pubignore" desc="pub包管理器忽略文件，不需要添加版权头"/>
                 <filteritem type="filepath" name="**/ios/*" desc="所有 iOS 平台代码，不做侵入式修改"/>
                 <filteritem type="filepath" name="**/linux/*" desc="所有 linux 平台代码，不做侵入式修改"/>
- 	            <filteritem type="filepath" name="**/windows/*" desc="所有 windows 平台代码，不做侵入式修改"/>
- 	            <filteritem type="filepath" name="**/macos/*" desc="所有 macos 平台代码，不做侵入式修改"/>
- 	            <filteritem type="filepath" name="**/android/*" desc="所有 android 平台代码，不做侵入式修改"/>
+                <filteritem type="filepath" name="**/windows/*" desc="所有 windows 平台代码，不做侵入式修改"/>
+                <filteritem type="filepath" name="**/macos/*" desc="所有 macos 平台代码，不做侵入式修改"/>
+                <filteritem type="filepath" name="**/android/*" desc="所有 android 平台代码，不做侵入式修改"/>
             </filefilter>
             <filefilter name="defaultPolicyFilter" desc="Filters for compatibility，license header policies">
                 <filteritem type="filepath" name="packages/file_selector/file_selector_ohos/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>

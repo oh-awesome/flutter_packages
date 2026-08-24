@@ -18,6 +18,7 @@ import 'package:args/args.dart';
 import 'package:meta/meta.dart' show visibleForTesting;
 import 'package:path/path.dart' as path;
 
+import 'arkts/arkts_generator.dart';
 import 'ast.dart';
 import 'cpp/cpp_generator.dart';
 import 'dart/dart_generator.dart';
@@ -257,6 +258,8 @@ class PigeonOptions {
     this.gobjectSourceOut,
     this.gobjectOptions,
     this.dartOptions,
+    this.arkTSOut,
+    this.arkTSOptions,
     this.copyrightHeader,
     this.astOut,
     this.debugGenerators,
@@ -323,6 +326,12 @@ class PigeonOptions {
   /// Options that control how Dart will be generated.
   final DartOptions? dartOptions;
 
+  /// Path to the ArkTS file that will be generated.
+  final String? arkTSOut;
+
+  /// Options that control how ArkTS will be generated.
+  final ArkTSOptions? arkTSOptions;
+
   /// Path to a copyright header that will get prepended to generated code.
   final String? copyrightHeader;
 
@@ -378,6 +387,10 @@ class PigeonOptions {
       dartOptions: map.containsKey('dartOptions')
           ? DartOptions.fromMap(map['dartOptions']! as Map<String, Object>)
           : null,
+      arkTSOut: map['arkTSOut'] as String?,
+      arkTSOptions: map.containsKey('arkTSOptions')
+          ? ArkTSOptions.fromMap(map['arkTSOptions']! as Map<String, Object>)
+          : null,
       copyrightHeader: map['copyrightHeader'] as String?,
       astOut: map['astOut'] as String?,
       debugGenerators: map['debugGenerators'] as bool?,
@@ -409,6 +422,8 @@ class PigeonOptions {
       if (gobjectSourceOut != null) 'gobjectSourceOut': gobjectSourceOut!,
       if (gobjectOptions != null) 'gobjectOptions': gobjectOptions!.toMap(),
       if (dartOptions != null) 'dartOptions': dartOptions!.toMap(),
+      if (arkTSOut != null) 'arkTSOut': arkTSOut!,
+      if (arkTSOptions != null) 'arkTSOptions': arkTSOptions!.toMap(),
       if (copyrightHeader != null) 'copyrightHeader': copyrightHeader!,
       if (astOut != null) 'astOut': astOut!,
       if (debugGenerators != null) 'debugGenerators': debugGenerators!,
@@ -557,6 +572,7 @@ ${_argParser.usage}''';
       aliases: const <String>['experimental_gobject_source_out'],
     )
     ..addOption('gobject_module', help: 'The module that generated GObject code will be in.')
+    ..addOption('arkts_out', help: 'Path to generated ArkTS file (.ets).')
     ..addOption('objc_header_out', help: 'Path to generated Objective-C header file (.h).')
     ..addOption('objc_prefix', help: 'Prefix for generated Objective-C classes and protocols.')
     ..addOption(
@@ -617,6 +633,8 @@ ${_argParser.usage}''';
       gobjectHeaderOut: results['gobject_header_out'] as String?,
       gobjectSourceOut: results['gobject_source_out'] as String?,
       gobjectOptions: GObjectOptions(module: results['gobject_module'] as String?),
+      arkTSOut: results['arkts_out'] as String?,
+      arkTSOptions: const ArkTSOptions(),
       copyrightHeader: results['copyright_header'] as String?,
       astOut: results['ast_out'] as String?,
       debugGenerators: results['debug_generators'] as bool?,
@@ -681,6 +699,7 @@ ${_argParser.usage}''';
           const DartTestGeneratorAdapter(),
           const ObjcGeneratorAdapter(),
           const AstGeneratorAdapter(),
+          const ArkTSGeneratorAdapter(),
         ];
     _executeConfigurePigeon(options);
 
