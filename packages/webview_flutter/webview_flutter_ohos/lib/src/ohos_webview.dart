@@ -194,7 +194,6 @@ class WebView extends OhosObject {
   ///   <html><body>'%28' is the code for '('</body></html>
   /// ''';
   /// final encodedHtml = base64.encode(utf8.encode(unencodedHtml));
-  /// print(encodedHtml);
   /// ```
   ///
   /// The [mimeType] parameter specifies the format of the data. If WebView
@@ -599,7 +598,7 @@ class WebSettings extends OhosObject {
 
   /// Sets the background color of this WebView.
   Future<void> setBackgroundColor(Color color) {
-    return api.setBackgroundColorFromInstance(this, color.value);
+    return api.setBackgroundColorFromInstance(this, color.toARGB32());
   }
 
   /// Tells the WebView to enable JavaScript execution.
@@ -1019,8 +1018,13 @@ class WebViewClient extends OhosObject {
   )? onReceivedHttpError;
 
   /// Notify the host application that an SSL error occurred while loading a resource.
+  ///
+  /// Either [SslErrorHandler.cancel] or [SslErrorHandler.proceed] must be called
+  /// to complete the load, matching Android [WebViewClient.onReceivedSslError]
+  /// semantics.
   final void Function(
     WebView webView,
+    SslErrorHandler handler,
     String url,
     String certificate,
     String description,
@@ -1055,6 +1059,7 @@ class WebViewClient extends OhosObject {
       urlLoading: urlLoading,
       doUpdateVisitedHistory: doUpdateVisitedHistory,
       onReceivedHttpAuthRequest: onReceivedHttpAuthRequest,
+      onReceivedHttpError: onReceivedHttpError,
       onReceivedSslError: onReceivedSslError,
       binaryMessenger: _api.binaryMessenger,
       instanceManager: _api.instanceManager,
@@ -1706,5 +1711,30 @@ class HttpAuthHandler extends OhosObject {
   /// server for the current request.
   Future<bool> useHttpAuthUsernamePassword() {
     return api.useHttpAuthUsernamePasswordFromInstance(this);
+  }
+}
+
+/// Handler for ArkWeb SSL certificate errors (`onSslErrorEventReceive`).
+///
+/// The app must call either [cancel] or [proceed].
+class SslErrorHandler extends OhosObject {
+  /// Constructs an [SslErrorHandler] for a host-created native handler.
+  SslErrorHandler({
+    super.binaryMessenger,
+    super.instanceManager,
+  }) : super.detached();
+
+  /// Pigeon Host Api implementation for [SslErrorHandler].
+  @visibleForTesting
+  static SslErrorHandlerHostApiImpl api = SslErrorHandlerHostApiImpl();
+
+  /// Reject the certificate and stop loading.
+  Future<void> cancel() {
+    return api.cancelFromInstance(this);
+  }
+
+  /// Accept the certificate (unsafe; use only when appropriate).
+  Future<void> proceed() {
+    return api.proceedFromInstance(this);
   }
 }

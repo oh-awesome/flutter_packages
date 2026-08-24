@@ -6,7 +6,9 @@
 
 import { FlutterPluginBinding, FlutterPlugin } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
 import PluginRegistry from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/PluginRegistry';
+import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import PlatformViewRegistry from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformViewRegistry';
 import { OhosObjectHostApiImpl } from './OhosObjectHostApiImpl';
 import { CookieManagerHostApiImpl } from './CookieManagerHostApiImpl';
@@ -22,6 +24,7 @@ import GeneratedOhosWebView, {
   FlutterAssetManagerHostApi,
   GeolocationPermissionsCallbackHostApi,
   HttpAuthHandlerHostApi,
+  SslErrorHandlerHostApi,
   InstanceManagerHostApi,
   JavaScriptChannelHostApi,
   PermissionRequestHostApi,
@@ -37,6 +40,7 @@ import GeneratedOhosWebView, {
 } from './GeneratedOhosWebView';
 import { GeolocationPermissionsCallbackHostApiImpl } from './GeolocationPermissionsCallbackHostApiImpl';
 import { HttpAuthHandlerHostApiImpl } from './HttpAuthHandlerHostApiImpl';
+import { SslErrorHandlerHostApiImpl } from './SslErrorHandlerHostApiImpl';
 import { InstanceManager } from './InstanceManager';
 import { JavaScriptChannelCreator, JavaScriptChannelHostApiImpl } from './JavaScriptChannelHostApiImpl';
 import { PermissionRequestHostApiImpl } from './PermissionRequestHostApiImpl';
@@ -58,6 +62,8 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
   }
 
   private instanceManager: InstanceManager|null = null;
+
+  private webViewHostApiImpl: WebViewHostApiImpl|null = null;
 
   setUp(
     binaryMessenger: BinaryMessenger, viewRegistry: PlatformViewRegistry, context: Context,
@@ -88,6 +94,9 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
     let webViewHostApi: WebViewHostApi =
       new WebViewHostApiImpl(
         this.instanceManager, new WebViewProxy(), binaryMessenger, context);
+    // Kept as the concrete impl so onDetachedFromEngine can run its
+    // active-view disposal backstop.
+    this.webViewHostApiImpl = webViewHostApi as WebViewHostApiImpl;
     let javaScriptChannelHostApi: JavaScriptChannelHostApi =
       new JavaScriptChannelHostApiImpl(
         this.instanceManager,
@@ -161,6 +170,8 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
       binaryMessenger, new CustomViewCallbackHostApiImpl(binaryMessenger, this.instanceManager));
     HttpAuthHandlerHostApi.setup(
       binaryMessenger, new HttpAuthHandlerHostApiImpl(binaryMessenger, this.instanceManager));
+    SslErrorHandlerHostApi.setup(
+      binaryMessenger, new SslErrorHandlerHostApiImpl(binaryMessenger, this.instanceManager));
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding) {
@@ -174,7 +185,42 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding) {
+    // Leak fix backstop: dispose any WebView that was never disposed
+    // individually (e.g. its controller never attached), stopping its
+    // polling intervals, display listeners and dialogs before the handlers
+    // and instance manager go away. dispose() is idempotent, so views the
+    // platform view registry disposes later are unaffected.
+    if (this.webViewHostApiImpl != null) {
+      this.webViewHostApiImpl.disposeAllActiveWebViews();
+      this.webViewHostApiImpl = null;
+    }
+    // Resource cleanup: unregister the Pigeon handlers registered by setUp()
+    // and drop all instance references. This runs only after engine detach;
+    // message routing and live WebView behavior are unchanged while attached.
+    const binaryMessenger: BinaryMessenger = binding.getBinaryMessenger();
+    InstanceManagerHostApi.setup(binaryMessenger, null);
+    OhosObjectHostApi.setup(binaryMessenger, null);
+    WebViewHostApi.setup(binaryMessenger, null);
+    JavaScriptChannelHostApi.setup(binaryMessenger, null);
+    WebViewClientHostApi.setup(binaryMessenger, null);
+    WebChromeClientHostApi.setup(binaryMessenger, null);
+    DownloadListenerHostApi.setup(binaryMessenger, null);
+    WebSettingsHostApi.setup(binaryMessenger, null);
+    WebViewFeatureHostApi.setup(binaryMessenger, null);
+    FlutterAssetManagerHostApi.setup(binaryMessenger, null);
+    CookieManagerHostApi.setup(binaryMessenger, null);
+    WebStorageHostApi.setup(binaryMessenger, null);
+    PermissionRequestHostApi.setup(binaryMessenger, null);
+    GeolocationPermissionsCallbackHostApi.setup(binaryMessenger, null);
+    CustomViewCallbackHostApi.setup(binaryMessenger, null);
+    HttpAuthHandlerHostApi.setup(binaryMessenger, null);
+    // Leak fix (symmetric deregistration): setUp() registers the SSL handler
+    // above, but it was never unregistered here, leaving the Pigeon handler
+    // (and its captured impl/instance manager) reachable after engine detach.
+    SslErrorHandlerHostApi.setup(binaryMessenger, null);
+
     if (this.instanceManager != null) {
+      this.instanceManager.clear();
       this.instanceManager.stopFinalizationListener();
       this.instanceManager = null;
     }

@@ -2,43 +2,50 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import 'dart:io';
+import 'package:meta/meta.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
-/// Implementation of the [PlatformSslAuthError] with the OHOS WebView API.
-class OhosSslAuthError extends PlatformSslAuthError {
-  /// Creates an [OhosSslAuthError].
-  OhosSslAuthError._({required super.certificate, required super.description, required this.url});
+import 'ohos_webview.dart' as ohos;
 
-  /// Creates an [OhosSslAuthError] from the parameters from the native
-  /// callback.
+/// Implementation of [PlatformSslAuthError] for OpenHarmony / HarmonyOS ArkWeb.
+class OhosSslAuthError extends PlatformSslAuthError {
+  OhosSslAuthError._({
+    required super.certificate,
+    required super.description,
+    required this.url,
+    required ohos.SslErrorHandler handler,
+  }) : _handler = handler;
+
+  final ohos.SslErrorHandler _handler;
+
+  /// The URL being loaded when the SSL error occurred.
+  final String url;
+
+  /// Builds an instance from ArkWeb SSL callback data.
+  ///
+  /// [certificateHint] is optional textual context from ArkWeb (e.g. issuer hint);
+  /// binary X.509 DER is not exposed here yet.
+  @internal
   static Future<OhosSslAuthError> fromNativeCallback({
-    required String certificateData,
-    required String description,
+    required ohos.SslErrorHandler handler,
     required String url,
+    required String certificateHint,
+    required String description,
   }) async {
-    // Parse the certificate data string to create X509Certificate
-    // For now, we'll pass null as the certificate needs proper parsing
-    // TODO: Implement proper certificate parsing from certificateData
+    final String fullDescription = certificateHint.trim().isEmpty
+        ? description
+        : '$description\nIssuer hint: $certificateHint';
     return OhosSslAuthError._(
-      certificate: null, // Will be implemented when certificate parsing is added
-      description: description,
+      certificate: null,
+      description: fullDescription,
       url: url,
+      handler: handler,
     );
   }
 
-  /// The URL that caused the SSL error.
-  final String url;
+  @override
+  Future<void> cancel() => _handler.cancel();
 
   @override
-  Future<void> cancel() async {
-    // TODO: Implement cancel functionality with OHOS native API
-    // This should cancel the SSL authentication request
-  }
-
-  @override
-  Future<void> proceed() async {
-    // TODO: Implement proceed functionality with OHOS native API
-    // This should proceed with the SSL authentication despite the error
-  }
+  Future<void> proceed() => _handler.proceed();
 }

@@ -25,7 +25,7 @@ void main() {
     OhosPigeonTestMocks.clearRecords();
   });
 
-  test('clearCookies should call ohos_webview.clearCookies', () async {
+  test('should call ohos_webview.clearCookies when clearCookies is invoked', () async {
     final ohos_webview.CookieManager mockCookieManager = MockCookieManager();
 
     when(
@@ -46,7 +46,7 @@ void main() {
     verify(mockCookieManager.removeAllCookies());
   });
 
-  test('setCookie should throw ArgumentError for cookie with invalid path', () {
+  test('should throw ArgumentError when setCookie is invoked with a cookie with invalid path', () {
     final params =
         OhosWebViewCookieManagerCreationParams.fromPlatformWebViewCookieManagerCreationParams(
           const PlatformWebViewCookieManagerCreationParams(),
@@ -71,7 +71,7 @@ void main() {
   });
 
   test(
-    'setCookie should call ohos_webview.setCookie with properly formatted cookie value',
+    'should call ohos_webview.setCookie with a properly formatted cookie value when setCookie is invoked',
     () {
       final ohos_webview.CookieManager mockCookieManager =
           MockCookieManager();
@@ -93,7 +93,7 @@ void main() {
     },
   );
 
-  test('setAcceptThirdPartyCookies', () async {
+  test('should call ohos_webview.setAcceptThirdPartyCookies when setAcceptThirdPartyCookies is invoked', () async {
     final mockController = MockOhosWebViewController();
 
     final webView = ohos_webview.WebView.detached();

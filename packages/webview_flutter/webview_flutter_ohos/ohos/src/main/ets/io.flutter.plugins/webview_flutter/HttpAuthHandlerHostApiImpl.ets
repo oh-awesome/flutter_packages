@@ -37,13 +37,32 @@ export class HttpAuthHandlerHostApiImpl extends HttpAuthHandlerHostApi {
 
   cancel(instanceId: number) {
     this.getHttpAuthHandlerInstance(instanceId).cancel();
+    this.releaseHandler(instanceId);
   }
 
   proceed(instanceId: number, username: string, password: string) {
     this.getHttpAuthHandlerInstance(instanceId).proceed(username, password);
+    this.releaseHandler(instanceId);
   }
 
   getHttpAuthHandlerInstance(instanceId: number): HttpAuthHandler {
-    return this.instanceManager.getInstance(instanceId);
+    const httpAuthHandler: HttpAuthHandler = this.instanceManager.getInstance(instanceId);
+    // Defensive check: fail fast with a readable error instead of an
+    // undefined-reference crash when the identifier is unknown or already
+    // disposed. Valid identifiers follow exactly the same path as before.
+    if (!httpAuthHandler) {
+      throw new Error('HttpAuthHandler instance not found, id = ' + instanceId);
+    }
+    return httpAuthHandler;
+  }
+
+  // Leak fix (one-shot handler): cancel/proceed completes the single HTTP
+  // auth decision and the native handler must not be reused afterwards. Drop
+  // it from the instance table after the native termination call succeeds so
+  // the retained handler is released instead of accumulating for every auth
+  // prompt. A failed native call keeps the instance and its original error
+  // semantics (no finally-release); the query method above never releases.
+  private releaseHandler(instanceId: number): void {
+    this.instanceManager.remove(instanceId);
   }
 }

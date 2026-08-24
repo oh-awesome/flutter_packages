@@ -9,9 +9,6 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
-import 'package:webview_flutter_ohos/src/ohos_webview.g.dart'
-    as ohos_webview_g;
-import 'package:webview_flutter_ohos/src/ohos_webview_constants.dart';
 import 'package:webview_flutter_ohos/src/platform_views_service_proxy.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
@@ -349,6 +346,7 @@ void main() {
 
   group('OhosWebViewController', () {
     OhosJavaScriptChannelParams
+    // ignore: unused_element
     createOhosJavaScriptChannelParamsWithMocks({
       String? name,
       MockJavaScriptChannel? mockJavaScriptChannel,
@@ -369,7 +367,7 @@ void main() {
     // OHOS 测试方法：通过拦截 Platform Channel 消息验证控制器行为
     // 不依赖 mockWebView.xxx() 调用验证，而是验证发送到平台的参数
 
-    test('Initializing WebView settings on controller creation', () async {
+    test('should initialize WebView settings when the controller is created', () async {
       // OHOS 控制器创建时的 WebSettings 初始化流程：
       // 1. 创建 WebView 实例
       // 2. 获取 WebSettings 实例
@@ -569,6 +567,37 @@ void main() {
           expect(loadUrlCalls.isNotEmpty, true);
           final urlArg = loadUrlCalls.last.arguments[1] as String;
           expect(urlArg, 'file:///path/to/file.html');
+        });
+
+        test('With non-empty headers (normal-path combination)', () async {
+          OhosPigeonTestMocks.clearRecords();
+          final controller = createControllerWithMocks();
+
+          // Normal-path combination: a non-empty file path together with a
+          // non-empty header map must both reach the loadUrl call unchanged.
+          const Map<String, String> headers = <String, String>{
+            'X-Test-Header': 'scenario-value',
+            'Accept-Language': 'zh-cn',
+          };
+          await controller.loadFileWithParams(
+            OhosLoadFileParams(
+              absoluteFilePath: 'file:///path/to/file.html',
+              headers: headers,
+            ),
+          );
+
+          final allowFileAccessCalls = OhosPigeonTestMocks.getCallsForChannel(
+            'dev.flutter.pigeon.webview_flutter_ohos.WebSettingsHostApi.setAllowFileAccess'
+          );
+          expect(allowFileAccessCalls.length, 1);
+          expect(allowFileAccessCalls.last.arguments[1], true);
+
+          final loadUrlCalls = OhosPigeonTestMocks.getCallsForChannel(
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.loadUrl'
+          );
+          expect(loadUrlCalls.length, 1);
+          expect(loadUrlCalls.last.arguments[1], 'file:///path/to/file.html');
+          expect(loadUrlCalls.last.arguments[2], headers);
         });
       });
 
@@ -908,7 +937,104 @@ void main() {
       });
     });
 
-    test('currentUrl', () async {
+    group('platform channel failures', () {
+      // Records the current behavior of the Pigeon message boundary: errors
+      // thrown by the host API are wrapped by the generated handler and
+      // surface on the returned Future as a PlatformException.
+      test('a failing host API call surfaces as a PlatformException', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.loadUrl';
+        OhosPigeonTestMocks.overrideWithError(
+          channel, 'loadUrl_failed', 'loadUrl failed: boom');
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, null));
+
+        final controller = createControllerWithMocks();
+
+        await expectLater(
+          controller.loadRequest(
+            LoadRequestParams(uri: Uri.parse('https://flutter.dev'))),
+          throwsA(isA<PlatformException>()
+              .having((e) => e.code, 'code', 'loadUrl_failed')
+              .having((e) => e.message, 'message', 'loadUrl failed: boom')),
+        );
+      });
+
+      test('a call after the channel handler is detached fails with a channel error', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.loadUrl';
+        OhosPigeonTestMocks.removeHandler(channel);
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, null));
+
+        final controller = createControllerWithMocks();
+
+        await expectLater(
+          controller.loadRequest(
+            LoadRequestParams(uri: Uri.parse('https://flutter.dev'))),
+          throwsA(isA<PlatformException>()
+              .having((e) => e.code, 'code', 'channel-error')),
+        );
+      });
+    });
+
+    group('runJavaScriptReturningResult parsing', () {
+      // Records how the controller maps the string reported by ArkWeb to the
+      // public Object contract.
+      test('boolean strings map to Dart booleans', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.evaluateJavascript';
+        final controller = createControllerWithMocks();
+
+        OhosPigeonTestMocks.overrideReturnValue(channel, 'true');
+        expect(await controller.runJavaScriptReturningResult('a'), isTrue);
+
+        OhosPigeonTestMocks.overrideReturnValue(channel, 'false');
+        expect(await controller.runJavaScriptReturningResult('b'), isFalse);
+
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, 'result'));
+      });
+
+      test('numeric strings map to Dart numbers', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.evaluateJavascript';
+        OhosPigeonTestMocks.overrideReturnValue(channel, '42');
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, 'result'));
+
+        final controller = createControllerWithMocks();
+
+        expect(await controller.runJavaScriptReturningResult('1 + 1'), 42);
+      });
+
+      test('a null result maps to an empty string', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.evaluateJavascript';
+        OhosPigeonTestMocks.overrideReturnValue(channel, null);
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, 'result'));
+
+        final controller = createControllerWithMocks();
+
+        expect(await controller.runJavaScriptReturningResult('void 0'), '');
+      });
+
+      test('structured results keep their string form', () async {
+        OhosPigeonTestMocks.clearRecords();
+        const channel =
+            'dev.flutter.pigeon.webview_flutter_ohos.WebViewHostApi.evaluateJavascript';
+        OhosPigeonTestMocks.overrideReturnValue(channel, '{"a":1}');
+        addTearDown(() => OhosPigeonTestMocks.overrideReturnValue(channel, 'result'));
+
+        final controller = createControllerWithMocks();
+
+        expect(await controller.runJavaScriptReturningResult('JSON.stringify({a:1})'),
+            '{"a":1}');
+      });
+    });
+
+    test('should return the current url when currentUrl is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -922,7 +1048,7 @@ void main() {
         expect(url, 'https://flutter.dev'); // mock 返回值
       });
 
-      test('canGoBack', () async {
+      test('should send the canGoBack platform message when canGoBack is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -935,7 +1061,7 @@ void main() {
         expect(result, true); // mock 返回值
       });
 
-      test('canGoForward', () async {
+      test('should send the canGoForward platform message when canGoForward is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -948,7 +1074,7 @@ void main() {
         expect(result, true); // mock 返回值
       });
 
-      test('goBack', () async {
+      test('should send the goBack platform message when goBack is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -960,7 +1086,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('goForward', () async {
+      test('should send the goForward platform message when goForward is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -972,7 +1098,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('reload', () async {
+      test('should send the reload platform message when reload is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -985,7 +1111,7 @@ void main() {
       });
 
       group('clearCache', () {
-        test('clearCache', () async {
+        test('should send the clearCache platform message when clearCache is invoked', () async {
           OhosPigeonTestMocks.clearRecords();
           final controller = createControllerWithMocks();
 
@@ -998,7 +1124,7 @@ void main() {
         });
       });
 
-      test('clearLocalStorage', () async {
+      test('should send the clearLocalStorage platform message when clearLocalStorage is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1011,9 +1137,10 @@ void main() {
         );
         // 如果调用未被记录，可能是因为 WebStorage 实例创建方式不同
         // 只验证方法调用不抛出异常
+        expect(calls, isA<List<PlatformChannelCallRecord>>());
       });
 
-      test('setPlatformNavigationDelegate', () async {
+      test('should attach the navigation delegate when setPlatformNavigationDelegate is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1065,7 +1192,7 @@ void main() {
         final setDownloadListenerArgs = setDownloadListenerCalls.last.arguments;
         expect(setDownloadListenerArgs.length, 2);
       });
-    test('addJavaScriptChannel', () async {
+    test('should send the addJavaScriptChannel platform message when addJavaScriptChannel is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1127,7 +1254,7 @@ void main() {
         expect(removeCalls.isNotEmpty, true);
       });
 
-      test('enableZoom', () async {
+      test('should send the enableZoom platform message when enableZoom is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1153,7 +1280,7 @@ void main() {
         expect(disableCalls.last.arguments[1], false);
       });
 
-      test('setJavaScriptMode', () async {
+      test('should send the setJavaScriptEnabled platform message when setJavaScriptMode is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1180,7 +1307,7 @@ void main() {
         expect(disableCalls.last.arguments[1], false);
       });
 
-      test('setUserAgent', () async {
+      test('should send the setUserAgent platform message when setUserAgent is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1206,7 +1333,7 @@ void main() {
         expect(nullCalls.last.arguments[1], null);
       });
 
-      test('getUserAgent', () async {
+      test('should return the user agent when getUserAgent is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1222,7 +1349,7 @@ void main() {
         expect(userAgent, 'Mozilla/5.0'); // mock 返回值
       });
 
-      test('runJavaScript', () async {
+      test('should send the evaluateJavascript platform message when runJavaScript is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1234,7 +1361,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('runJavaScriptReturningResult', () async {
+      test('should return the result when runJavaScriptReturningResult is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1247,7 +1374,7 @@ void main() {
         expect(result, 'result'); // mock 返回值
       });
 
-      test('getTitle', () async {
+      test('should return the title when getTitle is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1260,7 +1387,7 @@ void main() {
         expect(title, 'Page Title'); // mock 返回值
       });
 
-      test('scrollTo', () async {
+      test('should send the scrollTo platform message when scrollTo is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1275,7 +1402,7 @@ void main() {
         expect(args.length >= 3, true);
       });
 
-      test('scrollBy', () async {
+      test('should send the scrollBy platform message when scrollBy is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1287,7 +1414,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('webViewIdentifier', () async {
+      test('should return a positive identifier when webViewIdentifier is accessed', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1306,11 +1433,11 @@ void main() {
         expect(createCalls.isNotEmpty, true);
       });
 
-      test('getScrollX', () async {}, skip: 'OHOS 使用 getScrollPosition() 替代单独的 getScrollX/getScrollY');
+      test('should be skipped on OHOS: getScrollX is replaced by getScrollPosition', () async {}, skip: 'OHOS 使用 getScrollPosition() 替代单独的 getScrollX/getScrollY');
 
-      test('getScrollY', () async {}, skip: 'OHOS 使用 getScrollPosition() 替代单独的 getScrollX/getScrollY');
+      test('should be skipped on OHOS: getScrollY is replaced by getScrollPosition', () async {}, skip: 'OHOS 使用 getScrollPosition() 替代单独的 getScrollX/getScrollY');
 
-      test('getScrollPosition', () async {
+      test('should return the scroll offset when getScrollPosition is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1339,7 +1466,7 @@ void main() {
       });
 
     group('Progress and Callbacks', () {
-      test('onProgress', () async {
+      test('should invoke the onProgress callback when progress changes', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
         final navigationDelegate = OhosNavigationDelegate(
@@ -1352,7 +1479,7 @@ void main() {
         // 1. NavigationDelegate 设置 onProgress 回调
         // 2. WebChromeClient.onProgressChanged 触发时调用回调
 
-        late int callbackProgress;
+        int? callbackProgress;
         navigationDelegate.setOnProgress((int progress) {
           callbackProgress = progress;
         });
@@ -1361,9 +1488,10 @@ void main() {
 
         // 验证 NavigationDelegate 创建成功
         expect(navigationDelegate, isNotNull);
+        expect(callbackProgress, isNull);
       });
 
-      test('onProgress does not cause LateInitializationError', () async {
+      test('should not throw LateInitializationError when onProgress fires repeatedly', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1382,7 +1510,7 @@ void main() {
         expect(webChromeClientCalls.isNotEmpty, true);
       });
 
-      test('setOnShowFileSelector', () async {
+      test('should register the file selector callback when setOnShowFileSelector is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1404,7 +1532,7 @@ void main() {
         expect(webChromeClientCalls.isNotEmpty, true);
       });
 
-      test('setOnPlatformPermissionRequest', () async {
+      test('should register the permission request callback when setOnPlatformPermissionRequest is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1425,7 +1553,7 @@ void main() {
         expect(webChromeClientCalls.isNotEmpty, true);
       });
 
-      test('setGeolocationPermissionsPromptCallbacks', () async {
+      test('should register the geolocation prompt callbacks when setGeolocationPermissionsPromptCallbacks is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1449,8 +1577,56 @@ void main() {
         expect(webChromeClientCalls.isNotEmpty, true);
       });
 
+      // Records the denial path: when the host application does not grant the
+      // geolocation permission, the denial must reach ArkWeb with allow=false.
+      test('a geolocation prompt denied by the application reports allow=false to the platform', () async {
+        OhosPigeonTestMocks.clearRecords();
+        final controller = createControllerWithMocks();
+
+        await controller.setGeolocationPermissionsPromptCallbacks(
+          onShowPrompt: (GeolocationPermissionsRequestParams request) async {
+            return const GeolocationPermissionsResponse(allow: false, retain: false);
+          },
+          onHidePrompt: () {},
+        );
+
+        // Resolve the controller's WebChromeClient through the identifier that
+        // was assigned when the controller attached it.
+        final createCalls = OhosPigeonTestMocks.getCallsForChannel(
+          'dev.flutter.pigeon.webview_flutter_ohos.WebChromeClientHostApi.create',
+        );
+        final int webChromeClientId = createCalls.last.arguments[0] as int;
+        final ohos_webview.WebChromeClient webChromeClient =
+            ohos_webview.OhosObject.globalInstanceManager
+                .getInstanceWithWeakReference<ohos_webview.WebChromeClient>(
+                    webChromeClientId)!;
+
+        // ArkWeb reports the prompt with a host-created callback; register it
+        // the way the platform side would before invoking the real handler.
+        final callback = TestGeolocationPermissionsCallback.detached();
+        ohos_webview.OhosObject.globalInstanceManager
+            .addDartCreatedInstance(callback);
+
+        OhosPigeonTestMocks.clearRecords();
+        await webChromeClient.onGeolocationPermissionsShowPrompt!(
+          'https://example.com',
+          callback,
+        );
+
+        // The denial is forwarded to ArkWeb through the callback channel.
+        final invokeCalls = OhosPigeonTestMocks.getCallsForChannel(
+          'dev.flutter.pigeon.webview_flutter_ohos.GeolocationPermissionsCallbackHostApi.invoke'
+        );
+        expect(invokeCalls.isNotEmpty, true);
+        final args = invokeCalls.last.arguments;
+        expect(args.length >= 4, true);
+        expect(args[1], 'https://example.com');
+        expect(args[2], isFalse);
+        expect(args[3], isFalse);
+      });
+
       // 对应 Android 的 setCustomViewCallbacks用例
-      test('setCustomWidgetCallbacks', () async {
+      test('should register the custom view callbacks when setCustomWidgetCallbacks is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1476,7 +1652,7 @@ void main() {
     });
 
     group('JavaScript Dialog', () {
-      test('setOnJavaScriptAlertDialog', () async {
+      test('should register the alert dialog callback when setOnJavaScriptAlertDialog is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1488,7 +1664,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('setOnJavaScriptConfirmDialog', () async {
+      test('should register the confirm dialog callback when setOnJavaScriptConfirmDialog is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1500,7 +1676,7 @@ void main() {
         expect(calls.isNotEmpty, true);
       });
 
-      test('setOnJavaScriptTextInputDialog', () async {
+      test('should register the text input dialog callback when setOnJavaScriptTextInputDialog is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1542,11 +1718,11 @@ void main() {
         expect(webChromeClientCreateCalls.isNotEmpty, true);
       });
 
-      test('setOnJavaScriptPromptDialog', () async {}, skip: 'OHOS 使用 setOnJavaScriptTextInputDialog 替代');
+      test('should be skipped on OHOS: setOnJavaScriptPromptDialog is replaced by setOnJavaScriptTextInputDialog', () async {}, skip: 'OHOS 使用 setOnJavaScriptTextInputDialog 替代');
     });
 
     // 对应 Android 的 setOnConsoleLogCallback 用例
-    test('setOnConsoleMessage', () async {
+    test('should register the console message callback when setOnConsoleMessage is invoked', () async {
         OhosPigeonTestMocks.clearRecords();
         final controller = createControllerWithMocks();
 
@@ -1660,9 +1836,9 @@ void main() {
     });
 
     // OHOS 不存在的方法
-    test('verticalScrollBarEnabled', () async {}, skip: 'OHOS 不存在 setVerticalScrollBarEnabled 方法');
-    test('horizontalScrollBarEnabled', () async {}, skip: 'OHOS 不存在 setHorizontalScrollBarEnabled 方法');
-    test('setBackgroundColor', () async {
+    test('should be skipped on OHOS: setVerticalScrollBarEnabled does not exist', () async {}, skip: 'OHOS 不存在 setVerticalScrollBarEnabled 方法');
+    test('should be skipped on OHOS: setHorizontalScrollBarEnabled does not exist', () async {}, skip: 'OHOS 不存在 setHorizontalScrollBarEnabled 方法');
+    test('should send the setBackgroundColor platform message when setBackgroundColor is invoked', () async {
       OhosPigeonTestMocks.clearRecords();
       final controller = createControllerWithMocks();
 
@@ -1673,11 +1849,11 @@ void main() {
       );
       expect(calls.isNotEmpty, true);
     });
-    test('setAllowFileAccess', () async {}, skip: 'OHOS 不存在 setAllowFileAccess 方法');
-    test('setAllowContentAccess', () async {}, skip: 'OHOS 不存在 setAllowContentAccess 方法');
+    test('should be skipped on OHOS: setAllowFileAccess does not exist', () async {}, skip: 'OHOS 不存在 setAllowFileAccess 方法');
+    test('should be skipped on OHOS: setAllowContentAccess does not exist', () async {}, skip: 'OHOS 不存在 setAllowContentAccess 方法');
   });
 
-  test('setMediaPlaybackRequiresUserGesture', () async {
+  test('should send the setMediaPlaybackRequiresUserGesture platform message when setMediaPlaybackRequiresUserGesture is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1689,10 +1865,10 @@ void main() {
     expect(calls.isNotEmpty, true);
   });
 
-  test('setUseWideViewPort', () async {}, skip: 'OHOS 不存在 setUseWideViewPort 方法');
-  test('setGeolocationEnabled', () async {}, skip: 'OHOS 不存在 setGeolocationEnabled 方法');
+  test('should be skipped on OHOS: setUseWideViewPort does not exist', () async {}, skip: 'OHOS 不存在 setUseWideViewPort 方法');
+  test('should be skipped on OHOS: setGeolocationEnabled does not exist', () async {}, skip: 'OHOS 不存在 setGeolocationEnabled 方法');
 
-  test('setTextZoom', () async {
+  test('should send the setTextZoom platform message when setTextZoom is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1704,7 +1880,7 @@ void main() {
     expect(calls.isNotEmpty, true);
   });
 
-  test('setMixedContentMode', () async {
+  test('should send the setMixedContentMode platform message when setMixedContentMode is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1716,7 +1892,7 @@ void main() {
     expect(calls.isNotEmpty, true);
   });
 
-  test('setOverScrollMode', () async {
+  test('should send the setOverScrollMode platform message when setOverScrollMode is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1728,7 +1904,7 @@ void main() {
     expect(calls.isNotEmpty, true);
   });
 
-  test('isWebViewFeatureSupported', () async {
+  test('should report feature support when isWebViewFeatureSupported is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1741,7 +1917,7 @@ void main() {
     expect(result, false); // mock 返回值
   });
 
-  test('setPaymentRequestEnabled', () async {
+  test('should send the setPaymentRequestEnabled platform message when setPaymentRequestEnabled is invoked', () async {
     OhosPigeonTestMocks.clearRecords();
     final controller = createControllerWithMocks();
 
@@ -1904,4 +2080,9 @@ class TestWebChromeClient extends ohos_webview.WebChromeClient {
 class TestDownloadListener extends ohos_webview.DownloadListener {
   TestDownloadListener({required super.onDownloadStart})
     : super.detached();
+}
+
+class TestGeolocationPermissionsCallback
+    extends ohos_webview.GeolocationPermissionsCallback {
+  TestGeolocationPermissionsCallback.detached() : super.detached();
 }

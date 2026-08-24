@@ -1,5 +1,12 @@
-## NEXT
+## webview_flutter-v4.14.1-ohos-1.0.0 - 2026.8
 
+* Adds OpenHarmony support for `webview_flutter` 4.14.1, including SSL error handling, ArkWeb navigation/JavaScript/cookie/permission/file-selection/geolocation/fullscreen/HTTP-auth callbacks.
+* Fixes OpenHarmony resource leaks and lifecycle races: listeners, polling intervals and Pigeon handlers are now released at end-of-life (engine detach or Dart-side instance release) while `WebViewPlatformView.dispose` stays minimal, so a controller can still be reused with a new widget.
+* Hardens stability: missing-instance lookups fail fast with descriptive errors, and failure paths (load, scroll, cookie, fullscreen exit) log and rethrow instead of crashing or being swallowed.
+* Adds unit tests covering the OHOS platform implementation API surface and corrects interface naming and documentation.
+
+## NEXT
+ 
 * Updates minimum supported SDK version to Flutter 3.7/Dart 2.19.
 
 ## 3.14.0

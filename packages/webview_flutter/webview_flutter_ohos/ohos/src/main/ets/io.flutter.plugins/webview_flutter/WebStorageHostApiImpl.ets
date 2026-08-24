@@ -11,10 +11,18 @@ import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 const TAG:string = "WebStorageHostApiImpl";
 export class WebStorageHostApiImpl extends WebStorageHostApi {
   create(instanceId: number) {
+    // ArkWeb WebStorage is a static service and does not require an instance.
     Log.i(TAG, "WebStorage no need to create");
   }
 
   deleteAllData(instanceId: number) {
-    web_webview.WebStorage.deleteAllData();
+    try {
+      web_webview.WebStorage.deleteAllData();
+    } catch (error) {
+      // Observation only: log then rethrow the same error; the operation is
+      // unchanged.
+      Log.e(TAG, 'deleteAllData err = ' + error);
+      throw new Error(String(error));
+    }
   }
 }

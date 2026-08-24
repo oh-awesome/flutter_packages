@@ -32,21 +32,27 @@ class _FakeCookieManager_0 extends _i1.SmartFake implements _i2.CookieManager {
     : super(parent, parentInvocation);
 }
 
-class _FakePlatformWebViewControllerCreationParams_1 extends _i1.SmartFake
+class _FakeWebChromeClient_1 extends _i1.SmartFake
+    implements _i2.WebChromeClient {
+  _FakeWebChromeClient_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakePlatformWebViewControllerCreationParams_2 extends _i1.SmartFake
     implements _i3.PlatformWebViewControllerCreationParams {
-  _FakePlatformWebViewControllerCreationParams_1(
+  _FakePlatformWebViewControllerCreationParams_2(
     Object parent,
     Invocation parentInvocation,
   ) : super(parent, parentInvocation);
 }
 
-class _FakeObject_2 extends _i1.SmartFake implements Object {
-  _FakeObject_2(Object parent, Invocation parentInvocation)
+class _FakeObject_3 extends _i1.SmartFake implements Object {
+  _FakeObject_3(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
-class _FakeOffset_3 extends _i1.SmartFake implements _i4.Offset {
-  _FakeOffset_3(Object parent, Invocation parentInvocation)
+class _FakeOffset_4 extends _i1.SmartFake implements _i4.Offset {
+  _FakeOffset_4(Object parent, Invocation parentInvocation)
     : super(parent, parentInvocation);
 }
 
@@ -109,6 +115,17 @@ class MockOhosWebViewController extends _i1.Mock
   }
 
   @override
+  _i2.WebChromeClient get ohosWebChromeClientForTesting =>
+      (super.noSuchMethod(
+            Invocation.getter(#ohosWebChromeClientForTesting),
+            returnValue: _FakeWebChromeClient_1(
+              this,
+              Invocation.getter(#ohosWebChromeClientForTesting),
+            ),
+          )
+          as _i2.WebChromeClient);
+
+  @override
   int get webViewIdentifier =>
       (super.noSuchMethod(Invocation.getter(#webViewIdentifier), returnValue: 0)
           as int);
@@ -117,7 +134,7 @@ class MockOhosWebViewController extends _i1.Mock
   _i3.PlatformWebViewControllerCreationParams get params =>
       (super.noSuchMethod(
             Invocation.getter(#params),
-            returnValue: _FakePlatformWebViewControllerCreationParams_1(
+            returnValue: _FakePlatformWebViewControllerCreationParams_2(
               this,
               Invocation.getter(#params),
             ),
@@ -263,7 +280,7 @@ class MockOhosWebViewController extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#runJavaScriptReturningResult, [javaScript]),
             returnValue: _i5.Future<Object>.value(
-              _FakeObject_2(
+              _FakeObject_3(
                 this,
                 Invocation.method(#runJavaScriptReturningResult, [javaScript]),
               ),
@@ -324,7 +341,7 @@ class MockOhosWebViewController extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#getScrollPosition, []),
             returnValue: _i5.Future<_i4.Offset>.value(
-              _FakeOffset_3(this, Invocation.method(#getScrollPosition, [])),
+              _FakeOffset_4(this, Invocation.method(#getScrollPosition, [])),
             ),
           )
           as _i5.Future<_i4.Offset>);
@@ -522,6 +539,15 @@ class MockOhosWebViewController extends _i1.Mock
           as _i5.Future<void>);
 
   @override
+  _i5.Future<void> setOverScrollMode(_i3.WebViewOverScrollMode? mode) =>
+      (super.noSuchMethod(
+            Invocation.method(#setOverScrollMode, [mode]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i5.Future<bool> isWebViewFeatureSupported(
     _i6.WebViewFeatureType? featureType,
   ) =>
@@ -565,13 +591,4 @@ class MockOhosWebViewController extends _i1.Mock
             returnValue: false,
           )
           as bool);
-
-  @override
-  _i5.Future<void> setOverScrollMode(_i3.WebViewOverScrollMode? mode) =>
-      (super.noSuchMethod(
-            Invocation.method(#setOverScrollMode, [mode]),
-            returnValue: _i5.Future<void>.value(),
-            returnValueForMissingStub: _i5.Future<void>.value(),
-          )
-          as _i5.Future<void>);
 }

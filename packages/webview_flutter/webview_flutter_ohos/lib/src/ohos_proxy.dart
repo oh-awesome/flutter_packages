@@ -95,6 +95,7 @@ class OhosWebViewProxy {
     )? onReceivedHttpError,
     void Function(
       ohos_webview.WebView webView,
+      ohos_webview.SslErrorHandler handler,
       String url,
       String certificate,
       String description,

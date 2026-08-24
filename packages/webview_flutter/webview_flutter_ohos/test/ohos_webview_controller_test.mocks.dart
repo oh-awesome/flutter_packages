@@ -4,14 +4,15 @@
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'dart:async' as _i8;
-import 'dart:typed_data' as _i12;
+import 'dart:typed_data' as _i13;
 import 'dart:ui' as _i4;
 
 import 'package:flutter/foundation.dart' as _i9;
 import 'package:flutter/gestures.dart' as _i10;
+import 'package:flutter/material.dart' as _i11;
 import 'package:flutter/services.dart' as _i6;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i11;
+import 'package:mockito/src/dummies.dart' as _i12;
 import 'package:webview_flutter_ohos/src/ohos_webview.dart' as _i2;
 import 'package:webview_flutter_ohos/src/ohos_webview_controller.dart' as _i7;
 import 'package:webview_flutter_ohos/src/platform_views_service_proxy.dart'
@@ -313,6 +314,21 @@ class MockOhosNavigationDelegate extends _i1.Mock
 /// See the documentation for Mockito's code generation for more information.
 class MockOhosWebViewController extends _i1.Mock
     implements _i7.OhosWebViewController {
+  @override
+  _i2.WebChromeClient get ohosWebChromeClientForTesting =>
+      (super.noSuchMethod(
+            Invocation.getter(#ohosWebChromeClientForTesting),
+            returnValue: _FakeWebChromeClient_0(
+              this,
+              Invocation.getter(#ohosWebChromeClientForTesting),
+            ),
+            returnValueForMissingStub: _FakeWebChromeClient_0(
+              this,
+              Invocation.getter(#ohosWebChromeClientForTesting),
+            ),
+          )
+          as _i2.WebChromeClient);
+
   @override
   int get webViewIdentifier =>
       (super.noSuchMethod(
@@ -750,6 +766,15 @@ class MockOhosWebViewController extends _i1.Mock
           as _i8.Future<void>);
 
   @override
+  _i8.Future<void> setOverScrollMode(_i3.WebViewOverScrollMode? mode) =>
+      (super.noSuchMethod(
+            Invocation.method(#setOverScrollMode, [mode]),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
   _i8.Future<bool> isWebViewFeatureSupported(
     _i7.WebViewFeatureType? featureType,
   ) =>
@@ -795,15 +820,6 @@ class MockOhosWebViewController extends _i1.Mock
             returnValueForMissingStub: false,
           )
           as bool);
-
-  @override
-  _i8.Future<void> setOverScrollMode(_i3.WebViewOverScrollMode? mode) =>
-      (super.noSuchMethod(
-            Invocation.method(#setOverScrollMode, [mode]),
-            returnValue: _i8.Future<void>.value(),
-            returnValueForMissingStub: _i8.Future<void>.value(),
-          )
-          as _i8.Future<void>);
 }
 
 /// A class which mocks [OhosWebViewWidgetCreationParams].
@@ -939,9 +955,9 @@ class MockExpensiveOhosViewController extends _i1.Mock
   );
 
   @override
-  _i8.Future<void> setOffset(_i4.Offset? off) =>
+  _i8.Future<void> setOffset(_i4.Offset? off, {List<double>? transform}) =>
       (super.noSuchMethod(
-            Invocation.method(#setOffset, [off]),
+            Invocation.method(#setOffset, [off], {#transform: transform}),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )
@@ -1004,7 +1020,7 @@ class MockExpensiveOhosViewController extends _i1.Mock
           as _i8.Future<void>);
 
   @override
-  _i8.Future<void> dispatchPointerEvent(_i10.PointerEvent? event) =>
+  _i8.Future<void> dispatchPointerEvent(_i11.PointerEvent? event) =>
       (super.noSuchMethod(
             Invocation.method(#dispatchPointerEvent, [event]),
             returnValue: _i8.Future<void>.value(),
@@ -1061,13 +1077,13 @@ class MockFlutterAssetManager extends _i1.Mock
       (super.noSuchMethod(
             Invocation.method(#getAssetFilePathByName, [name]),
             returnValue: _i8.Future<String>.value(
-              _i11.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#getAssetFilePathByName, [name]),
               ),
             ),
             returnValueForMissingStub: _i8.Future<String>.value(
-              _i11.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#getAssetFilePathByName, [name]),
               ),
@@ -1115,11 +1131,11 @@ class MockJavaScriptChannel extends _i1.Mock implements _i2.JavaScriptChannel {
   String get channelName =>
       (super.noSuchMethod(
             Invocation.getter(#channelName),
-            returnValue: _i11.dummyValue<String>(
+            returnValue: _i12.dummyValue<String>(
               this,
               Invocation.getter(#channelName),
             ),
-            returnValueForMissingStub: _i11.dummyValue<String>(
+            returnValueForMissingStub: _i12.dummyValue<String>(
               this,
               Invocation.getter(#channelName),
             ),
@@ -1359,9 +1375,9 @@ class MockSurfaceOhosViewController extends _i1.Mock
   );
 
   @override
-  _i8.Future<void> setOffset(_i4.Offset? off) =>
+  _i8.Future<void> setOffset(_i4.Offset? off, {List<double>? transform}) =>
       (super.noSuchMethod(
-            Invocation.method(#setOffset, [off]),
+            Invocation.method(#setOffset, [off], {#transform: transform}),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )
@@ -1424,7 +1440,7 @@ class MockSurfaceOhosViewController extends _i1.Mock
           as _i8.Future<void>);
 
   @override
-  _i8.Future<void> dispatchPointerEvent(_i10.PointerEvent? event) =>
+  _i8.Future<void> dispatchPointerEvent(_i11.PointerEvent? event) =>
       (super.noSuchMethod(
             Invocation.method(#dispatchPointerEvent, [event]),
             returnValue: _i8.Future<void>.value(),
@@ -1668,13 +1684,13 @@ class MockWebSettings extends _i1.Mock implements _i2.WebSettings {
       (super.noSuchMethod(
             Invocation.method(#getUserAgentString, []),
             returnValue: _i8.Future<String>.value(
-              _i11.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#getUserAgentString, []),
               ),
             ),
             returnValueForMissingStub: _i8.Future<String>.value(
-              _i11.dummyValue<String>(
+              _i12.dummyValue<String>(
                 this,
                 Invocation.method(#getUserAgentString, []),
               ),
@@ -1695,6 +1711,15 @@ class MockWebSettings extends _i1.Mock implements _i2.WebSettings {
   _i8.Future<void> setMixedContentMode(_i2.MixedContentMode? mode) =>
       (super.noSuchMethod(
             Invocation.method(#setMixedContentMode, [mode]),
+            returnValue: _i8.Future<void>.value(),
+            returnValueForMissingStub: _i8.Future<void>.value(),
+          )
+          as _i8.Future<void>);
+
+  @override
+  _i8.Future<void> setOverScrollMode(_i2.OverScrollMode? mode) =>
+      (super.noSuchMethod(
+            Invocation.method(#setOverScrollMode, [mode]),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )
@@ -1783,7 +1808,7 @@ class MockWebView extends _i1.Mock implements _i2.WebView {
           as _i8.Future<void>);
 
   @override
-  _i8.Future<void> postUrl(String? url, _i12.Uint8List? data) =>
+  _i8.Future<void> postUrl(String? url, _i13.Uint8List? data) =>
       (super.noSuchMethod(
             Invocation.method(#postUrl, [url, data]),
             returnValue: _i8.Future<void>.value(),

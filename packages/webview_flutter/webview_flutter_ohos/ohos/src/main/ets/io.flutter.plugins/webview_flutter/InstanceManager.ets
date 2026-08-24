@@ -6,10 +6,22 @@
 
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 
-export class InstanceManager {
-  private MIN_HOST_CREATED_IDENTIFIER = 65536;
+const INSTANCE_COUNT_WARNING_THRESHOLD: number = 1000;
 
-  private CLEAR_FINALIZED_WEAK_REFERENCES_INTERVAL = 3000;
+// Inert-timer fix: the periodic finalization sweep used to re-arm a 3 second
+// timer while its body had already been disabled (the release logic was
+// commented out upstream). A timer that can never do work is removed rather
+// than left spinning; Dart-side dispose calls remain the single driver of
+// instance removal, so no live object can be dropped by this change.
+
+export class InstanceManager {
+  // Threading model: every access to this manager happens on the ArkTS UI
+  // thread — Pigeon message handlers are dispatched on it and every native
+  // construction site (WebViewHostApiImpl.create, client creators) runs in
+  // UI-thread component callbacks. With a single thread of access, a lock
+  // would be dead code, so none is used; instances are also intentionally
+  // never auto-evicted because eviction would drop live objects.
+  private MIN_HOST_CREATED_IDENTIFIER = 65536;
 
   private TAG = "InstanceManager";
 
@@ -23,8 +35,6 @@ export class InstanceManager {
 
   private nextIdentifier: number = this.MIN_HOST_CREATED_IDENTIFIER;
 
-  private releaseTimer: ESObject = null;
-
   private hasFinalizationListenerStopped: boolean = false;
 
   public create<T>(finalizationListener: FinalizationListener): InstanceManager {
@@ -37,9 +47,6 @@ export class InstanceManager {
 
   constructor(finalizationListener: FinalizationListener) {
     this.finalizationListener = finalizationListener;
-    this.releaseTimer = setTimeout(() => {
-      this.releaseAllFinalizedInstances()
-    }, this.CLEAR_FINALIZED_WEAK_REFERENCES_INTERVAL)
   }
 
   public remove(identifier: number): ESObject | null {
@@ -58,22 +65,7 @@ export class InstanceManager {
     this.identifiers = new WeakMap<ESObject, number>();
   }
 
-  private releaseAllFinalizedInstances(): void {
-    if (this.fHasFinalizationListenerStopped()) {
-      return;
-    }
-    // this.Instances.clear();
-    // this.identifiers.clear()
-    // this.finalizationListener.onFinalize(this.firstIdentifier)
-    this.releaseTimer = setTimeout(() => {
-      this.releaseAllFinalizedInstances()
-    }, this.CLEAR_FINALIZED_WEAK_REFERENCES_INTERVAL)
-  }
-
   stopFinalizationListener() {
-    if (this.releaseTimer) {
-      clearTimeout(this.releaseTimer);
-    }
     this.hasFinalizationListenerStopped = true;
   }
 
@@ -91,6 +83,13 @@ export class InstanceManager {
 
     this.identifiers.set(instance, identifier);
     this.Instances.set(identifier, instance);
+    // Diagnostics only: warn once when the retained instance count crosses the
+    // threshold. Live instances are never evicted; Dart-side dispose calls
+    // still drive all removals.
+    if (this.Instances.size === INSTANCE_COUNT_WARNING_THRESHOLD) {
+      Log.w(this.TAG, 'InstanceManager is holding ' + INSTANCE_COUNT_WARNING_THRESHOLD +
+        ' live instances; verify that disposed WebView objects are released.');
+    }
   }
 
   getIdentifier(instance: Object): number {

@@ -3,15 +3,12 @@
 // that can be found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
-import 'package:webview_flutter_ohos/src/ohos_webview_constants.dart';
-import 'package:webview_flutter_ohos/src/ohos_webview_controller.dart';
 import 'package:webview_flutter_ohos/webview_flutter_ohos.dart';
 import 'package:webview_flutter_platform_interface/webview_flutter_platform_interface.dart';
 
@@ -21,6 +18,7 @@ import 'ohos_pigeon_test_mocks.dart';
 @GenerateMocks(<Type>[
   ohos_webview.HttpAuthHandler,
   ohos_webview.DownloadListener,
+  ohos_webview.SslErrorHandler,
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -29,8 +27,16 @@ void main() {
     OhosPigeonTestMocks.setUpMocks();
   });
 
+  tearDown(() {
+    // Restore the default mock handlers and clear the recorded calls so no
+    // state installed by one test leaks into the next one (matches the other
+    // API impl test files).
+    OhosPigeonTestMocks.setUpMocks();
+    OhosPigeonTestMocks.clearRecords();
+  });
+
   group('OhosNavigationDelegate', () {
-    test('onPageFinished', () {
+    test('should invoke onPageFinished callback with url when the page finishes loading', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -52,7 +58,7 @@ void main() {
       expect(callbackUrl, 'https://www.google.com');
     });
 
-    test('onPageStarted', () {
+    test('should invoke onPageStarted callback with url when the page starts loading', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -73,7 +79,7 @@ void main() {
       expect(callbackUrl, 'https://www.google.com');
     });
 
-    test('onHttpError from onReceivedHttpError', () {
+    test('should invoke onHttpError callback with status code when onReceivedHttpError is invoked', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -105,7 +111,7 @@ void main() {
       expect(callbackError.response?.statusCode, 401);
     });
 
-    test('onWebResourceError from onReceivedRequestError', () {
+    test('should invoke onWebResourceError callback when onReceivedRequestError is invoked', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -496,7 +502,7 @@ void main() {
       },
     );
 
-    test('setOnNavigationRequest should override URL loading', () async {
+    test('should override URL loading when setOnNavigationRequest callback is registered', () async {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -620,7 +626,7 @@ void main() {
       },
     );
 
-    test('onUrlChange', () {
+    test('should invoke onUrlChange callback when doUpdateVisitedHistory is invoked', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -643,7 +649,7 @@ void main() {
       expect(urlChange.isReload, isFalse);
     });
 
-    test('onReceivedHttpAuthRequest emits host and realm', () {
+    test('should emit host and realm when onReceivedHttpAuthRequest callback is registered', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -674,7 +680,7 @@ void main() {
       expect(callbackRealm, expectedRealm);
     });
 
-    test('onReceivedHttpAuthRequest calls cancel by default', () {
+    test('should call cancel by default when onReceivedHttpAuthRequest is invoked without callback', () {
       final ohosNavigationDelegate = OhosNavigationDelegate(
         OhosNavigationDelegateCreationParams
             .fromPlatformNavigationDelegateCreationParams(
@@ -694,15 +700,67 @@ void main() {
       verify(mockAuthHandler.cancel());
     });
 
-    // SSL 测试暂时跳过，因为 OHOS 的 SSL 实现与 Android 不同
-    // onReceivedSslError 的签名是 (WebView, String url, String certificate, String description)
-    // 而不是 Android 的 (WebView, SslErrorHandler, SslError)
-    test('setOnSSlAuthError - SSL tests skipped due to API differences', () {
-      // OHOS SSL API 与 Android 不同，需要单独适配
+    test('should invoke onSSlAuthError callback with url and description when onReceivedSslError is invoked', () async {
+      final ohosNavigationDelegate = OhosNavigationDelegate(
+        OhosNavigationDelegateCreationParams
+            .fromPlatformNavigationDelegateCreationParams(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      );
+
+      Object? receivedError;
+      await ohosNavigationDelegate.setOnSSlAuthError(
+        (PlatformSslAuthError error) => receivedError = error,
+      );
+
+      final mockSslErrorHandler = MockSslErrorHandler();
+
+      ohosNavigationDelegate.ohosWebViewClient.onReceivedSslError!(
+        TestWebView(),
+        mockSslErrorHandler,
+        'https://example.com',
+        'issuer-hint',
+        'The certificate authority is not trusted.',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(receivedError, isA<OhosSslAuthError>());
+      final OhosSslAuthError sslError = receivedError! as OhosSslAuthError;
+      expect(sslError.url, 'https://example.com');
+      expect(sslError.description, contains('not trusted'));
+      // certificate stays null: ArkWeb exposes no verifiable X.509 data here.
+      expect(sslError.certificate, isNull);
+
+      await sslError.cancel();
+      verify(mockSslErrorHandler.cancel());
+      verifyNever(mockSslErrorHandler.proceed());
+
+      await sslError.proceed();
+      verify(mockSslErrorHandler.proceed());
     });
 
-    test('setOnSSlAuthError calls cancel by default - skipped', () {
-      // OHOS SSL API 与 Android 不同，需要单独适配
+    test('should call cancel by default when onReceivedSslError is invoked without callback', () async {
+      final ohosNavigationDelegate = OhosNavigationDelegate(
+        OhosNavigationDelegateCreationParams
+            .fromPlatformNavigationDelegateCreationParams(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      );
+
+      final mockSslErrorHandler = MockSslErrorHandler();
+
+      ohosNavigationDelegate.ohosWebViewClient.onReceivedSslError!(
+        TestWebView(),
+        mockSslErrorHandler,
+        'https://example.com',
+        '',
+        'The certificate date is invalid.',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      // Safe default: an unhandled certificate error rejects the certificate.
+      verify(mockSslErrorHandler.cancel());
+      verifyNever(mockSslErrorHandler.proceed());
     });
   });
 }

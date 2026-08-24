@@ -4,7 +4,7 @@
 // Based on WebViewClientHostApiImpl.java originally written by
 // Copyright 2013 The Flutter Authors.
 
-import { Reply, WebViewClientHostApi, HttpAuthHandler } from './GeneratedOhosWebView';
+import { Reply, WebViewClientHostApi, HttpAuthHandler, SslErrorHandler } from './GeneratedOhosWebView';
 import { InstanceManager } from './InstanceManager';
 import { WebViewClientFlutterApiImpl } from './WebViewClientFlutterApiImpl';
 import { WebViewPlatformView } from './WebViewHostApiImpl';
@@ -27,6 +27,14 @@ export interface WebViewClient {
     handler: HttpAuthHandler,
     host: string,
     realm: string
+  ): void;
+
+  onReceivedSslError(
+    view: WebViewPlatformView,
+    handler: SslErrorHandler,
+    url: string,
+    certificate: string,
+    description: string,
   ): void;
 }
 
@@ -74,6 +82,16 @@ export class WebViewClientImpl implements WebViewClient {
     realm: string) {
   this.flutterApi.onReceivedHttpAuthRequestImpl(this, view, handler, host, realm, this.emptyReply);
 }
+
+  onReceivedSslError(
+    view: WebViewPlatformView,
+    handler: SslErrorHandler,
+    url: string,
+    certificate: string,
+    description: string,
+  ): void {
+    this.flutterApi.onReceivedSslErrorImpl(this, view, handler, url, certificate, description, this.emptyReply);
+  }
 
   setReturnValueForShouldOverrideUrlLoading(value: boolean) {
     this.returnValueForShouldOverrideUrlLoading = value;

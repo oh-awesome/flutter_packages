@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+import 'dart:async' show unawaited;
 import 'dart:ui';
 
 import 'package:flutter/services.dart' show BinaryMessenger, Uint8List;
 
+import 'instance_manager.dart';
 import 'ohos_webview.dart';
 import 'ohos_webview.g.dart';
-import 'instance_manager.dart';
 
 export 'ohos_webview.g.dart'
     show ConsoleMessage, ConsoleMessageLevel, FileChooserMode;
@@ -50,6 +51,7 @@ class OhosWebViewFlutterApis {
     CustomViewCallbackFlutterApiImpl? customViewCallbackFlutterApi,
     ViewFlutterApiImpl? viewFlutterApi,
     HttpAuthHandlerFlutterApiImpl? httpAuthHandlerFlutterApi,
+    SslErrorHandlerFlutterApiImpl? sslErrorHandlerFlutterApi,
   }) {
     this.ohosObjectFlutterApi =
         ohosObjectFlutterApi ?? OhosObjectFlutterApiImpl();
@@ -74,6 +76,8 @@ class OhosWebViewFlutterApis {
     this.viewFlutterApi = viewFlutterApi ?? ViewFlutterApiImpl();
     this.httpAuthHandlerFlutterApi =
         httpAuthHandlerFlutterApi ?? HttpAuthHandlerFlutterApiImpl();
+    this.sslErrorHandlerFlutterApi =
+        sslErrorHandlerFlutterApi ?? SslErrorHandlerFlutterApiImpl();
   }
 
   static bool _haveBeenSetUp = false;
@@ -120,6 +124,9 @@ class OhosWebViewFlutterApis {
   /// Flutter Api for [HttpAuthHandler].
   late final HttpAuthHandlerFlutterApiImpl httpAuthHandlerFlutterApi;
 
+  /// Flutter Api for [SslErrorHandler].
+  late final SslErrorHandlerFlutterApiImpl sslErrorHandlerFlutterApi;
+
   /// Ensures all the Flutter APIs have been setup to receive calls from native code.
   void ensureSetUp() {
     if (!_haveBeenSetUp) {
@@ -136,6 +143,7 @@ class OhosWebViewFlutterApis {
       CustomViewCallbackFlutterApi.setup(customViewCallbackFlutterApi);
       ViewFlutterApi.setup(viewFlutterApi);
       HttpAuthHandlerFlutterApi.setup(httpAuthHandlerFlutterApi);
+      SslErrorHandlerFlutterApi.setup(sslErrorHandlerFlutterApi);
       _haveBeenSetUp = true;
     }
   }
@@ -937,6 +945,49 @@ class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
       );
     }
   }
+
+  @override
+  void onReceivedSslError(
+    int instanceId,
+    int webViewInstanceId,
+    int sslErrorHandlerInstanceId,
+    String url,
+    String certificate,
+    String description,
+  ) {
+    final WebViewClient? instance = instanceManager
+        .getInstanceWithWeakReference(instanceId) as WebViewClient?;
+    final WebView? webViewInstance = instanceManager
+        .getInstanceWithWeakReference(webViewInstanceId) as WebView?;
+    final SslErrorHandler? sslHandler = instanceManager
+            .getInstanceWithWeakReference(sslErrorHandlerInstanceId)
+        as SslErrorHandler?;
+    assert(
+      instance != null,
+      'InstanceManager does not contain a WebViewClient with instanceId: $instanceId',
+    );
+    assert(
+      webViewInstance != null,
+      'InstanceManager does not contain a WebView with instanceId: $webViewInstanceId',
+    );
+    assert(
+      sslHandler != null,
+      'InstanceManager does not contain a SslErrorHandler with instanceId: '
+      '$sslErrorHandlerInstanceId',
+    );
+    if (instance!.onReceivedSslError != null) {
+      instance.onReceivedSslError!(
+        webViewInstance!,
+        sslHandler!,
+        url,
+        certificate,
+        description,
+      );
+    } else {
+      // ArkTS requires proceed/cancel like Android; mirror Http auth default.
+      unawaited(sslHandler!.cancel());
+    }
+  }
 }
 
 /// Host api implementation for [DownloadListener].
@@ -1629,5 +1680,40 @@ class HttpAuthHandlerFlutterApiImpl extends HttpAuthHandlerFlutterApi {
       HttpAuthHandler(),
       instanceId,
     );
+  }
+}
+
+/// Host api implementation for [SslErrorHandler].
+class SslErrorHandlerHostApiImpl extends SslErrorHandlerHostApi {
+  SslErrorHandlerHostApiImpl({
+    super.binaryMessenger,
+    InstanceManager? instanceManager,
+  }) : _instanceManager = instanceManager ?? OhosObject.globalInstanceManager;
+
+  final InstanceManager _instanceManager;
+
+  Future<void> cancelFromInstance(SslErrorHandler instance) {
+    return cancel(_instanceManager.getIdentifier(instance)!);
+  }
+
+  Future<void> proceedFromInstance(SslErrorHandler instance) {
+    return proceed(_instanceManager.getIdentifier(instance)!);
+  }
+}
+
+/// Flutter API implementation for [SslErrorHandler].
+class SslErrorHandlerFlutterApiImpl extends SslErrorHandlerFlutterApi {
+  SslErrorHandlerFlutterApiImpl({
+    this.binaryMessenger,
+    InstanceManager? instanceManager,
+  }) : instanceManager = instanceManager ?? OhosObject.globalInstanceManager;
+
+  final BinaryMessenger? binaryMessenger;
+
+  final InstanceManager instanceManager;
+
+  @override
+  void create(int instanceId) {
+    instanceManager.addHostCreatedInstance(SslErrorHandler(), instanceId);
   }
 }

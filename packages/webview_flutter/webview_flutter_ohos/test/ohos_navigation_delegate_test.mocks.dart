@@ -111,3 +111,38 @@ class MockDownloadListener extends _i1.Mock implements _i2.DownloadListener {
           )
           as _i2.DownloadListener);
 }
+
+/// A class which mocks [SslErrorHandler].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockSslErrorHandler extends _i1.Mock implements _i2.SslErrorHandler {
+  MockSslErrorHandler() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<void> cancel() =>
+      (super.noSuchMethod(
+            Invocation.method(#cancel, []),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> proceed() =>
+      (super.noSuchMethod(
+            Invocation.method(#proceed, []),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i2.OhosObject copy() =>
+      (super.noSuchMethod(
+            Invocation.method(#copy, []),
+            returnValue: _FakeOhosObject_0(this, Invocation.method(#copy, [])),
+          )
+          as _i2.OhosObject);
+}
