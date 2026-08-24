@@ -15,10 +15,11 @@
 ```yaml
 dependencies:
   path_provider:
-    git: 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/path_provider/path_provider
-      ref: br_path_provider-v2.1.5_ohos
+      # ref: 根据下方表格选择不同框架适配的TAG版本
+      ref: TAG # 根据下方表格选择不同框架适配的TAG版本
 ```
 
 执行命令
@@ -27,14 +28,25 @@ dependencies:
 flutter pub get
 ```
 
+> TAG 命名规则：`原库版本-ohos-版本号`，不同 TAG 之间的变更详见 CHANGELOG.md。
+
+| Flutter 框架版本 | TAG 名称 | 分支名 |
+| --- | --- | --- |
+| 3.27 | path_provider-v2.1.5-ohos-1.0.0 | br_path_provider-v2.1.5_ohos |
+| 3.35 | path_provider-v2.1.5-ohos-1.0.0 | br_path_provider-v2.1.5_ohos |
+| 3.41 | path_provider-v2.1.5-ohos-1.0.0 | br_path_provider-v2.1.5_ohos |
+| 3.44 | path_provider-v2.1.5-ohos-1.0.0 | br_path_provider-v2.1.5_ohos |
+
 ## 约束与限制
 
 ### 兼容性
 
 在以下版本中已测试通过
-1. Flutter: 3.27.5-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.1.0.828; ROM: 5.1.0.130 SP8;
-2. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
-3. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 5.0.13.200; ROM: 5.1.0.120 SP3;
+
+1. Flutter: 3.27.5-ohos-0.0.1, DevEco Studio: 5.1.0.828, SDK: 5.0.5(17), ROM: 5.1.0.130 SP8;
+2. Flutter: 3.35.8-ohos-0.0.3, DevEco Studio: 5.0.13.200, SDK: 5.0.5(17), ROM: 5.1.0.120 SP3;
+3. Flutter: 3.41.10-ohos-0.0.1, DevEco Studio: 5.0.13.200, SDK: 5.0.5(17), ROM: 5.1.0.120 SP3;
+4. Flutter: 3.44.9+ohos-0.0.1-canary1, DevEco Studio:  6.1.1.290, SDK: 5.0.5(17), ROM: 6.1.0.135 SP8;
 
 ### 权限要求
 
@@ -83,17 +95,21 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 Future<void> logPathsFromExample() async {
   final PathProviderPlatform provider = PathProviderPlatform.instance;
 
-  final temp = await provider.getTemporaryPath();
-  debugPrint('Temporary: $temp');
+  // 获取未备份的临时目录路径，适合存放可重建的缓存文件
+  final String? tempPath = await provider.getTemporaryPath();
+  debugPrint('Temporary: $tempPath');
 
-  final docs = await provider.getApplicationDocumentsPath();
-  debugPrint('Documents: $docs');
+  // 获取用户文档目录路径，适合存放用户生成或无法重建的数据
+  final String? documentsPath = await provider.getApplicationDocumentsPath();
+  debugPrint('Documents: $documentsPath');
 
-  final support = await provider.getApplicationSupportPath();
-  debugPrint('Support: $support');
+  // 获取应用支持目录路径；目录不存在时由实现自动创建
+  final String? supportPath = await provider.getApplicationSupportPath();
+  debugPrint('Support: $supportPath');
 
-  final cache = await provider.getApplicationCachePath();
-  debugPrint('Cache: $cache');
+  // 获取应用缓存目录路径；目录不存在时由实现自动创建
+  final String? cachePath = await provider.getApplicationCachePath();
+  debugPrint('Cache: $cachePath');
 }
 ```
 
@@ -146,9 +162,9 @@ Future<void> logPathsFromExample() async {
 
 部分「外部存储」相关接口与 Android 行为不一致，受平台能力限制无法对齐：
 
-- `getExternalStorageDirectory()`：Android 返回外部存储上的应用专属目录，OHOS 返回应用沙箱内的 `files` 目录（内部存储）。
-- `getExternalCacheDirectories()`：Android 可返回多个外部缓存目录，OHOS 仅返回单个应用 `cache` 目录。
-- `getExternalStorageDirectories(type)`：Android 返回多个系统级外部媒体/存储目录，OHOS 在 `files` 目录下按类型创建子目录并返回单一路径。
+- `getExternalStoragePath()`：Android 返回外部存储上的应用专属目录，OHOS 返回应用沙箱内的 `files` 目录（内部存储）。
+- `getExternalCachePaths()`：Android 可返回多个外部缓存目录，OHOS 仅返回单个应用 `cache` 目录。
+- `getExternalStoragePaths(type)`：Android 返回多个系统级外部媒体/存储目录，OHOS 在 `files` 目录下按类型创建子目录并返回单一路径。
 
 ## 遗留问题
 
@@ -163,21 +179,20 @@ Future<void> logPathsFromExample() async {
 |           |---- path_provider_ohos.dart   # 插件主入口
 |           |---- messages.g.dart           # 平台通道消息定义
 |     |---- ohos                       # OpenHarmony 原生代码目录
-|           |---- src/main/ets/components/plugin/PathProviderOhosPlugin.ets  # 插件入口
+|           |---- src/main/ets/io/flutter/plugins/pathprovider/PathProviderPlugin.ets  # 插件入口
 |     |---- test                       # 单元测试
 |     |---- CHANGELOG.md               # 版本变更记录
 |     |---- LICENSE                    # BSD-3-Clause
 |     |---- pubspec.yaml               # 包配置文件
-|     |---- README_CN.md   # 中文文档
-|     |---- README.md      # 英文文档
+|     |---- README.OpenSource.md       # 开源说明
+|     |---- README_CN.md               # 中文文档
+|     |---- README.md                  # 英文文档
 ```
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues) ，当然，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
 ## 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/path_provider/path_provider_ohos/LICENSE) ，请自由地享受和参与开源。
-
-> 模板版本: v0.0.1
+本项目基于 [BSD-3-Clause](https://github.com/flutter/packages/blob/main/packages/path_provider/path_provider/LICENSE) ，请自由地享受和参与开源。

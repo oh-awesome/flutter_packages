@@ -23,6 +23,7 @@ dependencies:
   path_provider_platform_interface: ^2.1.0
 
 dev_dependencies:
+  coverage: ^1.6.0
   flutter_test:
     sdk: flutter
   pigeon: ^26.0.1
