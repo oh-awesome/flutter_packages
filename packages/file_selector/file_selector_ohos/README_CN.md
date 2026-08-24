@@ -6,22 +6,19 @@
 
 ## 简介
 
-`file_selector_ohos` 是 `file_selector` 的 OpenHarmony 平台实现，为 Flutter 应用提供文件选择能力，支持选择单个文件、批量选择文件。
+`file_selector` 的 OpenHarmony 平台实现（包名：`file_selector_ohos`）。为 Flutter 应用提供文件选择能力，支持单文件选择与多文件选择。
 
 ## 下载安装
 
 进入到工程目录并在 pubspec.yaml 中添加以下依赖：
 
-<!-- tabs:start -->
-
-
 ```yaml
 dependencies:
-  file_selector:	 
-    git: 	 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git	 
-      path: packages/file_selector/file_selector
-      ref: br_file_selector-v1.1.0_ohos
+  file_selector:
+    git:
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
+      path: "packages/file_selector/file_selector"
+      ref: "file_selector-v1.1.0-ohos-1.0.2"
 ```
 
 执行命令：
@@ -30,25 +27,49 @@ dependencies:
 flutter pub get
 ```
 
+> TAG 命名规则：`原库版本-ohos-版本号-betax`，不同 TAG 之间的变更详见 CHANGELOG.md。
+
+| Flutter 框架版本 | TAG 名称 | 分支名 |
+| --- | --- | --- |
+| 3.35 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+| 3.41 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+| 3.44 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+
+### 升级迁移说明
+
+1. 按上表将 `ref` 切换到目标 Flutter 框架对应的分支或 TAG。
+2. 执行 `flutter clean` 与 `flutter pub get`。
+3. 核对 `module.json5` 权限配置是否与当前文档一致。
+4. 若从仅 Android/iOS 项目迁到 OpenHarmony，需增加 `ohos` 平台工程并重新编译 HAP。
+
 ## 约束与限制
 
 ### 兼容性
 
-在以下版本中已测试通过
+在以下版本中已测试通过：
 
 1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
 2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
+3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio 26.0.0 Beta2; ROM: 7.0.0.102 SP8;
 
-### 2.2 权限要求
+### OHOS 环境配置步骤
 
-以下权限中有`system_basic` 权限，而默认的应用权限是 `normal` ，只能使用 `normal` 等级的权限，所以可能会在安装hap包时报错**9568289**，请参考 [文档](https://developer.huawei.com/consumer/cn/doc/harmonyos-guides-V5/bm-tool-V5#ZH-CN_TOPIC_0000001884757326__%E5%AE%89%E8%A3%85hap%E6%97%B6%E6%8F%90%E7%A4%BAcode9568289-error-install-failed-due-to-grant-request-permissions-failed) 修改应用等级为 `system_basic`
+1. 安装并配置 DevEco Studio。
+2. 安装 OpenHarmony SDK。
+3. 配置 OpenHarmony 版 Flutter SDK，并确认 `flutter doctor` 中 ohos 工具链可用。
+4. 在工程中执行依赖安装：`flutter pub get`。
+5. 编译示例或业务工程：`flutter build hap`。
+6. 通过 DevEco Studio 或 `hdc` 将 HAP 安装到设备/模拟器并运行。
 
-####  在 entry 目录下的module.json5中添加权限
+### 权限要求
+
+以下权限中有 `system_basic` 权限，而默认的应用权限是 `normal`，只能使用 `normal` 等级的权限，所以可能会在安装 hap 包时报错 **9568289**。请按 OpenHarmony 应用权限等级规范修改应用等级为 `system_basic`。
+
+#### 在 entry 目录下的 module.json5 中添加权限
 
 打开 `entry/src/main/module.json5`，添加：
 
-```yaml
-...
+```json
 "requestPermissions": [
   {
     "name": "ohos.permission.INTERNET",
@@ -57,24 +78,23 @@ flutter pub get
       "abilities": [
         "EntryAbility"
       ],
-      "when":"inuse"
+      "when": "inuse"
     }
-  },
+  }
 ]
 ```
 
-####  在 entry 目录下添加申请以上权限的原因
+#### 在 entry 目录下添加申请以上权限的原因
 
 打开 `entry/src/main/resources/base/element/string.json`，添加：
 
-```
-...
+```json
 {
   "string": [
     {
       "name": "network_reason",
       "value": "使用网络"
-    },
+    }
   ]
 }
 ```
@@ -102,43 +122,48 @@ Future<void> pickTextFile() async {
 }
 ```
 
+## 使用说明
+
+1. 通过 `FileSelectorOhos.registerWith()` 或手动赋值 `FileSelectorPlatform.instance = FileSelectorOhos()` 注册平台实现。
+2. 使用 `openFile` / `openFiles` 拉起系统文档选择器；可通过 `XTypeGroup` 的 `extensions` 或 `mimeTypes` 过滤。
+3. `confirmButtonText` 在 ohos 上不生效，系统使用默认确认文案。
+4. `getDirectoryPath` 在手机侧 DocumentViewPicker 场景下不支持。
 
 ## 接口说明
 
-
 ### API
 
-> [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
+> "ohos 支持"列为 yes 表示 ohos 平台支持该属性；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android。
 
-| Name                                                         | return value        | Description                                                  | Type     | ohos Support |
-| ------------------------------------------------------------ | ------------------- | ------------------------------------------------------------ | -------- | ------------ |
-| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<XFile?>      | 打开一个用于加载文件的文件对话框，并返回用户选择的文件响应列表。 | function | partially          |
-| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future<List<XFile>> | 打开一个文件对话框以加载文件，并返回用户选择的文件响应列表。 | function | partially          |
-| getDirectoryPath({String? initialDirectory, String? confirmButtonText, bool? canCreateDirectories,}) | Future<String?>     | 打开一个文件对话框以选择目录，并返回所选的目录路径。         | function | no           |
+| 名称 | 返回值 | 描述 | 类型 | ohos 支持 |
+| --- | --- | --- | --- | --- |
+| openFile({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future\<XFile?\> | 打开一个用于加载文件的文件对话框，并返回用户选择的文件。 | function | partially |
+| openFiles({List<[XTypeGroup](#XTypeGroup)>? acceptedTypeGroups, String? initialDirectory, String? confirmButtonText,}) | Future\<List\<XFile\>\> | 打开一个文件对话框以加载文件，并返回用户选择的文件列表。 | function | partially |
+| getDirectoryPath({String? initialDirectory, String? confirmButtonText,}) | Future\<String?\> | 打开一个文件对话框以选择目录，并返回所选的目录路径。 | function | no |
 
-### Parameters 
+### 参数
 
-| Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
-|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| acceptedTypeGroups  | 可以在对话框中选择的文件类型组列表，其显示方式取决于平台。                                                                                                                                 | List<[XTypeGroup](#XTypeGroup)>?               | yes               |
-| initialDirectory  | 对话框打开时将显示的目录的完整路径。如果没有提供，平台将选择一个初始位置。                                                                                                                                | String?               | yes               |
-| confirmButtonText | 对话框确认按钮上的文本。如果没有提供，将使用默认的操作系统标签（例如，“Open”）。                                                                                                                                 | String?               | no              |
+| 名称 | 描述 | 类型 | ohos 支持 |
+| --- | --- | --- | --- |
+| acceptedTypeGroups | 可以在对话框中选择的文件类型组列表，其显示方式取决于平台。 | List\<[XTypeGroup](#XTypeGroup)\>? | yes |
+| initialDirectory | 对话框打开时将显示的目录的完整路径。如果没有提供，平台将选择一个初始位置。 | String? | yes |
+| confirmButtonText | 对话框确认按钮上的文本。如果没有提供，将使用默认的操作系统标签（例如，“Open”）。 | String? | no |
 
 ### XTypeGroup
 
-| Name               | Description                                                                                                                                                                         | Type                        | ohos Support |
-|--------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------|-------------------|
-| label  | 这个类型组的“名称”或引用。                                                                                                                                 | String?               | yes               |
-| extensions  | 这个组的文件扩展名                                                                                                                                 | List<String>?               | yes               |
-| mimeTypes  | 这个组的 MIME 类型。                                                                                                                                 | List<String>?               | yes               |
-| uniformTypeIdentifiers  | 这个组的统一类型标识符。                                                                                                                                 | List<String>?               | no              |
-| webWildCards  | 这个组的网络通配符（例如：image/*，video/*）。                                                                                                                                 | List<String>?               | no              |
-
+| 名称 | 描述 | 类型 | ohos 支持 |
+| --- | --- | --- | --- |
+| label | 这个类型组的“名称”或引用。 | String? | yes |
+| extensions | 这个组的文件扩展名。 | List\<String\>? | yes |
+| mimeTypes | 这个组的 MIME 类型。 | List\<String\>? | yes |
+| uniformTypeIdentifiers | 这个组的统一类型标识符。 | List\<String\>? | no |
+| webWildCards | 这个组的网络通配符（例如：image/*，video/*）。 | List\<String\>? | no |
 
 ## 遗留问题
 
-系统选择拉起对话框后的确认按钮不支持自定义；手机侧filepicker拉起对话框不支持选择目录；webWildCards仅在 Web 平台生效；uniformTypeIdentifiers是统一类型标识符（UTI）列表，仅在 iOS / macOS 平台生效
-
+1. 系统选择对话框确认按钮不支持自定义文案。
+2. 手机侧 DocumentViewPicker 不支持选择目录（`getDirectoryPath` 不可用）。
+3. `webWildCards` 仅在 Web 生效；`uniformTypeIdentifiers` 是统一类型标识符（UTI）列表，仅在 iOS/macOS 生效。
 
 ## 目录结构
 
@@ -146,18 +171,18 @@ Future<void> pickTextFile() async {
 file_selector_ohos/
 ├─ lib/                         # OpenHarmony 平台实现导出与核心逻辑
 ├─ ohos/                        # OpenHarmony 原生侧实现
-├─ pigeons/                     # Pigeon 接口定义
 ├─ example/                     # 示例应用
 ├─ test/                        # 测试代码
 ├─ pubspec.yaml                 # 包配置
-└─ README.md                    # 原始说明文档
+├─ CHANGELOG.md                 # 版本变更记录
+├─ README.md                    # 包说明（英文）
+└─ README_CN.md                 # 包说明（中文）
 ```
 
 ## 贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-sig/flutter_packages/issues)，当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-sig/flutter_packages/pulls) 共建。
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues)，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
 ## 开源协议
 
-本项目基于 [BSD-3-Clause](This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE).) ，请自由地享受和参与开源。
-
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE) ，请自由地享受和参与开源。
