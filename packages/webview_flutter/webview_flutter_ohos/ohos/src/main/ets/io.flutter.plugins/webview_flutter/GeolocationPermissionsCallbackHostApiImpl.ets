@@ -23,6 +23,13 @@ export class GeolocationPermissionsCallbackHostApiImpl extends GeolocationPermis
   }
 
   private getGeolocationPermissionsCallbackInstance(identifier:number):JsGeolocation{
-    return this.instanceManager.getInstance(identifier);
+    const callback: JsGeolocation = this.instanceManager.getInstance(identifier);
+    // Defensive check: fail fast with a readable error instead of an
+    // undefined-reference crash when the identifier is unknown or already
+    // disposed. Valid identifiers follow exactly the same path as before.
+    if (!callback) {
+      throw new Error('GeolocationPermissionsCallback instance not found, id = ' + identifier);
+    }
+    return callback;
   }
 }

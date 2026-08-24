@@ -10,9 +10,6 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:webview_flutter_ohos/src/ohos_webview.dart'
     as ohos_webview;
-import 'package:webview_flutter_ohos/src/ohos_webview.g.dart'
-    as ohos_webview_g; // 导入 WebViewPoint 等类型
-import 'package:webview_flutter_ohos/src/ohos_webview_constants.dart';
 import 'package:webview_flutter_ohos/src/legacy/webview_ohos_widget.dart';
 import 'package:webview_flutter_platform_interface/src/webview_flutter_platform_interface_legacy.dart';
 

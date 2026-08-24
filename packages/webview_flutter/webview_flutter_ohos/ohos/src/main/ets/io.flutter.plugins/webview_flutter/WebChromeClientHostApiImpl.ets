@@ -5,7 +5,7 @@
 // Copyright 2013 The Flutter Authors.
 
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
-import { Reply, WebChromeClientHostApi, CustomViewCallback, HttpAuthHandler } from './GeneratedOhosWebView';
+import { Reply, WebChromeClientHostApi, CustomViewCallback, HttpAuthHandler, SslErrorHandler } from './GeneratedOhosWebView';
 import { InstanceManager } from './InstanceManager';
 import { OhosWebView } from './OhosWebView';
 import { WebChromeClientFlutterApiImpl } from './WebChromeClientFlutterApiImpl';
@@ -58,33 +58,45 @@ export class WebChromeClientHostApiImpl extends WebChromeClientHostApi {
     this.flutterApi = flutterApi;
   }
 
+  // Defensive check (failure path only): a missing or already released
+  // identifier previously crashed when the setter was invoked on it; now it
+  // fails with a descriptive error, matching requireWebViewInstance() and
+  // requireWebSettingsInstance() elsewhere in this package.
+  private requireWebChromeClientInstance(instanceId: number): WebChromeClientImpl {
+    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    if (!webChromeClient) {
+      throw new Error('WebChromeClient instance not found, id = ' + instanceId);
+    }
+    return webChromeClient;
+  }
+
   create(instanceId: number) {
     const webChromeClient: WebChromeClient = this.webChromeClientCreator.createWebChromeClient(this.flutterApi);
     this.instanceManager.addDartCreatedInstance(webChromeClient, instanceId);
   }
 
   setSynchronousReturnValueForOnShowFileChooser(instanceId: number, value: boolean) {
-    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    const webChromeClient: WebChromeClientImpl = this.requireWebChromeClientInstance(instanceId);
     webChromeClient.setReturnValueForOnShowFileChooser(value);
   }
 
   setSynchronousReturnValueForOnConsoleMessage(instanceId: number, value: boolean) {
-    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    const webChromeClient: WebChromeClientImpl = this.requireWebChromeClientInstance(instanceId);
     webChromeClient.setReturnValueForOnConsoleMessage(value);
   }
 
   setSynchronousReturnValueForOnJsAlert(instanceId: number, value: boolean) {
-    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    const webChromeClient: WebChromeClientImpl = this.requireWebChromeClientInstance(instanceId);
     webChromeClient.setReturnValueForOnJsAlert(value);
   }
 
   setSynchronousReturnValueForOnJsConfirm(instanceId: number, value: boolean) {
-    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    const webChromeClient: WebChromeClientImpl = this.requireWebChromeClientInstance(instanceId);
     webChromeClient.setReturnValueForOnJsConfirm(value);
   }
 
   setSynchronousReturnValueForOnJsPrompt(instanceId: number, value: boolean) {
-    const webChromeClient: WebChromeClientImpl = this.instanceManager.getInstance(instanceId);
+    const webChromeClient: WebChromeClientImpl = this.requireWebChromeClientInstance(instanceId);
     webChromeClient.setReturnValueForOnJsPrompt(value);
   }
 }
@@ -142,6 +154,10 @@ class WebChromeClientImpl implements WebChromeClient {
       builder: NewWebView({ webViewController: newWebViewController })
     })
     dialogController.open();
+    // Resource-release fix: track the opened dialog on the owning WebView so
+    // its dispose() can close it programmatically; previously the controller
+    // was a local variable and a leaked ghost dialog could outlive the view.
+    webView.setDialogController(dialogController);
     handler.setWebController(newWebViewController);
   }
 
@@ -260,7 +276,12 @@ class WebChromeClientImpl implements WebChromeClient {
   }
 }
 
-class newWindowWebViewClient implements WebViewClient {
+class NewWindowWebViewClient implements WebViewClient {
+  // Platform limitation: this client is created natively for a new ArkWeb
+  // window and is never registered in the InstanceManager, so no Dart-side
+  // paired object exists to forward these notifications to. Faking a
+  // Pigeon callback without a receiver is not possible; the events are
+  // recorded in the log only.
   onReceivedHttpError(view: WebViewPlatformView, request: WebResourceRequest, response: WebResourceResponse): void {
     Log.i(TAG, "onReceivedHttpError");
   }
@@ -291,7 +312,19 @@ class newWindowWebViewClient implements WebViewClient {
     host: string,
     realm: string
   ): void {
-    // todo
+    // ArkWeb does not forward new-window HTTP authentication requests through
+    // the main WebViewClient callback path. Keep the request untouched here.
     Log.i(TAG, "onReceivedHttpAuthRequest");
+  }
+  onReceivedSslError(
+    view: WebViewPlatformView,
+    handler: SslErrorHandler,
+    url: string,
+    certificate: string,
+    description: string,
+  ): void {
+    // New-window WebViews are not bridged to Dart; safest default rejects the cert.
+    Log.i(TAG, 'onReceivedSslError (new window): ' + url + ' - ' + description);
+    handler.cancel();
   }
 }

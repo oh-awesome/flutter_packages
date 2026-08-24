@@ -20,6 +20,18 @@ export class OhosObjectHostApiImpl extends OhosObjectHostApi {
   }
 
   dispose(identifier: number) {
+    // Dart-side instance release: the Dart weak reference was dropped, so no
+    // controller can re-attach this instance anymore. Run the WebView's full
+    // end-of-life teardown (polling intervals, display listeners, JavaScript
+    // proxies, dialogs, reference cycles) before dropping the strong
+    // reference. WebViewPlatformView.dispose() alone is intentionally minimal
+    // because the embedding also calls it on transient widget removal, where
+    // the instance must stay reusable by a new widget.
+    const webView: WebViewPlatformView =
+      this.instanceManager.getInstance(identifier) as WebViewPlatformView;
+    if (webView instanceof WebViewPlatformView) {
+      webView.release();
+    }
     this.instanceManager.remove(identifier);
   }
 }

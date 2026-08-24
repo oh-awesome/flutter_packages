@@ -25,9 +25,12 @@ export class FlutterAssetManagerHostApiImpl extends FlutterAssetManagerHostApi {
       }
       return paths;
     } catch (err) {
-      Log.e(TAG, "mkdirSync failed err:" + err);
+      // Error-path fix only: rethrow the original error instead of returning
+      // an empty array, so Dart can tell a failed read from an empty
+      // directory. A successful empty directory still returns [].
+      Log.e(TAG, 'list failed err:' + err);
+      throw new Error(String(err));
     }
-    return [];
   }
 
   getAssetFilePathByName(name: string): string {

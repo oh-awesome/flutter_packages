@@ -64,6 +64,10 @@ export interface WebSettings {
   
   onTextZoomChanged(callback: (ratio: number) => void): void;
 
+  clearOnTextZoomChanged(): void;
+
+  releaseWebView(): void;
+
   setAllowFullScreenRotate(enabled: boolean): void;
   
   getAllowFullScreenRotate(): boolean;
@@ -98,101 +102,118 @@ export class WebSettingsHostApiImpl extends WebSettingsHostApi {
 
   create(instanceId: number, webViewInstanceId: number) {
     const webView: WebViewPlatformView = this.instanceManager.getInstance(webViewInstanceId);
+    // Defensive check: fail fast with a readable error instead of creating
+    // settings bound to an unknown WebView. Valid identifiers follow exactly
+    // the same path as before.
+    if (!webView) {
+      throw new Error('WebView instance not found for WebSettings, id = ' + webViewInstanceId);
+    }
     this.instanceManager.addDartCreatedInstance(this.webSettingsCreator.createWebSettings(webView), instanceId);
   }
 
+  // Defensive check: fail fast with a readable error instead of an
+  // undefined-reference crash when the identifier is unknown or already
+  // disposed. Valid identifiers follow exactly the same path as before.
+  private requireWebSettingsInstance(identifier: number): WebSettings {
+    const webSettings: WebSettings = this.instanceManager.getInstance(identifier);
+    if (!webSettings) {
+      throw new Error('WebSettings instance not found, id = ' + identifier);
+    }
+    return webSettings;
+  }
+
   setDomStorageEnabled(instanceId: number, flag: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setDomStorageEnabled(flag);
   }
 
   setJavaScriptCanOpenWindowsAutomatically(instanceId: number, flag: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setJavaScriptCanOpenWindowsAutomatically(flag);
   }
 
   setSupportMultipleWindows(instanceId: number, support: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setSupportMultipleWindows(support);
   }
 
   setBackgroundColor(instanceId: number, color: number) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setBackgroundColor(color);
   }
 
   setJavaScriptEnabled(instanceId: number, flag: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setJavaScriptEnabled(flag);
   }
 
   setUserAgentString(instanceId: number, userAgentString: string) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setUserAgentString(userAgentString);
   }
 
   setMediaPlaybackRequiresUserGesture(instanceId: number, require: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setMediaPlaybackRequiresUserGesture(require);
   }
 
   setSupportZoom(instanceId: number, support: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setSupportZoom(support);
   }
 
   setLoadWithOverviewMode(instanceId: number, overview: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setLoadWithOverviewMode(overview);
   }
 
   setUseWideViewPort(instanceId: number, use: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setUseWideViewPort(use);
   }
 
   setDisplayZoomControls(instanceId: number, enabled: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setDisplayZoomControls(enabled);
   }
 
   setBuiltInZoomControls(instanceId: number, enabled: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setBuiltInZoomControls(enabled);
   }
 
   setAllowFileAccess(instanceId: number, enabled: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setAllowFileAccess(enabled);
   }
 
   setTextZoom(instanceId: number, textZoom: number) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setTextZoom(textZoom);
   }
 
   getUserAgentString(instanceId: number): Promise<string> {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     return webSettings.getUserAgentString();
   }
 
   setAllowFullScreenRotate(instanceId: number, enabled: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setAllowFullScreenRotate(enabled);
   }
 
   setPaymentRequestEnabled(instanceId: number, enabled: boolean) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setPaymentRequestEnabled(enabled);
   }
 
   setMixedContentMode(instanceId: number, mode: number) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setMixedContentMode(mode);
   }
 
   setOverScrollMode(instanceId: number, mode: number) {
-    const webSettings:WebSettings = this.instanceManager.getInstance(instanceId);
+    const webSettings:WebSettings = this.requireWebSettingsInstance(instanceId);
     webSettings.setOverScrollMode(mode);
   }
 }

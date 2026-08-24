@@ -3,8 +3,8 @@ description: Demonstrates how to use the webview_flutter_ohos plugin.
 publish_to: none
 
 environment:
-  sdk: ^3.9.0
-  flutter: ">=3.35.0"
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
 
 dependencies:
   flutter:
@@ -18,7 +18,7 @@ dependencies:
   webview_flutter_platform_interface: ^2.14.0
   path_provider_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       ref: br_path_provider-v2.1.5_ohos
       path: packages/path_provider/path_provider_ohos
 
@@ -30,7 +30,7 @@ dependency_overrides:
   path_provider_foundation: 2.5.1
   path_provider_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       ref: br_path_provider-v2.1.5_ohos
       path: packages/path_provider/path_provider_ohos
 

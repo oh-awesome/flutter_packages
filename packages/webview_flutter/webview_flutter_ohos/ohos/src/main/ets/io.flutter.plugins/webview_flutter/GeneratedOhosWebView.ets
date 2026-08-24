@@ -297,7 +297,7 @@ export abstract class WebViewHostApi {
     return WebViewHostApiCodec.INSTANCE;
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebViewHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebViewHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -1490,7 +1490,7 @@ export abstract class WebChromeClientHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebChromeClientHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebChromeClientHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -1682,7 +1682,7 @@ export abstract class WebViewClientHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebViewClientHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebViewClientHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -2163,6 +2163,33 @@ export abstract class WebViewClientFlutterApi {
       (channelReply: ESObject) => callback.reply(null)
     );
   }
+
+  onReceivedSslError(
+    instanceIdArg: number,
+    webViewInstanceIdArg: number,
+    sslHandlerInstanceIdArg: number,
+    urlArg: string,
+    certificateArg: string,
+    descriptionArg: string,
+    callback: Reply<void>,
+  ): void {
+    const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+      this.binaryMessenger,
+      "dev.flutter.pigeon.webview_flutter_ohos.WebViewClientFlutterApi.onReceivedSslError",
+      WebViewClientFlutterApi.getCodec(),
+    );
+    channel.send(
+      [
+        instanceIdArg,
+        webViewInstanceIdArg,
+        sslHandlerInstanceIdArg,
+        urlArg,
+        certificateArg,
+        descriptionArg,
+      ],
+      (channelReply: ESObject) => callback.reply(null),
+    );
+  }
 }
 
 export abstract class WebSettingsHostApi {
@@ -2210,7 +2237,7 @@ export abstract class WebSettingsHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebSettingsHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebSettingsHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -2855,7 +2882,7 @@ export abstract class WebViewFeatureHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebViewFeatureHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebViewFeatureHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -2897,7 +2924,7 @@ export abstract class WebStorageHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: WebStorageHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: WebStorageHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -2965,7 +2992,7 @@ export abstract class GeolocationPermissionsCallbackHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: GeolocationPermissionsCallbackHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: GeolocationPermissionsCallbackHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3036,7 +3063,7 @@ export abstract class HttpAuthHandlerHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: HttpAuthHandlerHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: HttpAuthHandlerHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3145,6 +3172,96 @@ export class HttpAuthHandlerFlutterApi {
 
 }
 
+export abstract class SslErrorHandlerHostApi {
+  abstract cancel(instanceId: number): void;
+
+  abstract proceed(instanceId: number): void;
+
+  static getCodec(): MessageCodec<ESObject> {
+    return new StandardMessageCodec();
+  }
+
+  static setup(binaryMessenger: BinaryMessenger, api: SslErrorHandlerHostApi | null) {
+    {
+      const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.cancel",
+        SslErrorHandlerHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          new MessageHandlerBuilder((message: ESObject, reply: Reply<ESObject>) => {
+            let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+            const args: Array<ESObject> = message;
+            const instanceIdentifierArg: number = args[0] as number;
+            try {
+              api.cancel(instanceIdentifierArg);
+              wrapped.insert(null, 0);
+            } catch (err) {
+              const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+              wrapped = wrappedError;
+            }
+            reply.reply(wrapped.convertToArray());
+          })
+        )
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+        binaryMessenger,
+        "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.proceed",
+        SslErrorHandlerHostApi.getCodec()
+      );
+      if (api != null) {
+        channel.setMessageHandler(
+          new MessageHandlerBuilder((message: ESObject, reply: Reply<ESObject>) => {
+            let wrapped: ArrayList<ESObject> = new ArrayList<ESObject>();
+            const args: Array<ESObject> = message;
+            const instanceIdentifierArg: number = args[0] as number;
+            try {
+              api.proceed(instanceIdentifierArg);
+              wrapped.insert(null, 0);
+            } catch (err) {
+              const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
+              wrapped = wrappedError;
+            }
+            reply.reply(wrapped.convertToArray());
+          })
+        )
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+  }
+}
+
+export class SslErrorHandlerFlutterApi {
+  private binaryMessenger: BinaryMessenger;
+
+  constructor(binaryMessenger: BinaryMessenger) {
+    this.binaryMessenger = binaryMessenger;
+  }
+
+  static getCodec(): MessageCodec<ESObject> {
+    return new StandardMessageCodec();
+  }
+
+  create(instanceIdArg: number, callback: Reply<void>): void {
+    const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
+      this.binaryMessenger,
+      "dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerFlutterApi.create",
+      SslErrorHandlerHostApi.getCodec()
+    );
+    channel.send(
+      [instanceIdArg],
+      (channelReply: ESObject) => callback.reply(null)
+    );
+  }
+
+}
+
 export abstract class CookieManagerHostApi {
   static getCodec(): MessageCodec<ESObject> {
     return new StandardMessageCodec();
@@ -3156,9 +3273,11 @@ export abstract class CookieManagerHostApi {
 
   abstract removeAllCookies(identifier: number, result: Result<Boolean>);
 
-  abstract setAcceptThirdPartyCookies(identifier: number, accept: boolean);
+  // Hand-extended (no .pigeon source in-tree): keeps the webViewIdentifier
+  // parameter that the Dart side already sends so it is not silently dropped.
+  abstract setAcceptThirdPartyCookies(identifier: number, webViewIdentifier: number, accept: boolean);
 
-  static setup(binaryMessenger: BinaryMessenger, api: CookieManagerHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: CookieManagerHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3259,7 +3378,9 @@ export abstract class CookieManagerHostApi {
             const webViewIdentifierArg: number = args[1];
             const acceptArg: boolean = args[2];
             try {
-              api.setAcceptThirdPartyCookies(identifierArg, acceptArg);
+              // Defect fix: forward the extracted webViewIdentifierArg instead
+              // of dropping it (cross-language parameter loss).
+              api.setAcceptThirdPartyCookies(identifierArg, webViewIdentifierArg, acceptArg);
               wrapped.insert(null, 0);
             } catch (err) {
               const wrappedError: ArrayList<ESObject> = GeneratedOhosWebView.wrapError(err);
@@ -3317,7 +3438,7 @@ export abstract class CustomViewCallbackHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: CustomViewCallbackHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: CustomViewCallbackHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3355,6 +3476,12 @@ export interface HttpAuthHandler {
   proceed(username: string, password: string): void;
 
   useHttpAuthUsernamePassword(): boolean;
+}
+
+export interface SslErrorHandler {
+  cancel(): void;
+
+  proceed(): void;
 }
 
 export interface CustomViewCallback {
@@ -3418,7 +3545,7 @@ export abstract class PermissionRequestHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: PermissionRequestHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: PermissionRequestHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3572,7 +3699,7 @@ export abstract class DownloadListenerHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: DownloadListenerHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: DownloadListenerHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> = new BasicMessageChannel<ESObject>(
         binaryMessenger,
@@ -3612,7 +3739,7 @@ export abstract class FlutterAssetManagerHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: FlutterAssetManagerHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: FlutterAssetManagerHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -3679,7 +3806,7 @@ export abstract class JavaScriptChannelHostApi {
     return WebChromeClientFlutterApiCodec.INSTANCE;
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: JavaScriptChannelHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: JavaScriptChannelHostApi | null) {
     {
       const channel: BasicMessageChannel<ESObject> =
       new BasicMessageChannel<ESObject>(
@@ -3719,7 +3846,7 @@ export abstract class OhosObjectHostApi {
     return new StandardMessageCodec();
   }
 
-  static setup(binaryMessenger: BinaryMessenger, api: OhosObjectHostApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: OhosObjectHostApi | null) {
     {
 
       const channel: BasicMessageChannel<ESObject> =
@@ -3799,7 +3926,7 @@ export abstract class InstanceManagerHostApi {
    * `binaryMessenger`.
    */
 
-  static setup(binaryMessenger: BinaryMessenger, api: InstanceManagerApi) {
+  static setup(binaryMessenger: BinaryMessenger, api: InstanceManagerApi | null) {
     {
 
       const channel: BasicMessageChannel<ESObject> =
