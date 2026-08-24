@@ -16,41 +16,45 @@ export enum CacheType {
   VIDEO
 }
 ;
-const TAG = "ImagePickerCache";
+const TAG = 'ImagePickerCache';
 
 export default class ImagePickerCache {
-  static MAP_KEY_PATH_LIST = "pathList";
-  static MAP_KEY_MAX_WIDTH = "maxWidth";
-  static MAP_KEY_MAX_HEIGHT = "maxHeight";
-  static MAP_KEY_IMAGE_QUALITY = "imageQuality";
-  static MAP_KEY_TYPE = "type";
-  static MAP_KEY_ERROR = "error";
-  private static MAP_TYPE_VALUE_IMAGE = "image";
-  private static MAP_TYPE_VALUE_VIDEO = "video";
+  static MAP_KEY_PATH_LIST = 'pathList';
+  static MAP_KEY_MAX_WIDTH = 'maxWidth';
+  static MAP_KEY_MAX_HEIGHT = 'maxHeight';
+  static MAP_KEY_IMAGE_QUALITY = 'imageQuality';
+  static MAP_KEY_TYPE = 'type';
+  static MAP_KEY_ERROR = 'error';
+  private static MAP_TYPE_VALUE_IMAGE = 'image';
+  private static MAP_TYPE_VALUE_VIDEO = 'video';
   private static FLUTTER_IMAGE_PICKER_IMAGE_PATH_KEY =
-    "flutter_image_picker_image_path";
-  private static SHARED_PREFERENCE_ERROR_CODE_KEY = "flutter_image_picker_error_code";
+    'flutter_image_picker_image_path';
+  private static SHARED_PREFERENCE_ERROR_CODE_KEY = 'flutter_image_picker_error_code';
   private static SHARED_PREFERENCE_ERROR_MESSAGE_KEY =
-    "flutter_image_picker_error_message";
-  private static SHARED_PREFERENCE_MAX_WIDTH_KEY = "flutter_image_picker_max_width";
-  private static SHARED_PREFERENCE_MAX_HEIGHT_KEY = "flutter_image_picker_max_height";
+    'flutter_image_picker_error_message';
+  private static SHARED_PREFERENCE_MAX_WIDTH_KEY = 'flutter_image_picker_max_width';
+  private static SHARED_PREFERENCE_MAX_HEIGHT_KEY = 'flutter_image_picker_max_height';
   private static SHARED_PREFERENCE_IMAGE_QUALITY_KEY =
-    "flutter_image_picker_image_quality";
-  private static SHARED_PREFERENCE_TYPE_KEY = "flutter_image_picker_type";
+    'flutter_image_picker_image_quality';
+  private static SHARED_PREFERENCE_TYPE_KEY = 'flutter_image_picker_type';
   private static SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY =
-    "flutter_image_picker_pending_image_uri";
-  private static SHARED_PREFERENCES_NAME = "flutter_image_picker_shared_preference";
+    'flutter_image_picker_pending_image_uri';
+  private static SHARED_PREFERENCES_NAME = 'flutter_image_picker_shared_preference';
   private context: common.Context;
-  private preferences: data_preferences.Preferences = {} as data_preferences.Preferences;
+  private preferences: data_preferences.Preferences | null = null;
+  // 记录 Preferences 异步初始化完成的 Promise，
+  // 所有读写方法先等待其完成，避免 preferences 未就绪时操作被静默丢弃
+  private preferencesInitPromise: Promise<void>;
 
   constructor(context: common.Context) {
     this.context = context;
-    data_preferences.getPreferences(this.context, ImagePickerCache.SHARED_PREFERENCES_NAME)
+    this.preferencesInitPromise =
+      data_preferences.getPreferences(this.context, ImagePickerCache.SHARED_PREFERENCES_NAME)
       .then((preferences) => {
         this.preferences = preferences;
       })
       .catch(() => {
-        Log.e(TAG, "getPreferences failed");
+        Log.e(TAG, 'getPreferences failed');
       });
   }
 
@@ -71,26 +75,30 @@ export default class ImagePickerCache {
     try {
       this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_TYPE_KEY, type);
     } catch (err) {
-      Log.e(TAG, "setType failed");
+      Log.e(TAG, 'setType failed');
     }
   }
 
   private setPreferenceData(key: string, data: data_preferences.ValueType): void {
-    if (this.preferences == null) {
-      return;
-    }
-    this.preferences.put(key, data)
-      .then(() => {
-        this.preferences.flush().catch(() => {
-          Log.e(TAG, "preferences flush failed");
+    this.preferencesInitPromise.then(() => {
+      const preferences = this.preferences;
+      if (preferences == null) {
+        return;
+      }
+      preferences.put(key, data)
+        .then(() => {
+          preferences.flush().catch(() => {
+            Log.e(TAG, 'preferences flush failed');
+          });
+        })
+        .catch(() => {
+          Log.e(TAG, 'preferences put failed');
         });
-      })
-      .catch(() => {
-        Log.e(TAG, "preferences put failed");
-      });
+    });
   }
 
   private async getPreferenceData(key: string, defValue: data_preferences.ValueType | null): Promise<data_preferences.ValueType | null> {
+    await this.preferencesInitPromise;
     if (this.preferences == null) {
       return defValue;
     }
@@ -99,13 +107,14 @@ export default class ImagePickerCache {
         return data;
       })
       .catch(() => {
-        Log.e(TAG, "preferences get failed");
+        Log.e(TAG, 'preferences get failed');
         return defValue;
       });
     return result;
   }
 
   private async hasKey(key: string): Promise<boolean> {
+    await this.preferencesInitPromise;
     if (this.preferences == null) {
       return false;
     }
@@ -115,22 +124,25 @@ export default class ImagePickerCache {
           return result;
         })
         .catch(() => {
-          Log.e(TAG, "preferences has failed");
+          Log.e(TAG, 'preferences has failed');
           return false;
         })
       return hasKey;
     } catch (err) {
-      Log.e(TAG, "preferences hasKey failed");
+      Log.e(TAG, 'preferences hasKey failed');
     }
     return false;
   }
 
   saveDimensionWithOutputOptions(options: ImageSelectionOptions): void {
-    if (options.getMaxWidth() != null) {
-      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_MAX_WIDTH_KEY, options.getMaxWidth());
+    // getMaxWidth()/getMaxHeight() 现为 number | null，用局部变量承接以做类型收窄
+    const maxWidth: number | null = options.getMaxWidth();
+    if (maxWidth != null) {
+      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_MAX_WIDTH_KEY, maxWidth);
     }
-    if (options.getMaxHeight() != null) {
-      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_MAX_HEIGHT_KEY, options.getMaxHeight());
+    const maxHeight: number | null = options.getMaxHeight();
+    if (maxHeight != null) {
+      this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_MAX_HEIGHT_KEY, maxHeight);
     }
     this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_IMAGE_QUALITY_KEY, options.getQuality());
   }
@@ -139,22 +151,22 @@ export default class ImagePickerCache {
     try {
       this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY, uri);
     } catch (err) {
-      Log.e(TAG, "savePendingCameraMediaUriPath failed");
+      Log.e(TAG, 'savePendingCameraMediaUriPath failed');
     }
   }
 
   async retrievePendingCameraMediaUriPath(): Promise<string | null> {
     let result: data_preferences.ValueType | null = null;
     try {
-      result = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY, "")
+      result = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY, '')
         .then((data) => {
           return data;
         });
     } catch (err) {
-      Log.e(TAG, "retrievePendingCameraMediaUriPath failed");
+      Log.e(TAG, 'retrievePendingCameraMediaUriPath failed');
     }
     if (typeof result != 'string') {
-      result = "";
+      result = '';
     }
     return result;
   }
@@ -172,16 +184,31 @@ export default class ImagePickerCache {
     }
   }
 
-  clear(): void {
+  // clear 改为 async 并 await preferences.clear() + flush()，消除与 save*() 的竞态：
+  // 原实现不等待 clear() 完成就返回，紧接着的 put() 可能在 clear() 完成前执行而被清掉
+  async clear(): Promise<void> {
+    await this.preferencesInitPromise;
     if (this.preferences == null) {
       return;
     }
     try {
-      this.preferences.clear().catch(() => {
-        Log.e(TAG, "preferences clear failed");
-      });
+      await this.preferences.clear();
+      await this.preferences.flush();
     } catch (err) {
-      Log.e(TAG, "preferences clear failed");
+      Log.e(TAG, 'preferences clear failed');
+    }
+  }
+
+  // 引擎/Ability 解绑时显式 flush 并释放 Preferences 引用，避免依赖 GC 延迟释放系统资源
+  async close(): Promise<void> {
+    await this.preferencesInitPromise;
+    if (this.preferences != null) {
+      try {
+        await this.preferences.flush();
+      } catch (err) {
+        Log.e(TAG, 'preferences flush failed');
+      }
+      this.preferences = null;
     }
   }
 
@@ -210,7 +237,7 @@ export default class ImagePickerCache {
       return result;
     });
     if (hasKey) {
-      let errorCode = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_ERROR_CODE_KEY, "")
+      let errorCode = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_ERROR_CODE_KEY, '')
         .then((data) => {
           return data;
         });
@@ -224,7 +251,7 @@ export default class ImagePickerCache {
         return result;
       });
       if (hasKey) {
-        let errorMessage = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_ERROR_MESSAGE_KEY, "")
+        let errorMessage = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_ERROR_MESSAGE_KEY, '')
           .then((data) => {
             return data;
           });
@@ -243,7 +270,7 @@ export default class ImagePickerCache {
         return result;
       });
       if (hasKey) {
-        let type = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_TYPE_KEY, "")
+        let type = await this.getPreferenceData(ImagePickerCache.SHARED_PREFERENCE_TYPE_KEY, '')
           .then((data) => {
             return data;
           });

@@ -12,14 +12,58 @@ void main() {
   late ImagePickerOhos picker;
   late _FakeImagePickerApi api;
 
+  late ImagePickerPlatform originalInstance;
+
   setUp(() {
+    // 捕获全局平台实例，tearDown 恢复，避免 registerWith 测试造成跨用例状态泄漏
+    originalInstance = ImagePickerPlatform.instance;
     api = _FakeImagePickerApi();
     picker = ImagePickerOhos(api: api);
+  });
+
+  tearDown(() {
+    ImagePickerPlatform.instance = originalInstance;
   });
 
   test('registers instance', () async {
     ImagePickerOhos.registerWith();
     expect(ImagePickerPlatform.instance, isA<ImagePickerOhos>());
+  });
+
+  group('#并发调用', () {
+    test('并发 pickImage 与 pickVideo 互不阻塞且均正确返回', () async {
+      api.returnValue = <String>['/foo.jpg'];
+      final Future<PickedFile?> imageFuture =
+          picker.pickImage(source: ImageSource.gallery);
+      final Future<PickedFile?> videoFuture = picker.pickVideo(
+        source: ImageSource.gallery,
+        maxDuration: const Duration(seconds: 5),
+      );
+
+      final results = await Future.wait(<Future<PickedFile?>>[
+        imageFuture,
+        videoFuture,
+      ]);
+
+      expect(results[0]?.path, '/foo.jpg');
+      expect(results[1]?.path, '/foo.jpg');
+      // 两个调用都被转发到 API 层（记录最后一次调用也证明链路无阻塞）
+      expect(api.lastCall, isNotNull);
+    });
+
+    test('并发多次 pickImage 各自使用独立返回路径', () async {
+      api.returnValue = <String>['/a.jpg'];
+      final Future<PickedFile?> a =
+          picker.pickImage(source: ImageSource.camera, imageQuality: 50);
+      api.returnValue = <String>['/b.jpg'];
+      final Future<PickedFile?> b =
+          picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+
+      final results = await Future.wait(<Future<PickedFile?>>[a, b]);
+
+      expect(results[0]?.path, '/a.jpg');
+      expect(results[1]?.path, '/b.jpg');
+    });
   });
 
   group('#pickImage', () {

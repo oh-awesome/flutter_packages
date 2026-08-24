@@ -3,7 +3,7 @@ description: Ohos implementation of the image_picker plugin.
 repository: https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/image_picker/image_picker_ohos
 issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 
-version: 0.8.13+7
+version: 1.2.3
 
 environment:
   sdk: ^3.9.0
