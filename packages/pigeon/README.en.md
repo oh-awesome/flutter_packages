@@ -1,10 +1,8 @@
-
-
 # `pigeon`
 
 
 
-This project is based on [pigeon@26.3.4](https://pub.dev/packages/pigeon/versions/26.3.4) 
+This project is based on [pigeon@27.3.1](https://pub.dev/packages/pigeon/versions/27.3.1) 
 
 ## 1. Installation and Usage
 
@@ -21,11 +19,23 @@ Go to the project directory and add the following dependencies in pubspec.yaml
 dependencies:
   pigeon:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
-      ref: "br_pigeon-v26.3.4_ohos"
+      ref: "pigeon-v27.3.1-ohos-1.0.0"
 
 ```
+
+**TAG Version Table**
+
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.44 | `pigeon-v27.3.1-ohos-1.0.0` | `-` | `oh-3.44.9-dev` |
+| 3.41 | `-` | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
+| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
+| 3.22 | `-` | `-` | `pigeon-v21.2.0` |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `pigeon-v14.0.0-ohos-1.0.1` | `master` |
+
 
 Execute Command
 
@@ -37,7 +47,7 @@ flutter pub get
 
 ### 1.2 Usage
 
-For use cases [example](./example)
+For use cases, see [example](./example). For OHOS end-to-end integration, see [example/OHOS_README.md](./example/OHOS_README.md).
 
 ## 2. Constraints
 
@@ -45,7 +55,7 @@ For use cases [example](./example)
 
 This document is verified based on the following versions:
 
-1. Flutter version 3.41.10-ohos-0.0.1; SDK: 6.0.0.47 (API Version 20 Release); IDE: DevEco Studio: 6.0.0.858; ROM: 6.0.0.125 SP8;
+1. Flutter version 3.44.10-ohos-0.0.1-canary1; SDK: 26.0.0 Beta2 (API Version 26.0.0 Beta2); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.135 SP8;
 
 ## 3. API
 
@@ -91,6 +101,13 @@ Usage：`flutter pub run pigeon --input <pigeon path> --dart_out<dart path> [opt
 
 ## 6. Known Issues
 
+| Item | Description |
+| ---- | ----------- |
+| `@TaskQueue` not wired | Pending four-argument `BasicMessageChannel` in `flutter_ohos` (see §7 #1). |
+| `Int64List` precision | Mapped to `number[]` in ArkTS; values outside ±2^53−1 lose precision (see §7 #7). |
+| `platform_tests/test_plugin/ohos/` | No upstream OHOS counterpart; regression uses `example/app/ohos/entry/src/ohosTest/` (Hypium). |
+| ProxyApi `ESObject` parameters | User ProxyApi class names are not visible at codegen time; runtime uses `ESObject` plus comment hints (see §7 #4). |
+
 ## 7. **Others**
 
 Section 4 summarizes **annotation-level** OHOS support. The table below lists **codegen and runtime differences** between **OHOS ArkTS** output and typical **Kotlin (Android)** or **Swift** Pigeon generators. Teams should validate generated sources for their own IDLs.
@@ -106,11 +123,12 @@ Section 4 summarizes **annotation-level** OHOS support. The table below lists **
 | 6   | `messageChannelSuffix`                               | ArkTS **`HostApi.setup(..., messageChannelSuffix: '')`** and **`FlutterApi` constructor** accept the same suffix as Dart, appending **`.suffix`** to channel names when non-empty. |
 | 7   | Typed data (`Uint8List`, `Float32List`, …)           | `Uint8List`, `Int32List`, `Int64List`, `Float32List`, and `Float64List` map to ArkTS **`number[]`**, not typed arrays such as `Uint8Array`. Kotlin/Swift use platform-native byte/float buffers with richer codec support. |
 | 8   | Platform-specific annotations (`@Swift*`, `@Kotlin*`, `@Objc*`, …) | These annotations affect **other** generators only. They are **ignored** for `--arkts_out` output. |
+| 9   | **`PigeonCodec` constructor visibility** | Without ProxyApi, `PigeonCodec` uses a **`private`** constructor; with ProxyApi, `PigeonProxyApiBaseCodec` must extend it, so the constructor is **`public`**. This is an intentional ArkTS design trade-off. |
+| 10  | **Plugin lifecycle and memory management** | Host `FlutterPlugin` implementations should call `HostApi.setup(messenger, null)`, ProxyApi `tearDown()`, and `EventChannel.setStreamHandler(null)` in `onDetachedFromEngine`, and stop in-flight async work. See `example/app/ohos/.../MessagePlugin.ets`. |
 
 
 ## 8. **License**
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_pigeon-v26.3.4_ohos/packages/pigeon/LICENSE).
+This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.44.9-dev/packages/pigeon/LICENSE).
 
 > Template version: v0.0.1
-

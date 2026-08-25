@@ -466,4 +466,111 @@ void myMethod() {
 }
 ''');
   });
+
+  test('Indent str newline tab', () {
+    final indent = Indent();
+    indent.inc();
+    expect(indent.str(), '  ');
+    expect(indent.newline, '\n');
+    expect(indent.tab, '  ');
+    indent.writeln('line');
+    expect(indent.toString(), contains('line'));
+  });
+
+  test('makeChannelName and case conversion helpers', () {
+    final api = AstHostApi(
+      name: 'Api',
+      methods: <Method>[
+        Method(
+          name: 'doit',
+          location: ApiLocation.host,
+          returnType: TypeDeclaration.voidDeclaration(),
+          parameters: <Parameter>[],
+        ),
+      ],
+    );
+    final method = api.methods.first;
+    expect(
+      makeChannelName(api, method, 'pkg'),
+      'dev.flutter.pigeon.pkg.Api.doit',
+    );
+    expect(
+      makeChannelNameWithStrings(
+        apiName: 'Api',
+        methodName: 'doit',
+        dartPackageName: 'pkg',
+      ),
+      'dev.flutter.pigeon.pkg.Api.doit',
+    );
+    expect(toUpperCamelCase('foo_bar'), 'FooBar');
+    expect(toLowerCamelCase('FooBar'), 'fooBar');
+    expect(toScreamingSnakeCase('fooBar'), 'FOO_BAR');
+    final indent = Indent();
+    addLines(indent, <String>['a', 'b'], linePrefix: '// ');
+    expect(indent.toString(), contains('// a'));
+  });
+
+  test('asDocumentationComments formats block and single-line comments', () {
+    const spec = DocumentCommentSpecification(
+      '/*',
+      closeCommentToken: '*/',
+      blockContinuationToken: ' *',
+    );
+    final block = asDocumentationComments(
+      <String>['Line one', 'Line two'],
+      spec,
+    ).toList();
+    expect(block.first, '/*');
+    expect(block, contains(' * Line one'));
+    expect(block.last, '*/');
+
+    final single = asDocumentationComments(
+      <String>['Only line'],
+      spec,
+    ).toList();
+    expect(single, <String>['/*Only line*/']);
+  });
+
+  test('customTypeOverflowCheck detects codec overflow', () {
+    final classes = List<Class>.generate(
+      130,
+      (int i) => Class(name: 'C$i', fields: <NamedType>[]),
+    );
+    final root = Root(apis: <Api>[], classes: classes, enums: <Enum>[]);
+    expect(customTypeOverflowCheck(root), isTrue);
+    expect(customTypeOverflowCheck(Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[])), isFalse);
+  });
+
+  test('getFieldsInSerializationOrder returns superclass-first fields', () {
+    final parent = Class(
+      name: 'Parent',
+      fields: <NamedType>[
+        NamedType(name: 'a', type: const TypeDeclaration(baseName: 'int', isNullable: false)),
+      ],
+    );
+    final child = Class(
+      name: 'Child',
+      fields: <NamedType>[
+        NamedType(name: 'b', type: const TypeDeclaration(baseName: 'int', isNullable: false)),
+      ],
+      superClass: parent,
+    );
+    expect(getFieldsInSerializationOrder(child).map((NamedType f) => f.name), contains('b'));
+  });
+
+  test('channel name helpers and string utilities', () {
+    expect(makeRemoveStrongReferenceChannelName('pkg'), contains('pkg'));
+    expect(makeClearChannelName('pkg'), contains('pkg'));
+    expect(isCollectionType(const TypeDeclaration(baseName: 'List', isNullable: false)), isTrue);
+    expect(escapeStringDoubleQuotes('a"b'), r'a\"b');
+    expect(escapeStringSingleQuotes("a'b"), r"a\'b");
+    expect(getGeneratedCodeWarning(), contains('generated'));
+  });
+
+  test('addDocumentationComments writes to indent', () {
+    const spec = DocumentCommentSpecification('//');
+    final indent = Indent();
+    addDocumentationComments(indent, <String>['hello'], spec);
+    expect(indent.toString(), contains('hello'));
+  });
 }

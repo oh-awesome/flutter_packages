@@ -2,7 +2,12 @@
 
 * Updates `analyzer` dependency to support versions 13 and 14.
 * Updates minimum Dart SDK constraint to 3.11.0.
-
+* [arkts] Adds cross-platform constant generation, data-class equality, and ProxyApi-only `wrapError` support (OHOS fork).
+* [arkts] Aligns non-`FlutterError` `wrapError` tuple with Kotlin (`name`, `toString()`, cause/stacktrace).
+* [arkts] Aligns `FlutterError` and `wrapError` with Kotlin (`code`, `message`, `details`); adds `createConnectionError` / `createNullReplyError` helpers.
+* [arkts] Hardens generated code: EventChannel try-catch, `fromList` length checks, nullable FlutterApi args, ArkTS-safe deep equality, and `PigeonInstanceManager` finalization cleanup.
+* [arkts] Adds `_validateArkTS` for ProxyApi reserved-word checks.
+* [arkts] Fixes double values with a zero fractional part being encoded as integers when transferred from ArkTS to Dart (`PigeonInternalDoubleBox`).
 
 ## 27.3.0
 

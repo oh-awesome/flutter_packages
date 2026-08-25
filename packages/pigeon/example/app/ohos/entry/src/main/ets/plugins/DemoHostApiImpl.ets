@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -36,6 +36,7 @@ import {
 export class DemoHostApiImpl extends DemoHostApi {
   private flutterApi: DemoFlutterApi;
   private proxyRegistrar: DemoProxyApiRegistrarImpl;
+  private isAttached: boolean = true;
 
   constructor(
     binaryMessenger: BinaryMessenger,
@@ -47,32 +48,64 @@ export class DemoHostApiImpl extends DemoHostApi {
     this.proxyRegistrar = proxyRegistrar;
   }
 
+  setAttached(attached: boolean): void {
+    this.isAttached = attached;
+  }
+
+  private replyWhenAttached<T>(result: Result<T>, value: T): void {
+    if (!this.isAttached) {
+      return;
+    }
+    try {
+      result.success(value);
+    } catch (error) {
+      // Engine may already be detached; ignore reply failures.
+    }
+  }
+
   // ===== 基本类型 echo =====
-  sendNull(data: Object): Object {
+  sendNull(data: Object | undefined): Object | undefined {
     return data;
   }
 
   sendTrue(data: boolean): boolean {
+    if (typeof data !== 'boolean') {
+      throw new FlutterError('invalid-argument', 'sendTrue expects a boolean.', null);
+    }
     return data;
   }
 
   sendFalse(data: boolean): boolean {
+    if (typeof data !== 'boolean') {
+      throw new FlutterError('invalid-argument', 'sendFalse expects a boolean.', null);
+    }
     return data;
   }
 
   sendInt(data: number): number {
+    if (typeof data !== 'number' || !Number.isFinite(data)) {
+      throw new FlutterError('invalid-argument', 'sendInt expects a finite number.', null);
+    }
     return data;
   }
 
   sendDouble(data: number): number {
+    if (typeof data !== 'number' || !Number.isFinite(data)) {
+      throw new FlutterError('invalid-argument', 'sendDouble expects a finite number.', null);
+    }
     return data;
   }
 
   sendString(data: string): string {
+    if (typeof data !== 'string') {
+      throw new FlutterError('invalid-argument', 'sendString expects a string.', null);
+    }
     return data;
   }
 
   // ===== typed list echo =====
+  // Codec may deliver Uint8Array/typed buffers rather than plain JS Array;
+  // echo through without Array.isArray check (aligned with v26.3.4_ohos_dev).
   sendUint8List(data: number[]): number[] {
     return data;
   }
@@ -119,7 +152,7 @@ export class DemoHostApiImpl extends DemoHostApi {
   // 异步枚举 echo（验证 HostApi 异步枚举返回的伴侣包装）
   sendAsyncEnum(data: Identity, result: Result<Identity>): void {
     setTimeout(() => {
-      result.success(data);
+      this.replyWhenAttached(result, data);
     }, 100);
   }
 
@@ -132,8 +165,15 @@ export class DemoHostApiImpl extends DemoHostApi {
   // ===== Flutter -> Platform 异步调用 =====
   flutterInvokeAsync(result: Result<string>): void {
     setTimeout(() => {
-      console.log('Platform flutterInvokeAsync方法被调用');
-      result.success('Received message: This is flutterInvokeAsync() from Platform.异步方法被调用');
+      if (!this.isAttached) {
+        return;
+      }
+      try {
+        console.log('Platform flutterInvokeAsync方法被调用');
+        result.success('Received message: This is flutterInvokeAsync() from Platform.异步方法被调用');
+      } catch (error) {
+        // Engine may already be detached; ignore reply failures.
+      }
     }, 100);
   }
 

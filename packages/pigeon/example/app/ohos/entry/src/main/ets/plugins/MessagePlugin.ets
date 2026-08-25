@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -17,13 +17,14 @@ import {
   FlutterPlugin,
   FlutterPluginBinding
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
-import { ExampleHostApi, MessageData } from './Messages';
+import { Code, ExampleHostApi, FlutterError, MessageData, Result } from './Messages';
 import {
   IntEvent,
   StringEvent,
   PigeonCodec,
   PlatformEvent,
   PigeonEventSink,
+  PigeonStreamHandler,
   StreamEventsStreamHandler,
 } from './EventChannelMessages';
 import { DemoHostApi } from './PigeonTest';
@@ -31,6 +32,7 @@ import { DemoHostApiImpl } from './DemoHostApiImpl';
 import { DemoProxyApiRegistrarImpl } from './DemoProxyApiImpl';
 import { EventChannel } from '@ohos/flutter_ohos';
 import StandardMethodCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMethodCodec';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 
 const EVENT_CHANNEL_NAME: string =
   'dev.flutter.pigeon.pigeon_example_package.EventChannelMethods.streamEvents';
@@ -42,13 +44,8 @@ const EVENT_CHANNEL_NAME: string =
  */
 class HostApiImp extends StreamEventsStreamHandler {
   private eventSender: EventSender = new EventSender();
-  private reconnectTimer: number | null = null;
 
   override onListen(args: Object, sink: PigeonEventSink<PlatformEvent>): void {
-    if (this.reconnectTimer) {
-      clearTimeout(this.reconnectTimer);
-      this.reconnectTimer = null;
-    }
     this.eventSender.start(sink);
   }
 
@@ -66,12 +63,12 @@ class HostApiImp extends StreamEventsStreamHandler {
   }
 
   add(a: number, b: number): number {
+    if (a < 0 || b < 0) {
+      throw new FlutterError('code', 'message', 'details');
+    }
     return a + b;
   }
 
-  sendMessage(message: MessageData): boolean {
-    return true;
-  }
 }
 
 /** ArkTS single inheritance: bridge [HostApiImp] to [ExampleHostApi.setup]. */
@@ -91,8 +88,12 @@ class ExampleHostApiAdapter extends ExampleHostApi {
     return this.impl.add(a, b);
   }
 
-  sendMessage(message: MessageData): boolean {
-    return this.impl.sendMessage(message);
+  sendMessage(message: MessageData, result: Result<boolean>): void {
+    if (message.getCode() === Code.ONE) {
+      result.error(new FlutterError('code', 'message', 'details'));
+      return;
+    }
+    result.success(true);
   }
 }
 
@@ -109,39 +110,42 @@ class EventSender {
     this.isActive = true;
     this.count = 0;
 
-    this.startTimer = setTimeout(() => {
-      this.startTimer = null;
-      if (!this.isActive || !this.eventSink) {
+    this.startTimer = setTimeout(this.handleStartDelay.bind(this), 2000);
+  }
+
+  private handleStartDelay(): void {
+    this.startTimer = null;
+    if (!this.isActive || !this.eventSink) {
+      return;
+    }
+    this.timer = setInterval(this.handleIntervalTick.bind(this), 1000);
+  }
+
+  private handleIntervalTick(): void {
+    if (!this.isActive || !this.eventSink) {
+      this.forceStop();
+      return;
+    }
+
+    try {
+      if (this.count >= 100) {
+        this.forceStop();
         return;
       }
 
-      this.timer = setInterval(() => {
-        if (!this.isActive || !this.eventSink) {
-          this.forceStop();
-          return;
-        }
-
-        try {
-          if (this.count >= 100) {
-            this.forceStop();
-            return;
-          }
-
-          if (this.count % 2 === 0) {
-            const intEvent = new IntEvent();
-            intEvent.setData(this.count);
-            this.eventSink.success(intEvent as PlatformEvent);
-          } else {
-            const stringEvent = new StringEvent();
-            stringEvent.setData(`${this.count}`);
-            this.eventSink.success(stringEvent as PlatformEvent);
-          }
-          this.count++;
-        } catch (error) {
-          this.forceStop();
-        }
-      }, 1000);
-    }, 2000);
+      if (this.count % 2 === 0) {
+        const intEvent = new IntEvent();
+        intEvent.setData(this.count);
+        this.eventSink.success(intEvent as PlatformEvent);
+      } else {
+        const stringEvent = new StringEvent();
+        stringEvent.setData(`${this.count}`);
+        this.eventSink.success(stringEvent as PlatformEvent);
+      }
+      this.count++;
+    } catch (error) {
+      this.forceStop();
+    }
   }
 
   stopSendingEvents(): void {
@@ -173,10 +177,13 @@ class EventSender {
 }
 
 export default class MessagePlugin implements FlutterPlugin {
-  private readonly hostApiImp: HostApiImp = new HostApiImp();
-  private readonly hostApiAdapter: ExampleHostApiAdapter =
-    new ExampleHostApiAdapter(this.hostApiImp);
+  private hostApiImp: HostApiImp | null = new HostApiImp();
+  private hostApiAdapter: ExampleHostApiAdapter | null =
+    new ExampleHostApiAdapter(this.hostApiImp!);
   private proxyRegistrar: DemoProxyApiRegistrarImpl | null = null;
+  private demoHostApiImpl: DemoHostApiImpl | null = null;
+  private eventChannel: EventChannel | null = null;
+  private binaryMessenger: BinaryMessenger | null = null;
 
   constructor() {
   }
@@ -186,30 +193,69 @@ export default class MessagePlugin implements FlutterPlugin {
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
-    ExampleHostApi.setup(binding.getBinaryMessenger(), this.hostApiAdapter);
-    StreamEventsStreamHandler.register(binding.getBinaryMessenger(), this.hostApiImp);
+    try {
+      const messenger = binding.getBinaryMessenger();
+      this.binaryMessenger = messenger;
+      ExampleHostApi.setup(messenger, this.hostApiAdapter!);
 
-    this.proxyRegistrar = new DemoProxyApiRegistrarImpl(binding.getBinaryMessenger());
-    this.proxyRegistrar.setUp();
-    DemoHostApi.setup(
-      binding.getBinaryMessenger(),
-      new DemoHostApiImpl(binding.getBinaryMessenger(), this.proxyRegistrar),
-    );
+      const streamHandler: PigeonStreamHandler<PlatformEvent> =
+        new PigeonStreamHandler<PlatformEvent>(this.hostApiImp!);
+      this.eventChannel = new EventChannel(
+        messenger,
+        EVENT_CHANNEL_NAME,
+        new StandardMethodCodec(PigeonCodec.INSTANCE),
+      );
+      this.eventChannel.setStreamHandler(streamHandler);
+
+      this.proxyRegistrar = new DemoProxyApiRegistrarImpl(messenger);
+      this.proxyRegistrar.setUp();
+      this.demoHostApiImpl = new DemoHostApiImpl(messenger, this.proxyRegistrar);
+      DemoHostApi.setup(messenger, this.demoHostApiImpl);
+    } catch (error) {
+      console.error(`MessagePlugin setup failed: ${error}`);
+      this.cleanupPartialSetup();
+    }
   }
 
-  onDetachedFromEngine(binding: FlutterPluginBinding): void {
-    this.hostApiImp.stopEventStream();
-    ExampleHostApi.setup(binding.getBinaryMessenger(), null);
-    DemoHostApi.setup(binding.getBinaryMessenger(), null);
+  private cleanupPartialSetup(): void {
+    if (this.binaryMessenger !== null) {
+      ExampleHostApi.setup(this.binaryMessenger, null);
+      DemoHostApi.setup(this.binaryMessenger, null);
+    }
     if (this.proxyRegistrar !== null) {
       this.proxyRegistrar.tearDown();
       this.proxyRegistrar = null;
     }
-    const channel: EventChannel = new EventChannel(
-      binding.getBinaryMessenger(),
-      EVENT_CHANNEL_NAME,
-      new StandardMethodCodec(PigeonCodec.INSTANCE),
-    );
-    channel.setStreamHandler(null);
+    if (this.eventChannel !== null) {
+      this.eventChannel.setStreamHandler(null);
+      this.eventChannel = null;
+    }
+    this.demoHostApiImpl = null;
+    if (this.hostApiImp !== null) {
+      this.hostApiImp.stopEventStream();
+    }
+  }
+
+  onDetachedFromEngine(binding: FlutterPluginBinding): void {
+    if (this.demoHostApiImpl !== null) {
+      this.demoHostApiImpl.setAttached(false);
+    }
+    if (this.hostApiImp !== null) {
+      this.hostApiImp.stopEventStream();
+    }
+    ExampleHostApi.setup(binding.getBinaryMessenger(), null);
+    DemoHostApi.setup(binding.getBinaryMessenger(), null);
+    this.demoHostApiImpl = null;
+    if (this.proxyRegistrar !== null) {
+      this.proxyRegistrar.tearDown();
+      this.proxyRegistrar = null;
+    }
+    if (this.eventChannel !== null) {
+      this.eventChannel.setStreamHandler(null);
+      this.eventChannel = null;
+    }
+    this.hostApiAdapter = null;
+    this.hostApiImp = null;
+    this.binaryMessenger = null;
   }
 }
