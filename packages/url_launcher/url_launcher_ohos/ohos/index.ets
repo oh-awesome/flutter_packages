@@ -14,4 +14,16 @@
  */
  
 import UrlLauncherPlugin from './src/main/ets/components/plugin/UrlLauncherPlugin';
+import { UrlLauncher } from './src/main/ets/components/plugin/UrlLauncher';
+import {
+  FlutterError,
+  wrapError,
+  WebViewOptions,
+  BrowserOptions,
+  UrlLauncherApiCodec,
+  UrlLauncherApi
+} from './src/main/ets/components/plugin/Messages';
+
 export default UrlLauncherPlugin;
+export { UrlLauncher };
+export { FlutterError, wrapError, WebViewOptions, BrowserOptions, UrlLauncherApiCodec, UrlLauncherApi };
