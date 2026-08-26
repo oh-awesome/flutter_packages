@@ -37,6 +37,15 @@ void main() {
     addition = InAppPurchaseOhosPlatformAddition();
   });
 
+  // 重置 mock handler，避免测试间状态泄漏
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/in_app_purchase'),
+      null,
+    );
+  });
+
   // 原安卓test：consume purchases - consume purchase async success
   // 改造原因：鸿蒙版不支持consumePurchase API，
   // AppGallery IAP Kit通过finishTransaction完成消费型商品的消耗，
@@ -201,6 +210,81 @@ void main() {
       );
 
       expect(param.quantity, 5);
+    });
+
+    test('should allow a quantity of 0', () {
+      final AppGalleryProductDetails productDetails =
+          AppGalleryProductDetails.fromIKProduct(
+        IKProductWrapper(
+          id: 'com.example.consumable',
+          type: ProductType.CONSUMABLE,
+          name: 'Test Product',
+          description: 'A test product',
+          localPrice: '￥9.99',
+          microPrice: 9990000,
+          originalLocalPrice: '￥9.99',
+          originalMicroPrice: 9990000,
+          currency: 'CNY',
+          status: ProductStatus.VALID,
+        ),
+      );
+
+      final AppGalleryPurchaseParam param = AppGalleryPurchaseParam(
+        productDetails: productDetails,
+        quantity: 0,
+      );
+
+      expect(param.quantity, 0);
+    });
+
+    test('should preserve a negative quantity', () {
+      final AppGalleryProductDetails productDetails =
+          AppGalleryProductDetails.fromIKProduct(
+        IKProductWrapper(
+          id: 'com.example.consumable',
+          type: ProductType.CONSUMABLE,
+          name: 'Test Product',
+          description: 'A test product',
+          localPrice: '￥9.99',
+          microPrice: 9990000,
+          originalLocalPrice: '￥9.99',
+          originalMicroPrice: 9990000,
+          currency: 'CNY',
+          status: ProductStatus.VALID,
+        ),
+      );
+
+      final AppGalleryPurchaseParam param = AppGalleryPurchaseParam(
+        productDetails: productDetails,
+        quantity: -1,
+      );
+
+      expect(param.quantity, -1);
+    });
+
+    test('should preserve the maximum int quantity', () {
+      final AppGalleryProductDetails productDetails =
+          AppGalleryProductDetails.fromIKProduct(
+        IKProductWrapper(
+          id: 'com.example.consumable',
+          type: ProductType.CONSUMABLE,
+          name: 'Test Product',
+          description: 'A test product',
+          localPrice: '￥9.99',
+          microPrice: 9990000,
+          originalLocalPrice: '￥9.99',
+          originalMicroPrice: 9990000,
+          currency: 'CNY',
+          status: ProductStatus.VALID,
+        ),
+      );
+
+      final AppGalleryPurchaseParam param = AppGalleryPurchaseParam(
+        productDetails: productDetails,
+        quantity: 9223372036854775807,
+      );
+
+      expect(param.quantity, 9223372036854775807);
     });
   });
 }

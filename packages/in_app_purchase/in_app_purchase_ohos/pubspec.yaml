@@ -5,8 +5,8 @@ issue_tracker: https://gitcode.com/openharmony-tpc/flutter_packages/issues
 version: 1.1.0
 
 environment:
-  sdk: ^3.5.0
-  flutter: ">=3.24.0"
+  sdk: ^3.10.0
+  flutter: ">=3.44.0"
 
 flutter:
   plugin:
@@ -24,10 +24,10 @@ dependencies:
 
 dev_dependencies:
   build_runner: ^2.0.0
+  coverage: ^1.9.0
   flutter_test:
     sdk: flutter
   json_serializable: ^6.3.1
-  mockito: ^5.6.4
   test: ^1.16.0
 
 topics:

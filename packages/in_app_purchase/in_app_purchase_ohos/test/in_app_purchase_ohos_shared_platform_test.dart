@@ -38,6 +38,15 @@ void main() {
     platform = InAppPurchaseOhosPlatform();
   });
 
+  // 重置 mock handler，避免测试间状态泄漏
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/in_app_purchase'),
+      null,
+    );
+  });
+
   // 原安卓test：connection management - connects on initialization
   // 改造原因：鸿蒙版不使用BillingClientManager的startConnection连接机制，
   // IKPaymentQueueWrapper是单例且通过平台侧自动管理连接
@@ -509,6 +518,19 @@ void main() {
       InAppPurchaseOhosPlatform.registerPlatform();
       // purchaseStream returns StreamController.broadcast().stream
       expect(platform.purchaseStream.isBroadcast, isTrue);
+    });
+  });
+
+  // 新鸿蒙test：测试 InAppPurchaseOhosPlatform.observer（@visibleForTesting）
+  group('observer', () {
+    test(
+        'should return a non-null IKTransactionObserverWrapper after '
+        'registerPlatform', () {
+      InAppPurchaseOhosPlatform.registerPlatform();
+      final IKTransactionObserverWrapper observer =
+          InAppPurchaseOhosPlatform.observer;
+      expect(observer, isNotNull);
+      expect(observer, isA<IKTransactionObserverWrapper>());
     });
   });
 

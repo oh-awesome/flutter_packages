@@ -38,6 +38,15 @@ void main() {
     paymentQueue = IKPaymentQueueWrapper();
   });
 
+  // 重置 mock handler，避免测试间状态泄漏
+  tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(
+      const MethodChannel('plugins.flutter.io/in_app_purchase'),
+      null,
+    );
+  });
+
   // 原安卓test：connects on initialization
   // 改造原因：鸿蒙版不使用BillingClientManager的startConnection连接机制，
   // 而是通过 IKPaymentQueueWrapper.setTransactionObserver + startObservingTransactionQueue
