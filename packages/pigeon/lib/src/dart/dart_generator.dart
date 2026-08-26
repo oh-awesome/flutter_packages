@@ -1514,6 +1514,11 @@ String _castValue(String value, TypeDeclaration type) {
     return value;
   }
 
+  final String? typedDataCast = _castTypedDataListIfNeeded(value, type);
+  if (typedDataCast != null) {
+    return typedDataCast;
+  }
+
   final valueWithTypeCast = '$value as $typeWithTypeArgs';
 
   final List<TypeDeclaration> typeArguments = type.typeArguments;
@@ -1527,6 +1532,30 @@ String _castValue(String value, TypeDeclaration type) {
   final nullAwareOperator = type.isNullable ? '?' : '';
   final castCall = '$nullAwareOperator.cast<${_flattenTypeArguments(typeArguments)}>()';
   return '($valueWithTypeCast)$castCall';
+}
+
+/// When ArkTS maps typed data to `number[]`, platform replies may decode as
+/// [List] rather than [Uint8List]/[Int32List]/etc. Accept both shapes.
+String? _castTypedDataListIfNeeded(String value, TypeDeclaration type) {
+  if (type.typeArguments.isNotEmpty) {
+    return null;
+  }
+  final String castType = _makeGenericTypeArguments(type);
+  final String? fromListExpression = switch (type.baseName) {
+    'Uint8List' => 'Uint8List.fromList(List<int>.from($value as List))',
+    'Int32List' => 'Int32List.fromList(List<int>.from($value as List))',
+    'Int64List' => 'Int64List.fromList(List<int>.from($value as List))',
+    'Float32List' => 'Float32List.fromList(List<double>.from($value as List))',
+    'Float64List' => 'Float64List.fromList(List<double>.from($value as List))',
+    _ => null,
+  };
+  if (fromListExpression == null) {
+    return null;
+  }
+  if (type.isNullable) {
+    return '$value == null ? null : ($value is $castType ? $value : $fromListExpression)';
+  }
+  return '($value is $castType ? $value as $castType : $fromListExpression)';
 }
 
 /// Returns an argument name that can be used in a context where it is possible to collide.

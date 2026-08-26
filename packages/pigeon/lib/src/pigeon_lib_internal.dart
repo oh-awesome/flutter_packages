@@ -540,6 +540,57 @@ class GObjectGeneratorAdapter implements GeneratorAdapter {
   }
 }
 
+/// ArkTS-specific validation executed when `--arkts_out` is configured.
+List<Error> _validateArkTS(Root root) {
+  final errors = <Error>[];
+  const Set<String> reservedWords = <String>{
+    'break',
+    'case',
+    'class',
+    'const',
+    'continue',
+    'default',
+    'delete',
+    'do',
+    'else',
+    'enum',
+    'export',
+    'extends',
+    'false',
+    'for',
+    'function',
+    'if',
+    'import',
+    'in',
+    'instanceof',
+    'interface',
+    'let',
+    'new',
+    'null',
+    'return',
+    'super',
+    'switch',
+    'this',
+    'throw',
+    'true',
+    'typeof',
+    'var',
+    'void',
+    'while',
+  };
+  for (final Api api in root.apis) {
+    if (api is AstProxyApi && reservedWords.contains(api.name)) {
+      errors.add(
+        Error(
+          message:
+              'ArkTS: ProxyApi name "${api.name}" conflicts with a reserved keyword.',
+        ),
+      );
+    }
+  }
+  return errors;
+}
+
 /// A [GeneratorAdapter] that generates ArkTS source code.
 class ArkTSGeneratorAdapter implements GeneratorAdapter {
   /// Constructor for [ArkTSGeneratorAdapter].
@@ -567,7 +618,12 @@ class ArkTSGeneratorAdapter implements GeneratorAdapter {
       _openSink(options.arkTSOptions?.arkTSOut, basePath: options.basePath ?? '');
 
   @override
-  List<Error> validate(InternalPigeonOptions options, Root root) => <Error>[];
+  List<Error> validate(InternalPigeonOptions options, Root root) {
+    if (options.arkTSOptions == null) {
+      return <Error>[];
+    }
+    return _validateArkTS(root);
+  }
 }
 
 /// A [GeneratorAdapter] that generates Kotlin source code.

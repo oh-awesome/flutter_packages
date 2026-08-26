@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -21,9 +21,20 @@ import List from '@ohos.util.List';
 import FlutterEngine from '@ohos/flutter_ohos/src/main/ets/embedding/engine/FlutterEngine';
 
 export default class EntryAbility extends FlutterAbility {
+  private messagePlugin: MessagePlugin | null = null;
+
   configureFlutterEngine(flutterEngine: FlutterEngine) {
     super.configureFlutterEngine(flutterEngine)
     GeneratedPluginRegistrant.registerWith(flutterEngine);
-    this.addPlugin(new MessagePlugin())
+    this.messagePlugin = new MessagePlugin();
+    this.addPlugin(this.messagePlugin)
+  }
+
+  onDestroy(): void {
+    if (this.messagePlugin !== null) {
+      this.removePlugin(this.messagePlugin);
+      this.messagePlugin = null;
+    }
+    super.onDestroy();
   }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -26,18 +26,21 @@ export class FlutterError implements Error {
   /** The error code. */
   public code: string;
 
-  /** The error name. */
-  public name: string;
-
   /** The error message. */
   public message: string;
+
+  /** The error details. Must be a datatype supported by the api codec. */
+  public details: Object | null;
+
+  /** Error name for the Error interface. */
+  public name: string = 'FlutterError';
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string, message: string, stack?: string) {
+  constructor(code: string, message: string, details: Object | null, stack?: string) {
     this.code = code;
-    this.name = name;
     this.message = message;
+    this.details = details;
     this.stack = stack;
   }
 }
@@ -47,14 +50,22 @@ function wrapError(error: Error): Array<Object | null> {
   if (error instanceof FlutterError) {
     let err: FlutterError = error as FlutterError;
     errorList[0] = err.code;
-    errorList[1] = err.name;
-    errorList[2] = err.message;
+    errorList[1] = err.message;
+    errorList[2] = err.details;
   } else {
-    errorList[0] = error.toString();
-    errorList[1] = error.name;
+    errorList[0] = error.name;
+    errorList[1] = error.toString();
     errorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
   }
   return errorList;
+}
+
+function createConnectionError(channelName: string): FlutterError {
+  return new FlutterError('channel-error', 'Unable to establish connection on channel: \'' + channelName + '\'.', '');
+}
+
+function createNullReplyError(): FlutterError {
+  return new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
 }
 
 /* Generated enum from Pigeon that represents data sent in messages.*/
@@ -148,20 +159,35 @@ export class MessageData {
   }
 
   static fromList(arr: Object[]): MessageData {
+    if (arr == null || arr.length < 4) {
+      throw new Error('Invalid MessageData: expected at least 4 elements.');
+    }
     let name: string | undefined = undefined;
     if (arr[0] !== null && arr[0] !== undefined) {
-      let nameObject: Object = arr[0];
-      name = nameObject as string;
+      if (typeof arr[0] !== 'string') {
+        throw new Error('Invalid MessageData: name must be a string.');
+      }
+      name = arr[0] as string;
     }
     let description: string | undefined = undefined;
     if (arr[1] !== null && arr[1] !== undefined) {
-      let descriptionObject: Object = arr[1];
-      description = descriptionObject as string;
+      if (typeof arr[1] !== 'string') {
+        throw new Error('Invalid MessageData: description must be a string.');
+      }
+      description = arr[1] as string;
+    }
+    if (typeof arr[2] !== 'string') {
+      throw new Error('Invalid MessageData: code must be a string.');
     }
     const codeStr: string = arr[2] as string;
     const code: Code = Code[codeStr];
-    let dataObject: Object = arr[3];
-    const data: Map<string, string> = dataObject as Map<string, string>;
+    if (code === undefined) {
+      throw new Error('Invalid MessageData: unknown code value.');
+    }
+    if (arr[3] === null || arr[3] === undefined) {
+      throw new Error('Invalid MessageData: data must not be null.');
+    }
+    const data: Map<string, string> = arr[3] as Map<string, string>;
     return new MessageData(code, data, name, description);
   }
 }
@@ -331,13 +357,13 @@ export class MessageFlutterApi {
     return PigeonCodec.INSTANCE;
   }
 
-  flutterMethod(aStringArg: string, callback: Reply<string>) {
+  flutterMethod(aStringArg: string | undefined, callback: Reply<string>) {
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_package.MessageFlutterApi.flutterMethod' + this.messageChannelSuffix;
     let channel: BasicMessageChannel<Object> = 
         new BasicMessageChannel<Object>(
             this.binaryMessenger, channelName, MessageFlutterApi.getCodec());
     channel.send(
-        [aStringArg],
+        [aStringArg === undefined ? null : aStringArg],
         channelReply => {
           if (Array.isArray(channelReply)) {
             let listReply: ESObject[] = channelReply as ESObject[] ;
@@ -348,14 +374,14 @@ export class MessageFlutterApi {
               let replyArr: ESObject = new FlutterError(arrFirst, arrSecond, arrThird);
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull: ESObject = new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
+              let replyNull: ESObject = createNullReplyError();
               callback.reply(replyNull);
             } else {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
           }  else {
-            let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
+            let connErr: ESObject = createConnectionError(channelName);
             callback.reply(connErr);
           } 
         });

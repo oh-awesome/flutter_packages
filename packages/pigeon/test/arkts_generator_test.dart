@@ -36,20 +36,11 @@ void main() {
         ),
       ],
     );
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[classDefinition],
-      enums: <Enum>[],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[classDefinition], enums: <Enum>[]);
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: number;'));
@@ -77,11 +68,7 @@ void main() {
           name: 'description',
         ),
         NamedType(
-          type: TypeDeclaration(
-            baseName: 'Code',
-            associatedEnum: codeEnum,
-            isNullable: false,
-          ),
+          type: TypeDeclaration(baseName: 'Code', associatedEnum: codeEnum, isNullable: false),
           name: 'code',
         ),
         NamedType(
@@ -97,20 +84,11 @@ void main() {
         ),
       ],
     );
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[classDefinition],
-      enums: <Enum>[codeEnum],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[classDefinition], enums: <Enum>[codeEnum]);
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
 
@@ -136,9 +114,7 @@ void main() {
     );
     expect(
       collapsed,
-      contains(
-        'const codeStr: string = arr[2] as string; const code: Code = Code[codeStr];',
-      ),
+      contains('const codeStr: string = arr[2] as string; const code: Code = Code[codeStr];'),
     );
     expect(
       collapsed,
@@ -149,51 +125,42 @@ void main() {
     expect(collapsed, isNot(contains('string | undefined | undefined')));
   });
 
-  test(
-    'Dart String? field maps to omit-able constructor and nullable setter',
-    () {
-      final root = Root(
-        apis: <Api>[],
-        classes: <Class>[
-          Class(
-            name: 'Record',
-            fields: <NamedType>[
-              NamedType(
-                name: 'id',
-                type: const TypeDeclaration(baseName: 'int', isNullable: false),
-              ),
-              NamedType(
-                name: 'label',
-                type: const TypeDeclaration(
-                  baseName: 'String',
-                  isNullable: true,
-                ),
-              ),
-            ],
-          ),
-        ],
-        enums: <Enum>[],
-      );
-      final sink = StringBuffer();
-      const generator = ArkTSGenerator();
-      generator.generate(
-        const InternalArkTSOptions(arkTSOut: ''),
-        root,
-        sink,
-        dartPackageName: DEFAULT_PACKAGE_NAME,
-      );
-      final code = sink.toString();
+  test('Dart String? field maps to omit-able constructor and nullable setter', () {
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[
+        Class(
+          name: 'Record',
+          fields: <NamedType>[
+            NamedType(
+              name: 'id',
+              type: const TypeDeclaration(baseName: 'int', isNullable: false),
+            ),
+            NamedType(
+              name: 'label',
+              type: const TypeDeclaration(baseName: 'String', isNullable: true),
+            ),
+          ],
+        ),
+      ],
+      enums: <Enum>[],
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
 
-      // Dart `{this.label}` for `String? label`: omit-able + nullable.
-      expect(code, contains('constructor(id: number, label?: string)'));
-      expect(code, contains('private label?: string;'));
-      expect(code, contains('getLabel(): string | undefined'));
-      expect(
-        code,
-        contains('public setLabel(label: string | undefined): void'),
-      );
-    },
-  );
+    // Dart `{this.label}` for `String? label`: omit-able + nullable.
+    expect(code, contains('constructor(id: number, label?: string)'));
+    expect(code, contains('private label?: string;'));
+    expect(code, contains('getLabel(): string | undefined'));
+    expect(code, contains('public setLabel(label: string | undefined): void'));
+  });
 
   test('nullable enum fromList local uses single | undefined', () {
     final testEnum = Enum(
@@ -204,20 +171,12 @@ void main() {
       name: 'WithEnum',
       fields: <NamedType>[
         NamedType(
-          type: TypeDeclaration(
-            baseName: 'TestEnum',
-            associatedEnum: testEnum,
-            isNullable: true,
-          ),
+          type: TypeDeclaration(baseName: 'TestEnum', associatedEnum: testEnum, isNullable: true),
           name: 'head',
         ),
       ],
     );
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[classDefinition],
-      enums: <Enum>[testEnum],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[classDefinition], enums: <Enum>[testEnum]);
     final sink = StringBuffer();
     const generator = ArkTSGenerator();
     generator.generate(
@@ -252,17 +211,11 @@ void main() {
             Method(
               name: 'sendNull',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(
-                baseName: 'Object',
-                isNullable: true,
-              ),
+              returnType: const TypeDeclaration(baseName: 'Object', isNullable: true),
               parameters: <Parameter>[
                 Parameter(
                   name: 'data',
-                  type: const TypeDeclaration(
-                    baseName: 'Object',
-                    isNullable: true,
-                  ),
+                  type: const TypeDeclaration(baseName: 'Object', isNullable: true),
                 ),
               ],
             ),
@@ -348,17 +301,10 @@ void main() {
 
     // HostApi / FlutterApi: nullable means `| undefined` on the type; params are
     // still required at the call site (Pigeon always passes every slot).
+    expect(code, contains('abstract sendNull(data: Object | undefined ): Object | undefined;'));
     expect(
       code,
-      contains(
-        'abstract sendNull(data: Object | undefined ): Object | undefined;',
-      ),
-    );
-    expect(
-      code,
-      contains(
-        'abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;',
-      ),
+      contains('abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;'),
     );
     expect(
       code,
@@ -384,12 +330,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export enum Foobar'));
     expect(code, contains('ONE,'));
@@ -453,12 +394,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export abstract class Api'));
     expect(code, contains('abstract doSomething(: Input ): Output;'));
@@ -525,12 +461,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class Api'));
     expect(code, contains('binaryMessenger: BinaryMessenger;'));
@@ -568,12 +499,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('abstract doSomething(): void;'));
   });
@@ -589,10 +515,7 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'String',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
                   name: 'input',
                 ),
               ],
@@ -607,12 +530,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('doSomething'));
     expect(code, contains('callback: Reply<void>'));
@@ -628,10 +546,7 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.host,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(
-                baseName: 'String',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
             ),
           ],
         ),
@@ -643,12 +558,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('abstract doSomething(): string;'));
   });
@@ -663,10 +573,7 @@ void main() {
               name: 'doSomething',
               location: ApiLocation.flutter,
               parameters: <Parameter>[],
-              returnType: const TypeDeclaration(
-                baseName: 'String',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
             ),
           ],
         ),
@@ -677,12 +584,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('doSomething(callback: Reply<string>)'));
   });
@@ -706,12 +608,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: Array<Object>;'));
@@ -736,12 +633,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class Foobar'));
     expect(code, contains('private field1?: Map<Object, Object>;'));
@@ -752,11 +644,7 @@ void main() {
       name: 'Outer',
       fields: <NamedType>[
         NamedType(
-          type: TypeDeclaration(
-            baseName: 'Nested',
-            associatedClass: emptyClass,
-            isNullable: true,
-          ),
+          type: TypeDeclaration(baseName: 'Nested', associatedClass: emptyClass, isNullable: true),
           name: 'nested',
         ),
       ],
@@ -778,12 +666,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class Outer'));
     expect(code, contains('export class Nested'));
@@ -846,32 +729,19 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export interface Result<T>'));
-    expect(
-      code,
-      contains('abstract doSomething(: Input , result: Result<Output>): void;'),
-    );
+    expect(code, contains('abstract doSomething(: Input , result: Result<Output>): void;'));
     expect(code, contains('success( result: T ): void;'));
     expect(code, contains('error( error: Error): void;'));
     final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
     expect(collapsed, contains('try { api!.doSomething('));
     expect(
       collapsed,
-      isNot(contains(
-        'let resultCallback: Result<Output> = new ResultImp(); api!.doSomething(',
-      )),
+      isNot(contains('let resultCallback: Result<Output> = new ResultImp(); api!.doSomething(')),
     );
-    expect(
-      collapsed,
-      contains('} catch (error) { reply.reply(wrapError(error as Error)); }'),
-    );
+    expect(collapsed, contains('} catch (error) { reply.reply(wrapError(error as Error)); }'));
   });
 
   test('gen one async Flutter Api', () {
@@ -928,12 +798,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('doSomething'));
     expect(code, contains('callback: Reply<Output>'));
@@ -955,11 +820,7 @@ void main() {
           fields: <NamedType>[
             NamedType(
               name: 'field1',
-              type: TypeDeclaration(
-                baseName: 'Foo',
-                isNullable: false,
-                associatedEnum: anEnum,
-              ),
+              type: TypeDeclaration(baseName: 'Foo', isNullable: false, associatedEnum: anEnum),
             ),
           ],
         ),
@@ -969,12 +830,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export enum Foo'));
     expect(code, contains('export class Bar'));
@@ -1014,12 +870,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('abstract bar'));
     expect(code, contains('foo:'));
@@ -1049,31 +900,19 @@ void main() {
               name: 'aString',
             ),
             NamedType(
-              type: const TypeDeclaration(
-                baseName: 'Uint8List',
-                isNullable: true,
-              ),
+              type: const TypeDeclaration(baseName: 'Uint8List', isNullable: true),
               name: 'aUint8List',
             ),
             NamedType(
-              type: const TypeDeclaration(
-                baseName: 'Int32List',
-                isNullable: true,
-              ),
+              type: const TypeDeclaration(baseName: 'Int32List', isNullable: true),
               name: 'aInt32List',
             ),
             NamedType(
-              type: const TypeDeclaration(
-                baseName: 'Int64List',
-                isNullable: true,
-              ),
+              type: const TypeDeclaration(baseName: 'Int64List', isNullable: true),
               name: 'aInt64List',
             ),
             NamedType(
-              type: const TypeDeclaration(
-                baseName: 'Float64List',
-                isNullable: true,
-              ),
+              type: const TypeDeclaration(baseName: 'Float64List', isNullable: true),
               name: 'aFloat64List',
             ),
           ],
@@ -1085,12 +924,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('private aBool?: boolean;'));
     expect(code, contains('private aInt?: number;'));
@@ -1100,6 +934,65 @@ void main() {
     expect(code, contains('private aInt32List?: number[];'));
     expect(code, contains('private aInt64List?: number[];'));
     expect(code, contains('private aFloat64List?: number[];'));
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(
+      code,
+      contains(
+        'arr.push((this.aDouble === null || this.aDouble === undefined ? null : new PigeonInternalDoubleBox(this.aDouble)));',
+      ),
+    );
+    expect(code, contains('if (value instanceof PigeonInternalDoubleBox)'));
+    expect(code, contains('this.writeAlignment(stream, 8);'));
+    expect(code, contains('stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);'));
+  });
+
+  test('double values are boxed for codec when sending to Dart', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'echoDouble',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(baseName: 'double', isNullable: false),
+              parameters: <Parameter>[],
+            ),
+          ],
+        ),
+        AstFlutterApi(
+          name: 'FlutterApi',
+          methods: <Method>[
+            Method(
+              name: 'setDouble',
+              location: ApiLocation.flutter,
+              returnType: TypeDeclaration.voidDeclaration(),
+              parameters: <Parameter>[
+                Parameter(
+                  type: const TypeDeclaration(baseName: 'double', isNullable: false),
+                  name: 'value',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+      containsHostApi: true,
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('export class PigeonInternalDoubleBox'));
+    expect(code, contains('res.push(new PigeonInternalDoubleBox(output));'));
+    expect(code, contains('[new PigeonInternalDoubleBox(valueArg)]'));
   });
 
   test('host multiple args', () {
@@ -1113,31 +1006,19 @@ void main() {
               location: ApiLocation.host,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'String',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'int',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
                   name: 'arg2',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'bool',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'bool', isNullable: false),
                   name: 'arg3',
                 ),
               ],
-              returnType: const TypeDeclaration(
-                baseName: 'String',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
             ),
           ],
         ),
@@ -1149,12 +1030,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('abstract doSomething(arg1: string'));
     expect(code, contains('arg2: number'));
@@ -1173,24 +1049,15 @@ void main() {
               location: ApiLocation.flutter,
               parameters: <Parameter>[
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'String',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'String', isNullable: false),
                   name: 'arg1',
                 ),
                 Parameter(
-                  type: const TypeDeclaration(
-                    baseName: 'int',
-                    isNullable: false,
-                  ),
+                  type: const TypeDeclaration(baseName: 'int', isNullable: false),
                   name: 'arg2',
                 ),
               ],
-              returnType: const TypeDeclaration(
-                baseName: 'String',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
             ),
           ],
         ),
@@ -1201,12 +1068,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('doSomething'));
     expect(code, contains('arg1'));
@@ -1216,23 +1078,14 @@ void main() {
 
   test('copyright header', () {
     final classDefinition = Class(name: 'Foobar', fields: <NamedType>[]);
-    final root = Root(
-      apis: <Api>[],
-      classes: <Class>[classDefinition],
-      enums: <Enum>[],
-    );
+    final root = Root(apis: <Api>[], classes: <Class>[classDefinition], enums: <Enum>[]);
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(
       arkTSOut: '',
       copyrightHeader: <String>['Copyright 2023', 'Test Header'],
     );
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('/*'));
     expect(code, contains('* Copyright 2023'));
@@ -1245,12 +1098,7 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(
       code,
@@ -1278,9 +1126,7 @@ void main() {
     );
     expect(
       code,
-      contains(
-        "import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';",
-      ),
+      contains("import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';"),
     );
   });
 
@@ -1294,26 +1140,12 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('class PigeonCodec extends StandardMessageCodec'));
-    expect(
-      code,
-      contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'),
-    );
-    expect(
-      code,
-      contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'),
-    );
-    expect(
-      code,
-      contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'),
-    );
+    expect(code, contains('static readonly INSTANCE: PigeonCodec  = new PigeonCodec();'));
+    expect(code, contains('readValueOfType(type: number,  buffer: ByteBuffer): ESObject'));
+    expect(code, contains('writeValue(stream: ByteBuffer , value: ESObject): ESObject'));
   });
 
   test('codec overflow utilities use ArkTS syntax', () {
@@ -1354,10 +1186,7 @@ void main() {
     final code = sink.toString();
     final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
 
-    expect(
-      code,
-      contains('private static final class PigeonInternalCodecOverflow'),
-    );
+    expect(code, contains('private static final class PigeonInternalCodecOverflow'));
     expect(
       collapsed,
       contains(
@@ -1370,12 +1199,7 @@ void main() {
         'case 0: return OverflowEnum${totalCustomCodecKeysAllowed}[this.wrapped as string];',
       ),
     );
-    expect(
-      collapsed,
-      contains(
-        'case 1: return OverflowClass.fromList(this.wrapped as Object[]);',
-      ),
-    );
+    expect(collapsed, contains('case 1: return OverflowClass.fromList(this.wrapped as Object[]);'));
     expect(code, isNot(contains('ArrayList<Object>')));
     expect(code, isNot(contains('@Nullable')));
     expect(code, isNot(contains('.values()')));
@@ -1428,9 +1252,7 @@ void main() {
     final code = sink.toString();
     expect(
       code,
-      contains(
-        'abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;',
-      ),
+      contains('abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;'),
     );
   });
 
@@ -1443,10 +1265,7 @@ void main() {
             Method(
               name: 'test',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(
-                baseName: 'String',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'String', isNullable: false),
               parameters: <Parameter>[],
             ),
           ],
@@ -1459,21 +1278,17 @@ void main() {
     final sink = StringBuffer();
     const arkTSOptions = InternalArkTSOptions(arkTSOut: '');
     const generator = ArkTSGenerator();
-    generator.generate(
-      arkTSOptions,
-      root,
-      sink,
-      dartPackageName: DEFAULT_PACKAGE_NAME,
-    );
+    generator.generate(arkTSOptions, root, sink, dartPackageName: DEFAULT_PACKAGE_NAME);
     final code = sink.toString();
     expect(code, contains('export class FlutterError implements Error'));
     expect(code, contains('public code: string;'));
-    expect(code, contains('public name: string;'));
     expect(code, contains('public message: string;'));
-    expect(
-      code,
-      contains('function wrapError(error: Error): Array<Object | null>'),
-    );
+    expect(code, contains('public details: Object | null;'));
+    expect(code, contains('function wrapError(error: Error): Array<Object | null>'));
+    expect(code, contains('errorList[1] = err.message;'));
+    expect(code, contains('errorList[2] = err.details;'));
+    expect(code, contains('errorList[0] = error.name;'));
+    expect(code, contains('errorList[1] = error.toString();'));
   });
 
   test('messageChannelSuffix on HostApi and FlutterApi', () {
@@ -1562,6 +1377,7 @@ void main() {
     );
     final code = sink.toString();
     expect(code, isNot(contains('makeBackgroundTaskQueue()')));
+    expect(code, contains('TaskQueue is declared in the IDL but flutter_ohos BasicMessageChannel'));
     expect(code, contains('Api.getCodec())'));
   });
 
@@ -1574,10 +1390,7 @@ void main() {
             Method(
               name: 'streamInts',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(
-                baseName: 'int',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'int', isNullable: false),
               parameters: <Parameter>[],
             ),
           ],
@@ -1612,10 +1425,7 @@ void main() {
             Method(
               name: 'send',
               location: ApiLocation.host,
-              returnType: const TypeDeclaration(
-                baseName: 'Float32List',
-                isNullable: false,
-              ),
+              returnType: const TypeDeclaration(baseName: 'Float32List', isNullable: false),
               parameters: <Parameter>[],
             ),
           ],
@@ -1635,5 +1445,106 @@ void main() {
     );
     final code = sink.toString();
     expect(code, contains('send(): number[]'));
+  });
+
+  test('gen constants', () {
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[],
+      enums: <Enum>[],
+      constants: <Constant>[
+        Constant(
+          name: 'stringConst',
+          type: const TypeDeclaration(baseName: 'String', isNullable: false),
+          value: 'hello',
+        ),
+        Constant(
+          name: 'intConst',
+          type: const TypeDeclaration(baseName: 'int', isNullable: false),
+          value: 42,
+        ),
+        Constant(
+          name: 'doubleConst',
+          type: const TypeDeclaration(baseName: 'double', isNullable: false),
+          value: 3.14,
+        ),
+        Constant(
+          name: 'boolConst',
+          type: const TypeDeclaration(baseName: 'bool', isNullable: false),
+          value: true,
+        ),
+      ],
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains("export const stringConst: string = \"hello\";"));
+    expect(code, contains('export const intConst: number = 42;'));
+    expect(code, contains('export const doubleConst: number = 3.14;'));
+    expect(code, contains('export const boolConst: boolean = true;'));
+  });
+
+  test('gen empty data class', () {
+    final root = Root(
+      apis: <Api>[],
+      classes: <Class>[Class(name: 'Empty', fields: <NamedType>[])],
+      enums: <Enum>[],
+    );
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    final collapsed = code.replaceAll(RegExp(r'\s+'), ' ');
+    expect(code, contains('export class Empty'));
+    expect(collapsed, contains('constructor()'));
+    expect(collapsed, contains('static fromList(arr: Object[]): Empty'));
+    expect(collapsed, contains('return new Empty();'));
+    expect(collapsed, contains('toList(): Array<Object | null>'));
+    expect(collapsed, contains('public equals(other: ESObject'));
+    expect(collapsed, contains("return 'Empty()';"));
+  });
+
+  test('data class toString', () {
+    final classDefinition = Class(
+      name: 'Foobar',
+      fields: <NamedType>[
+        NamedType(
+          type: const TypeDeclaration(baseName: 'int', isNullable: true),
+          name: 'field1',
+        ),
+      ],
+    );
+    final root = Root(apis: <Api>[], classes: <Class>[classDefinition], enums: <Enum>[]);
+    final sink = StringBuffer();
+    const generator = ArkTSGenerator();
+    generator.generate(
+      const InternalArkTSOptions(arkTSOut: ''),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(code, contains('public toString(): string'));
+    expect(code, contains("'Foobar(' + 'field1=' + this.field1 + ')'"));
+    expect(code, contains('public equals(other: ESObject'));
+    expect(code, contains('pigeonDeepEquals(this.field1'));
+    expect(code, contains('function pigeonDeepEquals('));
+    expect(code, contains('if (typeof a !== typeof b) {'));
+    expect(code, contains('return a === b;'));
+    expect(code, contains('function pigeonFloatEquals('));
+    expect(code, contains('function pigeonFloatHashCode('));
+    expect(code, contains('Float64Array'));
+    expect(code, contains('pigeonDoubleHashCode'));
   });
 }

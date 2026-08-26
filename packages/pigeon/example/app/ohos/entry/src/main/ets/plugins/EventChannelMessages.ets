@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 Huawei Device Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -87,6 +87,9 @@ export class IntEvent {
   }
 
   static fromList(arr: Object[]): IntEvent {
+    if (arr == null || arr.length < 1) {
+      throw new Error('Invalid IntEvent: expected at least 1 elements.');
+    }
     let pigeonResult: IntEvent = new IntEvent();
     let data: Object = arr[0];
     pigeonResult.setData(data as number);
@@ -121,6 +124,9 @@ export class StringEvent {
   }
 
   static fromList(arr: Object[]): StringEvent {
+    if (arr == null || arr.length < 1) {
+      throw new Error('Invalid StringEvent: expected at least 1 elements.');
+    }
     let pigeonResult: StringEvent = new StringEvent();
     let data: Object = arr[0];
     pigeonResult.setData(data as string);
@@ -170,7 +176,7 @@ const PigeonMethodChannelCodec: StandardMethodCodec = new StandardMethodCodec(Pi
 /**
  * Internal [StreamHandler] that delegates to a [PigeonEventChannelWrapper].
  */
-class PigeonStreamHandler<T> implements StreamHandler {
+export class PigeonStreamHandler<T> implements StreamHandler {
   private readonly wrapper: PigeonEventChannelWrapper<T>;
   private pigeonSink: PigeonEventSink<T> | null = null;
 
@@ -179,13 +185,21 @@ class PigeonStreamHandler<T> implements StreamHandler {
   }
 
   onListen(args: Object, events: EventSink): void {
-    this.pigeonSink = new PigeonEventSink<T>(events);
-    this.wrapper.onListen(args, this.pigeonSink!);
+    try {
+      this.pigeonSink = new PigeonEventSink<T>(events);
+      this.wrapper.onListen(args, this.pigeonSink!);
+    } catch (error) {
+      events.error('pigeon-error', `EventChannel onListen failed: ${error}`, null);
+    }
   }
 
   onCancel(args: Object): void {
-    this.pigeonSink = null;
-    this.wrapper.onCancel(args);
+    try {
+      this.pigeonSink = null;
+      this.wrapper.onCancel(args);
+    } catch (error) {
+      console.error(`EventChannel onCancel failed: ${error}`);
+    }
   }
 }
 

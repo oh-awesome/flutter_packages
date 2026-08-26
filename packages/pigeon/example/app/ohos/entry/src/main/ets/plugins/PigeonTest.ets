@@ -10,26 +10,202 @@ import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageC
 import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
 
 
+export const aStringConstant: string = "stringConstantValue";
+export const anIntConstant: number = 42;
+export const aDoubleConstant: number = 3.14;
+export const aBoolConstant: boolean = true;
+
+function pigeonDoubleEquals(a: number, b: number): boolean {
+  return (a === 0 ? 0 : a) === (b === 0 ? 0 : b) || (isNaN(a) && isNaN(b));
+}
+
+function pigeonFloatEquals(a: number, b: number): boolean {
+  const af: number = Math.fround(a === 0 ? 0 : a);
+  const bf: number = Math.fround(b === 0 ? 0 : b);
+  return af === bf || (isNaN(af) && isNaN(bf));
+}
+
+function pigeonDoubleHashCode(value: number): number {
+  const normalized: number = value === 0 ? 0 : value;
+  const buffer: ArrayBuffer = new ArrayBuffer(8);
+  const floatView: Float64Array = new Float64Array(buffer);
+  const intView: Int32Array = new Int32Array(buffer);
+  floatView[0] = normalized;
+  return intView[0] ^ intView[1];
+}
+
+function pigeonFloatHashCode(value: number): number {
+  const normalized: number = Math.fround(value === 0 ? 0 : value);
+  const buffer: ArrayBuffer = new ArrayBuffer(4);
+  const floatView: Float32Array = new Float32Array(buffer);
+  const intView: Int32Array = new Int32Array(buffer);
+  floatView[0] = normalized;
+  return intView[0];
+}
+
+interface PigeonEquals {
+  equals(other: ESObject): boolean;
+}
+
+interface PigeonHashable {
+  hashCode(): number;
+}
+
+function pigeonDeepEquals(a: ESObject | null | undefined, b: ESObject | null | undefined): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (a == null || b == null) {
+    return false;
+  }
+  if (Array.isArray(a) && Array.isArray(b)) {
+    const listA: ESObject[] = a as ESObject[];
+    const listB: ESObject[] = b as ESObject[];
+    if (listA.length !== listB.length) {
+      return false;
+    }
+    for (let i = 0; i < listA.length; i++) {
+      if (!pigeonDeepEquals(listA[i], listB[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (a instanceof Map && b instanceof Map) {
+    const mapA: Map<ESObject, ESObject> = a as Map<ESObject, ESObject>;
+    const mapB: Map<ESObject, ESObject> = b as Map<ESObject, ESObject>;
+    if (mapA.size !== mapB.size) {
+      return false;
+    }
+    const mapAKeys: ESObject[] = Array.from(mapA.keys());
+    for (let i = 0; i < mapAKeys.length; i++) {
+      const mapKey: ESObject = mapAKeys[i];
+      const mapValue: ESObject | undefined = mapA.get(mapKey);
+      let found: boolean = false;
+      const mapBKeys: ESObject[] = Array.from(mapB.keys());
+      for (let j = 0; j < mapBKeys.length; j++) {
+        const bKey: ESObject = mapBKeys[j];
+        if (pigeonDeepEquals(mapKey, bKey)) {
+          const bValue: ESObject | undefined = mapB.get(bKey);
+          if (pigeonDeepEquals(mapValue, bValue)) {
+            found = true;
+            break;
+          } else {
+            return false;
+          }
+        }
+      }
+      if (!found) {
+        return false;
+      }
+    }
+    return true;
+  }
+  if (typeof a === 'number' && typeof b === 'number') {
+    return pigeonDoubleEquals(a as number, b as number);
+  }
+  if (typeof a === 'object' && typeof b === 'object') {
+    const aObj: ESObject = a as ESObject;
+    if (typeof (aObj as PigeonEquals).equals === 'function') {
+      return (aObj as PigeonEquals).equals(b as ESObject);
+    }
+  }
+  if (typeof a !== typeof b) {
+    return false;
+  }
+  return a === b;
+}
+
+function pigeonDeepHashCode(value: ESObject | null | undefined): number {
+  if (value == null) {
+    return 0;
+  }
+  if (Array.isArray(value)) {
+    let result: number = 1;
+    const list: ESObject[] = value as ESObject[];
+    for (let i = 0; i < list.length; i++) {
+      result = 31 * result + pigeonDeepHashCode(list[i]);
+    }
+    return result;
+  }
+  if (value instanceof Map) {
+    let result: number = 0;
+    const map: Map<ESObject, ESObject> = value as Map<ESObject, ESObject>;
+    const mapKeys: ESObject[] = Array.from(map.keys());
+    for (let i = 0; i < mapKeys.length; i++) {
+      const mapKey: ESObject = mapKeys[i];
+      const mapValue: ESObject | undefined = map.get(mapKey);
+      result += ((pigeonDeepHashCode(mapKey) * 31) ^ pigeonDeepHashCode(mapValue));
+    }
+    return result;
+  }
+  if (typeof value === 'number') {
+    return pigeonDoubleHashCode(value as number);
+  }
+  if (typeof value === 'string') {
+    let result: number = 0;
+    const str: string = value as string;
+    for (let i = 0; i < str.length; i++) {
+      result = 31 * result + str.charCodeAt(i);
+    }
+    return result;
+  }
+  if (typeof value === 'boolean') {
+    return (value as boolean) ? 1231 : 1237;
+  }
+  if (typeof value === 'object') {
+    const valueObj: ESObject = value as ESObject;
+    if (typeof (valueObj as PigeonHashable).hashCode === 'function') {
+      return (valueObj as PigeonHashable).hashCode();
+    }
+  }
+  return 0;
+}
+
+
 /** Error class for passing custom error details to Flutter via a thrown PlatformException. */
 export class FlutterError implements Error {
 
   /** The error code. */
   public code: string;
 
-  /** The error name. */
-  public name: string;
-
   /** The error message. */
   public message: string;
+
+  /** The error details. Must be a datatype supported by the api codec. */
+  public details: Object | null;
+
+  /** Error name for the Error interface. */
+  public name: string = 'FlutterError';
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string, message: string, stack?: string) {
+  constructor(code: string, message: string, details: Object | null, stack?: string) {
     this.code = code;
-    this.name = name;
     this.message = message;
+    this.details = details;
     this.stack = stack;
   }
+}
+
+/**
+ * Wrapper so PigeonCodec always serializes a Dart `double` as float64.
+ * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded
+ * as integers by StandardMessageCodec and fail strict Dart double casts.
+ */
+export class PigeonInternalDoubleBox {
+  value: number;
+  constructor(value: number) {
+    this.value = value;
+  }
+}
+
+function createConnectionError(channelName: string): FlutterError {
+  return new FlutterError('channel-error', 'Unable to establish connection on channel: \'' + channelName + '\'.', '');
+}
+
+function createNullReplyError(): FlutterError {
+  return new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
 }
 
 function wrapError(error: Error): Array<Object | null> {
@@ -37,11 +213,11 @@ function wrapError(error: Error): Array<Object | null> {
   if (error instanceof FlutterError) {
     let err: FlutterError = error as FlutterError;
     errorList[0] = err.code;
-    errorList[1] = err.name;
-    errorList[2] = err.message;
+    errorList[1] = err.message;
+    errorList[2] = err.details;
   } else {
-    errorList[0] = error.toString();
-    errorList[1] = error.name;
+    errorList[0] = error.name;
+    errorList[1] = error.toString();
     errorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
   }
   return errorList;
@@ -64,23 +240,24 @@ export class PigeonInstanceManager {
 
   private readonly weakInstances: Map<number, WeakRef<ESObject>> = new Map<number, WeakRef<ESObject>>();
   private readonly strongInstances: Map<number, ESObject> = new Map<number, ESObject>();
-  private readonly finalizationRegistry: FinalizationRegistry<number>;
+  private finalizationRegistry: FinalizationRegistry<number> | null;
   private readonly instancesHeldForFinalization: Set<ESObject> = new Set<ESObject>();
   private nextIdentifier: number = PigeonInstanceManager.minHostCreatedIdentifier;
   private finalizationListener: PigeonFinalizationListener | null = null;
   private finalizationListenerStopped: boolean = false;
 
   constructor() {
+    const manager: PigeonInstanceManager = this;
     this.finalizationRegistry = new FinalizationRegistry<number>((identifier: number) => {
-      if (this.finalizationListenerStopped) {
+      if (manager.finalizationListenerStopped) {
         return;
       }
-      if (this.strongInstances.has(identifier)) {
+      if (manager.strongInstances.has(identifier)) {
         return;
       }
-      this.weakInstances.delete(identifier);
-      if (this.finalizationListener !== null) {
-        this.finalizationListener.onFinalize(identifier);
+      manager.weakInstances.delete(identifier);
+      if (manager.finalizationListener !== null) {
+        manager.finalizationListener.onFinalize(identifier);
       }
     });
   }
@@ -91,9 +268,13 @@ export class PigeonInstanceManager {
 
   stopFinalizationListener(): void {
     this.finalizationListenerStopped = true;
-    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
-      this.finalizationRegistry.unregister(instance);
-    });
+    this.finalizationListener = null;
+    if (this.finalizationRegistry !== null) {
+      this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+        this.finalizationRegistry!.unregister(instance);
+      });
+      this.finalizationRegistry = null;
+    }
     this.instancesHeldForFinalization.clear();
   }
 
@@ -133,8 +314,10 @@ export class PigeonInstanceManager {
     const weakRef: WeakRef<ESObject> = new WeakRef(instance);
     this.weakInstances.set(identifier, weakRef);
     this.strongInstances.set(identifier, instance);
-    this.finalizationRegistry.register(instance, identifier, instance);
-    this.instancesHeldForFinalization.add(instance);
+    if (this.finalizationRegistry !== null) {
+      this.finalizationRegistry.register(instance, identifier, instance);
+      this.instancesHeldForFinalization.add(instance);
+    }
   }
 
   addDartCreatedInstance(instance: ESObject, identifier: number): void {
@@ -188,13 +371,18 @@ export class PigeonInstanceManager {
     }
     this.strongInstances.delete(identifier);
     this.instancesHeldForFinalization.delete(instance);
+    if (this.finalizationRegistry !== null) {
+      this.finalizationRegistry.unregister(instance);
+    }
     return instance;
   }
 
   clear(): void {
-    this.instancesHeldForFinalization.forEach((instance: ESObject) => {
-      this.finalizationRegistry.unregister(instance);
-    });
+    if (this.finalizationRegistry !== null) {
+      this.instancesHeldForFinalization.forEach((instance: ESObject) => {
+        this.finalizationRegistry!.unregister(instance);
+      });
+    }
     this.instancesHeldForFinalization.clear();
     this.weakInstances.clear();
     this.strongInstances.clear();
@@ -439,7 +627,7 @@ export class ProxyRoleEnum {
 export class Person {
   private name: string;
 
-  public setName(name:string):void {
+  public setName(name: string): void {
     this.name = name;
   }
 
@@ -449,7 +637,7 @@ export class Person {
 
   private age: number;
 
-  public setAge(age:number):void {
+  public setAge(age: number): void {
     this.age = age;
   }
 
@@ -459,7 +647,7 @@ export class Person {
 
   private identity: Identity;
 
-  public setIdentity(identity:Identity):void {
+  public setIdentity(identity: Identity): void {
     this.identity = identity;
   }
 
@@ -495,6 +683,9 @@ export class Person {
   }
 
   static fromList(arr: Object[]): Person {
+    if (arr == null || arr.length < 3) {
+      throw new Error('Invalid Person: expected at least 3 elements.');
+    }
     let nameObject: Object = arr[0];
     const name: string = nameObject as string;
     let ageObject: Object = arr[1];
@@ -503,13 +694,37 @@ export class Person {
     const identity: Identity = Identity[identityStr];
     return new Person(name, age, identity);
   }
+
+  public equals(other: ESObject | null | undefined): boolean {
+    if (other == null || !(other instanceof Person)) {
+      return false;
+    }
+    if (this === other) {
+      return true;
+    }
+    let that: Person = other as Person;
+    return pigeonDeepEquals(this.name as ESObject, that.name as ESObject) && pigeonDeepEquals(this.age as ESObject, that.age as ESObject) && pigeonDeepEquals(this.identity as ESObject, that.identity as ESObject);
+  }
+
+  public hashCode(): number {
+    let fields: Array<Object | null> = new Array<Object | null>();
+    fields.push('Person');
+    fields.push(this.name as Object);
+    fields.push(this.age as Object);
+    fields.push(this.identity as Object);
+    return pigeonDeepHashCode(fields);
+  }
+
+  public toString(): string {
+    return 'Person(' + 'name=' + this.name + ', ' + 'age=' + this.age + ', ' + 'identity=' + this.identity + ')';
+  }
 }
 
 /* Generated class from Pigeon that represents data sent in messages.*/
 export class Student {
   private name: string;
 
-  public setName(name:string):void {
+  public setName(name: string): void {
     this.name = name;
   }
 
@@ -519,7 +734,7 @@ export class Student {
 
   private age: number;
 
-  public setAge(age:number):void {
+  public setAge(age: number): void {
     this.age = age;
   }
 
@@ -548,11 +763,37 @@ export class Student {
   }
 
   static fromList(arr: Object[]): Student {
+    if (arr == null || arr.length < 2) {
+      throw new Error('Invalid Student: expected at least 2 elements.');
+    }
     let nameObject: Object = arr[0];
     const name: string = nameObject as string;
     let ageObject: Object = arr[1];
     const age: number = ageObject as number;
     return new Student(name, age);
+  }
+
+  public equals(other: ESObject | null | undefined): boolean {
+    if (other == null || !(other instanceof Student)) {
+      return false;
+    }
+    if (this === other) {
+      return true;
+    }
+    let that: Student = other as Student;
+    return pigeonDeepEquals(this.name as ESObject, that.name as ESObject) && pigeonDeepEquals(this.age as ESObject, that.age as ESObject);
+  }
+
+  public hashCode(): number {
+    let fields: Array<Object | null> = new Array<Object | null>();
+    fields.push('Student');
+    fields.push(this.name as Object);
+    fields.push(this.age as Object);
+    return pigeonDeepHashCode(fields);
+  }
+
+  public toString(): string {
+    return 'Student(' + 'name=' + this.name + ', ' + 'age=' + this.age + ')';
   }
 }
 
@@ -588,7 +829,12 @@ export class PigeonCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer , value: ESObject): ESObject{
-    if (value instanceof IdentityEnum) {
+    if (value instanceof PigeonInternalDoubleBox) {
+      stream.writeInt8(this.getByte(6));
+      this.writeAlignment(stream, 8);
+      stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);
+      return;
+    } else     if (value instanceof IdentityEnum) {
       stream.writeUint8(this.getByte(129));
       this.writeValue(stream, value == null ? null : Identity[value.index as string]);
     } else if (value instanceof ProxyRoleEnum) {
@@ -658,7 +904,7 @@ export class PigeonProxyApiBaseCodec extends PigeonCodec {
 /* Generated abstract class from Pigeon that represents a handler of messages from Flutter.*/
 export abstract class DemoHostApi {
 
-  abstract sendNull(data: Object ): Object;
+  abstract sendNull(data: Object | undefined ): Object | undefined;
 
   abstract sendTrue(data: boolean ): boolean;
 
@@ -737,7 +983,7 @@ export abstract class DemoHostApi {
               }
               let res: Array<Object | null> = [];
               try {
-                let output: Object = api!.sendNull(args[0] as Object);
+                let output: Object | undefined = api!.sendNull(args[0] as Object | undefined);
                 res.push(output);
               }
  catch (error) {
@@ -862,7 +1108,7 @@ export abstract class DemoHostApi {
               let res: Array<Object | null> = [];
               try {
                 let output: number = api!.sendDouble(args[0] as number);
-                res.push(output);
+                res.push(new PigeonInternalDoubleBox(output));
               }
  catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);
@@ -1430,6 +1676,7 @@ export abstract class DemoHostApi {
       let channel: BasicMessageChannel<Object> =
           new BasicMessageChannel(
               binaryMessenger, 'dev.flutter.pigeon.pigeon_example_app.DemoHostApi.taskQueueTest' + separatedMessageChannelSuffix, DemoHostApi.getCodec());
+      // TaskQueue is declared in the IDL but flutter_ohos BasicMessageChannel does not bind a queue; the handler runs on the default platform thread.
       if (api != null) {
         channel.setMessageHandler({
             onMessage(message: Object ,reply: Reply<Object> ) {
@@ -1624,7 +1871,7 @@ export abstract class PigeonApiHostEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* HostEnumCounter */ ESObject = args[0] as /* HostEnumCounter */ ESObject;
                 let byArg: number = args[1] as number;
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
               }
@@ -1653,7 +1900,7 @@ export abstract class PigeonApiHostEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* HostEnumCounter */ ESObject = args[0] as /* HostEnumCounter */ ESObject;
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
               }
  catch (error) {
@@ -1681,7 +1928,7 @@ export abstract class PigeonApiHostEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* HostEnumCounter */ ESObject = args[0] as /* HostEnumCounter */ ESObject;
                 let valueArg: ESObject = ProxyRole[args[1] as string];
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
@@ -1710,7 +1957,7 @@ export abstract class PigeonApiHostEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* HostEnumCounter */ ESObject = args[0] as /* HostEnumCounter */ ESObject;
                 let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
@@ -1759,13 +2006,21 @@ export abstract class PigeonApiHostEnumCounter {
           callback.reply();
         }
       } else {
-        callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+        callback.reply(createConnectionError(channelName) as ESObject);
       }
     });
   }
 
   /* 可选 Flutter 回调：宿主反向调用可空枚举路径（见 proxyApiHostCreate / main 全局 handler）。*/
   flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `HostEnumCounter.flutterEchoNullableRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.HostEnumCounter.flutterEchoNullableRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
@@ -1781,7 +2036,7 @@ export abstract class PigeonApiHostEnumCounter {
           callback.reply((listReply[0] == null ? null : ProxyRole[listReply[0] as string]));
         }
       } else {
-        callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+        callback.reply(createConnectionError(channelName) as ESObject);
       }
     });
   }
@@ -1864,7 +2119,7 @@ export abstract class PigeonApiEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* EnumCounter */ ESObject = args[0] as /* EnumCounter */ ESObject;
                 let byArg: number = args[1] as number;
                 let output: ESObject = api!.increment(pigeon_instanceArg, byArg); res.push(output);
               }
@@ -1893,7 +2148,7 @@ export abstract class PigeonApiEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* EnumCounter */ ESObject = args[0] as /* EnumCounter */ ESObject;
                 let output: ESObject = api!.current(pigeon_instanceArg); res.push(output);
               }
  catch (error) {
@@ -1921,7 +2176,7 @@ export abstract class PigeonApiEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* EnumCounter */ ESObject = args[0] as /* EnumCounter */ ESObject;
                 let valueArg: ESObject = ProxyRole[args[1] as string];
                 let pigeonEnumResult: ESObject = api!.echoRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
@@ -1950,7 +2205,7 @@ export abstract class PigeonApiEnumCounter {
               }
               let res: Array<Object | null> = [];
               try {
-                let pigeon_instanceArg: ESObject = args[0] as ESObject;
+                let pigeon_instanceArg: /* EnumCounter */ ESObject = args[0] as /* EnumCounter */ ESObject;
                 let valueArg: ESObject = (args[1] == null ? null : ProxyRole[args[1] as string]);
                 let pigeonEnumResult: ESObject = api!.echoNullableRole(pigeon_instanceArg, valueArg); let output: ESObject = (pigeonEnumResult === null || pigeonEnumResult === undefined ? null : new ProxyRoleEnum(ProxyRole[pigeonEnumResult as number])); res.push(output);
               }
@@ -1987,6 +2242,14 @@ export abstract class PigeonApiEnumCounter {
 
   /* Flutter 回调：宿主反向调用，验证 ProxyApi 的 FlutterApi 枚举路径（非空返回须非 optional 字段）。*/
   flutterEchoRole(pigeon_instance: ESObject, valueArg: ProxyRole, callback: Reply<ProxyRole>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `EnumCounter.flutterEchoRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.EnumCounter.flutterEchoRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
@@ -2000,18 +2263,26 @@ export abstract class PigeonApiEnumCounter {
           callback.reply(new FlutterError(arrFirst, arrSecond, arrThird) as ESObject);
         } else {
     if (listReply[0] == null) {
-      callback.reply(new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '') as ESObject);
+      callback.reply(createNullReplyError() as ESObject);
     } else {
       callback.reply(ProxyRole[listReply[0] as string]);
     }
         }
       } else {
-        callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+        callback.reply(createConnectionError(channelName) as ESObject);
       }
     });
   }
 
   flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `EnumCounter.flutterEchoNullableRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.EnumCounter.flutterEchoNullableRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
@@ -2027,7 +2298,7 @@ export abstract class PigeonApiEnumCounter {
           callback.reply((listReply[0] == null ? null : ProxyRole[listReply[0] as string]));
         }
       } else {
-        callback.reply(new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '') as ESObject);
+        callback.reply(createConnectionError(channelName) as ESObject);
       }
     });
   }
@@ -2066,14 +2337,14 @@ export class DemoFlutterApi {
               let replyArr: ESObject = new FlutterError(arrFirst, arrSecond, arrThird);
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull: ESObject = new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
+              let replyNull: ESObject = createNullReplyError();
               callback.reply(replyNull);
             } else {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
           }  else {
-            let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
+            let connErr: ESObject = createConnectionError(channelName);
             callback.reply(connErr);
           } 
         });
@@ -2095,14 +2366,14 @@ export class DemoFlutterApi {
               let replyArr: ESObject = new FlutterError(arrFirst, arrSecond, arrThird);
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull: ESObject = new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
+              let replyNull: ESObject = createNullReplyError();
               callback.reply(replyNull);
             } else {
               let output:string = listReply[0] as string;
               callback.reply(output);
             }
           }  else {
-            let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
+            let connErr: ESObject = createConnectionError(channelName);
             callback.reply(connErr);
           } 
         });
@@ -2124,14 +2395,14 @@ export class DemoFlutterApi {
               let replyArr: ESObject = new FlutterError(arrFirst, arrSecond, arrThird);
               callback.reply(replyArr);
             } else if (listReply[0] == null) {
-              let replyNull: ESObject = new FlutterError('null-error', 'Flutter api returned null value for non-null return value.', '');
+              let replyNull: ESObject = createNullReplyError();
               callback.reply(replyNull);
             } else {
               let output: ESObject = listReply[0] == null ? null : Identity[listReply[0] as string];
               callback.reply(output);
             }
           }  else {
-            let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
+            let connErr: ESObject = createConnectionError(channelName);
             callback.reply(connErr);
           } 
         });
@@ -2157,7 +2428,7 @@ export class DemoFlutterApi {
               callback.reply(output);
             }
           }  else {
-            let connErr: ESObject = new FlutterError('channel-error', 'Unable to establish connection on channel: ' + channelName + '.', '');
+            let connErr: ESObject = createConnectionError(channelName);
             callback.reply(connErr);
           } 
         });

@@ -1279,6 +1279,63 @@ void main() {
     expect(code, contains('doit(List<int?> arg'));
   });
 
+  test('host typed data list return', () {
+    final root = Root(
+      apis: <Api>[
+        AstHostApi(
+          name: 'Api',
+          methods: <Method>[
+            Method(
+              name: 'sendUint8List',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(baseName: 'Uint8List', isNullable: false),
+              parameters: <Parameter>[
+                Parameter(
+                  type: const TypeDeclaration(baseName: 'Uint8List', isNullable: false),
+                  name: 'data',
+                ),
+              ],
+            ),
+            Method(
+              name: 'sendFloat64List',
+              location: ApiLocation.host,
+              returnType: const TypeDeclaration(baseName: 'Float64List', isNullable: false),
+              parameters: <Parameter>[
+                Parameter(
+                  type: const TypeDeclaration(baseName: 'Float64List', isNullable: false),
+                  name: 'data',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      classes: <Class>[],
+      enums: <Enum>[],
+    );
+    final sink = StringBuffer();
+    const generator = DartGenerator();
+    generator.generate(
+      const InternalDartOptions(ignoreLints: false),
+      root,
+      sink,
+      dartPackageName: DEFAULT_PACKAGE_NAME,
+    );
+    final code = sink.toString();
+    expect(
+      code,
+      contains(
+        'return (pigeonVar_replyValue! is Uint8List ? pigeonVar_replyValue! as Uint8List : Uint8List.fromList(List<int>.from(pigeonVar_replyValue! as List)))',
+      ),
+    );
+    expect(
+      code,
+      contains(
+        'return (pigeonVar_replyValue! is Float64List ? pigeonVar_replyValue! as Float64List : Float64List.fromList(List<double>.from(pigeonVar_replyValue! as List)))',
+      ),
+    );
+  });
+
   test('host generics return', () {
     final root = Root(
       apis: <Api>[
