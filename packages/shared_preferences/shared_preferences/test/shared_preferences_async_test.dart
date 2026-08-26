@@ -10,6 +10,11 @@ import 'package:shared_preferences_platform_interface/shared_preferences_async_p
 import 'package:shared_preferences_platform_interface/types.dart';
 
 void main() {
+  // Reset the global platform instance so tests don't leak state into each other.
+  tearDown(() {
+    SharedPreferencesAsyncPlatform.instance = null;
+  });
+
   const stringKey = 'testString';
   const boolKey = 'testBool';
   const intKey = 'testInt';
@@ -263,6 +268,52 @@ void main() {
       expect(await preferences.getDouble(doubleKey), testDouble);
       expect(await preferences.getStringList(listKey), testList);
     });
+
+    test('set and get extreme numeric values', () async {
+      final (SharedPreferencesAsync preferences, _) = getPreferences();
+      // Extreme int values at the boundaries of the 64-bit integer range.
+      const int64Max = 9223372036854775807;
+      const int64Min = -9223372036854775808;
+      // Extreme double values: the largest finite double and the smallest
+      // positive subnormal double.
+      const doubleMaxFinite = 1.7976931348623157e+308;
+      const doubleMinPositive = 5e-324;
+
+      await preferences.setInt('int64Max', int64Max);
+      await preferences.setInt('int64Min', int64Min);
+      await preferences.setDouble('doubleMaxFinite', doubleMaxFinite);
+      await preferences.setDouble('doubleMinPositive', doubleMinPositive);
+
+      expect(await preferences.getInt('int64Max'), int64Max);
+      expect(await preferences.getInt('int64Min'), int64Min);
+      expect(await preferences.getDouble('doubleMaxFinite'), doubleMaxFinite);
+      expect(await preferences.getDouble('doubleMinPositive'), doubleMinPositive);
+    });
+
+    test('strings starting with the reserved list prefix round-trip', () async {
+      final (SharedPreferencesAsync preferences, _) = getPreferences();
+      // On Android, strings starting with these base64 prefixes conflict with
+      // the platform-encoded StringList markers. On OHOS and in the Dart layer
+      // they are plain strings and must round-trip unchanged.
+      const reservedPrefix = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu';
+      const reservedValue = '$reservedPrefix hello world';
+
+      await preferences.setString(stringKey, reservedValue);
+      expect(await preferences.getString(stringKey), reservedValue);
+    });
+
+    test('concurrent writes to the same key converge to a consistent value',
+        () async {
+      final (SharedPreferencesAsync preferences, _) = getPreferences();
+      await Future.wait(<Future<void>>[
+        for (var i = 0; i < 20; i++) preferences.setInt(intKey, i),
+      ]);
+
+      // All writes were applied to the platform; the final value must be one
+      // of the values that was written, never an interleaved/corrupt value.
+      final int? value = await preferences.getInt(intKey);
+      expect(value, inInclusiveRange(0, 19));
+    });
   });
 
   group('withCache', () {
@@ -452,6 +503,41 @@ void main() {
       expect(preferences.getDouble(doubleKey), null);
       expect(preferences.getStringList(listKey), null);
     });
+
+    test('get returns a value of any type from the cache', () async {
+      final (SharedPreferencesWithCache preferences, _, _) =
+          await getPreferences();
+      await preferences.setString(stringKey, testString);
+      await preferences.setInt(intKey, testInt);
+
+      // The untyped get() entry point returns the cached value as-is.
+      expect(preferences.get(stringKey), testString);
+      expect(preferences.get(intKey), testInt);
+      expect(preferences.get('nonexistentKey'), null);
+    });
+
+    test('reloadCache picks up a concurrent change made on the platform',
+        () async {
+      final (
+        SharedPreferencesWithCache preferences,
+        FakeSharedPreferencesAsync store,
+        _,
+      ) = await getPreferences();
+      await preferences.setString(stringKey, testString);
+
+      // Another party (another instance or native code) modifies the platform
+      // store directly while the cache still holds the old value.
+      await store.backend.setString(
+        stringKey,
+        'modified-externally',
+        const SharedPreferencesOptions(),
+      );
+      expect(preferences.getString(stringKey), testString);
+
+      // reloadCache() must reconcile the cache with the changed platform state.
+      await preferences.reloadCache();
+      expect(preferences.getString(stringKey), 'modified-externally');
+    });
   });
 
   group('withCache with filter', () {
@@ -585,6 +671,14 @@ void main() {
       );
     });
 
+    test('get throws ArgumentError if key is not included in filter', () async {
+      final (SharedPreferencesWithCache preferences, _, _) =
+          await getPreferences();
+      const key = 'testKey';
+
+      expect(() => preferences.get(key), throwsArgumentError);
+    });
+
     test('containsKey', () async {
       final (SharedPreferencesWithCache preferences, _, _) =
           await getPreferences();
@@ -663,6 +757,36 @@ void main() {
       expect(preferences.getInt(intKey), null);
       expect(preferences.getDouble(doubleKey), null);
       expect(preferences.getStringList(listKey), null);
+    });
+  });
+
+  group('withCache with empty allowList', () {
+    test('empty allowList prevents all caching, getting, and setting', () async {
+      // An empty (non-null) allowList is not the same as a null allowList:
+      // it disallows every key, so nothing can be cached, read, or written.
+      final store = FakeSharedPreferencesAsync();
+      SharedPreferencesAsyncPlatform.instance = store;
+      final SharedPreferencesWithCache preferences =
+          await SharedPreferencesWithCache.create(
+            cacheOptions: const SharedPreferencesWithCacheOptions(
+              allowList: <String>{},
+            ),
+          );
+      store.log.clear();
+
+      expect(preferences.keys, isEmpty);
+
+      expect(() => preferences.get(stringKey), throwsArgumentError);
+      expect(
+        () => preferences.containsKey(stringKey),
+        throwsArgumentError,
+      );
+      expect(
+        () async => preferences.setString(stringKey, testString),
+        throwsArgumentError,
+      );
+      // The rejected write must not reach the platform backend.
+      expect(store.log, <Matcher>[]);
     });
   });
 }

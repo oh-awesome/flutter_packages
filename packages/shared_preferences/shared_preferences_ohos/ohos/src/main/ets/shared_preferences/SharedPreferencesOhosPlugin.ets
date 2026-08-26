@@ -81,7 +81,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (value === null) {
@@ -104,7 +104,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (value === null) {
@@ -124,7 +124,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (value === null) {
@@ -146,7 +146,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (value === null) {
@@ -166,7 +166,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (typeof value === 'string' && value.startsWith(LIST_IDENTIFIER)) {
@@ -184,7 +184,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return null;
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const value = await preferences.get(key, null) as ExtendedPreferenceValue;
       if (typeof value === 'string') {
@@ -242,7 +242,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return new Map<string, Object>();
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const result = new Map<string, Object>();
@@ -263,7 +263,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
     try {
       const preferences = await this.plugin.getPreferencesForOptions(options);
       if (preferences == null) {
-        return [];
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const allKeys = Object.keys(allData);
@@ -333,9 +333,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as boolean;
-          const wrapped: Array<Object> = [true];
-          
-          api.setBool(keyArg, valueArg).then(() => {
+          api.setBool(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -357,9 +356,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as string;
-          const wrapped: Array<Object> = [true];
-          
-          api.setString(keyArg, valueArg).then(() => {
+          api.setString(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -381,9 +379,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = BigInt(args[1] as bigint);
-          const wrapped: Array<Object> = [true];
-          
-          api.setInt(keyArg, valueArg).then(() => {
+          api.setInt(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -405,9 +402,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as number;
-          const wrapped: Array<Object> = [true];
-          
-          api.setDouble(keyArg, valueArg).then(() => {
+          api.setDouble(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -429,9 +425,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as string;
-          const wrapped: Array<Object> = [true];
-          
-          api.setEncodedStringList(keyArg, valueArg).then(() => {
+          api.setEncodedStringList(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -453,9 +448,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const keyArg = args[0] as string;
           const valueArg = args[1] as Array<string>;
-          const wrapped: Array<Object> = [true];
-
-          api.setDeprecatedStringList(keyArg, valueArg).then(() => {
+          api.setDeprecatedStringList(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -477,9 +471,8 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
           const args = message as Array<Object>;
           const prefixArg = args[0] as string;
           const allowListArg = args[1] as Array<string> | null;
-          const wrapped: Array<Object> = [true];
-          
-          api.clear(prefixArg, allowListArg).then(() => {
+          api.clear(prefixArg, allowListArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
             const errs = wrapError(err);
@@ -500,10 +493,10 @@ export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesAp
         onMessage(message: Object, reply: Reply<Object>): void {
           const args = message as Array<Object>;
           const prefixArg = args[0] as string;
-          const allowListArg = args[1] as Array<string>;
+          const allowListArg = args[1] as Array<string> | null;
           let wrapped: Array<Object>;
-          
-          api.getAll(prefixArg, allowListArg).then((result) => {
+
+          api.getAll(prefixArg, allowListArg).then((result: Map<string, Object>) => {
             wrapped = [result];
             reply.reply(wrapped);
           }).catch((err: Error) => {
@@ -523,7 +516,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   private context: common.ApplicationContext | null = null;
   preferences: data_preferences.Preferences | null = null;
   listEncoder: ListEncoderImpl = new ListEncoderImpl();
-  private asyncApiImpl: SharedPreferencesAsyncApiImpl;
+  private asyncApiImpl: SharedPreferencesAsyncApiImpl | null = null;
   private asyncPreferencesCache: Map<string, data_preferences.Preferences | null> = new Map<string, data_preferences.Preferences | null>();
   private defaultSharedPreferencesName: string = `${PREFERENCES_NAME}_default`;
 
@@ -537,6 +530,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     this.context = binding.getApplicationContext() as common.ApplicationContext;
+    // detach 时断开了 asyncApiImpl 循环引用，若同一实例再次 attach 则重建
+    if (this.asyncApiImpl == null) {
+      this.asyncApiImpl = new SharedPreferencesAsyncApiImpl(this);
+    }
     try {
       const flag: bundleManager.BundleFlag = bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION;
       const bundleInfo: bundleManager.BundleInfo = bundleManager.getBundleInfoForSelfSync(flag);
@@ -572,13 +569,33 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
-    // Unregister APIs
-  // Unregister APIs
+    // 1. 取消所有 API handler
     setup(binding.getBinaryMessenger(), null);
     setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.data_store');
     setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.shared_preferences');
+
+    // 2. 释放所有 Preferences 实例：先从系统缓存中移除，再清空 Map 与引用
+    //（OHOS 无 close()，官方释放方式为 removePreferencesFromCacheSync + 置 null，由系统回收）
+    const appContext = this.context;
+    if (appContext != null) {
+      this.asyncPreferencesCache.forEach((pref: data_preferences.Preferences | null, storageName: string) => {
+        if (pref == null) {
+          return;
+        }
+        try {
+          data_preferences.removePreferencesFromCacheSync(appContext, storageName);
+        } catch (err) {
+          Log.w(TAG, `Failed to remove preferences from cache for ${storageName}: ${JSON.stringify(err)}`);
+        }
+      });
+    }
     this.asyncPreferencesCache.clear();
     this.preferences = null;
+
+    // 3. 断开 asyncApiImpl 循环引用
+    this.asyncApiImpl = null;
+
+    // 4. 释放 context 引用
     this.context = null;
   }
 
@@ -633,7 +650,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     }
   }
 
-  async setString(key: string, value: string): Promise<void> {
+  async setString(key: string, value: string): Promise<boolean> {
     if (
       value.startsWith(LIST_IDENTIFIER) ||
       value.startsWith(BIG_INTEGER_PREFIX) ||
@@ -646,10 +663,12 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       );
     }
     await this.put(key, value);
+    return true;
   }
 
-  async setInt(key: string, value: bigint): Promise<void> {
+  async setInt(key: string, value: bigint): Promise<boolean> {
     await this.put(key, value);
+    return true;
   }
 
   private async persistValue(
@@ -679,25 +698,27 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     return this.persistValue(preferences, key, value, "Failed to put value with options. ");
   }
 
-  async setDouble(key: string, value: number): Promise<void> {
+  async setDouble(key: string, value: number): Promise<boolean> {
     await this.put(key, value);
+    return true;
   }
 
-  async setBool(key: string, value: boolean): Promise<void> {
+  async setBool(key: string, value: boolean): Promise<boolean> {
     await this.put(key, value);
+    return true;
   }
 
-  async setEncodedStringList(key: string, value: string): Promise<void> {
+  async setEncodedStringList(key: string, value: string): Promise<boolean> {
     await this.put(key, value);
+    return true;
   }
 
-  async setDeprecatedStringList(key: string, value: string[]): Promise<void> {
+  async setDeprecatedStringList(key: string, value: string[]): Promise<boolean> {
     await this.setStringList(key, value);
+    return true;
   }
 
   async setStringList(key: string, value: string[]): Promise<void> {
-    Log.w(TAG, "setStringList :" + value);
-    Log.w(TAG, "setStringList encoded:" + (LIST_IDENTIFIER + this.listEncoder.encode(value)));
     await this.put(key, LIST_IDENTIFIER + this.listEncoder.encode(value));
   }
 
@@ -705,18 +726,21 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     await this.putWithOptions(key, LIST_IDENTIFIER + this.listEncoder.encode(value), options);
   }
 
-  async clear(prefix: string, allowList: string[] | null): Promise<void> {
+  async clear(prefix: string, allowList: string[] | null): Promise<boolean> {
     try {
       if (this.preferences == null) {
         return Promise.reject(new Error("Preferences not initialized"));
       }
-      const allData = await this.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      // 捕获局部变量，避免 await 期间 onDetachedFromEngine 将 this.preferences 置 null 后
+      // optional chaining 跳过 delete 回调导致 Promise 永不 resolve
+      const preferences = this.preferences;
+      const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const allKeys = Object.keys(allData);
       const deletePromises: Promise<void>[] = [];
       for (let key of allKeys) {
         if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
           deletePromises.push(new Promise<void>((resolve, reject) => {
-            this.preferences?.delete(key, (err: ESObject) => {
+            preferences.delete(key, (err: ESObject) => {
               if (err) {
                 reject(err);
               } else {
@@ -727,7 +751,8 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
         }
       }
       await Promise.all(deletePromises);
-      await this.preferences.flush();
+      await preferences.flush();
+      return true;
     } catch (err) {
       Log.w(TAG, "Failed to clear." + JSON.stringify(err));
       return Promise.reject(err);
@@ -769,7 +794,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   async getAll(prefix: string, allowList: string[] | null): Promise<Map<string, Object>> {
     try {
       if (this.preferences == null) {
-        return new Map<string, Object>();
+        return Promise.reject(new Error("Preferences not initialized"));
       }
       const allData = await this.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const result = new Map<string, Object>();
