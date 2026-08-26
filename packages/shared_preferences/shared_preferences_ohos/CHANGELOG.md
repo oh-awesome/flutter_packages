@@ -4,6 +4,7 @@
 
 * Caches Async API `Preferences` instances by storage name to reduce repeated `getPreferences` calls; releases all cached instances on engine detach.
 * Adds edge-case, concurrency, platform-interface, async API, legacy-to-async migration and DevTools extension data test suites under `shared_preferences/test`.
+* Adds ArkTS on-device unit tests (ohosTest, 97 cases) for the OpenHarmony native implementation.
 * Adds a Modification Tests page to the example app for verifying modified legacy/async behaviors.
 
 ### Changed
