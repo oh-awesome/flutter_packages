@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -12,16 +12,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-{
-  "apiType": "stageMode",
-  "buildOption": {
-  },
-  "targets": [
-    {
-      "name": "default"
-    },
-    {
-      "name": "ohosTest"
-    }
-  ]
+import messagesTest from './Messages.test';
+import urlLauncherTest from './UrlLauncher.test';
+import urlLauncherSetupTest from './UrlLauncherSetup.test';
+import urlLauncherPluginTest from './UrlLauncherPlugin.test';
+import urlLauncherChannelTest from './UrlLauncherChannel.test';
+
+export default function testsuite() {
+  messagesTest();
+  urlLauncherTest();
+  urlLauncherSetupTest();
+  urlLauncherPluginTest();
+  urlLauncherChannelTest();
 }
