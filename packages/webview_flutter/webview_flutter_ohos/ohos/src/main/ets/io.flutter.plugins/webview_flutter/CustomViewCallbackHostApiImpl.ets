@@ -32,6 +32,13 @@ export class CustomViewCallbackHostApiImpl extends CustomViewCallbackHostApi {
   }
 
   getCustomViewCallbackInstance(identifier: number) : CustomViewCallback {
-    return this.instanceManager.getInstance(identifier);
+    // Defensive check (failure path only): a missing or already released
+    // identifier previously crashed with an opaque error when the member was
+    // accessed; now it fails with a descriptive one.
+    const callbackInstance: CustomViewCallback = this.instanceManager.getInstance(identifier);
+    if (!callbackInstance) {
+      throw new Error('CustomViewCallback instance not found, id = ' + identifier);
+    }
+    return callbackInstance;
   }
 }

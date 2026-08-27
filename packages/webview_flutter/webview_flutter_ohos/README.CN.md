@@ -1,7 +1,7 @@
 
 # webview_flutter
 
-本项目基于 [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.13.1) 开发。
+本项目基于 [webview_flutter](https://pub.dev/packages/webview_flutter/versions/4.14.1) 开发。
 
 ## 简介
 
@@ -25,10 +25,10 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
-      ref: br_webview_flutter-v4.13.1_ohos
+      ref: webview_flutter-v4.14.1-ohos-1.0.0
 ```
 
-如果需要直接调试 OHOS 平台实现，或需要调用平台扩展 API，也可以直接依赖当前包：：
+如果需要直接调试 OHOS 平台实现，或需要调用平台扩展 API，也可以直接依赖当前包：
 
 ```yaml
 dependencies:
@@ -36,12 +36,19 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/webview_flutter/webview_flutter_ohos
-      ref: br_webview_flutter-v4.13.1_ohos
+      ref: webview_flutter-v4.14.1-ohos-1.0.0
 ```
 
 ```bash
 flutter pub get
 ```
+
+
+> TAG 命名规则：`原库版本-ohos-版本号-betax`，不同 TAG 之间的变更详见 `CHANGELOG.md`。
+ 
+| Flutter 框架版本 | TAG 名称 | 分支名 |
+| ----------------| ----------------------- | ---- |
+| 3.44            | webview_flutter-v4.14.1-ohos-1.0.0 | oh-3.44.9 |
 
 ## 约束与限制
 
@@ -49,7 +56,8 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+
 
 ### 权限要求
 
@@ -111,6 +119,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
   void initState() {
     super.initState();
 
+    // 使用OHOS创建参数，在不改变跨平台控制器 API 的前提下传入OHOS专属配置。
     controller = WebViewController.fromPlatformCreationParams(
       OhosWebViewControllerCreationParams(),
     )
@@ -133,7 +142,9 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
       ..loadRequest(Uri.parse('https://flutter.dev'));
 
     final PlatformWebViewController platformController = controller.platform;
+    // 同一份 Dart 代码可能运行在其余平台，因此转换前必须先判断平台类型。
     if (platformController is OhosWebViewController) {
+      // ArkWeb 详细调试日志仅建议在开发环境开启。
       OhosWebViewController.enableDebugging(true);
     }
   }
@@ -210,10 +221,14 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | setJavaScriptMode([JavaScriptMode](#JavaScriptMode ) javaScriptMode) | Future<void>      | 设置WebView使用的JavaScript执行模式                          | function | yes          |
 | setUserAgent(String? userAgent)                              | Future<void>      | 设置用于HTTP“User-Agent:”请求标头的值                        | function | yes          |
 | setOnConsoleMessage(void Function([JavaScriptConsoleMessage](#JavaScriptConsoleMessage ) message) onConsoleMessage) | Future<void>      | 设置一个回调，通知主机应用程序写入JavaScript控制台的任何日志消息 | function | yes          |
-| setOnJavaScriptAlertDialog(Future<void> Function([JavaScriptAlertDialogRequest](#JavaScriptAlertDialogRequest ) request) onJavaScriptAlertDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript alert（）对话框 | function | yes          |
-| setOnJavaScriptConfirmDialog(Future<bool> Function([JavaScriptConfirmDialogRequest](#JavaScriptConfirmDialogRequest ) request) onJavaScriptConfirmDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript confirm（）对话框 | function | yes          |
-| setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt（）对话框 | function | yes          |
+| setOnJavaScriptAlertDialog(Future<void> Function([JavaScriptAlertDialogRequest](#JavaScriptAlertDialogRequest ) request) onJavaScriptAlertDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript alert() 对话框 | function | yes          |
+| setOnJavaScriptConfirmDialog(Future<bool> Function([JavaScriptConfirmDialogRequest](#JavaScriptConfirmDialogRequest ) request) onJavaScriptConfirmDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript confirm() 对话框 | function | yes          |
+| setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>      | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt() 对话框 | function | yes          |
 | getUserAgent()                                               | Future<String?>   | 获取用于HTTP“User-Agent:”请求标头的值                        | function | yes          |
+| setVerticalScrollBarEnabled(bool enabled)                    | Future<void>      | 控制是否绘制竖向滚动条。ArkWeb 未提供滚动条显隐 API，在 OpenHarmony 上调用会抛出 `UnimplementedError` | function | no           |
+| setHorizontalScrollBarEnabled(bool enabled)                  | Future<void>      | 控制是否绘制横向滚动条。ArkWeb 未提供滚动条显隐 API，在 OpenHarmony 上调用会抛出 `UnimplementedError` | function | no           |
+| supportsSetScrollBarsEnabled()                               | Future<bool>      | 报告当前平台是否实现滚动条开关方法；在 OpenHarmony 上返回 `false` | function | no           |
+| setOverScrollMode([WebViewOverScrollMode](#WebViewOverScrollMode) mode) | Future<void> | 设置过度滚动模式。ArkWeb 仅支持 `never` 和 `always`，`ifContentScrolls` 会映射为 `never`（见已知问题） | function | partially    |
 
 #### NavigationDelegate
 
@@ -229,7 +244,27 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | onProceed([WebViewCredential](#WebViewCredential ) credential) | Future<void> | 用于身份验证的回调 | function | yes          |
 | onCancel()                                                   | Future<void> | 取消身份验证的回调 | function | yes          |
 | host                                                         |              | 需要身份验证的主机 | String   | yes          |
-| realm                                                        |              | 需要身份验证的领域 | String   | yes          |
+| realm                                                        |              | 需要身份验证的可选领域 | String? | yes          |
+
+#### HttpResponseError
+
+| Name | Description | Type | ohos Support |
+| --- | --- | --- | --- |
+| request | 与 HTTP 错误关联的请求（如可用） | WebResourceRequest? | yes |
+| response | 包含失败状态码的 HTTP 响应 | WebResourceResponse? | yes |
+
+#### WebResourceRequest
+
+| Name | Description | Type | ohos Support |
+| --- | --- | --- | --- |
+| uri | 请求资源的 URI | Uri | yes |
+
+#### WebResourceResponse
+
+| Name | Description | Type | ohos Support |
+| --- | --- | --- | --- |
+| uri | 与响应关联的 URI（如可用） | Uri? | yes |
+| statusCode | 服务端返回的 HTTP 状态码 | int | yes |
 
 #### JavaScriptAlertDialogRequest
 
@@ -249,7 +284,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 
 | Name    | Description                | Type   | ohos Support |
 | ------- | -------------------------- | ------ | ------------ |
-| level   | JavaScript日志消息的严重性 | String | yes          |
+| level   | JavaScript日志消息的严重性 | JavaScriptLogLevel | yes          |
 | message | 写入控制台的消息           | String | yes          |
 
 #### JavaScriptMessage
@@ -257,6 +292,16 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | Name    | Description                  | Type   | ohos Support |
 | ------- | ---------------------------- | ------ | ------------ |
 | message | JavaScript代码发送的消息内容 | String | yes          |
+
+#### JavaScriptChannelParams
+
+传给 `WebViewController.addJavaScriptChannel`（以及平台层
+`PlatformWebViewController.addJavaScriptChannel`）的参数。
+
+| Name              | Description                                   | Type      | ohos Support |
+| ----------------- | -------------------------------------- | -------- | ------------ |
+| name              | 通道暴露给 JavaScript 的名称           | String   | yes          |
+| onMessageReceived | JavaScript 每次调用 `postMessage` 时触发的回调 | Function | yes          |
 
 #### JavaScriptTextInputDialogRequest
 
@@ -279,10 +324,11 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | ------------------------------------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------ | --------------------------------------- | ------------ |
 | [PlatformWebViewControllerCreationParams](#PlatformWebViewControllerCreationParams) | [PlatformWebViewController](#PlatformWebViewController) | 用于初始化[PlatformWebViewController]的参数                  | PlatformWebViewControllerCreationParams | yes          |
 | loadFile(String absoluteFilePath)                            | Future<void>                                            | 如果[absoluteFilePath]不存在，则抛出ArgumentError            | function                                | yes          |
+| loadFileWithParams([LoadFileParams](#LoadFileParams) params) | Future<void>                                            | 加载 [params] 描述的本地文件；OpenHarmony 扩展 `OhosLoadFileParams` 额外携带请求头 | function                                | yes          |
 | loadFlutterAsset(String key)                                 | Future<void>                                            | 加载pubspec.yaml文件中指定的Flutter资源                      | function                                | yes          |
 | loadHtmlString(String html, {String? baseUrl})               | Future<void>                                            | 加载提供的HTML字符串                                         | function                                | yes          |
 | loadRequest([LoadRequestParams](#LoadRequestParams) params)  | Future<void>                                            | 发出特定的HTTP请求并在Web视图中加载响应                      | function                                | yes          |
-| currentUrl()                                                 | Future<void>                                            | 返回WebView正在显示的当前URL                                 | function                                | yes          |
+| currentUrl()                                                 | Future<String?>                                         | 返回WebView正在显示的当前URL                                 | function                                | yes          |
 | canGoBack()                                                  | Future<bool>                                            | 检查是否有历史记录项                                         | function                                | yes          |
 | canGoForward()                                               | Future<bool>                                            | 检查是否有转发历史记录项                                     | function                                | yes          |
 | goBack()                                                     | Future<void>                                            | 回到这个WebView的历史                                        | function                                | yes          |
@@ -293,7 +339,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | setPlatformNavigationDelegate([PlatformNavigationDelegate](#PlatformNavigationDelegate ) handler) | Future<void>                                            | 设置[PlatformNavigationDelegate]，其中包含在导航事件期间调用的回调方法 | function                                | yes          |
 | runJavaScript(String javaScript)                             | Future<void>                                            | 在当前页面的上下文中运行给定的JavaScript                     | function                                | yes          |
 | runJavaScriptReturningResult(String javaScript)              | Future<Object>                                          | 在当前页面的上下文中运行给定的JavaScript，并返回结果         | function                                | yes          |
-| addJavaScriptChannel(String name, {required void Function(String  JavaScriptMessage) onMessageReceived}) | Future<void>                                            | 将新的JavaScript频道添加到已启用的频道集中                   | function                                | yes          |
+| addJavaScriptChannel(String name, {required void Function(JavaScriptMessage) onMessageReceived}) | Future<void>                                            | 将新的JavaScript频道添加到已启用的频道集中                   | function                                | yes          |
 | removeJavaScriptChannel(String javaScriptChannelName)        | Future<void>                                            | 从已启用的频道集中删除具有匹配名称的JavaScript频道           | function                                | yes          |
 | getTitle()                                                   | Future<String?>                                         | 当前加载页面的标题                                           | function                                | yes          |
 | scrollTo(int x, int y)                                       | Future<void>                                            | 设置此视图的滚动位置                                         | function                                | yes          |
@@ -306,14 +352,45 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | setOnPlatformPermissionRequest(void Function(PlatformWebViewPermissionRequest request) onPermissionRequest) | Future<void>                                            | 设置一个回调，通知宿主应用程序web内容正在请求访问指定资源的权限 | function                                | yes          |
 | setOnConsoleMessage(void Function([JavaScriptConsoleMessage](#JavaScriptConsoleMessage ) message) onConsoleMessage) | Future<void>                                            | 设置一个回调，通知主机应用程序写入JavaScript控制台的任何日志消息 | function                                | yes          |
 | setOnScrollPositionChange(void Function(ScrollPositionChange scrollPositionChange)? onScrollPositionChange) | Future<void>                                            | 设置内容偏移更改的侦听器                                     | function                                | yes          |
-| setOnJavaScriptAlertDialog(Future<void> Function([JavaScriptAlertDialogRequest](#JavaScriptAlertDialogRequest ) request) onJavaScriptAlertDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript alert（）对话框 | function                                | yes          |
-| setOnJavaScriptConfirmDialog(Future<bool> Function([JavaScriptConfirmDialogRequest](#JavaScriptConfirmDialogRequest ) request) onJavaScriptConfirmDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript confirm（）对话框 | function                                | yes          |
-| setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt（）对话框 | function                                | yes          |
+| setOnJavaScriptAlertDialog(Future<void> Function([JavaScriptAlertDialogRequest](#JavaScriptAlertDialogRequest ) request) onJavaScriptAlertDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript alert() 对话框 | function                                | yes          |
+| setOnJavaScriptConfirmDialog(Future<bool> Function([JavaScriptConfirmDialogRequest](#JavaScriptConfirmDialogRequest ) request) onJavaScriptConfirmDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript confirm() 对话框 | function                                | yes          |
+| setOnJavaScriptTextInputDialog(Future<String> Function([JavaScriptTextInputDialogRequest](#JavaScriptTextInputDialogRequest) request) onJavaScriptTextInputDialog) | Future<void>                                            | 设置一个回调，通知宿主应用程序网页要显示JavaScript prompt() 对话框 | function                                | yes          |
 | getUserAgent()                                               | Future<String?>                                         | 获取用于HTTP“User-Agent:”请求标头的值                        | function                                | yes          |
+| setVerticalScrollBarEnabled(bool enabled)                    | Future<void>                                            | OpenHarmony 上未实现；ArkWeb 未提供滚动条显隐 API，基类实现抛出 `UnimplementedError` | function                                | no           |
+| setHorizontalScrollBarEnabled(bool enabled)                  | Future<void>                                            | OpenHarmony 上未实现；ArkWeb 未提供滚动条显隐 API，基类实现抛出 `UnimplementedError` | function                                | no           |
+| supportsSetScrollBarsEnabled()                               | bool                                                    | 在 OpenHarmony 上返回 `false` | function                                | no           |
+| setOverScrollMode([WebViewOverScrollMode](#WebViewOverScrollMode) mode) | Future<void>                                  | 支持 `never` 和 `always`；`ifContentScrolls` 会映射为 `never`（见已知问题） | function                    | partially    |
 
 #### PlatformWebViewControllerCreationParams
 
+`PlatformWebViewController` 的基类创建参数。该类不声明任何跨平台字段：
+它是为平台实现通过子类提供平台专属参数而保留的扩展点。OpenHarmony 实现扩展了
+`OhosWebViewControllerCreationParams.allowFullScreenRotate`（见
+[OpenHarmony 扩展 API](#openharmony-扩展-api)）。应用通常构造当前平台的
+子类并传给 `WebViewController.fromPlatformCreationParams`。
+
 #### PlatformNavigationDelegateCreationParams
+
+`PlatformNavigationDelegate` 的基类创建参数。与
+`PlatformWebViewControllerCreationParams` 一样不声明跨平台字段；OpenHarmony 实现直接
+接受默认实例。将该实例传给 `NavigationDelegate.fromPlatformCreationParams` 即可。
+
+### WebViewPlatform
+
+`WebViewPlatform.instance` 表示当前注册的平台后端，并负责创建平台控制器、导航
+代理、Cookie 管理器和平台视图。业务通常应使用 `WebViewController` 与
+`WebViewWidget` 公共封装；只有访问平台扩展前才需要判断平台实例类型。
+
+#### WebViewOverScrollMode
+
+| Name | Description | ohos Support  |
+| --- | --- | --- |
+| `always` | 允许过度滚动效果 | 映射为 ArkWeb `always` |
+| `ifContentScrolls` | 仅在内容可滚动时启用 | ArkWeb 无等价值，映射为 `never` |
+| `never` | 禁用过度滚动效果 | 映射为 ArkWeb `never` |
+
+平台异步操作返回 `Future`，调用方应等待完成并处理平台异常。SSL、权限、身份验证
+和 JavaScript 对话框回调必须明确执行接受、拒绝、取消或完成操作。
 
 #### PlatformWebViewPermissionRequest
 
@@ -332,14 +409,27 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | headers | 请求的标头             | Map<String, String> | yes          |
 | body    | 请求的HTTP正文         | Uint8List?          | yes          |
 
+#### LoadFileParams
+
+`WebViewController.loadFileWithParams` 的参数。
+
+| Name             | Description                   | Type   | ohos Support |
+| ---------------- | ---------------------- | ------ | ------------ |
+| absoluteFilePath | 要加载的本地 HTML 文件路径 | String | yes          |
+
 #### PlatformNavigationDelegate
 
-| Name    | Description            | Type                | ohos Support |
-| ------- | ---------------------- | ------------------- | ------------ |
-| params  | 请求的URI              | Uri                 | yes          |
-| method  | 用于发出请求的HTTP方法 | LoadRequestMethod   | yes          |
-| headers | 请求的标头             | Map<String, String> | yes          |
-| body    | 请求的HTTP正文         | Uint8List?          | yes          |
+| Name | Description | return | ohos Support |
+| --- | --- | --- | --- |
+| setOnNavigationRequest | 设置导航决策回调 | Future<void> | yes |
+| setOnPageStarted | 设置页面开始回调 | Future<void> | yes |
+| setOnPageFinished | 设置页面完成回调 | Future<void> | yes |
+| setOnHttpError | 设置 HTTP 响应错误回调 | Future<void> | yes |
+| setOnProgress | 设置加载进度回调 | Future<void> | yes |
+| setOnWebResourceError | 设置资源错误回调 | Future<void> | yes |
+| setOnUrlChange | 设置 URL 变化回调 | Future<void> | yes |
+| setOnHttpAuthRequest | 设置 HTTP 回调 | Future<void> | yes |
+| setOnSSlAuthError | 设置可恢复 SSL 错误回调 | Future<void> | yes |
 
 #### WebViewPermissionRequest
 
@@ -354,7 +444,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 
 | Name               | Description                                  | Type                                       | ohos Support |
 | ------------------ | -------------------------------------------- | ------------------------------------------ | ------------ |
-| key                | IControl控制一个控件如何替换树中的另一个控件 | String                                     | yes          |
+| key                | Key 控制一个控件如何替换树中的另一个控件     | Key?                                       | yes          |
 | controller         | 允许控制本机web的[PlatformWebViewController] | PlatformWebViewController                  | yes          |
 | layoutDirection    | 用于嵌入式WebView的布局方向                  | TextDirection                              | yes          |
 | gestureRecognizers | “手势识别器”指定web视图应使用哪些手势        | Set<Factory<OneSequenceGestureRecognizer>> | yes          |
@@ -365,12 +455,24 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | ---- | -------------- | ------- | ------------ |
 | url  | web视图的新url | String? | yes          |
 
+#### ScrollPositionChange
+
+`NavigationDelegate.setOnScrollPositionChange` 回调接收的值。
+
+| Name | Description                   | Type | ohos Support |
+| ---- | ---------------------- | ---- | ------------ |
+| x    | WebView 的水平滚动偏移 | int  | yes          |
+| y    | WebView 的垂直滚动偏移 | int  | yes          |
+
 #### WebResourceError
 
-| Name        | Description                                             | Type   | ohos Support |
-| ----------- | ------------------------------------------------------- | ------ | ------------ |
-| errorCode   | 错误的整数代码（例如[WebViewClient.errorAuthentication] | int    | yes          |
-| description | 描述错误                                                | String | yes          |
+| Name           | Description                            | Type                  | ohos Support |
+| -------------- | -------------------------------------- | --------------------- | --------- |
+| errorCode      | 错误的整数代码                         | int                   | yes       |
+| description    | 错误描述                               | String                | yes       |
+| errorType      | 可确定时返回跨平台错误类别             | WebResourceErrorType? | yes       |
+| isForMainFrame | 失败请求是否属于主框架                 | bool?                 | yes       |
+| url            | 加载失败的 URL（如可用）               | String?               | yes       |
 
 #### WebViewCookie
 
@@ -380,6 +482,39 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | value      | cookie的值     | String | yes          |
 | domain     | cookie的域值   | String | yes          |
 | path = '/' | cookie的路径值 | String | yes          |
+
+#### WebViewCookieManager
+
+| Name | return | Description | Type | ohos Support |
+| --- | --- | --- | --- | --- |
+| WebViewCookieManager() | WebViewCookieManager | 构造绑定当前平台实现的 Cookie 管理器 | function | yes |
+| clearCookies() | Future<bool> | 清除进程级 ArkWeb Cookie 存储的全部 Cookie，并返回是否有 Cookie 被移除 | function | yes |
+| setCookie([WebViewCookie](#WebViewCookie) cookie) | Future<void> | 保存给定 Cookie；`path` 不合法时在写入前抛出 `ArgumentError` | function | yes |
+| getCookies(Uri url) | Future<List<WebViewCookie>> | 返回给定 URL 的 Cookie。ArkWeb 不支持 Cookie 枚举，在 OpenHarmony 上调用会抛出 `UnimplementedError` | function | no |
+
+#### SslAuthError
+
+| Name | return | Description | Type | ohos Support |
+| --- | --- | --- | --- | --- |
+| platform |  | 当前平台的 [PlatformSslAuthError] 实现 | PlatformSslAuthError | yes |
+| certificate |  | 与错误关联的证书；ArkWeb 不提供证书链字节 | X509Certificate? | partially |
+| description |  | 原生回调提供的证书错误可读描述 | String | yes |
+| cancel() | Future<void> | 指示 WebView 终止与服务端的通信 | function | yes |
+| proceed() | Future<void> | 指示 WebView 忽略错误并继续通信 | function | yes |
+
+`cancel()`/`proceed()` 会将决策透传到原生 ArkWeb SSL 错误处理器；每个错误
+只能调用其中一个。未注册 `onSSlAuthError` 回调时，插件默认执行 cancel，
+未处理的证书错误不会被静默放行。ArkWeb 不提供证书链字节，`certificate`
+保持为 `null`，证书颁发者以提示形式附加在 `description` 中。详见
+[已知问题](#已知问题)。
+
+#### X509Certificate
+
+附加到 [SslAuthError] 的证书数据。
+
+| Name | Description                                  | Type       | ohos Support持 |
+| ---- | ------------------------------------- | ---------- | ------------ |
+| data | DER 编码的证书字节；ArkWeb 不提供证书链字节，OHOS 上为 `null` | Uint8List? | partially |
 
 #### WebViewCredential
 
@@ -400,14 +535,14 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | Name                        | Description              | Type | ohos Support |
 | --------------------------- | ------------------------ | ---- | ------------ |
 | JavaScriptMode.disabled     | JavaScript执行已禁用     | enum | yes          |
-| JavascriptMode.unrestricted | JavaScript的执行不受限制 | enum | yes          |
+| JavaScriptMode.unrestricted | JavaScript的执行不受限制 | enum | yes          |
 
 #### JavaScriptLogLevel
 
 | Name                       | Description                                            | Type | ohos Support |
 | -------------------------- | ------------------------------------------------------ | ---- | ------------ |
 | JavaScriptLogLevel.error   | 表示通过`console.error`方法的“error”事件记录了错误消息 | enum | yes          |
-| JavaScriptLogLevel.warning | 表示使用`console.twarning`方法记录了警告消息           | enum | yes          |
+| JavaScriptLogLevel.warning | 表示使用`console.warning`方法记录了警告消息            | enum | yes          |
 | JavaScriptLogLevel.debug   | 表示使用`console.debug `方法记录了调试消息             | enum | yes          |
 | JavaScriptLogLevel.info    | 表示使用`console.info`方法记录了一条信息性消息         | enum | yes          |
 | JavaScriptLogLevel.log     | 表示使用`console.log `方法记录了日志消息               | enum | yes          |
@@ -434,7 +569,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | WebResourceErrorType.badUrl                            | URL格式错误                          | enum | yes          |
 | WebResourceErrorType.connect                           | 无法连接到服务器                     | enum | yes          |
 | WebResourceErrorType.failedSslHandshake                | 执行SSL握手失败                      | enum | yes          |
-| WebResourceErrorType.file                              | Generic file error.                  | enum | yes          |
+| WebResourceErrorType.file                              | 通用文件错误                          | enum | yes          |
 | WebResourceErrorType.fileNotFound                      | 通用文件错误                         | enum | yes          |
 | WebResourceErrorType.hostLookup                        | 服务器或代理主机名查找失败           | enum | yes          |
 | WebResourceErrorType.io                                | 无法读取或写入服务器                 | enum | yes          |
@@ -490,9 +625,9 @@ webview_flutter_ohos/
 
 ##  贡献代码
 
-使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues)；当然，也非常欢迎发 [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls) 共建。
+使用过程中发现任何问题都可以提 [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues)；当然，也非常欢迎发 [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls) 共建。
 
 ##  开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
 

@@ -6,7 +6,11 @@ import web_webview from '@ohos.web.webview'
 import PlatformView from '@ohos/flutter_ohos/src/main/ets/plugin/platform/PlatformView';
 import { WebViewPlatformView } from './WebViewHostApiImpl';
 import { Any } from '@ohos/flutter_ohos';
+import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { commonEventManager } from '@kit.BasicServicesKit';
+
+const TAG: string = 'OhosWebView';
+
 @Observed
 export declare class Params {
   direction: Direction
@@ -23,6 +27,10 @@ export struct OhosWebView {
   @State textZoomRatio: number = this.webView.getWebSettings().getTextZoom();
   @State disposed: boolean = false;
   private subscriber: commonEventManager.CommonEventSubscriber | null = null;
+  // Lifecycle guard: set as soon as aboutToDisappear() runs, so a subscriber
+  // whose createSubscriber() completes afterwards is released immediately
+  // instead of being stored on (and leaked by) a component that is gone.
+  private isDisappeared: boolean = false;
 
   aboutToAppear() {
     this.webView.getWebSettings().onTextZoomChanged((ratio: number) => {
@@ -33,13 +41,38 @@ export struct OhosWebView {
     });
 
     commonEventManager.createSubscriber(
-      { events: ["usual.event.CLICK_STATUSBAR"] }, (err, subscriber) => {
+      { events: ['usual.event.CLICK_STATUSBAR'] }, (err, subscriber) => {
+      if (err) {
+        // Observation only: a failed subscription leaves `subscriber` null and
+        // the branch below is skipped, exactly as before this log was added.
+        Log.e(TAG, 'createSubscriber err = ' + err);
+      }
+      // Race fix: the component disappeared while createSubscriber() was in
+      // flight. Release the late subscriber right away and never store it;
+      // subscribing here would leak a system subscription no one unwinds.
+      if (this.isDisappeared) {
+        if (subscriber !== null) {
+          commonEventManager.unsubscribe(subscriber);
+        }
+        return;
+      }
       this.subscriber = subscriber
       if(subscriber !== null) {
         commonEventManager.subscribe(subscriber, (err, data) => {
+          // Failure-path guard only: an errored subscription delivery carries
+          // no event data, so scrolling is skipped; the throttle interval,
+          // coordinates and duration are unchanged.
+          if (err) {
+            Log.e(TAG, 'statusbar subscribe err = ' + err);
+            return;
+          }
           this.throttle(() => {
             this.webView.waitControllerAttached().then(() => {
               this.controller?.scrollTo(0, 0, 1000);
+            }).catch((attachErr: Error) => {
+              // Observation only: consume the rejection with a log instead of
+              // leaving an unhandled Promise rejection when the wait fails.
+              Log.e(TAG, 'statusbar scroll attach err = ' + attachErr);
             });
           }, 1000)
         })
@@ -56,7 +89,20 @@ export struct OhosWebView {
   }
 
   aboutToDisappear() {
-    commonEventManager.unsubscribe(this.subscriber);
+    this.isDisappeared = true;
+    // Resource cleanup: SDK @ohos.commonEventManager.d.ts declares the
+    // subscriber parameter of unsubscribe() as mandatory; calling it with a
+    // null subscriber (subscription never created or already released)
+    // throws a parameter error, so only unsubscribe when one is held.
+    if (this.subscriber !== null) {
+      commonEventManager.unsubscribe(this.subscriber);
+      // Break the component -> system subscriber reference chain.
+      this.subscriber = null;
+    }
+    // Resource cleanup: drop the text zoom callback registered in
+    // aboutToAppear() so the settings object no longer captures this view.
+    // Runs only after the component disappears; live behavior is unchanged.
+    this.webView.getWebSettings().clearOnTextZoomChanged();
   }
 
   getMixedModeValue(): MixedMode {
@@ -126,11 +172,14 @@ export struct OhosWebView {
               builder: NewWebView({ webViewController: newWebViewController })
             })
             dialogController.open();
+            // Resource-release fix: track the opened dialog on the owning
+            // platform view so dispose() can close it; previously the
+            // controller stayed a local variable and could leak a ghost
+            // dialog after the WebView was destroyed.
+            this.webView.setDialogController(dialogController);
             event.handler.setWebController(newWebViewController);
           })
-          .onSslErrorEventReceive((event) => {
-            event.handler.handleConfirm();
-          })
+          .onSslErrorEventReceive(this.webView.onSslErrorReceive)
           .onHttpAuthRequest(this.webView.onHttpAuthRequest)
           .onAlert(this.webView.onJsAlert)
           .onConfirm(this.webView.onJsConfirm)

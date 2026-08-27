@@ -16,7 +16,7 @@ import 'webview_ohos_cookie_manager_test.mocks.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  test('clearCookies should call ohos_webview.clearCookies', () {
+  test('should call ohos_webview.clearCookies when clearCookies is invoked', () {
     final mockCookieManager = MockCookieManager();
     when(
       mockCookieManager.removeAllCookies(),
@@ -27,7 +27,7 @@ void main() {
     verify(mockCookieManager.removeAllCookies());
   });
 
-  test('setCookie should throw ArgumentError for cookie with invalid path', () {
+  test('should throw ArgumentError when setCookie is invoked with a cookie with invalid path', () {
     expect(
       () => WebViewOhosCookieManager(cookieManager: MockCookieManager())
           .setCookie(
@@ -43,7 +43,7 @@ void main() {
   });
 
   test(
-    'setCookie should call ohos_webview.csetCookie with properly formatted cookie value',
+    'should call ohos_webview.setCookie with a properly formatted cookie value when setCookie is invoked',
     () {
       final mockCookieManager = MockCookieManager();
       WebViewOhosCookieManager(cookieManager: mockCookieManager).setCookie(

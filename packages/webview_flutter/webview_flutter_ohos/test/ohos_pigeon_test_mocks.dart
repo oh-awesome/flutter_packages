@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license
 // that can be found in the LICENSE file.
 
-import 'dart:async';
+// ignore_for_file: deprecated_member_use
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -73,6 +73,37 @@ class OhosPigeonTestMocks {
 
   /// A matcher that matches any value.
   static const dynamic any = _AnyMatcher();
+
+  /// Overrides the mocked return value of a single Pigeon channel for one test.
+  ///
+  /// Re-registers the handler so the channel replies with [returnValue]
+  /// instead of the default value set up by [setUpMocks].
+  static void overrideReturnValue(String channelName, dynamic returnValue) {
+    _mockChannelWithRecording(
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger,
+      channelName,
+      returnValue: returnValue,
+    );
+  }
+
+  /// Makes a mocked Pigeon channel reply with a Pigeon error envelope so tests
+  /// can observe how platform-side failures surface on the returned Futures.
+  static void overrideWithError(String channelName, String code, String errorMessage) {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler(channelName, (ByteData? message) async {
+      final codec = StandardMessageCodec();
+      final writeBuffer = WriteBuffer();
+      codec.writeValue(writeBuffer, <dynamic>[code, errorMessage, null]);
+      return writeBuffer.done();
+    });
+  }
+
+  /// Removes the mock handler of a channel, simulating a detached engine or a
+  /// released instance so calls cannot be delivered anymore.
+  static void removeHandler(String channelName) {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMessageHandler(channelName, null);
+  }
 
   /// Sets up mock handlers for all Pigeon Host API channels.
   static void setUpMocks() {
@@ -177,6 +208,10 @@ class OhosPigeonTestMocks {
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.HttpAuthHandlerHostApi.useHttpAuthUsernamePassword', returnValue: false);
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.HttpAuthHandlerHostApi.cancel');
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.HttpAuthHandlerHostApi.proceed');
+
+    // SslErrorHandler
+    _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.cancel');
+    _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.SslErrorHandlerHostApi.proceed');
 
     // CookieManager
     _mockChannelWithRecording(binaryMessenger, 'dev.flutter.pigeon.webview_flutter_ohos.CookieManagerHostApi.attachInstance');

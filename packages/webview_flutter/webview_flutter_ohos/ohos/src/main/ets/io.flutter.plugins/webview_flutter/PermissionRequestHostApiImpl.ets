@@ -28,6 +28,13 @@ export class PermissionRequestHostApiImpl extends PermissionRequestHostApi {
   }
 
   private getPermissionRequestInstance(identifier:number):PermissionRequest{
-    return this.instanceManager.getInstance(identifier);
+    const permissionRequest: PermissionRequest = this.instanceManager.getInstance(identifier);
+    // Defensive check: fail fast with a readable error instead of an
+    // undefined-reference crash when the identifier is unknown or already
+    // disposed. Valid identifiers follow exactly the same path as before.
+    if (!permissionRequest) {
+      throw new Error('PermissionRequest instance not found, id = ' + identifier);
+    }
+    return permissionRequest;
   }
 }

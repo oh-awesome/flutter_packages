@@ -278,6 +278,15 @@ class MockWebSettings extends _i1.Mock implements _i2.WebSettings {
           as _i5.Future<void>);
 
   @override
+  _i5.Future<void> setOverScrollMode(_i2.OverScrollMode? mode) =>
+      (super.noSuchMethod(
+            Invocation.method(#setOverScrollMode, [mode]),
+            returnValue: _i5.Future<void>.value(),
+            returnValueForMissingStub: _i5.Future<void>.value(),
+          )
+          as _i5.Future<void>);
+
+  @override
   _i2.WebSettings copy() =>
       (super.noSuchMethod(
             Invocation.method(#copy, []),

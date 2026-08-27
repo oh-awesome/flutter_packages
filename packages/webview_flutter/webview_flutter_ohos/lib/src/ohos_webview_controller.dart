@@ -5,7 +5,6 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -15,7 +14,6 @@ import 'ohos_webview.dart' as ohos_webview;
 import 'ohos_webview_constants.dart';
 import 'ohos_webview_api_impls.dart';
 import 'ohos_ssl_auth_error.dart';
-import 'instance_manager.dart';
 import 'platform_views_service_proxy.dart';
 import 'weak_reference_utils.dart';
 
@@ -86,7 +84,7 @@ class OhosWebViewControllerCreationParams
   }
 
   /// Enables or disables full screen rotate within WebView.
-  bool? isAllowFullScreenRotate;
+  final bool? isAllowFullScreenRotate;
 
   /// Handles constructing objects and calling static methods for the Ohos WebView
   /// native library.
@@ -133,6 +131,15 @@ class OhosWebViewController extends PlatformWebViewController {
 
   OhosWebViewControllerCreationParams get _ohosWebViewParams =>
       params as OhosWebViewControllerCreationParams;
+
+  /// The native [ohos_webview.WebChromeClient] bridged by this controller.
+  ///
+  /// Test-only seam: exposes the internal client so unit tests can simulate
+  /// native Chrome-client callbacks (for example permission requests).
+  /// Production behavior is unchanged.
+  @visibleForTesting
+  ohos_webview.WebChromeClient get ohosWebChromeClientForTesting =>
+      _webChromeClient;
 
   /// The native [ohos_webview.WebView] being controlled.
   late final ohos_webview.WebView _webView =
@@ -1479,7 +1486,7 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
           httpErrorCallback(HttpResponseError(
             response: WebResourceResponse(
               uri: Uri.parse(request.url),
-              statusCode: error.errorCode ?? -1,
+              statusCode: error.errorCode,
               headers: <String, String>{},
             ),
             request: WebResourceRequest(
@@ -1490,19 +1497,24 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
       },
       onReceivedSslError: (
         ohos_webview.WebView webView,
+        ohos_webview.SslErrorHandler handler,
         String url,
         String certificate,
         String description,
-      ) {
+      ) async {
         final SslAuthErrorCallback? callback = weakThis.target?._onSslAuthError;
+
         if (callback != null) {
-          OhosSslAuthError.fromNativeCallback(
-            url: url,
-            certificateData: certificate,
-            description: description,
-          ).then((sslAuthError) {
-            callback(sslAuthError);
-          });
+          callback(
+            await OhosSslAuthError.fromNativeCallback(
+              handler: handler,
+              url: url,
+              certificateHint: certificate,
+              description: description,
+            ),
+          );
+        } else {
+          await handler.cancel();
         }
       },
 
