@@ -22,6 +22,24 @@
           ]
         }
       ]
+    },
+    {
+      "name": "in_app_purchase_ohos",
+      "srcPath": "../../ohos",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        },
+        {
+          "name": "ohosTest",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
     }
   ]
 }
