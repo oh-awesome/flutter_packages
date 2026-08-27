@@ -130,4 +130,43 @@ class MockOhosVideoPlayerApi extends Mock implements OhosVideoPlayerApi {
             returnValueForMissingStub: Future<void>.value(),
           )
           as Future<void>;
+
+  @override
+  Future<List<Object?>> getVideoTracks(int? playerId) =>
+      super.noSuchMethod(
+            Invocation.method(#getVideoTracks, <Object?>[playerId]),
+            returnValue: Future<List<Object?>>.value(
+              <Object?>[],
+            ),
+            returnValueForMissingStub: Future<List<Object?>>.value(
+              <Object?>[],
+            ),
+          )
+          as Future<List<Object?>>;
+
+  @override
+  Future<void> selectVideoTrack(
+    int? playerId,
+    int? groupIndex,
+    int? trackIndex,
+  ) =>
+      super.noSuchMethod(
+            Invocation.method(#selectVideoTrack, <Object?>[
+              playerId,
+              groupIndex,
+              trackIndex,
+            ]),
+            returnValue: Future<void>.value(),
+            returnValueForMissingStub: Future<void>.value(),
+          )
+          as Future<void>;
+
+  @override
+  Future<void> enableAutoVideoQuality(int? playerId) =>
+      super.noSuchMethod(
+            Invocation.method(#enableAutoVideoQuality, <Object?>[playerId]),
+            returnValue: Future<void>.value(),
+            returnValueForMissingStub: Future<void>.value(),
+          )
+          as Future<void>;
 }

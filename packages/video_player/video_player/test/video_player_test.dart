@@ -323,6 +323,28 @@ void main() {
     expect((key.currentContext! as Element).dirty, isTrue);
   });
 
+  testWidgets('VideoProgressIndicator uses custom padding', (WidgetTester tester) async {
+    final controller = FakeController();
+    addTearDown(controller.dispose);
+    controller.value = controller.value.copyWith(
+      duration: const Duration(milliseconds: 100),
+      position: const Duration(milliseconds: 50),
+      isInitialized: true,
+    );
+
+    const EdgeInsets customPadding = EdgeInsets.fromLTRB(10, 20, 30, 40);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VideoProgressIndicator(controller, allowScrubbing: false, padding: customPadding),
+      ),
+    );
+
+    final VideoProgressIndicator indicator = tester.widget<VideoProgressIndicator>(
+      find.byType(VideoProgressIndicator),
+    );
+    expect(indicator.padding, equals(customPadding));
+  });
+
   testWidgets('VideoPlayer does not crash after loading 0-duration videos', (
     WidgetTester tester,
   ) async {

@@ -55,6 +55,10 @@ export default class FileSelectorOhosPlugin implements FlutterPlugin, AbilityAwa
   }
 
   onDetachedFromAbility(): void {
+    // 注销消息通道，避免残留 handler 持有已失效的 binding。
+    if (this.fileSelectorApi != null && this.pluginBinding != null) {
+      this.fileSelectorApi.teardown(this.pluginBinding.getBinaryMessenger());
+    }
     this.fileSelectorApi = null;
   }
 
