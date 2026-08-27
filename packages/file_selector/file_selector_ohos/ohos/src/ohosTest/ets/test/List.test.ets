@@ -1,5 +1,5 @@
 /*
-* Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
+* Copyright (C) 2026 Huawei Device Co., Ltd.
 * Licensed under the Apache License, Version 2.0 (the "License");
 * you may not use this file except in compliance with the License.
 * You may obtain a copy of the License at
@@ -13,16 +13,14 @@
 * limitations under the License.
 */
 
-{
-  "apiType": "stageMode",
-  "buildOption": {
-  },
-  "targets": [
-    {
-      "name": "default"
-    },
-    {
-      "name": "ohosTest"
-    }
-  ]
+import fileSelectorUtilTest from './FileSelectorUtil.test';
+import generatedFileSelectorApiTest from './GeneratedFileSelectorApi.test';
+import fileSelectorApiImplTest from './FileSelectorApiImpl.test';
+import fileSelectorOhosPluginTest from './FileSelectorOhosPlugin.test';
+
+export default function testsuite() {
+  fileSelectorUtilTest();
+  generatedFileSelectorApiTest();
+  fileSelectorApiImplTest();
+  fileSelectorOhosPluginTest();
 }
