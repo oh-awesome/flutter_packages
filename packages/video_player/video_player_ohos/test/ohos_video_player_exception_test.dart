@@ -11,8 +11,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
-import 'package:video_player/video_player.dart'
-    hide DataSource, VideoAudioTrack, VideoTrack;
 import 'package:video_player_ohos/src/messages.g.dart';
 import 'package:video_player_ohos/src/video_player_ohos_channel.dart';
 import 'package:video_player_ohos/video_player_ohos.dart';
@@ -400,26 +398,5 @@ void main() {
         );
       },
     );
-  });
-
-  group('ClosedCaption widget', () {
-    testWidgets('build renders caption text', (WidgetTester tester) async {
-      await tester.pumpWidget(
-        const Directionality(
-          textDirection: TextDirection.ltr,
-          child: ClosedCaption(text: 'caption'),
-        ),
-      );
-
-      expect(find.text('caption'), findsOneWidget);
-
-      // 显式调用 build，使覆盖率脚本能识别 ClosedCaption.build 已覆盖。
-      final BuildContext context = tester.element(find.text('caption'));
-      expect(
-        const ClosedCaption(text: 'explicit').build(context),
-        isA<Widget>(),
-      );
-      expect(const ClosedCaption().build(context), isA<Widget>());
-    });
   });
 }

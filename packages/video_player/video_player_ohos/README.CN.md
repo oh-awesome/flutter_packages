@@ -177,6 +177,7 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 - `backBufferDurationMs`（2.12.0 引入）在 OHOS 暂不支持：AVPlayer 无回放缓冲时长控制能力，该参数会被忽略，不影响正常播放。
 - `getAudioTracks`/`getVideoTracks` 的 `isSelected` 为近似值：AVPlayer `getTrackDescription` 未暴露真实选中轨道，实现按“首条轨道即默认选中”上报；多音轨组（混流）场景下轨道 ID 采用 `groupIndex=0` 展平，`selectAudioTrack` 不支持选择 `groupIndex != 0` 的轨道。
 - 以下主包 Widget 为平台无关组件，OHOS 上与 Android/iOS 行为一致：`VideoPlayer`、`VideoProgressIndicator`、`VideoProgressColors`、`VideoScrubber`、`ClosedCaption`（含 `ClosedCaptionFile`、`Caption`、`SubRipCaptionFile`、`WebVTTCaptionFile` 字幕解析）。
+- 主包 `VideoPlayerController` 的事件流错误监听做了防二次崩溃守卫：当原生事件流的错误并非 `PlatformException`（例如解析事件时抛出的 `TypeError`）时，不再因强转类型而二次崩溃导致偶现闪退，而是透出可读的错误信息（见主包 `video_player` 2.14.1 变更）。
 - 示例工程见 [example](./example)。
 
 ### 进阶用法示例

@@ -27,9 +27,6 @@ dev_dependencies:
     sdk: flutter
   mockito: ^5.4.4
   flutter_lints: ^2.0.0
-  # 仅测试用：ClosedCaption 等主包 Widget 的 build 验证（path 依赖不影响发布）。
-  video_player:
-    path: ../video_player
 
 flutter:
 

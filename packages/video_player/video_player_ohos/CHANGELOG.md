@@ -25,3 +25,4 @@
 * Stop the buffering-info polling timer on AVPlayer error and restore the original window keep-screen-on state on release.
 * Re-apply `setMediaSource` (preserving http headers and format hint) for HTTP URLs after the player is reset, instead of overwriting `avPlayer.url`.
 * Truncate the reported playback position to whole milliseconds to avoid double-to-int precision issues.
+* Fix an occasional crash  where a non-`PlatformException` error emitted on the main package's event stream could make the error listener crash when casting, instead of surfacing a readable error message.
