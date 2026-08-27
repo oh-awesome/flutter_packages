@@ -33,6 +33,24 @@
           ]
         }
       ]
+    },
+    {
+      "name": "shared_preferences_ohos",
+      "srcPath": "../../ohos",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        },
+        {
+          "name": "ohosTest",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
     }
   ]
 }
