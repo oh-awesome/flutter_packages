@@ -108,10 +108,6 @@ export class GeneralOptions {
     return this.usePhotoPicker;
   }
 
-  getLimitfromOption(generalOptions: GeneralOptions): number {
-    return generalOptions.getLimit();
-  }
-
   setUsePhotoPicker(setterArg: boolean): void {
     if (setterArg == null) {
       throw new Error("Nonnull field \"usePhotoPicker\" is null.");
@@ -158,12 +154,12 @@ export class GeneralOptions {
 }
 
 class ImageSelectionOptionsBuilder {
-  setMaxWidth: (setterArg: number) => ESObject
-  setMaxHeight: (setterArg: number) => ESObject
+  setMaxWidth: (setterArg: number | null) => ESObject
+  setMaxHeight: (setterArg: number | null) => ESObject
   setQuality: (setterArg: number) => ESObject
   build: () => ESObject
 
-  constructor(setMaxWidth: (setterArg: number) => ESObject, setMaxHeight: (setterArg: number) => ESObject, setQuality: (setterArg: number) => ESObject, build: () => ESObject) {
+  constructor(setMaxWidth: (setterArg: number | null) => ESObject, setMaxHeight: (setterArg: number | null) => ESObject, setQuality: (setterArg: number) => ESObject, build: () => ESObject) {
     this.setMaxWidth = setMaxWidth
     this.setMaxHeight = setMaxHeight
     this.setQuality = setQuality
@@ -172,26 +168,28 @@ class ImageSelectionOptionsBuilder {
 }
 
 export class ImageSelectionOptions {
-  private maxWidth: number = -1;
-  private maxHeight: number = -1;
+  // maxWidth/maxHeight 在 Pigeon 协议中为可空（Dart 端 double? 未设置即发送 null），
+  // 故声明为 number | null，null 表示不缩放；与 ImageResizer/ImagePickerCache 的 `!= null` 判定一致。
+  private maxWidth: number | null = null;
+  private maxHeight: number | null = null;
   private quality: number = -1;
 
   private constructor() {
   }
 
-  getMaxWidth(): number {
+  getMaxWidth(): number | null {
     return this.maxWidth;
   }
 
-  setMaxWidth(setterArg: number): void {
+  setMaxWidth(setterArg: number | null): void {
     this.maxWidth = setterArg;
   }
 
-  getMaxHeight(): number {
+  getMaxHeight(): number | null {
     return this.maxHeight;
   }
 
-  setMaxHeight(setterArg: number): void {
+  setMaxHeight(setterArg: number | null): void {
     this.maxHeight = setterArg;
   }
 
@@ -206,12 +204,12 @@ export class ImageSelectionOptions {
     this.quality = setterArg;
   }
 
-  public Builder = new ImageSelectionOptionsBuilder((setterArg: number) => {
+  public Builder = new ImageSelectionOptionsBuilder((setterArg: number | null) => {
     this.maxWidth = setterArg;
     return this;
   },
 
-    (setterArg: number) => {
+    (setterArg: number | null) => {
       this.maxHeight = setterArg;
       return this;
     },
@@ -262,7 +260,6 @@ class MediaSelectionOptionsBuilder {
 
 export class MediaSelectionOptions {
   private imageSelectionOptions: ImageSelectionOptions | null = null;
-  static imageSelectionOptions: ImageSelectionOptions | null = null;
 
   constructor() {
   }
@@ -295,7 +292,7 @@ export class MediaSelectionOptions {
     return toListResult;
   }
 
-  fromList(list: ArrayList<ESObject>): MediaSelectionOptions {
+  static fromList(list: ArrayList<ESObject>): MediaSelectionOptions {
     const pigeonResult = new MediaSelectionOptions();
     const imageSelectionOptions: ESObject = list[0];
     pigeonResult.setImageSelectionOptions(imageSelectionOptions == null ?
@@ -316,7 +313,6 @@ class VideoSelectionOptionsBuilder {
 
 export class VideoSelectionOptions {
   private maxDurationSeconds: number = 0;
-  static maxDurationSeconds: number = 0;
 
   private constructor() {
   }
@@ -487,7 +483,7 @@ export class CacheRetrievalError {
     return toListResult;
   }
 
-  fromList(list: ArrayList<ESObject>): CacheRetrievalError {
+  static fromList(list: ArrayList<ESObject>): CacheRetrievalError {
     const pigeonResult = new CacheRetrievalError();
     const code: ESObject = list[0];
     pigeonResult.setCode(code);
@@ -576,19 +572,17 @@ export class CacheRetrievalResult {
   toList(): ArrayList<ESObject> {
     const toListResult: ArrayList<ESObject> = new ArrayList<ESObject>();
     toListResult.add(this.type);
-    let t = new CacheRetrievalResult()
-    toListResult.add(this.error == null ? null : t.error ? t.error.toList() : "");
+    toListResult.add(this.error == null ? null : this.error.toList());
     toListResult.add(this.paths);
     return toListResult;
   }
 
-  fromList(list: ArrayList<ESObject>): CacheRetrievalResult {
+  static fromList(list: ArrayList<ESObject>): CacheRetrievalResult {
     const pigeonResult = new CacheRetrievalResult();
     const type: ESObject = list[0];
     pigeonResult.setType(type);
     const error: ESObject = list[1];
-    let t = new CacheRetrievalResult()
-    pigeonResult.setError(error == null ? null : t.fromList(error) as ESObject);
+    pigeonResult.setError(error == null ? null : CacheRetrievalError.fromList(error) as ESObject);
     const paths: ESObject = list[2];
     pigeonResult.setPaths(paths);
     return pigeonResult;
@@ -609,21 +603,17 @@ export class ImagePickerApiCodec extends StandardMessageCodec {
   }
 
   readValueOfType(type: number, buffer: ByteBuffer): ESObject {
-    let t: ESObject = {};
     switch (type) {
       case 128:
-        t = new CacheRetrievalError()
-        return t.fromList(this.readValue(buffer));
+        return CacheRetrievalError.fromList(this.readValue(buffer));
       case 129:
-        t = new CacheRetrievalResult()
-        return t.fromList(this.readValue(buffer));
+        return CacheRetrievalResult.fromList(this.readValue(buffer));
       case 130:
         return GeneralOptions.fromList(this.readValue(buffer));
       case 131:
         return ImageSelectionOptions.fromList(this.readValue(buffer));
       case 132:
-        t = new MediaSelectionOptions()
-        return t.fromList(this.readValue(buffer));
+        return MediaSelectionOptions.fromList(this.readValue(buffer));
       case 133:
         return SourceSpecification.fromList(this.readValue(buffer));
       case 134:
@@ -679,6 +669,11 @@ export abstract class ImagePickerApi {
     generalOptions: GeneralOptions,
     result: Result<ArrayList<string>>): void;
 
+  // 接口抽象签名保持非空（Promise<CacheRetrievalResult>）：Messages.ets 的 Pigeon handler
+  // 中 `const output: CacheRetrievalResult = await api.retrieveLostResults()` 直接赋值，
+  // 若声明为 `Promise<CacheRetrievalResult | null>` 会产生类型不匹配编译报错（OH-014 实测，
+  // 已回退至非空）。实际运行时空结果仍以 null 编码经 BasicMessageChannel 传输，
+  // Dart 侧 `Future<CacheRetrievalResult?>` 的可空语义不受影响。
   abstract retrieveLostResults(): Promise<CacheRetrievalResult>;
 
   static getCodec(): MessageCodec<ESObject> {
@@ -714,7 +709,12 @@ export abstract class ImagePickerApi {
               reply.reply(wrappedError.convertToArray());
             })
 
-            api.pickImages(sourceArg, optionsArg, generalOptionsArg, resultCallback);
+            try {
+              api.pickImages(sourceArg, optionsArg, generalOptionsArg, resultCallback);
+            } catch (e) {
+              const wrappedError: ArrayList<ESObject> = Messages.wrapError(e);
+              reply.reply(wrappedError.convertToArray());
+            }
           }
         })
       } else {
@@ -742,7 +742,12 @@ export abstract class ImagePickerApi {
               const wrappedError: ArrayList<ESObject> = Messages.wrapError(error);
               reply.reply(wrappedError.convertToArray());
             })
-            api.pickVideos(sourceArg, optionsArg, generalOptionsArg, resultCallback);
+            try {
+              api.pickVideos(sourceArg, optionsArg, generalOptionsArg, resultCallback);
+            } catch (e) {
+              const wrappedError: ArrayList<ESObject> = Messages.wrapError(e);
+              reply.reply(wrappedError.convertToArray());
+            }
           }
         })
       } else {
@@ -769,7 +774,12 @@ export abstract class ImagePickerApi {
               const wrappedError: ArrayList<ESObject> = Messages.wrapError(error);
               reply.reply(wrappedError.convertToArray());
             })
-            api.pickMedia(optionsArg, generalOptionsArg, resultCallback);
+            try {
+              api.pickMedia(optionsArg, generalOptionsArg, resultCallback);
+            } catch (e) {
+              const wrappedError: ArrayList<ESObject> = Messages.wrapError(e);
+              reply.reply(wrappedError.convertToArray());
+            }
           }
         })
       } else {

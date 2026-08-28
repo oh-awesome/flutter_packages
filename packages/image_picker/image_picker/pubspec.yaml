@@ -39,12 +39,13 @@ dependencies:
   image_picker_windows: ^0.2.2
   image_picker_ohos:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/image_picker/image_picker_ohos"
-      ref: "br_image_picker-v1.2.1_ohos"
+      ref: "oh-3.44.9-dev"
 
 dev_dependencies:
   build_runner: ^2.1.10
+  coverage: ^1.6.0
   cross_file: ^0.3.1+1 # Mockito generates a direct include.
   flutter_test:
     sdk: flutter
