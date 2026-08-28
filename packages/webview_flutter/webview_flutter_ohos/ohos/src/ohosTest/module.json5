@@ -1,0 +1,12 @@
+{
+  "module": {
+    "name": "webview_flutter_ohos_test",
+    "type": "feature",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ],
+    "deliveryWithInstall": true,
+    "installationFree": false
+  }
+}
