@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "file_selector",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "1.1.0",
+        "Owner": "aibin@openvalley.net",
+        "Upstream URL": "`https://github.com/flutter/packages`",
+        "Description": "Flutter plugin for opening and saving files, or selecting directories, using native file selection UI. This is the OHOS development branch of the file_selector plugin for the OpenHarmony platform"
+    }
+]
