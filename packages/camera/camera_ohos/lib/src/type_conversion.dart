@@ -33,6 +33,7 @@ ImageFormatGroup _imageFormatGroupFromPlatformData(dynamic data) {
     case 35:
       return ImageFormatGroup.yuv420;
     case 256:
+    case 2000: // OHOS image.ImageFormat.JPEG = 2000，与 Android 常量 256 同为 JPEG
       return ImageFormatGroup.jpeg;
     case 17:
       return ImageFormatGroup.nv21;

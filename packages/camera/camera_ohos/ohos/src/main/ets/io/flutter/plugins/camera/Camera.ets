@@ -10,8 +10,8 @@ import Ability from '@ohos.app.ability.Ability';
 import UIAbility from '@ohos.app.ability.UIAbility';
 import camera from '@ohos.multimedia.camera';
 import image from '@ohos.multimedia.image';
-import { buffer, HashMap, JSON, List } from '@kit.ArkTS';
-import { EventChannel, Log } from '@ohos/flutter_ohos';
+import { Decimal, JSON } from '@kit.ArkTS';
+import { BinaryMessenger, EventChannel, Log } from '@ohos/flutter_ohos';
 import { MethodResult } from '@ohos/flutter_ohos/src/main/ets/plugin/common/MethodChannel';
 import { SurfaceTextureEntry, TextureRegistry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
 import { CameraFeatureFactory } from './features/CameraFeatureFactory';
@@ -24,12 +24,10 @@ import { CaptureTimeoutsWrapper } from './types/CaptureTimeoutsWrapper';
 import { CameraCaptureProperties } from './types/CameraCaptureProperties';
 import { ResolutionFeature, VideoSessionProfile } from './features/resolution/ResolutionFeature';
 import { CameraUtils } from './CameraUtils';
-import { VideoRenderer } from './VideoRenderer';
 import { ImageStreamReader } from './media/ImageStreamReader';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { CameraState } from './CameraState';
 import { AutoFocusFeature } from './features/autofocus/AutoFocusFeature';
-import fileIO from '@ohos.fileio';
 import { DeviceOrientationManager } from './features/sensororientation/DeviceOrientationManager';
 import { Point } from './features/Point';
 import { FlashFeature } from './features/flash/FlashFeature';
@@ -39,36 +37,38 @@ import { ExposureOffsetFeature } from './features/exposureoffset/ExposureOffsetF
 import { FocusPointFeature } from './features/focuspoint/FocusPointFeature';
 import { ZoomLevelFeature } from './features/zoomlevel/ZoomLevelFeature';
 import { EventSink, StreamHandler } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';
-import { FocusMode } from './features/autofocus/FocusMode';
-import { ExposureMode } from './features/exposurelock/ExposureMode';
-import PhotoAccessHelper from '@ohos.file.photoAccessHelper';
-import systemDateTime from '@ohos.systemDateTime';
 import photoAccessHelper from '@ohos.file.photoAccessHelper';
-import { picker } from '@kit.CoreFileKit';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 import display from '@ohos.display';
 import { AudioPermission, CameraPermissions } from './CameraPermissions';
-import { BinaryMessenger } from '@ohos/flutter_ohos';
-import { CameraEventApi, PlatformCameraState, PlatformSize, PlatformExposureMode, PlatformFocusMode, PlatformVideoStabilizationMode,
-  PlatformImageFileFormat } from './Messages';
-import { Decimal } from '@kit.ArkTS';
+import {
+  CameraEventApi,
+  PlatformCameraState,
+  PlatformExposureMode,
+  PlatformFocusMode,
+  PlatformImageFileFormat,
+  PlatformSize,
+  PlatformVideoStabilizationMode
+} from './Messages';
 import { sensor } from '@kit.SensorServiceKit';
 
-const TAG = "Camera";
+const TAG = 'Camera';
 
-const FOUR = 4; // format
-const EIGHT = 8; // capacity
-const FOUR_THOUSAND_AND_SIXTY_NINE = 4096; // buffer大小
-
-const supportedImageFormats: HashMap<string, image.ImageFormat> = new HashMap();
-supportedImageFormats.set("ycbr422sp", image.ImageFormat.YCBCR_422_SP);
-supportedImageFormats.set("jpeg", image.ImageFormat.JPEG);
+// 图像格式映射：OHOS ImageReceiver 实际仅支持 JPEG。
+// Pigeon 传入的 PlatformImageFormatGroup 枚举字符串（jpeg/yuv420/nv21/bgra8888）统一解析，
+// 非 jpeg 请求打日志并降级为 JPEG，避免哈希键与枚举名不匹配的静默死映射。
+function getSupportedImageFormat(imageFormatGroup: string | null): image.ImageFormat {
+  if (imageFormatGroup === 'jpeg') {
+    return image.ImageFormat.JPEG;
+  }
+  Log.w(TAG, 'The selected imageFormatGroup ' + imageFormatGroup + ' is not supported by ohos. Defaulting to JPEG');
+  return image.ImageFormat.JPEG;
+}
 
 export class Camera implements CameraCaptureStateListener {
   private static TAG: string = 'Camera';
   cameraFeatures: CameraFeatures;
   private imageFormatGroup: string | null = null;
-  private videoRenderer: VideoRenderer | null = null;
   private flutterTexture: SurfaceTextureEntry;
   private resolutionPreset: ResolutionPreset;
   private enableAudio: boolean;
@@ -97,7 +97,7 @@ export class Camera implements CameraCaptureStateListener {
   private photoSession: camera.PhotoSession | null = null; // 拍照模式
   private videoSession: camera.VideoSession | null = null; // 视频模式
   private cameras: Array<camera.CameraDevice> | null = null;
-  private photoOutPut: camera.PhotoOutput | null = null;
+  private photoOutput: camera.PhotoOutput | null = null;
   private fd: number = -1;
   private isVideoMode: boolean = false; // 视频模式
   private aVRecorderProfile: media.AVRecorderProfile = {
@@ -121,7 +121,13 @@ export class Camera implements CameraCaptureStateListener {
   private photoRotation: camera.ImageRotation | undefined;
   private nowZoom: number = 1;
   private imageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
+  // JPEG 压缩质量 (1-100)；null 表示用相机默认输出（直接写原始 buffer，不重压缩）。
+  // OHOS 的 PhotoCaptureSetting.quality 仅支持 3 档枚举，无法满足 1-100 连续精度，
+  // 故在拍照落盘时用 ImagePacker 按此质量重新编码 JPEG。
+  private jpegQuality: number | null = null;
   private displayChangeCallback: ((_displayId: number) => void) | null = null;
+  private photoAssetAvailableCallback:
+    ((err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset) => void) | null = null;
   private lastDisplayRotation: number = -1;
   private foldStatusChangeCallback: ((foldStatus: display.FoldStatus) => void) | null = null;
   private autoDeviceSwitchCallback: ((err: BusinessError, status: camera.AutoDeviceSwitchStatus) => void) | null = null;
@@ -190,31 +196,40 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public async open(imageFormatGroup: string | null): Promise<void> {
-
+    // 相机已 close/dispose（isClosed=true）后禁止重新 open：释放状态下重建资源会残留
+    // 已注册的 display/fold 监听与原生会话，形成"僵尸相机"（如 stopVideoRecording finally 尾随重
+    // 建）
+    if (this.isClosed) {
+      Log.w(TAG, 'open() called after close/dispose, ignoring to avoid resource leak');
+      return;
+    }
+    // 复位 isClosed，使 close() 后重建的相机在后续 close() 时仍能完整释放新资源
+    this.isClosed = false;
     this.imageFormatGroup = imageFormatGroup;
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
 
     if (!resolutionFeature.checkIsSupported()) {
       this.sendCameraErrorEvent(
-        "Camera with name \""
-          + this.cameraProperties.getCameraName()
-          + "\" is not supported by this plugin.");
+        'Camera with name "' +
+          this.cameraProperties.getCameraName() +
+          '" is not supported by this plugin.');
       return;
     }
 
     // 重建前释放可能残留的旧资源, 避免覆盖引用导致泄漏
     await this.releasePreviewOutput();
     await this.releasePhotoOutput();
+    await this.releaseSession();   // 释放残留的旧 session，避免重建时覆盖泄漏
     if (this.imageStreamReader != null) {
-      try { this.imageStreamReader.close(); } catch (e) {}
+      try {
+        this.imageStreamReader.close();
+      } catch (e) {
+        Log.d(TAG, 'open: failed to close imageStreamReader: ' + e.message);
+      }
       this.imageStreamReader = null;
     }
 
-    let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
-    if (imageFormat == null) {
-      Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. Defaulting to JPEG")
-      imageFormat = image.ImageFormat.JPEG
-    }
+    let imageFormat: number = getSupportedImageFormat(imageFormatGroup);
 
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
@@ -227,7 +242,7 @@ export class Camera implements CameraCaptureStateListener {
     if (!this.cameraDevice) {
       this.imageStreamReader?.close();
       this.imageStreamReader = null;
-      this.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
+      this.sendCameraErrorEvent('无法获取相机设备: ' + this.cameraProperties.getCameraName());
       return;
     }
 
@@ -239,38 +254,50 @@ export class Camera implements CameraCaptureStateListener {
 
     if (this.isTriFoldDevice() && display.getFoldStatus() === display.FoldStatus.FOLD_STATUS_EXPANDED) {
       if (this.cameraDevice.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
-        Log.w(TAG, "Cannot open front camera in tri-fold dual-screen state");
-        this.sendCameraErrorEvent("FRONT_CAMERA_UNAVAILABLE");
+        Log.w(TAG, 'Cannot open front camera in tri-fold dual-screen state');
+        // 释放本方法上方已创建的 ImageStreamReader，避免错误路径泄漏原生 ImageReceiver
+        this.imageStreamReader?.close();
+        this.imageStreamReader = null;
+        this.sendCameraErrorEvent('FRONT_CAMERA_UNAVAILABLE');
         return;
       }
     }
 
-    this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
     try{
+      // createCameraInput 也纳入 try 块，保证打开失败时走统一的语义化错误映射与资源清理
+      this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
       await this.cameraInput.open();
       await this.startPreview();
       if (!this.recordingVideo) {
         this.sendCameraInitializedEvent(resolutionFeature);
       }
       this.registerFoldStatusChangeListener();
+      // close() 已停止方向监听，重建成功后需恢复（start 幂等，重复调用安全）
+      this.getDeviceOrientationManager()?.start();
     }catch (err) {
       await this.close();
       let errorDescription: string;
       switch (err.code) {
       case camera.CameraErrorCode.INVALID_ARGUMENT:
-      errorDescription = "Can not use camera cause of conflict.";
+      errorDescription = 'Can not use camera cause of conflict.';
       break;
       case camera.CameraErrorCode.DEVICE_DISABLED:
-      errorDescription = "Camera disabled cause of security reason.";
+      errorDescription = 'Camera disabled cause of security reason.';
       break;
       case camera.CameraErrorCode.SERVICE_FATAL_ERROR:
-      errorDescription = "Camera service fatal error.";
+      errorDescription = 'Camera service fatal error.';
       break;
       default:
-      errorDescription = "Unknown camera error";
+      errorDescription = 'Unknown camera error';
       }
-      this.dartMessenger.sendCameraErrorEvent(errorDescription);
-      throw err as Error;
+      // 仅通过异常上抛（发事件的路径不 throw、throw 的路径不发事件）：错误由各调用方决
+      // 定
+      // 上报通道——initialize 经 Pigeon 错误回复，三折叠自动切后摄在其自身 catch 补发事件
+      // ——
+      // 避免双发使 Dart 侧 initializeCamera 二次 completeError 抛出 StateError。
+      // 抛映射后的可读文案；原始 err 经日志保留。
+      Log.e(TAG, 'open failed: ' + errorDescription + ' (' + err.message + ')');
+      throw new Error(errorDescription);
     }
   }
 
@@ -285,7 +312,7 @@ export class Camera implements CameraCaptureStateListener {
       const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
       cameraEventApi.error(errorMessage, { reply: () => {} });
     } catch (e) {
-      Log.e(TAG, "Failed to send camera error event: " + e.message);
+      Log.e(TAG, 'Failed to send camera error event: ' + e.message);
     }
   }
 
@@ -296,7 +323,7 @@ export class Camera implements CameraCaptureStateListener {
       const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
       cameraEventApi.closed({ reply: () => {} });
     } catch (e) {
-      Log.e(TAG, "Failed to send camera closing event: " + e.message);
+      Log.e(TAG, 'Failed to send camera closing event: ' + e.message);
     }
   }
 
@@ -333,7 +360,7 @@ export class Camera implements CameraCaptureStateListener {
 
       cameraEventApi.initialized(initialState, { reply: () => {} });
     } catch (e) {
-      Log.e(TAG, "Failed to send camera initialized event: " + e.message);
+      Log.e(TAG, 'Failed to send camera initialized event: ' + e.message);
     }
   }
 
@@ -352,7 +379,7 @@ export class Camera implements CameraCaptureStateListener {
     switch (focusMode) {
       case camera.FocusMode.FOCUS_MODE_LOCKED:
         return PlatformFocusMode.locked;
-      case camera.FocusMode.FOCUS_MODE_AUTO:
+      case camera.FocusMode.FOCUS_MODE_CONTINUOUS_AUTO:
       default:
         return PlatformFocusMode.auto;
     }
@@ -362,71 +389,74 @@ export class Camera implements CameraCaptureStateListener {
     const focusPointFeature: FocusPointFeature = this.cameraFeatures.getFocusPoint();
     focusPointFeature.setValue(point);
 
-    //Reference: https://developer.huawei.com/consumer/cn/doc/harmonyos-references/arkts-apis-camera-focus#setfocuspoint11
- 	  //The application's preview interface layout is based on the vertical direction when the device's charging port is at the bottom. The layout's width and height are {w, h}, and the touch point is {x, y}. Therefore, the converted coordinates are {y/h, 1-x/w}.
- 	  //Here, the coordinates passed to Dart are based on the vertical direction. x and y have already been calculated, and the range is [0,1].
+    // Reference:
+    // https://developer.huawei.com/consumer/cn/doc/harmonyos-references/arkts-apis-camera-focus#setfocuspoint11
+    // The application's preview interface layout is based on the vertical direction when the device's charging port is
+    // at the bottom. The layout's width and height are {w, h}, and the touch point is {x, y}. Therefore, the converted
+    // coordinates are {y/h, 1-x/w}.
+    // Here, the coordinates passed to Dart are based on the vertical direction. x and y have already been calculated,
+    // and the range is [0,1].
     const focusPoint: camera.Point | null
       = (point.x == null || point.y == null) ? null : { x: point.y, y: 1-point.x };
     try {
       this.getCurSession().setFocusPoint(focusPoint);
       result.success(null);
     } catch (error) {
-      result.error("setFocusPointFailed", "Could not set focus point.", null);
+      result.error('setFocusPointFailed', 'Could not set focus point.', null);
     }
-  }
-
-  getFocusMode(result: MethodResult) {
-    let nowFocusMode: camera.FocusMode = camera.FocusMode.FOCUS_MODE_AUTO
-
-    try {
-      // 获取当前对焦模式
-      nowFocusMode = this.getCurSession().getFocusMode();
-      if (nowFocusMode == camera.FocusMode.FOCUS_MODE_MANUAL) {
-        nowFocusMode = camera.FocusMode.FOCUS_MODE_AUTO
-      } else if (nowFocusMode == camera.FocusMode.FOCUS_MODE_CONTINUOUS_AUTO) {
-        nowFocusMode = camera.FocusMode.FOCUS_MODE_AUTO
-      }
-    } catch (error) {
-      result?.error("getFocusModeFailed", "Could not get focus point", null)
-    }
-
-    this.setFocusMode(result, nowFocusMode);
   }
 
   setFocusMode(result: MethodResult, newMode: camera.FocusMode) {
     if (!this.getCurSession().isFocusModeSupported(newMode)) {
-      result.error("setFocusModeFailed", "The focus mode is unsupported.", null);
+      result.error('setFocusModeFailed', 'The focus mode is unsupported.', null);
       return;
     }
     const autoFocusFeature: AutoFocusFeature = this.cameraFeatures.getAutoFocus();
     autoFocusFeature.setValue(newMode);
 
     try {
+      const before = this.getCurSession().getFocusMode();
       this.getCurSession().setFocusMode(newMode)
+      const after = this.getCurSession().getFocusMode();
+      Log.i('Camera', `[setFocusMode] requested=${newMode} before=${before} after=${after}`);
       result?.success(null)
     } catch (error) {
-      result?.error("焦点设置失败: ", `${JSON.stringify(error)}`, null)
+      result?.error('setFocusModeFailed', `${JSON.stringify(error)}`, null)
     }
   }
 
-  // 设置曝光补偿
+  // 设置曝光补偿。
+  // offset 为实际 EV 值（Dart 侧已按 stepSize 取整）；setExposureBias 应用该值，
+  // 返回值必须是实际应用 EV 值（ExposureOffsetFeature.getValue() 现直接返回该值，而非步进索引
+  // ）。
   setExposureOffset(result: MethodResult, offset: number) {
     const exposureOffsetFeature: ExposureOffsetFeature = this.cameraFeatures.getExposureOffset();
-    exposureOffsetFeature.setValue(offset, this.photoSession!);
+    const session = this.getCurSession();
+    // 钳制到设备实际曝光补偿范围 [min, max]，避免越界直达系统 API；返回实际应用值
+    const minOffset: number = exposureOffsetFeature.getMinExposureOffset(session);
+    const maxOffset: number = exposureOffsetFeature.getMaxExposureOffset(session);
+    const clampedOffset: number = Math.min(Math.max(offset, minOffset), maxOffset);
+    exposureOffsetFeature.setValue(clampedOffset, session);
 
     try {
-      this.getCurSession().setExposureBias(offset);
+      session.setExposureBias(clampedOffset);
       result.success(exposureOffsetFeature.getValue());
     } catch (error) {
-      result.error("setExposureOffsetFailed", "Could not set exposure offset.", null);
+      result.error('setExposureOffsetFailed', 'Could not set exposure offset.', null);
     }
   }
 
   public getMaxZoomLevel(): number {
+    if (this.photoSession == null && this.videoSession == null) {
+      return 0;   // 会话未建立，返回未知标记（对齐 CameraPropertiesImpl 文档）
+    }
     return this.cameraFeatures.getZoomLevel().getMaximumZoomLevel(this.getCurSession());
   }
 
   public getMinZoomLevel(): number {
+    if (this.photoSession == null && this.videoSession == null) {
+      return 0;   // 会话未建立，返回未知标记（对齐 CameraPropertiesImpl 文档）
+    }
     return this.cameraFeatures.getZoomLevel().getMinimumZoomLevel(this.getCurSession());
   }
 
@@ -436,16 +466,16 @@ export class Camera implements CameraCaptureStateListener {
     let minZoom: number = zoomLevel.getMinimumZoomLevel(this.getCurSession());
 
     if (zoom > maxZoom || zoom < minZoom) {
-      result.error("ZOOM_ERROR",
-        "Zoom level out of bounds (zoom level should be between " + minZoom + " and " + maxZoom + ").", null);
+      result.error('ZOOM_ERROR',
+        'Zoom level out of bounds (zoom level should be between ' + minZoom + ' and ' + maxZoom + ').', null);
       return;
     }
 
     try {
       this.getCurSession().setZoomRatio(zoom);
     } catch (error) {
-      Log.e(TAG, "setZoomLevel failed: zoom=" + zoom + ", error=" + error.message);
-      result.error("setZoomLevelFailed", "Could not set zoom level.", null);
+      Log.e(TAG, 'setZoomLevel failed: zoom=' + zoom + ', error=' + error.message);
+      result.error('setZoomLevelFailed', 'Could not set zoom level.', null);
       return;
     }
     this.nowZoom = zoom;
@@ -467,7 +497,9 @@ export class Camera implements CameraCaptureStateListener {
       await this.previewOutput?.stop();
       await this.previewOutput2?.stop();
     } catch (e) {
-      Log.e(TAG, "pausePreview: failed to stop preview output: " + e.message);
+      Log.e(TAG, 'pausePreview: failed to stop preview output: ' + e.message);
+      result.error('pausePreviewFailed', 'Could not pause preview.', null);
+      return;
     }
     this.pausedPreview = true;
     result.success(null);
@@ -481,7 +513,9 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput2?.start();
       }
     } catch (e) {
-      Log.e(TAG, "resumePreview: failed to start preview output: " + e.message);
+      Log.e(TAG, 'resumePreview: failed to start preview output: ' + e.message);
+      result.error('resumePreviewFailed', 'Could not resume preview.', null);
+      return;
     }
     this.pausedPreview = false;
     result.success(null);
@@ -499,15 +533,16 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setMeteringPoint(exposurePoint);
       result.success(null);
     } catch (error) {
-      result.error("setExposurePointFailed", "Could not set exposure point.", null);
+      result.error('setExposurePointFailed', 'Could not set exposure point.', null);
     }
   }
 
   // 设置曝光模式。
-  // 进行设置之前，需要先检查设备是否支持指定的曝光模式，可使用方法isExposureModeSupported。
+  // 进行设置之前，需要先检查设备是否支持指定的曝光模式，可使用方法
+  // isExposureModeSupported。
   setExposureMode(result: MethodResult, newMode: camera.ExposureMode) {
     if (!CameraUtils.isExposureModeSupported(this.getCurSession(), newMode)) {
-      result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
+      result.error('setExposureModeFailed', 'The exposure mode is unsupported.', null);
       return;
     }
 
@@ -519,7 +554,7 @@ export class Camera implements CameraCaptureStateListener {
     })
 
     if (!modeExistence) {
-      result.error("setExposureModeFailed", "The exposure mode is unsupported.", null);
+      result.error('setExposureModeFailed', 'The exposure mode is unsupported.', null);
       return;
     }
 
@@ -530,7 +565,7 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setExposureMode(newMode);
       result.success(null)
     } catch (error) {
-      result.error("setExposureModeError", JSON.stringify(error), null)
+      result.error('setExposureModeError', JSON.stringify(error), null)
     }
   }
 
@@ -540,12 +575,12 @@ export class Camera implements CameraCaptureStateListener {
   // 设备是否支持指定的闪光灯模式，可使用方法isFlashModeSupported。
   setFlashMode(result: MethodResult, newMode: camera.FlashMode) {
     if (!CameraUtils.hasFlash(this.getCurSession())) {
-      result.error("setFlashModeFailed", "The camera device does not have flash.", null);
+      result.error('setFlashModeFailed', 'The camera device does not have flash.', null);
       return;
     }
 
     if (!CameraUtils.isFlashModeSupported(this.getCurSession(), newMode)) {
-      result.error("setFlashModeFailed", " The flash mode is unsupported.", null);
+      result.error('setFlashModeFailed', ' The flash mode is unsupported.', null);
       return;
     }
 
@@ -557,7 +592,7 @@ export class Camera implements CameraCaptureStateListener {
       this.getCurSession().setFlashMode(newMode);
       result.success(null);
     } catch (error) {
-      result.error("setFlashModeFailed", "The setFlashMode call failed", null);
+      result.error('setFlashModeFailed', 'The setFlashMode call failed', null);
     }
   }
 
@@ -576,7 +611,7 @@ export class Camera implements CameraCaptureStateListener {
   private async applyFlashMode(session: camera.PhotoSession | camera.VideoSession): Promise<void> {
     const hasFlash: boolean = session.hasFlash();
     if (!hasFlash) {
-      Log.w(TAG, "Device does not support flash, skipping flash mode application");
+      Log.w(TAG, 'Device does not support flash, skipping flash mode application');
       return;
     }
 
@@ -585,36 +620,46 @@ export class Camera implements CameraCaptureStateListener {
       if (session.isFlashModeSupported(flashMode)) {
         await session.setFlashMode(flashMode);
       } else {
-        Log.w(TAG, "Flash mode " + flashMode + " is not supported by the current session, skipping flash mode application");
+        Log.w(TAG, 'Flash mode ' + flashMode +
+          ' is not supported by the current session, skipping flash mode application');
       }
     } catch (error) {
-      Log.e(TAG, "applyFlashMode error: " + error.message);
+      Log.e(TAG, 'applyFlashMode error: ' + error.message);
     }
   }
 
   async takePicture(result: MethodResult) {
     if (this.cameraCaptureCallback.getCameraState() != CameraState.STATE_PREVIEW) {
-      result.error("captureAlreadyActive", "Picture is currently already being captured", null);
+      result.error('captureAlreadyActive', 'Picture is currently already being captured', null);
       return;
     }
     this.takePictureResult = result;
     this.takePictureName = '/IMG_' + Date.now().toString() + this.getCurrentImageFileExtension();
-    this.runPictureAutoFocus();
+    try {
+      await this.runPictureAutoFocus();
+    } catch (error) {
+      // capture 发起阶段抛异常（如 session 状态异常）：立即报错，避免 Dart Future 永久挂起
+      this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
+      this.takePictureResult?.error('captureFailed', error.message, null);
+      this.takePictureResult = undefined;
+      return;
+    }
   }
 
   /** Start capturing a picture, doing autofocus first. */
-  private runPictureAutoFocus() {
+  private async runPictureAutoFocus(): Promise<void> {
     this.cameraCaptureCallback.setCameraState(CameraState.STATE_WAITING_FOCUS);
-    this.lockAutoFocus();
+    await this.lockAutoFocus();
   }
 
   async lockAutoFocus(): Promise<void> {
     if (this.photoSession == null) {
-      const errMsg = "[unlockAutoFocus] captureSession null, returning";
-      console.error(TAG, errMsg);
+      const errMsg = '[unlockAutoFocus] captureSession null, returning';
+      Log.e(TAG, errMsg);
       // reset status and callback error
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
-      this.takePictureResult?.error("captureSession null", errMsg, -1);
+      this.takePictureResult?.error('captureSession null', errMsg, -1);
+      this.takePictureResult = undefined;   // 清空引用，避免 MethodResult 闭包滞留
       return;
     }
 
@@ -628,13 +673,13 @@ export class Camera implements CameraCaptureStateListener {
     if (lockedOrientation !== null) {
       const deviceOrientationManager = sensorOrientationFeature.getDeviceOrientationManager();
       const rotationDegree = deviceOrientationManager.getPhotoOrientation(lockedOrientation) as number;
-      this.photoRotation = this.photoOutPut?.getPhotoRotation(rotationDegree);
+      this.photoRotation = this.photoOutput?.getPhotoRotation(rotationDegree);
     } else {
       const deviceDegree: number = await this.getDeviceDegree();
-      this.photoRotation = this.photoOutPut?.getPhotoRotation(deviceDegree);
+      this.photoRotation = this.photoOutput?.getPhotoRotation(deviceDegree);
     }
 
-    const enableMirror = this.isFrontCamera() && (this.photoOutPut?.isMirrorSupported() ?? false);
+    const enableMirror = this.isFrontCamera() && (this.photoOutput?.isMirrorSupported() ?? false);
 
     let settings: camera.PhotoCaptureSetting = {
       quality: camera.QualityLevel.QUALITY_LEVEL_HIGH,
@@ -646,7 +691,7 @@ export class Camera implements CameraCaptureStateListener {
     this.cameraCaptureCallback.setCameraState(CameraState.STATE_CAPTURING);
 
     // 触发拍照
-    this.photoOutPut?.capture(settings, (err: BusinessError) => {
+    this.photoOutput?.capture(settings, (err: BusinessError) => {
       // 拍照完成，更新CameraState
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
       if (err) {
@@ -694,7 +739,9 @@ export class Camera implements CameraCaptureStateListener {
         let sd: Decimal = Decimal.atan2(y, -x);
         let sc: Decimal = Decimal.round(Number(sd) / 3.141592653589 * 180);
         this.lastDeviceDegree = 90 - Number(sc);
-        this.lastDeviceDegree = this.lastDeviceDegree >= 0 ? this.lastDeviceDegree % 360 : this.lastDeviceDegree % 360 + 360;
+        this.lastDeviceDegree = this.lastDeviceDegree >= 0
+          ? this.lastDeviceDegree % 360
+          : this.lastDeviceDegree % 360 + 360;
       } catch (error) {
         let err = error as BusinessError;
         console.error(TAG + ' Decimal failed, error: ' + err.code);
@@ -709,7 +756,7 @@ export class Camera implements CameraCaptureStateListener {
       sensorList = await sensor.getSensorList();
     } catch (error) {
       let err = error as BusinessError;
-      Log.e(TAG, "getSensorList failed, error: " + err.code);
+      Log.e(TAG, 'getSensorList failed, error: ' + err.code);
       return -1;
     }
 
@@ -723,15 +770,19 @@ export class Camera implements CameraCaptureStateListener {
 
     const SENSOR_TIMEOUT_MS = 3000;
     const sensorName = isGravitySupported ? 'GRAVITY' : 'ACCELEROMETER';
+    let gravityCallback: ((data: sensor.GravityResponse) => void) | null = null;
+    let accelCallback: ((data: sensor.AccelerometerResponse) => void) | null = null;
     const sensorPromise = new Promise<number>((resolve) => {
       if (isGravitySupported) {
-        sensor.once(sensor.SensorId.GRAVITY, (data: sensor.GravityResponse) => {
+        gravityCallback = (data: sensor.GravityResponse): void => {
           resolve(this.getRealSensorData(data));
-        });
+        };
+        sensor.once(sensor.SensorId.GRAVITY, gravityCallback);
       } else {
-        sensor.once(sensor.SensorId.ACCELEROMETER, (data: sensor.AccelerometerResponse) => {
-          resolve(this.getRealSensorData(data as sensor.GravityResponse));
-        });
+        accelCallback = (data: sensor.AccelerometerResponse): void => {
+          resolve(this.getRealSensorData(data));
+        };
+        sensor.once(sensor.SensorId.ACCELEROMETER, accelCallback);
       }
     });
 
@@ -745,6 +796,20 @@ export class Camera implements CameraCaptureStateListener {
 
     const result = await Promise.race([sensorPromise, timeoutPromise]);
     clearTimeout(timerId);
+    // 取消尚未触发的 once 监听，避免回调闭包持有 this（Camera）直到下一条传感器数据到达
+    if (isGravitySupported && gravityCallback != null) {
+      try {
+        sensor.off(sensor.SensorId.GRAVITY, gravityCallback);
+      } catch (e) {
+        Log.d(TAG, 'Failed to unregister GRAVITY sensor listener: ' + e.message);
+      }
+    } else if (accelCallback != null) {
+      try {
+        sensor.off(sensor.SensorId.ACCELEROMETER, accelCallback);
+      } catch (e) {
+        Log.d(TAG, 'Failed to unregister ACCELEROMETER sensor listener: ' + e.message);
+      }
+    }
     return result;
   }
 
@@ -781,10 +846,14 @@ export class Camera implements CameraCaptureStateListener {
     } catch (e) {
       this.recordingVideo = false;
       if (this.captureFile) {
-        try { fs.close(this.captureFile); } catch (closeErr) {}
+        try {
+          fs.close(this.captureFile);
+        } catch (closeErr) {
+          Log.d(TAG, 'startVideoRecording: failed to close captureFile: ' + (closeErr as Error).message);
+        }
         this.captureFile = null;
       }
-      result.error("videoRecordingFailed", e.message, null);
+      result.error('videoRecordingFailed', e.message, null);
     }
   }
 
@@ -796,7 +865,8 @@ export class Camera implements CameraCaptureStateListener {
 
     this.cameraFeatures.setAutoFocus(this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, false));
     this.recordingVideo = false;
-    const isPrepared = this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared';
+      const isPrepared = this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' ||
+        this.avRecorder.state === 'prepared';
     try {
       if (isPrepared) {
         await this.avRecorder.stop();
@@ -811,31 +881,47 @@ export class Camera implements CameraCaptureStateListener {
       }
     } catch (e) {
       this.videoPath = null;
-      Log.d(TAG, "videoSession stop error" + e.toString());
+      Log.d(TAG, 'videoSession stop error' + e.toString());
     } finally {
       try {
         // 释放录像输出
         if (this.videoOutput != null) {
-          try { await this.videoOutput.stop(); } catch (e) {}
-          try { await this.videoOutput.release(); } catch (e) {}
+          try { await this.videoOutput.stop(); } catch (e) { Log.d(TAG, 'Failed to stop videoOutput: ' + e.message); }
+          try {
+            await this.videoOutput.release();
+          } catch (e) {
+            Log.d(TAG, 'Failed to release videoOutput: ' + e.message);
+          }
           this.videoOutput = null;
         }
         // 释放视频 session
         if (this.videoSession != null) {
-          try { await this.videoSession.stop(); } catch (e) {}
-          try { await this.videoSession.release(); } catch (e) {}
+          try { await this.videoSession.stop(); } catch (e) { Log.d(TAG, 'Failed to stop videoSession: ' + e.message); }
+          try {
+            await this.videoSession.release();
+          } catch (e) {
+            Log.d(TAG, 'Failed to release videoSession: ' + e.message);
+          }
           this.videoSession = null;
         }
         // 释放旧 previewOutput
         if (this.previewOutput != null) {
-          try { await this.previewOutput.release(); } catch (e) {}
+          try {
+            await this.previewOutput.release();
+          } catch (e) {
+            Log.d(TAG, 'Failed to release previewOutput: ' + e.message);
+          }
           this.previewOutput = null;
         }
-        // 释放 stream 录像/拍照相关辅助资源(previewOutput2/photoOutPut/imageStreamReader), 避免泄漏
+        // 释放 stream 录像/拍照相关辅助资源(previewOutput2/photoOutput/imageStreamReader), 避免泄漏
         await this.releasePreviewOutput();
         await this.releasePhotoOutput();
         if (this.imageStreamReader != null) {
-          try { this.imageStreamReader.close(); } catch (e) {}
+          try {
+            this.imageStreamReader.close();
+          } catch (e) {
+            Log.d(TAG, 'stopVideoRecording: failed to close imageStreamReader: ' + e.message);
+          }
           this.imageStreamReader = null;
         }
         fs.close(this.captureFile);
@@ -843,7 +929,7 @@ export class Camera implements CameraCaptureStateListener {
         this.isVideoMode = false;
         await this.open(this.imageFormatGroup);
       } catch (e) {
-        Log.d(TAG, "close file or openPreview error" + e.toString());
+        Log.d(TAG, 'close file or openPreview error' + e.toString());
       }
     }
     result.success(this.videoPath);
@@ -911,7 +997,8 @@ export class Camera implements CameraCaptureStateListener {
       }
     } catch (e) {
       await this.releaseCamera()
-      console.error(TAG, `启用录像预览失败：${e}`)
+      Log.e(TAG, `启用录像预览失败：${e}`)
+      throw e as Error;   // 不吞错，让 open()/startVideoRecording 感知预览失败而非误报成功
     }
   }
 
@@ -958,23 +1045,17 @@ export class Camera implements CameraCaptureStateListener {
       this.previewOutput = this.cameraManager.createPreviewOutput(
         this.cameraOutputCapability.previewProfiles[previewProfileIndex],
         surfaceIdString);
-      this.photoOutPut = this.cameraManager.createPhotoOutput(
+      this.photoOutput = this.cameraManager.createPhotoOutput(
         this.cameraOutputCapability.photoProfiles[photoProfileIndex]);
 
-      // 设置拍照回调
-      this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
-        if (err) {
-          this.takePictureResult?.error(err.code.toString(), err.message, err.data);
-          return;
-        }
-        this.mediaLibRequestBuffer(photoAsset);
-      });
+      // 设置拍照回调（保存引用供 releasePhotoOutput 精确注销）
+      this.registerPhotoAssetAvailableListener();
 
       this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
       this.photoSession.beginConfig();
       this.photoSession.addInput(this.cameraInput);
       this.photoSession.addOutput(this.previewOutput);
-      this.photoSession.addOutput(this.photoOutPut);
+      this.photoSession.addOutput(this.photoOutput);
       await this.photoSession.commitConfig();
 
       this.updatePreviewRotation();
@@ -990,15 +1071,14 @@ export class Camera implements CameraCaptureStateListener {
       // 清理资源
       this.unregisterDisplayChangeListener();
       try {
-        if (this.photoSession) {
-          await this.photoSession.stop();
-          this.photoSession = null;
-        }
+        // 统一释放 session/输出，避免仅 stop 不 release 导致原生资源泄漏
+        await this.releaseSession();
         await this.releasePreviewOutput();
         await this.releasePhotoOutput();
       } catch (cleanupError) {
         Log.e(TAG, 'startPreviewWithPhoto cleanup failed: ' + cleanupError.message);
       }
+      throw error as Error;   // 不吞错，让 open() 感知预览失败而非误报初始化成功
     }
   }
 
@@ -1011,7 +1091,7 @@ export class Camera implements CameraCaptureStateListener {
       requestOptions, {
         onDataPrepared(data: ArrayBuffer) {
           that.convertBufferToFile(data).catch((error: Error) => {
-            Log.e(TAG, "convertBufferToFile failed: " + error.message)
+            Log.e(TAG, 'convertBufferToFile failed: ' + error.message)
           });
         }
       });
@@ -1019,10 +1099,15 @@ export class Camera implements CameraCaptureStateListener {
 
   async convertBufferToFile(data: ArrayBuffer) {
     const photoUri: string = getContext(this).cacheDir + this.takePictureName;
-    const file: fs.File = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    let file: fs.File | null = null;
     try {
+      file = fs.openSync(photoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
       if (this.imageFileFormat === PlatformImageFileFormat.heif) {
         await this.packImageBufferToFile(data, file.fd);
+      } else if (this.jpegQuality !== null) {
+        // 用户显式设置了 JPEG 质量：用 ImagePacker 按指定质量重新编码（OHOS 拍照质量仅 3 档
+        // 枚举，无法连续精度，故在落盘时重压缩）。
+        await this.packJpegBufferToFile(data, file.fd, this.jpegQuality);
       } else {
         await fs.write(file.fd, data);
       }
@@ -1033,26 +1118,48 @@ export class Camera implements CameraCaptureStateListener {
       fs.closeSync(file);
     } catch (error) {
       this.takePictureResult?.error(
-        "imageFileFormatEncodingFailed",
-        error instanceof Error ? error.message : "Failed to write captured image.",
+        'imageFileFormatEncodingFailed',
+        error instanceof Error ? error.message : 'Failed to write captured image.',
         null);
       this.takePictureResult = undefined;
-      fs.closeSync(file);
+      // openSync 失败时 file 为 null，需判空避免 fs.closeSync(undefined) 二次抛错
+      if (file) {
+        try { fs.closeSync(file); } catch (e) { Log.d(TAG, 'convertBufferToFile: failed to close file: ' + e.message); }
+      }
       try {
         fs.unlinkSync(photoUri);
       } catch (cleanupError) {
-        Log.e(TAG, "convertBufferToFile: failed to delete temp file: " + cleanupError.message);
+        Log.e(TAG, 'convertBufferToFile: failed to delete temp file: ' + cleanupError.message);
       }
     }
+  }
+
+  public setJpegImageQuality(result: MethodResult, quality: number): void {
+    if (quality < 1 || quality > 100) {
+      result.error(
+        'invalidJpegQuality',
+        'JPEG quality must be between 1 and 100.',
+        null);
+      return;
+    }
+    if (this.imageFileFormat === PlatformImageFileFormat.jpeg) {
+      this.jpegQuality = quality;
+    }
+    result.success(null);
   }
 
   public setImageFileFormat(result: MethodResult, format: PlatformImageFileFormat): void {
     if (format === PlatformImageFileFormat.heif && !this.isHeifEncodingSupported()) {
       result.error(
-        "unsupportedImageFileFormat",
-        "HEIF encoding is not supported on this OHOS device/runtime.",
+        'unsupportedImageFileFormat',
+        'HEIF encoding is not supported on this OHOS device/runtime.',
         null);
       return;
+    }
+    if (this.imageFileFormat !== format) {
+      // 跨格式切换使已存 JPEG 质量失效：质量只属于某一次 jpeg 会话，切回 jpeg 后
+      // 回到默认值 null（不重编码、与全新会话一致），避免旧质量悄悄复活。
+      this.jpegQuality = null;
     }
     this.imageFileFormat = format;
     result.success(null);
@@ -1076,17 +1183,40 @@ export class Camera implements CameraCaptureStateListener {
     try {
       imagePackerObj = image.createImagePacker();
       const supportedFormats = imagePackerObj.supportedFormats;
-      Log.d(TAG, "isHeifEncodingSupported supportedFormats : " + JSON.stringify(supportedFormats));
+      Log.d(TAG, 'isHeifEncodingSupported supportedFormats : ' + JSON.stringify(supportedFormats));
       // ohos平台中heif和heic格式是相同的，但API 14之前不支持heic
       this.heifEncodingSupported = supportedFormats.includes('image/heif') || supportedFormats.includes('image/heic');
     } catch (error) {
-      Log.w(TAG, "Failed to query HEIF encoding support: " + error);
+      Log.w(TAG, 'Failed to query HEIF encoding support: ' + error);
       this.heifEncodingSupported = false;
       return false;
     } finally {
       imagePackerObj?.release();
     }
     return this.heifEncodingSupported;
+  }
+
+  // 用指定 quality (1-100) 将拍照 buffer 重新编码为 JPEG 并写入文件。
+  // 用于实现 setJpegImageQuality 的连续精度（OHOS PhotoCaptureSetting.quality 仅 3 档枚举）。
+  private async packJpegBufferToFile(data: ArrayBuffer, fd: number, quality: number): Promise<void> {
+    let imageSource: image.ImageSource | null = null;
+    let imagePackerObj: image.ImagePacker | null = null;
+    try {
+      imageSource = image.createImageSource(data);
+      imagePackerObj = image.createImagePacker();
+      await imagePackerObj.packToFile(imageSource, fd, {
+        format: 'image/jpeg',
+        quality: quality,
+        needsPackProperties: true,
+      });
+    } finally {
+      if (imagePackerObj != null) {
+        await imagePackerObj.release();
+      }
+      if (imageSource != null) {
+        await imageSource.release();
+      }
+    }
   }
 
   private async packImageBufferToFile(data: ArrayBuffer, fd: number): Promise<void> {
@@ -1117,15 +1247,16 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     try {
-      if (this.avRecorder != undefined && this.avRecorder.state === 'started') { // 仅在started状态下调用pause为合理状态切换
+      // 仅在started状态下调用pause为合理状态切换
+      if (this.avRecorder != undefined && this.avRecorder.state === 'started') {
         await this.avRecorder.pause();
         await this.videoOutput?.stop(); // 停止相机出流
       }
 
     } catch (e) {
       const err = e as BusinessError;
-      Log.d(TAG, "pauseVideoRecording error")
-      result.error("videoRecordingFailed", err.message, null);
+      Log.d(TAG, 'pauseVideoRecording error')
+      result.error('videoRecordingFailed', err.message, null);
       return;
     }
     result.success(null);
@@ -1137,17 +1268,18 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
     try {
-      if (this.avRecorder != undefined && this.avRecorder.state === 'paused') { // 仅在paused状态下调用resume为合理状态切换
+      // 仅在paused状态下调用resume为合理状态切换
+      if (this.avRecorder != undefined && this.avRecorder.state === 'paused') {
         await this.videoOutput?.start(); // 启动相机出流
         await this.avRecorder?.resume();
       } else {
         result.error(
-          "videoRecordingFailed", "avRecorder state is not paused", null);
+          'videoRecordingFailed', 'avRecorder state is not paused', null);
         return;
       }
     } catch (e) {
       const err = e as BusinessError;
-      result.error("videoRecordingFailed", err.message, null);
+      result.error('videoRecordingFailed', err.message, null);
       return;
     }
 
@@ -1156,24 +1288,18 @@ export class Camera implements CameraCaptureStateListener {
 
   startPreviewWithImageStream(imageStreamChannel: EventChannel) {
     this.setStreamHandler(imageStreamChannel);
-    this.startImageStream();
+    // 消费异步链并捕获异常，避免 startImageStream 内部异步清理失败产生未处理的 Promise 拒
+    // 绝
+    this.startImageStream().catch((e: Error) => {
+      Log.e(TAG, 'startImageStream failed: ' + e.message);
+    });
   }
 
   async startImageStream() {
-    try {
-      if (this.photoSession != null) {
-        await this.photoSession?.stop()
-      }
-    } catch (e) {
-      Log.e(TAG, "startImageStream: failed to stop photoSession: " + e.message);
-    }
-    try {
-      if (this.videoSession != null) {
-        await this.videoSession?.stop();
-      }
-    } catch (e) {
-      Log.e(TAG, "startImageStream: failed to stop videoSession: " + e.message);
-    }
+    // 释放旧的 session/输出，避免覆盖引用导致原生 PhotoOutput/PhotoSession 泄漏
+    await this.releaseSession();
+    await this.releasePhotoOutput();
+    await this.releasePreviewOutput();
 
     let profiles =
       CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
@@ -1186,19 +1312,13 @@ export class Camera implements CameraCaptureStateListener {
     let photoProfileIndex = this.cameraFeatures
                                 .getResolution()
                                 .getPhotoProfileIndex(profiles.photoProfiles);
-    this.photoOutPut = this.cameraManager.createPhotoOutput(
+    this.photoOutput = this.cameraManager.createPhotoOutput(
       profiles.photoProfiles[photoProfileIndex]);
     let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
     this.previewOutput2 =
       this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
 
-    this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
-      if (err) {
-        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
-        return;
-      }
-      this.mediaLibRequestBuffer(photoAsset);
-    });
+    this.registerPhotoAssetAvailableListener();
 
     this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
     this.photoSession.beginConfig();
@@ -1206,7 +1326,7 @@ export class Camera implements CameraCaptureStateListener {
     this.photoSession.addInput(this.cameraInput);
     this.photoSession.addOutput(this.previewOutput);
     this.photoSession.addOutput(this.previewOutput2);
-    this.photoSession.addOutput(this.photoOutPut);
+    this.photoSession.addOutput(this.photoOutput);
     await this.photoSession.commitConfig();
     this.updatePreviewRotation();
     this.registerDisplayChangeListener();
@@ -1216,7 +1336,7 @@ export class Camera implements CameraCaptureStateListener {
 
   async prepareMediaRecorder(cameraManager: camera.CameraManager,
     cameraOutputCapability: camera.CameraOutputCapability, url: string) {
-    Log.i(TAG, "prepareMediaRecorder");
+    Log.i(TAG, 'prepareMediaRecorder');
     if (this.avRecorder != null) {
       this.avRecorder.release();
     }
@@ -1226,7 +1346,10 @@ export class Camera implements CameraCaptureStateListener {
     if (!this.pausedPreview) {
       await this.getCurSession().stop();
     }
-    this.photoSession = null;
+    // 释放旧的 photoSession / photoOutput / previewOutput，避免覆盖引用导致原生会话/输出泄漏
+    await this.releaseSession();
+    await this.releasePhotoOutput();
+    await this.releasePreviewOutput();
     this.isVideoMode = true;
     try {
       let recorder = await media.createAVRecorder();
@@ -1278,7 +1401,8 @@ export class Camera implements CameraCaptureStateListener {
         this.videoSession?.addOutput(this.previewOutput);
         if (stream && this.imageStreamReader != null) {
           let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
-          this.previewOutput2 = this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
+          this.previewOutput2 =
+            this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
           this.videoSession.addOutput(this.previewOutput2);
         }
         this.videoSession?.addOutput(this.videoOutput);
@@ -1311,24 +1435,35 @@ export class Camera implements CameraCaptureStateListener {
           }
         } catch (e) {
             const err = e as BusinessError;
-            Log.e(TAG, "startAVRecorder error: " + err.message);
+            Log.e(TAG, 'startAVRecorder error: ' + err.message);
             throw err as Error;
         }
       } else {
-        Log.e(TAG, "startVideo createAVRecorder fail : recorder is null");
+        Log.e(TAG, 'startVideo createAVRecorder fail : recorder is null');
+        // 抛错走外层 catch 统一清理，让 startVideoRecording 报 videoRecordingFailed
+        throw new Error('createAVRecorder returned null');
       }
     } catch (error) {
-      Log.e(TAG, "startVideo createAVRecorder fail :" + error.message);
+      Log.e(TAG, 'startVideo createAVRecorder fail :' + error.message);
       // 清理已创建的资源
       if (this.avRecorder) {
-        try { await this.avRecorder.release(); } catch (e) {}
+        try {
+          await this.avRecorder.release();
+        } catch (e) {
+          Log.d(TAG, 'startCapture: failed to release avRecorder: ' + e.message);
+        }
         this.avRecorder = null;
       }
       if (this.captureFile) {
-        try { fs.close(this.captureFile); } catch (e) {}
+        try {
+          fs.close(this.captureFile);
+        } catch (e) {
+          Log.d(TAG, 'startCapture: failed to close captureFile: ' + e.message);
+        }
         this.captureFile = null;
       }
       await this.releaseVideoOutput();
+      await this.releasePhotoOutput();
       await this.releasePreviewOutput();
       await this.releaseSession();
       throw error as Error;  // 重新抛出，让调用者处理
@@ -1427,7 +1562,7 @@ export class Camera implements CameraCaptureStateListener {
       const displayRotation = display.getDefaultDisplaySync().rotation * camera.ImageRotation.ROTATION_90;
       return this.previewOutput!.getPreviewRotation(displayRotation);
     } catch (e) {
-      Log.w(TAG, "Failed to get current preview rotation: " + e.message);
+      Log.w(TAG, 'Failed to get current preview rotation: ' + e.message);
       return camera.ImageRotation.ROTATION_0;
     }
   }
@@ -1439,16 +1574,16 @@ export class Camera implements CameraCaptureStateListener {
         this.textureRegistry.setTextureBufferSize(textureId, width, height);
         Log.d(TAG, `setTextureBufferSize: textureId=${textureId}, size=${width}x${height}`);
       } catch (e) {
-        Log.e(TAG, "Failed to set texture buffer size: " + e.message);
+        Log.e(TAG, 'Failed to set texture buffer size: ' + e.message);
       }
     } else {
-      Log.w(TAG, "Cannot set texture buffer size: textureRegistry is null");
+      Log.w(TAG, 'Cannot set texture buffer size: textureRegistry is null');
     }
   }
 
   private updatePreviewRotation(): void {
     if (this.previewOutput == null) {
-      Log.w(TAG, "updatePreviewRotation: previewOutput is null");
+      Log.w(TAG, 'updatePreviewRotation: previewOutput is null');
       return;
     }
     try {
@@ -1461,9 +1596,10 @@ export class Camera implements CameraCaptureStateListener {
       this.setTextureBufferSize(bufferWidth, bufferHeight);
       this.previewOutput.setPreviewRotation(previewRotation, false);
 
-      Log.d(TAG, `Preview rotation updated: previewRotation=${previewRotation}, bufferSize=${bufferWidth}x${bufferHeight}, cameraProfileSize=${previewSize.width}x${previewSize.height}`);
+      Log.d(TAG, `Preview rotation updated: previewRotation=${previewRotation},` +
+        ` bufferSize=${bufferWidth}x${bufferHeight}, cameraProfileSize=${previewSize.width}x${previewSize.height}`);
     } catch (error) {
-      Log.e(TAG, "Failed to update preview rotation: " + error.message);
+      Log.e(TAG, 'Failed to update preview rotation: ' + error.message);
     }
   }
 
@@ -1480,9 +1616,9 @@ export class Camera implements CameraCaptureStateListener {
         }
       };
       display.on('change', this.displayChangeCallback);
-      Log.d(TAG, "Display change listener registered");
+      Log.d(TAG, 'Display change listener registered');
     } catch (error) {
-      Log.e(TAG, "Failed to register display change listener: " + error.message);
+      Log.e(TAG, 'Failed to register display change listener: ' + error.message);
     }
   }
 
@@ -1491,9 +1627,9 @@ export class Camera implements CameraCaptureStateListener {
       try {
         display.off('change', this.displayChangeCallback);
         this.displayChangeCallback = null;
-        Log.d(TAG, "Display change listener unregistered");
+        Log.d(TAG, 'Display change listener unregistered');
       } catch (error) {
-        Log.e(TAG, "Failed to unregister display change listener: " + error.message);
+        Log.e(TAG, 'Failed to unregister display change listener: ' + error.message);
       }
     }
   }
@@ -1506,7 +1642,7 @@ export class Camera implements CameraCaptureStateListener {
       const foldCreaseRegion = display.getCurrentFoldCreaseRegion();
       return foldCreaseRegion.creaseRects.length === 2;
     } catch (e) {
-      Log.w(TAG, "Failed to detect tri-fold device: " + e.message);
+      Log.w(TAG, 'Failed to detect tri-fold device: ' + e.message);
       return false;
     }
   }
@@ -1514,12 +1650,12 @@ export class Camera implements CameraCaptureStateListener {
   private enableAutoDeviceSwitch(session: camera.PhotoSession | camera.VideoSession): void {
     this.unregisterAutoDeviceSwitchListener();
     if (!session.isAutoDeviceSwitchSupported()) {
-      Log.d(TAG, "Auto device switch is not supported on this device");
+      Log.d(TAG, 'Auto device switch is not supported on this device');
       return;
     }
     try {
       session.enableAutoDeviceSwitch(true);
-      Log.d(TAG, "Auto device switch enabled");
+      Log.d(TAG, 'Auto device switch enabled');
     } catch (error) {
       let err = error as BusinessError;
       Log.e(TAG, `enableAutoDeviceSwitch failed, error code: ${err.code}, error message: ${err.message}`);
@@ -1530,19 +1666,20 @@ export class Camera implements CameraCaptureStateListener {
         Log.e(TAG, `autoDeviceSwitchStatusChange callback error, errorCode: ${err.code}`);
         return;
       }
-      Log.i(TAG, `autoDeviceSwitchStatusChange: isDeviceSwitched=${status.isDeviceSwitched}, isDeviceCapabilityChanged=${status.isDeviceCapabilityChanged}`);
+      Log.i(TAG, `autoDeviceSwitchStatusChange: isDeviceSwitched=${status.isDeviceSwitched}` +
+        `, isDeviceCapabilityChanged=${status.isDeviceCapabilityChanged}`);
       if (status.isDeviceSwitched) {
         if (this.previewOutput == null) {
-          Log.w(TAG, "autoDeviceSwitchCallback: previewOutput is null, skipping preview rotation update");
+          Log.w(TAG, 'autoDeviceSwitchCallback: previewOutput is null, skipping preview rotation update');
         } else {
           this.updatePreviewRotation();
         }
         if (this.recordingVideo) {
           this.enableVideoMirrorIfNeeded().catch((e: Error): void =>
-            Log.w(TAG, "Failed to update video mirror after device switch: " + e.message));
+            Log.w(TAG, 'Failed to update video mirror after device switch: ' + e.message));
         }
         this.sendCameraInitializedEvent(this.cameraFeatures.getResolution());
-        Log.d(TAG, "Preview rotation and initialized event updated after auto device switch");
+        Log.d(TAG, 'Preview rotation and initialized event updated after auto device switch');
       }
       if (status.isDeviceCapabilityChanged) {
         try {
@@ -1551,22 +1688,22 @@ export class Camera implements CameraCaptureStateListener {
           this.nowZoom = minZoom;
           Log.d(TAG, `Zoom reset to minimum ${minZoom} after device capability change`);
         } catch (e) {
-          Log.w(TAG, "Failed to reset zoom after device capability change: " + e.message);
+          Log.w(TAG, 'Failed to reset zoom after device capability change: ' + e.message);
         }
       }
     };
     this.autoDeviceSwitchSession = session;
     session.on('autoDeviceSwitchStatusChange', this.autoDeviceSwitchCallback);
-    Log.d(TAG, "Auto device switch listener registered");
+    Log.d(TAG, 'Auto device switch listener registered');
   }
 
   private unregisterAutoDeviceSwitchListener(): void {
     if (this.autoDeviceSwitchCallback != null && this.autoDeviceSwitchSession != null) {
       try {
         this.autoDeviceSwitchSession.off('autoDeviceSwitchStatusChange', this.autoDeviceSwitchCallback);
-        Log.d(TAG, "Auto device switch listener unregistered");
+        Log.d(TAG, 'Auto device switch listener unregistered');
       } catch (error) {
-        Log.e(TAG, "Failed to unregister auto device switch listener: " + error.message);
+        Log.e(TAG, 'Failed to unregister auto device switch listener: ' + error.message);
       }
     }
     this.autoDeviceSwitchCallback = null;
@@ -1580,21 +1717,21 @@ export class Camera implements CameraCaptureStateListener {
     this.unregisterFoldStatusChangeListener();
     this.foldStatusChangeCallback = async (foldStatus: display.FoldStatus) => {
       if (this.isClosed) {
-        Log.w(TAG, "foldStatusChangeCallback: Camera is already closed, ignoring");
+        Log.w(TAG, 'foldStatusChangeCallback: Camera is already closed, ignoring');
         return;
       }
       if (foldStatus === display.FoldStatus.FOLD_STATUS_EXPANDED) {
         if (this.cameraDevice?.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
-          Log.w(TAG, "Tri-fold device switched to dual-screen while using front camera, auto switching to rear");
+          Log.w(TAG, 'Tri-fold device switched to dual-screen while using front camera, auto switching to rear');
           if (this.onAutoSwitchToRearCamera != null) {
             this.onAutoSwitchToRearCamera();
           } else {
             // Send error event before close() to ensure dartMessenger is still valid
-            this.sendCameraErrorEvent("FRONT_CAMERA_UNAVAILABLE");
+            this.sendCameraErrorEvent('FRONT_CAMERA_UNAVAILABLE');
             try {
               await this.close();
             } catch (e) {
-              Log.e(TAG, "foldStatusChangeCallback: close failed: " + (e as Error).message);
+              Log.e(TAG, 'foldStatusChangeCallback: close failed: ' + (e as Error).message);
             }
           }
         }
@@ -1602,9 +1739,9 @@ export class Camera implements CameraCaptureStateListener {
     };
     try {
       display.on('foldStatusChange', this.foldStatusChangeCallback);
-      Log.d(TAG, "Fold status change listener registered");
+      Log.d(TAG, 'Fold status change listener registered');
     } catch (error) {
-      Log.e(TAG, "Failed to register fold status change listener: " + error.message);
+      Log.e(TAG, 'Failed to register fold status change listener: ' + error.message);
     }
   }
 
@@ -1613,9 +1750,9 @@ export class Camera implements CameraCaptureStateListener {
       try {
         display.off('foldStatusChange', this.foldStatusChangeCallback);
         this.foldStatusChangeCallback = null;
-        Log.d(TAG, "Fold status change listener unregistered");
+        Log.d(TAG, 'Fold status change listener unregistered');
       } catch (error) {
-        Log.e(TAG, "Failed to unregister fold status change listener: " + error.message);
+        Log.e(TAG, 'Failed to unregister fold status change listener: ' + error.message);
       }
     }
   }
@@ -1626,21 +1763,29 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
     this.isClosed = true;
+    // 先 error 完成拍照的 Pigeon 回复再清空引用，避免拍照中途 dispose 后 Dart takePicture Future
+    // 永久挂起
+    if (this.takePictureResult != null) {
+      this.takePictureResult.error('cameraClosed', 'Camera was closed before picture could be taken.', null);
+      this.takePictureResult = undefined;
+    }
     this.unregisterDisplayChangeListener();
     this.unregisterFoldStatusChangeListener();
     this.unregisterAutoDeviceSwitchListener();
+    // 停止 DeviceOrientationManager 的 display 'change' 监听，杜绝 close 后残留（stop 幂等）
+    this.getDeviceOrientationManager()?.stop();
 
     await this.stopAndReleaseCamera();
 
     try {
       await this.avRecorder?.reset();
     } catch (resetError) {
-      Log.d(TAG, "avRecorder reset error: " + resetError.toString());
+      Log.d(TAG, 'avRecorder reset error: ' + resetError.toString());
     }
     try {
       await this.avRecorder?.release();
     } catch (releaseError) {
-      Log.d(TAG, "avRecorder release error: " + releaseError.toString());
+      Log.d(TAG, 'avRecorder release error: ' + releaseError.toString());
     }
     this.avRecorder = null;
     this.cameraDevice = null;
@@ -1653,17 +1798,17 @@ export class Camera implements CameraCaptureStateListener {
       try {
         this.photoSession?.removeInput(this.cameraInput);
       } catch (e) {
-        Log.e(TAG, "stopAndReleaseCamera: failed to remove input from photoSession: " + e.message);
+        Log.e(TAG, 'stopAndReleaseCamera: failed to remove input from photoSession: ' + e.message);
       }
       try {
         this.videoSession?.removeInput(this.cameraInput);
       } catch (e) {
-        Log.e(TAG, "stopAndReleaseCamera: failed to remove input from videoSession: " + e.message);
+        Log.e(TAG, 'stopAndReleaseCamera: failed to remove input from videoSession: ' + e.message);
       }
       try {
         this.cameraInput.close();
       } catch (e) {
-        Log.e(TAG, "Failed to close cameraInput: " + e.toString());
+        Log.e(TAG, 'Failed to close cameraInput: ' + e.toString());
       }
       this.cameraInput = null;
     }
@@ -1678,7 +1823,7 @@ export class Camera implements CameraCaptureStateListener {
         this.imageStreamReader.close();
         this.imageStreamReader = null;
       } catch (e) {
-        Log.e(TAG, "stopAndReleaseCamera: failed to close imageStreamReader: " + e.message);
+        Log.e(TAG, 'stopAndReleaseCamera: failed to close imageStreamReader: ' + e.message);
       }
     }
 
@@ -1688,14 +1833,18 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public setDescriptionWhileRecording(result: MethodResult, properties: CameraProperties) {
-    result.error("error", "Camera switching is not supported while recording.", null);
+    // OHOS Camera Kit 无"录制中切换相机"API（switchToRearCamera 为 close→recreate 流程，不适用录制
+    // 中）。
+    // 返回稳定英文错误码，Dart 侧据此识别该平台限制。
+    result.error('setDescriptionWhileRecordingUnsupported', 'Camera switching is not supported while recording.', null);
     return;
   }
 
   async dispose() {
-    console.error(TAG, 'dispose');
+    Log.e(TAG, 'dispose');
     await this.close();
-    this.getDeviceOrientationManager().stop();
+    // close() 已停止方向监听（幂等）；经 feature 统一收尾，保持资源释放入口内聚
+    this.cameraFeatures.getSensorOrientation().dispose();
   }
 
   // 释放Session
@@ -1704,12 +1853,12 @@ export class Camera implements CameraCaptureStateListener {
       try {
         await this.photoSession.stop();
       } catch (e) {
-        Log.e(TAG, "releaseSession: failed to stop photoSession: " + e.message);
+        Log.e(TAG, 'releaseSession: failed to stop photoSession: ' + e.message);
       }
       try {
         await this.photoSession.release();
       } catch (e) {
-        Log.e(TAG, "releaseSession: failed to release photoSession: " + e.message);
+        Log.e(TAG, 'releaseSession: failed to release photoSession: ' + e.message);
       }
       this.photoSession = null;
     }
@@ -1717,12 +1866,12 @@ export class Camera implements CameraCaptureStateListener {
       try {
         await this.videoSession.stop();
       } catch (e) {
-        Log.e(TAG, "releaseSession: failed to stop videoSession: " + e.message);
+        Log.e(TAG, 'releaseSession: failed to stop videoSession: ' + e.message);
       }
       try {
         await this.videoSession.release();
       } catch (e) {
-        Log.e(TAG, "releaseSession: failed to release videoSession: " + e.message);
+        Log.e(TAG, 'releaseSession: failed to release videoSession: ' + e.message);
       }
       this.videoSession = null;
     }
@@ -1734,7 +1883,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.cameraInput.close();
         this.cameraInput = null;
       } catch (e) {
-        Log.e(TAG, "releaseCameraInput: failed to close cameraInput: " + e.message);
+        Log.e(TAG, 'releaseCameraInput: failed to close cameraInput: ' + e.message);
       }
     }
   }
@@ -1745,7 +1894,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput.release();
         this.previewOutput = null;
       } catch (e) {
-        Log.e(TAG, "releasePreviewOutput: failed to release previewOutput: " + e.message);
+        Log.e(TAG, 'releasePreviewOutput: failed to release previewOutput: ' + e.message);
       }
     }
     if (this.previewOutput2 != null) {
@@ -1753,19 +1902,35 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput2.release();
         this.previewOutput2 = null;
       } catch (e) {
-        Log.e(TAG, "releasePreviewOutput: failed to release previewOutput2: " + e.message);
+        Log.e(TAG, 'releasePreviewOutput: failed to release previewOutput2: ' + e.message);
       }
     }
   }
 
+  private registerPhotoAssetAvailableListener(): void {
+    this.photoAssetAvailableCallback = (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
+      if (err) {
+        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
+        this.takePictureResult = undefined;
+        return;
+      }
+      this.mediaLibRequestBuffer(photoAsset);
+    };
+    this.photoOutput?.on('photoAssetAvailable', this.photoAssetAvailableCallback);
+  }
+
   private async releasePhotoOutput() {
-    if (this.photoOutPut != null) {
+    if (this.photoOutput != null) {
       try {
-        this.photoOutPut.off('photoAssetAvailable')
-        await this.photoOutPut.release();
-        this.photoOutPut = null;
+        // 带回调引用精确注销，避免无参 off 误删其他监听、或重复注册匿名回调
+        if (this.photoAssetAvailableCallback != null) {
+          this.photoOutput.off('photoAssetAvailable', this.photoAssetAvailableCallback);
+          this.photoAssetAvailableCallback = null;
+        }
+        await this.photoOutput.release();
+        this.photoOutput = null;
       } catch (e) {
-        Log.e(TAG, "releasePhotoOutput: failed to release photoOutput: " + e.message);
+        Log.e(TAG, 'releasePhotoOutput: failed to release photoOutput: ' + e.message);
       }
     }
   }
@@ -1777,7 +1942,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.videoOutput.release();
         this.videoOutput = null;
       } catch (e) {
-        Log.e(TAG, "releaseVideoOutput: failed to release videoOutput: " + e.message);
+        Log.e(TAG, 'releaseVideoOutput: failed to release videoOutput: ' + e.message);
       }
     }
   }
@@ -1794,17 +1959,17 @@ export class Camera implements CameraCaptureStateListener {
   setFrameRate(videoOutput: camera.VideoOutput, fps: number) {
     try {
       const frameRate = videoOutput.getActiveFrameRate();
-      console.debug(TAG, `setFrameRate frameRate = ${JSON.stringify(frameRate)}`)
+      Log.d(TAG, `setFrameRate frameRate = ${JSON.stringify(frameRate)}`)
       let mFps = fps
       if (fps > frameRate.max) {
         mFps = frameRate.max
       } else if (fps < frameRate.min) {
         mFps = frameRate.min
       }
-      console.debug(TAG, `setFrameRate mFps = ${mFps}`)
+      Log.d(TAG, `setFrameRate mFps = ${mFps}`)
       videoOutput.setFrameRate(mFps, mFps)
     } catch (e) {
-      console.error(TAG, `setFrameRate error = ${JSON.stringify(e)}`)
+      Log.e(TAG, `setFrameRate error = ${JSON.stringify(e)}`)
     }
   }
 }

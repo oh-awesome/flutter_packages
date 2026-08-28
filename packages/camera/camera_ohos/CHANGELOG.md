@@ -1,3 +1,36 @@
+# CHANGELOG for OpenHarmony
+ 
+## camera-0.12.0+2-ohos-1.0.0 - 2026.08
+
+* **Added:**
+
+  `setJpegImageQuality` (1-100) with post-capture JPEG re-encoding via `ImagePacker` and replay of output settings across camera switches.
+  `cameraSwitched` event aligned on the Dart side through the Pigeon `CameraEventApi`.
+  Test helpers and Coverage Gap / Edge Case groups in `test/ohos_camera_test.dart`.
+
+* **Changed:**
+
+  Replaced 30+ bare `Error` instances with coded `FlutterError` so `CameraException.code` stays stable and failures are no longer swallowed by getters, `create` or capability queries.
+  Annotated Pigeon methods (`initialize`, `dispose`, video-recording controls, `setFocusMode`, `pausePreview`/`resumePreview`, `setDescriptionWhileRecording`, `stopVideoRecording`) with `@async` so errors reach Dart through `wrapError`.
+  Stabilized error codes (`setDescriptionWhileRecordingUnsupported`, `EXPOSURE_POINT_ERROR`, `setFocusModeFailed`).
+  Clamped the exposure offset to the device range and returned the actually applied EV value.
+  Corrected capability reporting: metering regions `0 → 1`, `getLensFacing` returns the `CameraPosition` enum (front-camera fix), and `getSensorOrientation`/`availableCameras` report real sensor orientation.
+  Replaced the misleading `supportedImageFormats` map with `getSupportedImageFormat()` and recognized OHOS JPEG format `2000`.
+  Upgraded to Flutter 3.44 / Dart ^3.12 / `camera_platform_interface` ^2.13 / Pigeon fork `v26.3.4-ohos-1.0.0`.
+  Made `Timeout` usable and `DeviceOrientationManager.start/stop` idempotent with reference-based listener removal.
+
+* **Removed:**
+
+  Legacy MethodChannel path (`MethodCallHandlerImpl`, `DartMessenger` event channels) — communication is now Pigeon-only.
+  16 dead-code files (placeholders, empty classes and unused utilities) and the `CameraProperties` interface slim-down (15 → 5 methods).
+
+* **Fixed:**
+
+  Hardened resource lifecycle: full `dispose` before `create` rebuild, texture/state rollback, `imageStreamChannel` unbinding, and the zombie-camera guard in `open()`.
+  Listener leaks: precise `photoAssetAvailable` unregistration, `ImageStreamReader` subscribe/close de-dup, and sensor `once` listener removal after `Promise.race`.
+  Error-path leaks (three-fold front-camera `ImageStreamReader`, `nextImage.release()`) and double-response/double-throw in `getFocusMode` and `convertBufferToFile`.
+  Plugin lifecycle (`onAttachedToAbility`/`onDetachedFromAbility`/`onDetachedFromEngine`) against detach races and direct engine destruction.
+
 ## 0.10.8+8
 
 * Adds pub topics to package metadata.

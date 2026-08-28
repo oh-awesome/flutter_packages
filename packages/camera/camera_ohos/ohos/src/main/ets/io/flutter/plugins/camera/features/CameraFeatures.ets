@@ -24,19 +24,19 @@ import { ExposureOffsetFeature } from './exposureoffset/ExposureOffsetFeature';
 import { ExposureLockFeature } from './exposurelock/ExposureLockFeature';
 import { VideoStabilizationFeature } from './videostabilization/VideoStabilizationFeature';
 
-const AUTO_FOCUS: string = "AUTO_FOCUS";
-const EXPOSURE_LOCK: string = "EXPOSURE_LOCK";
-const EXPOSURE_OFFSET: string = "EXPOSURE_OFFSET";
-const EXPOSURE_POINT: string = "EXPOSURE_POINT";
-const FLASH: string = "FLASH";
-const FOCUS_POINT: string = "FOCUS_POINT";
-const FPS_RANGE: string = "FPS_RANGE";
-const NOISE_REDUCTION: string = "NOISE_REDUCTION";
-const REGION_BOUNDARIES: string = "REGION_BOUNDARIES";
-const RESOLUTION: string = "RESOLUTION";
-const SENSOR_ORIENTATION: string = "SENSOR_ORIENTATION";
-const ZOOM_LEVEL: string = "ZOOM_LEVEL";
-const VIDEO_STABILIZATION: string = "VIDEO_STABILIZATION";
+const AUTO_FOCUS: string = 'AUTO_FOCUS';
+const EXPOSURE_LOCK: string = 'EXPOSURE_LOCK';
+const EXPOSURE_OFFSET: string = 'EXPOSURE_OFFSET';
+const EXPOSURE_POINT: string = 'EXPOSURE_POINT';
+const FLASH: string = 'FLASH';
+const FOCUS_POINT: string = 'FOCUS_POINT';
+const FPS_RANGE: string = 'FPS_RANGE';
+const NOISE_REDUCTION: string = 'NOISE_REDUCTION';
+const REGION_BOUNDARIES: string = 'REGION_BOUNDARIES';
+const RESOLUTION: string = 'RESOLUTION';
+const SENSOR_ORIENTATION: string = 'SENSOR_ORIENTATION';
+const ZOOM_LEVEL: string = 'ZOOM_LEVEL';
+const VIDEO_STABILIZATION: string = 'VIDEO_STABILIZATION';
 
 export class CameraFeatures {
   static init(

@@ -23,7 +23,8 @@ export default function abilityTest() {
       // This API supports only one parameter: clear action function.
     })
     it('assertContain',0, function () {
-      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
+      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case
+      // function.
       hilog.info(0x0000, 'testTag', '%{public}s', 'it begin');
       let a = 'abc'
       let b = 'b'

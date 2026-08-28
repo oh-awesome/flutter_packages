@@ -23,14 +23,14 @@ const handleOrientationChange = (
 
 
 export class DeviceOrientationManager {
-  // private static readonly orientationIntentFilter: IntentFilter =
-  //   new IntentFilter(Intent.ACTION_CONFIGURATION_CHANGED);
   private readonly ability: Ability;
   private readonly messenger: DartMessenger;
   private readonly isFrontFacing: boolean;
   private readonly sensorOrientation: number;
   private lastOrientation: DeviceOrientation = DeviceOrientation.PORTRAIT_UP;
   private displayClass: display.Display | null = null;
+  private displayChangeCallback: Callback<number> | null = null;
+  private started: boolean = false;
 
 
   public static create(
@@ -54,16 +54,27 @@ export class DeviceOrientationManager {
   }
 
   public start() {
+    if (this.started) {
+      return;
+    }
     this.handleUIOrientationChange();
-    let callback: Callback<number> = (data: number) => {
+    this.displayChangeCallback = (data: number) => {
       this.handleUIOrientationChange();
     };
-    display.on('change', callback)
+    display.on('change', this.displayChangeCallback);
+    this.started = true;
   }
 
   public stop() {
-    display.off('change');
+    if (!this.started) {
+      return;
+    }
+    if (this.displayChangeCallback != null) {
+      display.off('change', this.displayChangeCallback);
+      this.displayChangeCallback = null;
+    }
     this.displayClass = null;
+    this.started = false;
   }
 
   public getPhotoOrientation(orientation?: DeviceOrientation) {
@@ -147,17 +158,4 @@ export class DeviceOrientationManager {
         return DeviceOrientation.PORTRAIT_UP;
     }
   }
-
-  // getDeviceDefaultOrientation():number{
-  //    Configuration config = activity.getResources().getConfiguration();
-  //   int rotation = getDisplay().getRotation();
-  //   if (((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180)
-  //           && config.orientation == Configuration.ORIENTATION_LANDSCAPE)
-  //       || ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270)
-  //           && config.orientation == Configuration.ORIENTATION_PORTRAIT)) {
-  //     return Configuration.ORIENTATION_LANDSCAPE;
-  //   } else {
-  //     return Configuration.ORIENTATION_PORTRAIT;
-  //   }
-  // }
 }

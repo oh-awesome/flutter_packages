@@ -6,7 +6,6 @@
 
 import image from '@ohos.multimedia.image';
 import { CameraCaptureProperties } from '../types/CameraCaptureProperties';
-import { ImageStreamReaderUtils } from './ImageStreamReaderUtils';
 import { ArrayList, HashMap } from '@kit.ArkTS';
 import { Size } from '@kit.ArkUI';
 import { EventSink } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';
@@ -15,14 +14,12 @@ import { BusinessError } from '@kit.BasicServicesKit';
 export class ImageStreamReader {
   private readonly dartImageFormat: number;
   private readonly imageReceiver: image.ImageReceiver;
-  private readonly imageStreamReaderUtils: ImageStreamReaderUtils;
   private imageArrivalListener: ((err: BusinessError) => void) | null = null;
 
   constructor(size: Size, imageFormat: number, maxImages: number) {
     this.dartImageFormat = imageFormat;
     this.imageReceiver =
       image.createImageReceiver(size, imageFormat, maxImages);
-    this.imageStreamReaderUtils = new ImageStreamReaderUtils();
   }
 
   public async onImageAvailable(
@@ -33,7 +30,7 @@ export class ImageStreamReader {
     try {
       let imageBuffer: HashMap<string, Object> = new HashMap();
 
-      imageBuffer.set("planes", this.parsePlanes(_image, imgComponent));
+      imageBuffer.set('planes', this.parsePlanes(_image, imgComponent));
       imageBuffer.set('width', _image.size.width);
       imageBuffer.set('height', _image.size.height);
       imageBuffer.set('format', this.dartImageFormat);
@@ -48,8 +45,8 @@ export class ImageStreamReader {
     } catch (e) {
       const err = e as BusinessError;
       imageStreamSink.error(
-        "IllegalStateException",
-        "Caught IllegalStateException: " + err.message,
+        'IllegalStateException',
+        'Caught IllegalStateException: ' + err.message,
         null);
       await _image.release();
     }
@@ -61,9 +58,9 @@ export class ImageStreamReader {
     let planes: ArrayList<HashMap<string, object>> = new ArrayList();
 
     let planeBuffer: HashMap<string, Object> = new HashMap<string, Object>();
-    planeBuffer.set("bytesPerRow", imgComponent.rowStride);
-    planeBuffer.set("bytesPerPixel", imgComponent.pixelStride);
-    planeBuffer.set("bytes", new Uint8Array(imgComponent.byteBuffer));
+    planeBuffer.set('bytesPerRow', imgComponent.rowStride);
+    planeBuffer.set('bytesPerPixel', imgComponent.pixelStride);
+    planeBuffer.set('bytes', new Uint8Array(imgComponent.byteBuffer));
     planes.add(planeBuffer);
 
     return planes;
@@ -74,6 +71,8 @@ export class ImageStreamReader {
   }
 
   public async subscribeListener(captureProps: CameraCaptureProperties, imageStreamSink: EventSink) {
+    // 先注销旧监听，防止重复订阅时累积多个 'imageArrival' 回调
+    this.removeListener();
 
     this.imageArrivalListener = (err: BusinessError): void => {
       this.imageReceiver.readNextImage((err: BusinessError, nextImage: image.Image) => {
@@ -84,11 +83,19 @@ export class ImageStreamReader {
         nextImage.getComponent(image.ComponentType.JPEG, (err: BusinessError, imgComponent: image.Component) => {
           if (err || imgComponent === undefined) {
             console.error('getComponent failed');
+            // 失败路径释放原生图像缓冲，避免图像流模式下无界累积
+            nextImage.release();
+            return;
           }
           if (imgComponent && imgComponent.byteBuffer as ArrayBuffer) {
+            // onImageAvailable 内部已 try/catch 并释放图像；此处 .catch 防御异步异常被吞
             this.onImageAvailable(nextImage, imgComponent, captureProps, imageStreamSink)
+              .catch((error: Error) => {
+                console.error('onImageAvailable failed: ' + error.message);
+              });
           } else {
             console.error('byteBuffer is null');
+            nextImage.release();
           }
         })
       })
@@ -104,6 +111,8 @@ export class ImageStreamReader {
   }
 
   public close(): void {
+    // 先注销 'imageArrival' 监听，释放闭包持有的 captureProps/EventSink 引用，再释放原生接收器
+    this.removeListener();
     this.imageReceiver.release()
   }
 }

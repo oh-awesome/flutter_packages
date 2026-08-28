@@ -75,11 +75,13 @@ export class VideoStabilizationFeature extends CameraFeature<PlatformVideoStabil
     try {
       let videoSession = session as camera.VideoSession;
       let ohosMode = this.toOhosVideoStabilizationMode(this.currentSetting);
-      console.log('VideoStabilizationFeature', `VideoStabilizationFeature.ets - applying mode ${this.currentSetting}, ohosMode: ${ohosMode}`);
+      console.log('VideoStabilizationFeature',
+          `VideoStabilizationFeature.ets - applying mode ${this.currentSetting}, ohosMode: ${ohosMode}`);
       // 检查当前设备是否支持该防抖模式，不支持则依次兜底
       let finalMode = ohosMode;
       if (!videoSession.isVideoStabilizationModeSupported(finalMode)) {
-        console.warn('VideoStabilizationFeature', `当前设备不支持视频防抖模式: ${this.currentSetting} (OHOS: ${ohosMode})，尝试使用AUTO模式兜底`);
+        console.warn('VideoStabilizationFeature', `当前设备不支持视频防抖模式: ${this.currentSetting}` +
+          ` (OHOS: ${ohosMode})，尝试使用AUTO模式兜底`);
         finalMode = camera.VideoStabilizationMode.AUTO;
         // 检查AUTO模式是否支持，不支持则使用OFF模式兜底
         if (!videoSession.isVideoStabilizationModeSupported(finalMode)) {
@@ -89,7 +91,8 @@ export class VideoStabilizationFeature extends CameraFeature<PlatformVideoStabil
       }
       // 应用最终确定的防抖模式
       videoSession.setVideoStabilizationMode(finalMode);
-      console.log('VideoStabilizationFeature', `VideoStabilizationFeature.ets - successfully applied mode ${finalMode}`);
+      console.log('VideoStabilizationFeature',
+          `VideoStabilizationFeature.ets - successfully applied mode ${finalMode}`);
     } catch (e) {
       console.error(`设置视频防抖模式失败: ${e}`);
     }
