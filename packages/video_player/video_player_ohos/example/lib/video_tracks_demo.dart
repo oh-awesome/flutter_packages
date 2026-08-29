@@ -22,6 +22,7 @@ class _VideoTracksDemoState extends State<VideoTracksDemo> {
   bool _isLoading = false;
   String? _error;
   bool _isAutoQuality = true;
+  bool _isVideoTrackSupported = false;
 
   // Track previous state to detect relevant changes
   bool _wasPlaying = false;
@@ -47,6 +48,7 @@ class _VideoTracksDemoState extends State<VideoTracksDemo> {
       _isLoading = true;
       _error = null;
       _isAutoQuality = true;
+      _isVideoTrackSupported = false;
     });
 
     try {
@@ -65,6 +67,8 @@ class _VideoTracksDemoState extends State<VideoTracksDemo> {
       // Initialize tracking variables
       _wasPlaying = _controller!.value.isPlaying;
       _wasInitialized = _controller!.value.isInitialized;
+
+      _isVideoTrackSupported = _controller!.isVideoTrackSupportAvailable();
 
       // Get video tracks after initialization
       await _loadVideoTracks();
@@ -228,6 +232,21 @@ class _VideoTracksDemoState extends State<VideoTracksDemo> {
       ),
       body: Column(
         children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            child: Row(
+              children: <Widget>[
+                const Text('isVideoTrackSupportAvailable: '),
+                Text(
+                  _isVideoTrackSupported ? 'true' : 'false',
+                  style: TextStyle(
+                    color: _isVideoTrackSupported ? Colors.green : Colors.red,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
           // Video selection dropdown
           Padding(
             padding: const EdgeInsets.all(16.0),
