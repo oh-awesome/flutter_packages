@@ -1,5 +1,6 @@
 ## 26.3.4
 
+* [arkts] Fixed double type value with a zero fractional part gets incorrectly converted to an integer type when transferred from the ArkTS layer to the Dart layer.
 * [kotlin] Updates generated error class to inherit from `RuntimeException`
   instead of `Throwable`, for better Java interoperability.
 

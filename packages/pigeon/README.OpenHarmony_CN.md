@@ -17,7 +17,7 @@ dependencies:
     git: 
       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/pigeon"
-      ref: "br_pigeon-v26.3.4_ohos"
+      ref: "br_pigeon-v26.3.4_ohos_dev"
 
 ```
 
