@@ -27,6 +27,24 @@
           ]
         }
       ]
+    },
+    {
+      "name": "image_picker_ohos",
+      "srcPath": "../../ohos",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        },
+        {
+          "name": "ohosTest",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
     }
   ]
 }
