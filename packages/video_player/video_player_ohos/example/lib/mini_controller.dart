@@ -413,6 +413,15 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
     await _platform.setAllowBackgroundPlayback(allowBackgroundPlayback);
   }
 
+  Future<void> setPreventsDisplaySleepDuringVideoPlayback(
+    bool preventsDisplaySleepDuringVideoPlayback,
+  ) async {
+    await _platform.setPreventsDisplaySleepDuringVideoPlayback(
+      _textureId,
+      preventsDisplaySleepDuringVideoPlayback,
+    );
+  }
+
   /// Gets the available audio tracks for the current video.
   Future<List<VideoAudioTrack>> getAudioTracks() async {
     if (_textureId == kUninitializedTextureId || !value.isInitialized) {

@@ -396,6 +396,7 @@ class _ApiCoveragePanelState extends State<_ApiCoveragePanel> {
   Duration? _queriedPosition;
   bool _mixWithOthers = false;
   bool _allowBackgroundPlayback = false;
+  bool _keepScreenOn = true;
   String? _lastApiError;
 
   MiniController get _controller => widget.controller;
@@ -477,6 +478,16 @@ class _ApiCoveragePanelState extends State<_ApiCoveragePanel> {
                 child: Text(
                   _controller.value.isLooping ? 'loop: on' : 'loop: off',
                 ),
+              ),
+              OutlinedButton(
+                onPressed: () {
+                  final bool next = !_keepScreenOn;
+                  setState(() {
+                    _keepScreenOn = next;
+                  });
+                  _controller.setPreventsDisplaySleepDuringVideoPlayback(next);
+                },
+                child: Text(_keepScreenOn ? 'keepScreenOn: on' : 'keepScreenOn: off'),
               ),
             ],
           ),
