@@ -271,6 +271,7 @@ final controller = VideoPlayerController.file(File('/data/storage/el2/base/haps/
 | getPosition | 获取当前播放进度 | 方法 | `int textureId` | `Future<Duration>` | 否 | 是 |
 | videoEventsFor | 订阅播放器事件流 | 方法 | `int textureId` | `Stream<VideoEvent>` | 否 | 是 |
 | setMixWithOthers | 设置是否与其他音源混音播放 | 方法 | `bool mixWithOthers` | `Future<void>` | 否 | 是 |
+| setPreventsDisplaySleepDuringVideoPlayback | 控制播放期间是否保持屏幕常亮 | 方法 | `int playerId, bool preventsDisplaySleepDuringVideoPlayback` | `Future<void>` | 否 | 是 |
 | setPlaybackSpeed | 设置播放速度，`speed > 0` | 方法 | `int textureId, double speed` | `Future<void>` | 否 | 是 |
 | getAudioTracks | 获取当前视频可用音轨列表 | 方法 | `int playerId` | `Future<List<VideoAudioTrack>>` | 否 | 是 |
 | selectAudioTrack | 切换到指定音轨 | 方法 | `int playerId, String trackId` | `Future<void>` | 否 | 是 |
