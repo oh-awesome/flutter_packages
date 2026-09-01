@@ -31,6 +31,9 @@ const String platformWeb = 'web';
 /// Key for windows platform.
 const String platformWindows = 'windows';
 
+/// Key for ohos platform.
+const String platformOhos = 'ohos';
+
 /// Key for enable experiment.
 const String kEnableExperiment = 'enable-experiment';
 
@@ -46,7 +49,7 @@ const String toolDocsUrl = 'https://github.com/flutter/packages/blob/main/script
 
 /// Target platforms supported by Flutter.
 // ignore: public_member_api_docs
-enum FlutterPlatform { android, ios, linux, macos, web, windows }
+enum FlutterPlatform { android, ios, linux, macos, web, windows, ohos }
 
 const Map<String, FlutterPlatform> _platformByName = <String, FlutterPlatform>{
   platformAndroid: FlutterPlatform.android,
@@ -55,6 +58,7 @@ const Map<String, FlutterPlatform> _platformByName = <String, FlutterPlatform>{
   platformMacOS: FlutterPlatform.macos,
   platformWeb: FlutterPlatform.web,
   platformWindows: FlutterPlatform.windows,
+  platformOhos: FlutterPlatform.ohos,
 };
 
 /// Maps from a platform name (e.g., flag or platform directory) to the

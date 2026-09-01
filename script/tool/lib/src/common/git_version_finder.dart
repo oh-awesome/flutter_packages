@@ -17,7 +17,7 @@ class GitVersionFinder {
         'At most one of baseSha and baseBranch can be provided',
       ),
       _baseSha = baseSha,
-      _baseBranch = baseBranch ?? 'main';
+      _baseBranch = baseBranch ?? 'FETCH_HEAD';
 
   /// The top level directory of the git repo.
   ///
