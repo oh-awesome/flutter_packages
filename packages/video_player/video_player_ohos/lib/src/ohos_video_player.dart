@@ -21,6 +21,11 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   final OhosVideoPlayerApi _api;
 
+  // 用于在显式选择视频轨道时等待轨道切换完成，由原生侧成功切换后
+  // 发送的 videoTrackChanged 事件驱动此 completer 完成。
+  Completer<void>? _videoTrackSelectionCompleter;
+  String? _expectedVideoTrackId;
+
   static void registerWith() {
     VideoPlayerPlatform.instance = OhosVideoPlayer();
   }
@@ -173,6 +178,17 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
             eventType: VideoEventType.isPlayingStateUpdate,
             isPlaying: map['isPlaying'] as bool,
           );
+        case 'videoTrackChanged':
+          // 显式选择时等待轨道切换完成。仅当存在待完成事件且上报的
+          // trackId 与等待中的一致时才完成，避免早期/无关的事件误触发。
+          if (_videoTrackSelectionCompleter != null &&
+              !_videoTrackSelectionCompleter!.isCompleted) {
+            final String? selectedTrackId = map['selectedTrackId'] as String?;
+            if (selectedTrackId == _expectedVideoTrackId) {
+              _videoTrackSelectionCompleter!.complete();
+            }
+          }
+          return VideoEvent(eventType: VideoEventType.unknown);
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
@@ -256,12 +272,38 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       return;
     }
     if (track == null) {
-      // 传 null 表示恢复自适应/自动质量选择。
+      // 恢复自适应/自动质量。原生侧会发送 videoTrackChanged 事件，
+      // 但无确定的"选中轨道"，因此不等待具体轨道，直接返回，UI 刷新由事件驱动。
       await _api.enableAutoVideoQuality(playerId);
       return;
     }
+
+    // 显式选择：等待原生侧上报对应 trackId 的 videoTrackChanged 事件，
+    // 确保 UI 上的 isSelected 与实际切换一致。
     final (int groupIndex, int trackIndex) = _parseTrackId(track.id);
-    await _api.selectVideoTrack(playerId, groupIndex, trackIndex);
+    final Completer<void> completer = Completer<void>();
+    final String expectedId = track.id;
+    _videoTrackSelectionCompleter = completer;
+    _expectedVideoTrackId = expectedId;
+    try {
+      await _api.selectVideoTrack(playerId, groupIndex, trackIndex);
+      await completer.future.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          debugPrint(
+            'Timed out waiting for video track selection event for track '
+            '"$expectedId".',
+          );
+        },
+      );
+    } finally {
+      if (identical(_videoTrackSelectionCompleter, completer)) {
+        _videoTrackSelectionCompleter = null;
+      }
+      if (_expectedVideoTrackId == expectedId) {
+        _expectedVideoTrackId = null;
+      }
+    }
   }
 
   @override

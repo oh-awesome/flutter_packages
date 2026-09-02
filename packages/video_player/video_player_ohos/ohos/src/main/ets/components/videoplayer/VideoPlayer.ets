@@ -45,6 +45,8 @@ type NativeAudioTrackValue = string | number | boolean | null;
 type AudioTrackNativeMap = Map<string, NativeAudioTrackValue>;
 type TrackDescriptionValue = string | number | boolean | null | undefined;
 type TrackDescriptionRecord = Record<string, TrackDescriptionValue>;
+// 轨道元数据键：可为鸿蒙 MediaDescriptionKey 枚举值（number）或字符串键。
+type TrackDescriptionKeys = Array<string | number>;
 interface AVPlayerWithPlaybackInfo {
   getPlaybackInfo(): Promise<Record<string, Object>>;
 }
@@ -151,9 +153,9 @@ export class VideoPlayer {
       } else {
         let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
         /// 网络直播视频必须设置之后才能正常缓存
-        let playbackStrategy:media.PlaybackStrategy | undefined = undefined;
+        let playbackStrategy: media.PlaybackStrategy = { preferredWidth: 1920, preferredHeight: 1080 };
         if (deviceInfo.sdkApiVersion >= 17) {
-          playbackStrategy = { showFirstFrameOnPrepare:true } as media.PlaybackStrategy;
+          playbackStrategy.showFirstFrameOnPrepare = true;
         }
         // 设置媒体来源和播放策略
         await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
@@ -208,9 +210,9 @@ export class VideoPlayer {
               // 与 createAVPlayer 保持一致：http 网络源走 setMediaSource
               // 保留 httpHeaders；reset 后重设 avPlayer.url 会丢弃这些配置
               let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
-              let playbackStrategy: media.PlaybackStrategy | undefined = undefined;
+              let playbackStrategy: media.PlaybackStrategy = { preferredWidth: 1920, preferredHeight: 1080 };
               if (deviceInfo.sdkApiVersion >= 17) {
-                playbackStrategy = { showFirstFrameOnPrepare: true } as media.PlaybackStrategy;
+                playbackStrategy.showFirstFrameOnPrepare = true;
               }
               this.avPlayer.setMediaSource(mediaSource, playbackStrategy).catch((e: Error) => {
                 Log.e(TAG, 'setMediaSource failed: ' + JSON.stringify(e));
@@ -586,7 +588,8 @@ export class VideoPlayer {
         const nativeTrack = new Map<string, NativeAudioTrackValue>();
         const label = this.pickTrackLabelFromRecord(rec);
         const language = this.getStringFromRecord(rec, ['language', 'lang', 'locale']);
-        const codec = this.getStringFromRecord(rec, ['codec_mime', 'codec', 'codecName', 'codecMimeType']);
+        const codec = this.getStringFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_CODEC_MIME, 'codec_mime', 'codec', 'codecName', 'codecMimeType']);
         const channelCount = this.getIntFromRecord(rec, ['channel_count', 'channelCount', 'channels']);
         const sampleRate = this.getIntFromRecord(rec, ['sample_rate', 'sampleRate']);
         const bitrate = this.getIntFromRecord(rec, ['bit_rate', 'bitrate']);
@@ -673,20 +676,56 @@ export class VideoPlayer {
           continue;
         }
         const trackType = this.getTrackTypeFromDescription(desc);
+        // 仅收集明确为视频轨的 track；类型不明时结合是否带分辨率判断，
+        // 避免把音频/字幕等重复变体统计成画轨。
+        const rec = desc as Object as TrackDescriptionRecord;
+        const typeWidth = this.getIntFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_WIDTH, 'width', 'video_width']);
+        const typeHeight = this.getIntFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_HEIGHT, 'height', 'video_height']);
         if (trackType != null && trackType !== media.MediaType.MEDIA_TYPE_VID) {
           if (ENABLE_AUDIO_TRACK_DEBUG) {
             Log.i(TAG, `videoTrack[${i}] skip(type=${trackType} idx=${trackIndex}): ` + JSON.stringify(desc));
           }
           continue;
         }
-        const rec = desc as Object as TrackDescriptionRecord;
+        if (trackType == null && typeWidth == null && typeHeight == null) {
+          continue;
+        }
         const nativeTrack = new Map<string, NativeAudioTrackValue>();
-        const label = this.pickTrackLabelFromRecord(rec);
-        const codec = this.getStringFromRecord(rec, ['codec_mime', 'codec', 'codecName', 'codecMimeType']);
-        const bitrate = this.getIntFromRecord(rec, ['bit_rate', 'bitrate']);
-        const width = this.getIntFromRecord(rec, ['width', 'video_width']);
-        const height = this.getIntFromRecord(rec, ['height', 'video_height']);
-        const frameRate = this.getNumberFromRecord(rec, ['frame_rate', 'frameRate', 'framerate']);
+        // 优先用鸿蒙标准 MediaDescriptionKey 枚举键提取，否则取不到宽高/码率等值。
+        const codec = this.getStringFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_CODEC_MIME, 'codec_mime', 'codec', 'codecName', 'codecMimeType']);
+        const bitrate = this.getIntFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_BITRATE, 'bit_rate', 'bitrate']);
+        const widthRaw = this.getIntFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_WIDTH, 'width', 'video_width']);
+        const heightRaw = this.getIntFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_HEIGHT, 'height', 'video_height']);
+        // 对齐 Android Format.NO_VALUE：宽高为 0/负值视为无值，避免显示 '0x0'。
+        const width = widthRaw != null && widthRaw > 0 ? widthRaw : null;
+        const height = heightRaw != null && heightRaw > 0 ? heightRaw : null;
+        // 过滤 codec 含 'unknown' 的无效占位轨（如 track_index=16 的 0x0 轨）。
+        if (codec != null && codec.toLowerCase().includes('unknown')) {
+          continue;
+        }
+        const rawFrameRate = this.getNumberFromRecord(rec,
+          [media.MediaDescriptionKey.MD_KEY_FRAME_RATE, 'frame_rate', 'frameRate', 'framerate']);
+        // OHOS 的 MD_KEY_FRAME_RATE 单位是"每100秒的帧数"（6000=60fps），
+        // 除以 100 归一化；为 0 时视为无值。
+        const frameRate = rawFrameRate != null && rawFrameRate > 0
+          ? rawFrameRate / 100
+          : null;
+        // 画轨 label 优先用分辨率生成（'1080p'），无意义标题过滤，
+        // 均缺失时置 null 交给 Dart 层显示 'Track x_y'。
+        const resLabel =
+          width != null && height != null ? `${height}p` : null;
+        const descLabel = this.pickTrackLabelFromRecord(rec);
+        const meaningfulDescLabel =
+          descLabel != null && /^(video|audio|subtitle|text)$/i.test(descLabel.trim())
+            ? null
+            : descLabel;
+        const label = resLabel ?? meaningfulDescLabel;
 
         if (this.selectedVideoTrackIndex < 0) {
           this.selectedVideoTrackIndex = trackIndex;
@@ -735,11 +774,12 @@ export class VideoPlayer {
           track.set('isSelected', track.get('id') === `0_${trackIndex}`);
         }
       }
-      // 切换视频轨道后分辨率可能变化，重新设置 surfaceId 强制渲染器刷新，
-      // 否则可能出现画面未更新/黑屏的情况（与播放状态下重设 surfaceId 的语义一致）。
+      // 切换视频轨道后分辨率可能变化，重设 surfaceId 强制渲染器刷新。
       if (this.avPlayer.surfaceId) {
         this.avPlayer.surfaceId = this.surfaceId;
       }
+      // 通知 Dart 侧轨道已切换，完成选中等待并刷新 UI。
+      this.sendVideoTrackChanged();
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       Log.e(TAG, 'selectVideoTrack exception: ' + errMsg);
@@ -777,6 +817,8 @@ export class VideoPlayer {
           track.set('isSelected', false);
         }
       }
+      // 恢复自适应后同样通知 Dart 侧刷新 UI（selectedTrackId 为空）。
+      this.sendVideoTrackChanged();
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       Log.e(TAG, 'enableAutoVideoQuality exception: ' + errMsg);
@@ -784,9 +826,9 @@ export class VideoPlayer {
     }
   }
 
-  private getNumberFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): number | null {
+  private getNumberFromRecord(rec: TrackDescriptionRecord, keys: TrackDescriptionKeys): number | null {
     for (let i = 0; i < keys.length; i++) {
-      const v = rec[keys[i]];
+      const v = rec[keys[i] as string];
       if (typeof v === 'number') {
         return Number.isFinite(v) ? v : null;
       }
@@ -832,9 +874,9 @@ export class VideoPlayer {
     return trimmed.length === 0 ? null : trimmed;
   }
 
-  private getStringFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): string | null {
+  private getStringFromRecord(rec: TrackDescriptionRecord, keys: TrackDescriptionKeys): string | null {
     for (let i = 0; i < keys.length; i++) {
-      const v = rec[keys[i]];
+      const v = rec[keys[i] as string];
       if (typeof v === 'string') {
         const s = this.nullableString(v);
         if (s !== null) {
@@ -845,9 +887,9 @@ export class VideoPlayer {
     return null;
   }
 
-  private getIntFromRecord(rec: TrackDescriptionRecord, keys: Array<string>): number | null {
+  private getIntFromRecord(rec: TrackDescriptionRecord, keys: TrackDescriptionKeys): number | null {
     for (let i = 0; i < keys.length; i++) {
-      const v = rec[keys[i]];
+      const v = rec[keys[i] as string];
       if (typeof v === 'number') {
         return Number.isFinite(v) ? Math.trunc(v) : null;
       }
@@ -1245,6 +1287,25 @@ export class VideoPlayer {
     let event: HashMap<string, Object> = new HashMap<string, Object>();
     event.set('event', 'isPlayingStateUpdate');
     event.set('isPlaying', isPlaying);
+    this.eventSink?.success(event);
+  }
+
+  /**
+   * Sends a video track selection changed event to Dart with the selected
+   * track id in '{groupIndex}_{trackIndex}' format.
+   *
+   * OHOS AVPlayer 无 onTracksChanged 回调，故在 selectVideoTrack /
+   * enableAutoVideoQuality 成功后主动发送，供 Dart 层完成选中等待与 UI 刷新。
+   */
+  sendVideoTrackChanged(): void {
+    let event: HashMap<string, Object> = new HashMap<string, Object>();
+    event.set('event', 'videoTrackChanged');
+    if (this.selectedVideoTrackIndex < 0) {
+      // 恢复自适应模式：无确定选中轨道，置空仅驱动 UI 刷新。
+      event.set('selectedTrackId', '');
+    } else {
+      event.set('selectedTrackId', `0_${this.selectedVideoTrackIndex}`);
+    }
     this.eventSink?.success(event);
   }
 
