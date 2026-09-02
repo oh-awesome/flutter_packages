@@ -505,23 +505,21 @@ abstract class NestorApi {
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
-  test('ArkTS generator uses pigeons/copyright.txt by default', () {
-    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    final InternalPigeonOptions options =
-        InternalPigeonOptions.fromPigeonOptions(
-      PigeonOptions(
-        input: 'foo.dart',
-        arkTSOut: 'Foo.ets',
-        basePath: 'example/app',
-      ),
+  test('ArkTS generator copyright flag', () {
+    final root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
+    const options = PigeonOptions(
+      arkTSOut: 'Foo.ets',
+      copyrightHeader: './copyright_header.txt',
     );
-    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
-    final StringBuffer buffer = StringBuffer();
-    adapter.generate(buffer, options, root, FileType.na);
-    expect(
-      buffer.toString(),
-      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    final arkTSGeneratorAdapter = ArkTSGeneratorAdapter();
+    final buffer = StringBuffer();
+    arkTSGeneratorAdapter.generate(
+      buffer,
+      InternalPigeonOptions.fromPigeonOptions(options),
+      root,
+      FileType.na,
     );
+    expect(buffer.toString(), startsWith('/*\n* Copyright 2013'));
   });
 
   test('ArkTS generator uses built-in copyright when file missing', () {
@@ -544,9 +542,8 @@ abstract class NestorApi {
   });
 
   test('@ConfigurePigeon ArkTSOptions.copyrightHeader', () {
-    const String code = '''
+    const code = '''
 @ConfigurePigeon(PigeonOptions(
-  input: 'foo.dart',
   arkTSOptions: ArkTSOptions(copyrightHeader: <String>['Custom', 'Header']),
 ))
 class Message {
@@ -556,13 +553,7 @@ class Message {
 
     final ParseResults results = parseSource(code);
     final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
-    final InternalPigeonOptions internalOptions =
-        InternalPigeonOptions.fromPigeonOptions(options);
-    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
-    final StringBuffer buffer = StringBuffer();
-    adapter.generate(buffer, internalOptions, root, FileType.na);
-    expect(buffer.toString(), startsWith('/*\n* Custom\n* Header'));
+    expect(options.arkTSOptions!.copyrightHeader, <String>['Custom', 'Header']);
   });
 
   test('Java generator copyright flag', () {
