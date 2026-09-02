@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "pigeon",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "26.1.5",
+        "Owner": "aibin@openvalley.net",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A code generation tool for Flutter platform communication via type-safe Dart interfaces, generating native boilerplate for Android, iOS, and now OpenHarmony. This is the OHOS development branch of the pigeon tool for the OpenHarmony platform"
+    }
+]
