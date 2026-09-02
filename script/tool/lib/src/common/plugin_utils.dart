@@ -44,7 +44,8 @@ bool pluginSupportsPlatform(
         platform == platformWeb ||
         platform == platformMacOS ||
         platform == platformWindows ||
-        platform == platformLinux,
+        platform == platformLinux ||
+        platform == platformOhos,
   );
 
   final YamlMap? platformEntry = _readPlatformPubspecSectionForPlugin(platform, plugin);

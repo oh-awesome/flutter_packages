@@ -37,6 +37,7 @@ const String _flutterBuildTypeLinux = 'linux';
 const String _flutterBuildTypeMacOS = 'macos';
 const String _flutterBuildTypeWeb = 'web';
 const String _flutterBuildTypeWindows = 'windows';
+const String _flutterBuildTypeOhos = 'ohos';
 
 const String _flutterBuildTypeAndroidAlias = 'android';
 
@@ -51,6 +52,7 @@ class BuildExamplesCommand extends PackageLoopingCommand {
     argParser.addFlag(platformMacOS);
     argParser.addFlag(platformWeb);
     argParser.addFlag(platformWindows);
+    argParser.addFlag(platformOhos);
     argParser.addFlag(platformIOS);
     argParser.addFlag(_platformFlagApk, aliases: const <String>[_flutterBuildTypeAndroidAlias]);
     argParser.addOption(
@@ -94,6 +96,11 @@ class BuildExamplesCommand extends PackageLoopingCommand {
       'Windows',
       pluginPlatform: platformWindows,
       flutterBuildType: _flutterBuildTypeWindows,
+    ),
+    platformOhos: const _PlatformDetails(
+      'OHOS',
+      pluginPlatform: platformOhos,
+      flutterBuildType: _flutterBuildTypeOhos,
     ),
   };
 
