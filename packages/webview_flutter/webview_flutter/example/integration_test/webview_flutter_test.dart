@@ -680,7 +680,13 @@ Future<void> main() async {
 
       final delegate = NavigationDelegate(
         onHttpError: (HttpResponseError error) {
-          errorCompleter.complete(error);
+          // API 17 的 ArkWeb 会在主文档加载后自动抓取页面 favicon(子资源)。
+          // 本用例主 URL 恰为 /favicon.ico(404),favicon 抓取再次 404,
+          // 因此 onHttpError 会被合法地回调多次。Completer 只能 complete 一次,
+          // 只取第一个事件,后续事件忽略。
+          if (!errorCompleter.isCompleted) {
+            errorCompleter.complete(error);
+          }
         },
       );
       unawaited(controller.setNavigationDelegate(delegate));
@@ -715,7 +721,11 @@ Future<void> main() async {
       final delegate = NavigationDelegate(
         onPageFinished: pageFinishCompleter.complete,
         onHttpError: (HttpResponseError error) {
-          errorCompleter.complete(error);
+          // 双保险:该用例预期不触发 onHttpError,守卫防止内核重复回调时
+          // Completer 二次 complete 抛 StateError。
+          if (!errorCompleter.isCompleted) {
+            errorCompleter.complete(error);
+          }
         },
       );
       unawaited(controller.setNavigationDelegate(delegate));
