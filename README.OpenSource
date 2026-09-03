@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "local_auth",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "2.3.0",
+        "Owner": "aibin@openvalley.net",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A Flutter plugin for local authentication via fingerprint, facial recognition, or other biometric sensors. This is the OHOS adaptation branch of the local_auth plugin for the OpenHarmony platform"
+    }
+]
