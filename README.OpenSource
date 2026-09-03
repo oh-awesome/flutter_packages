@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "in_app_purchase",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "3.2.3",
+        "Owner": "aibin@openvalley.net",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A Flutter plugin for in-app purchases. Provides a unified API for making purchases across different app stores on Android, iOS, and now OpenHarmony. This is the OHOS development branch of the in_app_purchase plugin for the OpenHarmony platform"
+    }
+]
