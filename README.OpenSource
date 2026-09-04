@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "webview_flutter",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "4.8.0",
+        "Owner": "aibin@openvalley.net",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A Flutter plugin that provides a WebView widget. The plugin enables embedding native web views in Flutter apps, supporting JavaScript execution, navigation controls, and web content display. This is the OHOS development branch of the webview_flutter plugin for the OpenHarmony platform"
+    }
+]
