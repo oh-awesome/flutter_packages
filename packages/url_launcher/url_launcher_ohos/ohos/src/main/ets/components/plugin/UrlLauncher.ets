@@ -59,10 +59,6 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   canLaunchUrl(url: string): boolean {
-    if (!url || url.trim().length === 0) {
-      Log.e(TAG, 'canLaunchUrl: url is empty');
-      return false;
-    }
     let encodedUri = encodeURI(url);
     // 先尝试用 canOpenLink 动态验证处理应用是否存在（与 Android resolveActivity 行为对齐）
     try {
@@ -87,16 +83,11 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async launchUrl(url: string, headers: Map<string, string>): Promise<boolean> {
-    if (!url || url.trim().length === 0) {
-      // 抛出具体错误码，便于 Flutter 层区分失败原因（原仅 return false）
-      throw new FlutterError('INVALID_URL', 'URL must not be empty', null);
-    }
     if (!headers) {
       headers = new Map<string, string>();
     }
     if (!this.canLaunchUrl(url)) {
-      // 抛出具体错误码，便于 Flutter 层区分"无应用可处理"场景
-      throw new FlutterError('CANNOT_LAUNCH', 'No application can handle the URL: ' + url, null);
+      return false;
     }
 
     this.ensureContext();
@@ -139,10 +130,6 @@ export class UrlLauncher implements UrlLauncherApi {
 
   async launchSms(url: string): Promise<boolean> {
     let smsUrl = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_SMS);
-    if (!smsUrl || smsUrl.trim().length === 0) {
-      Log.e(TAG, 'launchSms: sms url is empty, url: %s', url);
-      throw new FlutterError('INVALID_URL', 'SMS url is empty', null);
-    }
     let phoneNumber: string = '';
     let messageBody: string = '';
 
@@ -211,10 +198,6 @@ export class UrlLauncher implements UrlLauncherApi {
   async launchTel(url: string): Promise<boolean> {
     // LAUNCH_TYPE_TEL = 'tel:'，直接作为 prefix 传给 parseUrl 剥离协议前缀
     let phoneNum = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_TEL);
-    if (!phoneNum || phoneNum.trim().length === 0) {
-      Log.e(TAG, 'launchTel: phone number is empty, url: %s', url);
-      throw new FlutterError('INVALID_URL', 'Phone number is empty', null);
-    }
     try {
       phoneNum = decodeURIComponent(phoneNum).replace(/\s+/g, '');
     } catch (e) {
@@ -240,10 +223,6 @@ export class UrlLauncher implements UrlLauncherApi {
   // 只支持沙箱路径
   async launchFile(url: string): Promise<boolean> {
     let fileName = url.substring(url.lastIndexOf('/') + 1);
-    if (!fileName || fileName.trim().length === 0) {
-      Log.e(TAG, 'launchFile: file name is empty, url: %s', url);
-      throw new FlutterError('INVALID_URL', 'File name is empty', null);
-    }
     let filePath = this.context.filesDir + '/' + fileName;
     // 将沙箱路径转换为uri（路径非法时 getUriFromPath 会同步抛出 401 参数错误）
     let uriFromPath: string;
@@ -277,11 +256,6 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async launchWeb(url: string, headers: Map<string, string>): Promise<boolean> {
-    // 独立参数验证：与其他子方法风格一致，防止直接调用时无效参数传入
-    if (!url || url.trim().length === 0) {
-      Log.e(TAG, 'launchWeb: url is empty');
-      throw new FlutterError('INVALID_URL', 'URL is empty', null);
-    }
     Log.d(TAG, 'launchWeb url:' + url);
     let params: Record<string, Object>  = {};
 
@@ -315,10 +289,6 @@ export class UrlLauncher implements UrlLauncherApi {
     // Want.uri 需完整 mailto: URI 供系统路由，直接使用原始 url
     // （原 parseUrl(url, LAUNCH_TYPE_MAILTO + ':') 拼接为 'mailto::' 无法匹配，且剥离后 Want.uri 缺少协议前缀）
     let mailAddress = url;
-    if (!mailAddress || mailAddress.trim().length === 0) {
-      Log.e(TAG, 'launchMail: mail address is empty, url: %s', url);
-      throw new FlutterError('INVALID_URL', 'Mail address is empty', null);
-    }
     let want: Want = {
       uri: mailAddress,
       action: 'ohos.want.action.sendToData',
@@ -346,11 +316,6 @@ export class UrlLauncher implements UrlLauncherApi {
    * @returns
    */
   async launchAppGallery(url: string): Promise<boolean> {
-    // 独立参数验证：与其他子方法风格一致，防止直接调用时无效参数传入
-    if (!url || url.trim().length === 0) {
-      Log.e(TAG, 'launchAppGallery: url is empty');
-      throw new FlutterError('INVALID_URL', 'URL is empty', null);
-    }
     Log.d(TAG, 'launchAppGallery:' + url);
     //url 格式示范 store://appgallery.huawei.com/app/detail?id=C5765880207855137621
     let want: Want = {
@@ -374,11 +339,6 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async launchOther(url: string): Promise<boolean> {
-    // 独立参数验证：与其他子方法风格一致，防止直接调用时无效参数传入
-    if (!url || url.trim().length === 0) {
-      Log.e(TAG, 'launchOther: url is empty');
-      throw new FlutterError('INVALID_URL', 'URL is empty', null);
-    }
     let want: Want = {
       uri: url,
     }
@@ -414,11 +374,6 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): Promise<boolean> {
-    // 参数验证与其他 launch 方法风格一致，抛出 FlutterError 携带具体错误码
-    if (!url || url.trim().length === 0) {
-      Log.e(TAG, 'openUrlInWebView: url is empty');
-      throw new FlutterError('INVALID_URL', 'URL is empty', null);
-    }
     let headers = options.getHeaders();
     if (!headers.has('harmony_browser_page')) {
       promptAction.showToast({
@@ -431,10 +386,6 @@ export class UrlLauncher implements UrlLauncherApi {
       );
     }
     let harmonyBrowserPage = headers.get('harmony_browser_page');
-    if (!harmonyBrowserPage || harmonyBrowserPage.trim().length === 0) {
-      Log.e(TAG, 'openUrlInWebView: harmony_browser_page is empty');
-      throw new FlutterError('INVALID_CONFIG', 'harmony_browser_page value is empty', null);
-    }
 
     let headerMap: Record<string, string> = {};
     headers.forEach((value: string, key: string) => {
@@ -505,9 +456,6 @@ export class UrlLauncher implements UrlLauncherApi {
             let args = msg as Array<Object>;
             let urlArg: string;
             try {
-              if (!args || args.length < 1 || !args[0]) {
-                throw new FlutterError('INVALID_ARG', 'canLaunchUrl requires a non-null url argument', null);
-              }
               urlArg = args[0] as string;
               let output = api.canLaunchUrl(urlArg);
               wrapped.push(output);
@@ -534,9 +482,6 @@ export class UrlLauncher implements UrlLauncherApi {
             let urlArg: string;
             let headersArg: Map<string, string>;
             try {
-              if (!args || args.length < 2 || !args[0]) {
-                throw new FlutterError('INVALID_ARG', 'launchUrl requires url and headers arguments', null);
-              }
               urlArg = args[0] as string;
               // 过滤 Dart 侧 Map<String?, String?> 可能传入的 null key/value（与 WebViewOptions.setHeaders 一致）
               let rawHeaders = args[1] as Map<string, string>;
@@ -577,10 +522,6 @@ export class UrlLauncher implements UrlLauncherApi {
             let optionsArg: WebViewOptions;
             let browserOptionsArg: BrowserOptions;
             try {
-              if (!args || args.length < 3 || !args[0] || !args[1] || !args[2]) {
-                throw new FlutterError('INVALID_ARG',
-                  'openUrlInWebView requires url, options and browserOptions arguments', null);
-              }
               urlArg = args[0] as string;
               optionsArg = args[1] as WebViewOptions;
               browserOptionsArg = args[2] as BrowserOptions;
