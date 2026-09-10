@@ -16,8 +16,10 @@ From `example/app`:
 dart run pigeon --input pigeons/messages.dart \
   --dart_out lib/src/messages.g.dart \
   --arkts_out ohos/entry/src/main/ets/plugins/Messages.ets \
-  --dart_package_name pigeon_example_package
+  --package_name pigeon_example_package
 ```
+
+> **Note:** The CLI flag is `--package_name` (not `--dart_package_name`). For this input file, `dartPackageName: 'pigeon_example_package'` is already set in `@ConfigurePigeon` inside `pigeons/messages.dart`, so you can omit `--package_name` when regenerating only that file.
 
 Additional pigeon inputs in this example:
 
@@ -25,6 +27,30 @@ Additional pigeon inputs in this example:
 | ----- | ------------ |
 | `lib/pigeonTest.dart` | `ohos/entry/src/main/ets/plugins/PigeonTest.ets` |
 | `pigeons/event_channel_messages.dart` | `ohos/entry/src/main/ets/plugins/EventChannelMessages.ets` |
+
+Run **one command per input** (pigeon accepts a single `--input` per invocation).
+
+**EventChannel (`@EventChannelApi`):**
+
+```bash
+dart run pigeon --input pigeons/event_channel_messages.dart \
+  --dart_out lib/src/event_channel_messages.g.dart \
+  --arkts_out ohos/entry/src/main/ets/plugins/EventChannelMessages.ets
+```
+
+`dartPackageName: 'pigeon_example_package'` is already in `@ConfigurePigeon` inside `pigeons/event_channel_messages.dart`.
+
+**Demo host API / ProxyApi (`DemoHostApi`, buttons in the example UI):**
+
+```bash
+dart run pigeon --input lib/pigeonTest.dart \
+  --dart_out lib/src/pigeon_test.g.dart \
+  --arkts_out ohos/entry/src/main/ets/plugins/PigeonTest.ets
+```
+
+Output paths are in `@ConfigurePigeon` inside `lib/pigeonTest.dart`. Channel names use package `pigeon_example_app` (deduced from this app's `pubspec.yaml` when `dartPackageName` is omitted).
+
+To regenerate the full OHOS demo, run all three commands in this section (`pigeons/messages.dart`, `pigeons/event_channel_messages.dart`, and `lib/pigeonTest.dart`) from `example/app`.
 
 ## Host plugin structure
 
@@ -54,6 +80,6 @@ In `onDetachedFromEngine`:
 
 ## Troubleshooting
 
-- **Codec / channel mismatch**: ensure `dart_package_name` matches `pubspec.yaml` `name`.
+- **Codec / channel mismatch**: channel names use Pigeon **`dartPackageName`** (CLI: `--package_name`, or `@ConfigurePigeon` in the input file)—not necessarily `pubspec.yaml` `name`. For `messages.dart` / `event_channel_messages.dart` use `pigeon_example_package`; for `pigeonTest.dart` use `pigeon_example_app`.
 - **Plugin not registered**: check `EntryAbility` / `GeneratedPluginRegistrant` and `MessagePlugin.onAttachedToEngine`.
 - **Memory warnings in review**: follow the lifecycle checklist above; detach must null out APIs and `setStreamHandler(null)`.
