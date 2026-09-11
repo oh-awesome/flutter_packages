@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -28,7 +28,7 @@ const CH_LAUNCH = 'dev.flutter.pigeon.UrlLauncherApi.launchUrl';
 const CH_OPEN_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.openUrlInWebView';
 const CH_CLOSE_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.closeWebView';
 
-/** 鎹曡幏娉ㄥ唽 handler 鐨?fake messenger */
+/** 捕获注册 handler 的 fake messenger */
 class FakeBinaryMessenger implements BinaryMessenger {
   public registered: Map<string, BinaryMessageHandler | null> = new Map();
 
@@ -48,7 +48,7 @@ class FakeBinaryMessenger implements BinaryMessenger {
 class EmptyTaskQueue implements TaskQueue {
 }
 
-/** 鎹曡幏浜岃繘鍒跺洖鍖?*/
+/** 捕获二进制回包 */
 class ReplyCaptor implements BinaryReply {
   public replyValue: ArrayBuffer | null = null;
 
@@ -57,7 +57,7 @@ class ReplyCaptor implements BinaryReply {
   }
 }
 
-/** fake context锛歴tartAbility 鍙敞鍏ユ垚璐ュ苟璁板綍 Want */
+/** fake context：startAbility 可注入成败并记录 Want */
 class FakeContext {
   behavior: string = 'success';
   failCode: number = 16000001;
@@ -73,7 +73,9 @@ class FakeContext {
 }
 
 /**
- * 浠?StandardMessageCodec 璇箟鎵嬪伐鏋勯€犳秷鎭瓧鑺傛祦銆? * 瀛楄妭甯冨眬锛歵ype(1B) + payload锛汱IST=12, STRING=7, NULL=0, TRUE=1, MAP=13銆? */
+ * 以 StandardMessageCodec 语义手工构造消息字节流。
+ * 字节布局：type(1B) + payload；LIST=12, STRING=7, NULL=0, TRUE=1, FALSE=2, MAP=13。
+ */
 function encodeStandardMessage(value: ESObject): ArrayBuffer {
   let stream = ByteBuffer.from(new ArrayBuffer(1024));
   writeStandardValue(stream, value);
@@ -136,7 +138,7 @@ function writeStandardSize(stream: ByteBuffer, value: number): void {
   }
 }
 
-/** 瑙ｇ爜鍥炲寘锛氫粎鍙栭涓《灞傚厓绱狅紙TRUE/FALSE/NULL/LIST锛?*/
+/** 解码回包：仅取第一个顶层元素（TRUE/FALSE/NULL/LIST） */
 function decodeStandardMessage(message: ArrayBuffer | null): ESObject {
   if (message === null || message === undefined) {
     return null;
@@ -175,7 +177,7 @@ function readStandardValue(buffer: ByteBuffer): ESObject {
   throw new Error('unsupported decode type: ' + type);
 }
 
-/** 椹卞姩鏌愰€氶亾 handler 骞惰繑鍥炶В鐮佸悗鐨勫洖鍖咃紙鍚屾 reply 鍦烘櫙锛?*/
+/** 驱动某一通道 handler 并返回解码后的回包（同步 reply 场景） */
 function invokeChannel(messenger: FakeBinaryMessenger, channel: string, message: Array<ESObject>): ESObject {
   let handler = messenger.registered.get(channel);
   if (handler === null || handler === undefined) {
@@ -187,7 +189,9 @@ function invokeChannel(messenger: FakeBinaryMessenger, channel: string, message:
 }
 
 /**
- * 椹卞姩寮傛閫氶亾锛坙aunchUrl / openUrlInWebView锛夛細handler 鍐呴儴璧?Promise.then锛? * 闇€ await 涓€涓井浠诲姟寰幆璁?reply 钀藉湴銆? */
+ * 驱动异步通道（launchUrl / openUrlInWebView）：handler 内部起 Promise.then，
+ * 需 await 若干微任务循环让 reply 落地。
+ */
 async function invokeChannelAsync(messenger: FakeBinaryMessenger, channel: string,
   message: Array<ESObject>): Promise<ESObject> {
   let handler = messenger.registered.get(channel);
@@ -226,9 +230,9 @@ export default function urlLauncherChannelTest() {
     afterAll(() => {
     });
 
-    // ---------- canLaunchUrl 閫氶亾 ----------
+    // ---------- canLaunchUrl 通道 ----------
     it('channel_canLaunchUrl_success_replies_true', 0, () => {
-      // http 鍓嶇紑锛歝anOpenLink 鏈懡涓椂鍥為€€鍓嶇紑鍒ゆ柇 鈫?true
+      // http 前缀：canOpenLink 未命中时回退前缀判断 → true
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, ['http://example.com']);
       // Pigeon 成功回包为 [result] 单元素列表
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
@@ -244,21 +248,23 @@ export default function urlLauncherChannelTest() {
       expect(wrapped[0]).assertFalse();
     });
 
-    it('channel_canLaunchUrl_empty_args_replies_invalid_arg', 0, () => {
+    it('channel_canLaunchUrl_empty_args_replies_false', 0, () => {
+      // args 为空：args[0] 为 undefined，canLaunchUrl 前缀判断不命中 → 成功回包 [false]
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, []);
-      // wrapError(FlutterError) 鈫?[code, message, details]
-      let arr: Array<ESObject> = reply as Array<ESObject>;
-      expect(arr.length).assertEqual(3);
-      expect(arr[0]).assertEqual('INVALID_ARG');
+      let wrapped: Array<ESObject> = reply as Array<ESObject>;
+      expect(wrapped.length).assertEqual(1);
+      expect(wrapped[0]).assertFalse();
     });
 
-    it('channel_canLaunchUrl_null_url_replies_invalid_arg', 0, () => {
+    it('channel_canLaunchUrl_null_url_replies_false', 0, () => {
+      // url 为 null：encodeURI(null)='null' 前缀判断不命中 → 成功回包 [false]
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, [null]);
-      let arr: Array<ESObject> = reply as Array<ESObject>;
-      expect(arr[0]).assertEqual('INVALID_ARG');
+      let wrapped: Array<ESObject> = reply as Array<ESObject>;
+      expect(wrapped.length).assertEqual(1);
+      expect(wrapped[0]).assertFalse();
     });
 
-    // ---------- launchUrl 閫氶亾锛堝紓姝ワ級 ----------
+    // ---------- launchUrl 通道（异步） ----------
     it('channel_launchUrl_web_success_replies_true_and_starts_ability', 0, async () => {
       let reply: ESObject = await invokeChannelAsync(messenger, CH_LAUNCH, ['https://example.com', []]);
       // Pigeon 成功回包为 [result] 单元素列表
@@ -269,11 +275,13 @@ export default function urlLauncherChannelTest() {
       expect(ctx.wants[0]['uri']).assertEqual('https://example.com');
     });
 
-    it('channel_launchUrl_invalid_arg_replies_error', 0, async () => {
-      // 鍙傛暟涓嶈冻锛堜粎 1 涓厓绱狅級鈫?INVALID_ARG锛屽悓姝?reply
+    it('channel_launchUrl_missing_headers_replies_typeerror', 0, async () => {
+      // 参数不足（仅 1 个元素）：args[1] 为 undefined → rawHeaders.forEach 抛 TypeError
+      // → wrapError 普通错误回包 [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_LAUNCH, ['https://example.com']);
       let arr: Array<ESObject> = reply as Array<ESObject>;
-      expect(arr[0]).assertEqual('INVALID_ARG');
+      expect(arr.length).assertEqual(3);
+      expect(arr[0]).assertEqual('TypeError');
     });
 
     it('channel_launchUrl_startAbility_fail_replies_launch_error', 0, async () => {
@@ -309,25 +317,27 @@ export default function urlLauncherChannelTest() {
       expect(arr[0]).assertEqual('LAUNCH_ERROR');
     });
 
-    it('channel_openUrlInWebView_null_options_replies_invalid_arg', 0, async () => {
-      // args[1] 为 null → INVALID_ARG（参数解析 catch 分支）
+    it('channel_openUrlInWebView_null_options_replies_typeerror', 0, async () => {
+      // args[1] 为 null：options.getHeaders() 抛 TypeError（async 函数内同步抛出 → Promise 拒绝）
+      // → wrapError 普通错误回包 [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_OPEN_WEBVIEW, ['https://example.com', null, null]);
       let arr: Array<ESObject> = reply as Array<ESObject>;
-      expect(arr[0]).assertEqual('INVALID_ARG');
+      expect(arr.length).assertEqual(3);
+      expect(arr[0]).assertEqual('TypeError');
     });
 
-    // ---------- openUrlInWebView 閫氶亾锛堝紓姝ワ級 ----------
-    it('channel_openUrlInWebView_missing_config_replies_error', 0, async () => {
-      // options 鍒楄〃 [enableJs, enableDom, headersMap]锛宧eaders 鏃?harmony_browser_page
-      // 鈫?MISSING_CONFIG銆傛敞鎰?headers 涓?Map 绫诲瀷锛屾澶勬瀯閫犲け璐ヨ矾寰勬渶鐩存帴锛歛rgs 涓嶈冻
+    it('channel_openUrlInWebView_missing_options_replies_typeerror', 0, async () => {
+      // args 不足（仅 url）：args[1]/args[2] 为 undefined → options.getHeaders() 抛 TypeError
+      // → wrapError 普通错误回包 [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_OPEN_WEBVIEW, ['https://example.com']);
       let arr: Array<ESObject> = reply as Array<ESObject>;
-      expect(arr[0]).assertEqual('INVALID_ARG');
+      expect(arr.length).assertEqual(3);
+      expect(arr[0]).assertEqual('TypeError');
     });
 
-    // ---------- closeWebView 閫氶亾 ----------
+    // ---------- closeWebView 通道 ----------
     it('channel_closeWebView_success_replies_null', 0, () => {
-      // emitter.emit('closeWebView') 鏃犺闃呰€呮椂姝ｅ父杩斿洖锛寃rapped=[null]
+      // emitter.emit('closeWebView') 无订阅者时正常返回，wrapped=[null]
       let reply: ESObject = invokeChannel(messenger, CH_CLOSE_WEBVIEW, []);
       // Pigeon void 回包为 [null] 单元素列表
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
