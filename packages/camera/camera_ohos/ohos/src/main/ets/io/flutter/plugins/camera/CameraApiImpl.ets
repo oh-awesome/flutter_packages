@@ -312,6 +312,7 @@ export class CameraApiImpl extends CameraApi {
   private currentJpegQuality: number | null = null;
   private currentImageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
   private cameraIdPositionMap: Map<string, camera.CameraPosition> = new Map();
+  private isSwitchingCamera: boolean = false;
 
   constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
     super();
@@ -1115,104 +1116,114 @@ export class CameraApiImpl extends CameraApi {
   }
 
   private async switchToRearCamera(): Promise<void> {
-    const cameraManager = CameraUtils.getCameraManager(this.context);
-    let allCameraDevices: camera.CameraDevice[];
+    if (this.isSwitchingCamera) {
+      Log.w(TAG, 'switchToRearCamera: already in progress, ignoring');
+      return;
+    }
+    this.isSwitchingCamera = true;
     try {
-      allCameraDevices = cameraManager.getSupportedCameras();
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: getSupportedCameras failed: ' + e.message);
-      return;
-    }
-
-    const backCamera = allCameraDevices.find(
-      (d: camera.CameraDevice) => d.cameraPosition === camera.CameraPosition.CAMERA_POSITION_BACK
-    );
-    if (!backCamera) {
-      Log.w(TAG, 'switchToRearCamera: no rear camera found');
-      return;
-    }
-
-    const oldCamera = this.camera;
-    if (oldCamera != null) {
+      const cameraManager = CameraUtils.getCameraManager(this.context);
+      let allCameraDevices: camera.CameraDevice[];
       try {
-        oldCamera.onAutoSwitchToRearCamera = null; // 避免循环触发
-        await oldCamera.close();
+        allCameraDevices = cameraManager.getSupportedCameras();
       } catch (e) {
-        Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
+        Log.e(TAG, 'switchToRearCamera: getSupportedCameras failed: ' + e.message);
+        return;
       }
-      // close() 已停方向监听；dispose() 幂等兜底，确保旧 Camera 完整释放（含 closed 事件通知
-      // ）
+
+      const backCamera = allCameraDevices.find(
+        (d: camera.CameraDevice) => d.cameraPosition === camera.CameraPosition.CAMERA_POSITION_BACK
+      );
+      if (!backCamera) {
+        Log.w(TAG, 'switchToRearCamera: no rear camera found');
+        return;
+      }
+
+      const oldCamera = this.camera;
+      if (oldCamera != null) {
+        try {
+          oldCamera.onAutoSwitchToRearCamera = null; // 避免循环触发
+          await oldCamera.close();
+        } catch (e) {
+          Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
+        }
+        // close() 已停方向监听；dispose() 幂等兜底，确保旧 Camera 完整释放（含 closed 事件通知
+        // ）
+        try {
+          await oldCamera.dispose();
+        } catch (e) {
+          Log.e(TAG, 'switchToRearCamera: dispose old camera failed: ' + e.message);
+        }
+        // 切换相机时旧 StreamHandler 闭包捕获旧 Camera，显式解绑切断引用链
+        try {
+          this.imageStreamChannel.setStreamHandler(null);
+        } catch (handlerError) {
+          Log.e(TAG, 'switchToRearCamera: failed to clear image stream handler: ' + (handlerError as Error).message);
+        }
+      }
+      this.camera = null;
+
+      if (!this.flutterTexture) {
+        Log.e(TAG, 'switchToRearCamera: flutterTexture is null, cannot proceed');
+        return;
+      }
+
+      const dartMessenger = new DartMessenger(this.binaryMessenger, this.textureId);
+      let cameraProperties: CameraProperties;
       try {
-        await oldCamera.dispose();
+        cameraProperties = new CameraPropertiesImpl(backCamera.cameraId, cameraManager);
       } catch (e) {
-        Log.e(TAG, 'switchToRearCamera: dispose old camera failed: ' + e.message);
+        Log.e(TAG, 'switchToRearCamera: create CameraPropertiesImpl failed: ' + e.message);
+        return;
       }
-      // 切换相机时旧 StreamHandler 闭包捕获旧 Camera，显式解绑切断引用链
+
+      this.camera = new Camera(
+        this.ability,
+        this.flutterTexture,
+        new CameraFeatureFactoryImpl(),
+        dartMessenger,
+        cameraProperties,
+        this.currentResolutionPreset,
+        this.currentEnableAudio,
+        this.cameraPermissions,
+        this.textureRegistry,
+        this.currentFps,
+        this.currentVideoBitrate,
+        this.currentAudioBitrate
+      );
+      this.camera.onAutoSwitchToRearCamera = (): void => {
+        this.switchToRearCamera().catch((e: Error): void =>
+          Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
+      };
+
+      // 重建 Camera 实例后重放会话级输出设置，避免自动切后摄后 Quality 失效。
+      this.replayCameraOutputSettings();
+
       try {
-        this.imageStreamChannel.setStreamHandler(null);
-      } catch (handlerError) {
-        Log.e(TAG, 'switchToRearCamera: failed to clear image stream handler: ' + (handlerError as Error).message);
+        await this.camera.open(this.currentImageFormat);
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
+        // Camera.open 失败不再自带错误事件（见 Camera.open 注释），此处补发以保持
+        // 三折叠自动切后摄失败对 Dart 侧的通知
+        try {
+          const cameraEventApi = new CameraEventApi(
+              this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
+          cameraEventApi.error(e.message, { reply: () => {} });
+        } catch (eventError) {
+          Log.e(TAG, 'switchToRearCamera: send error event failed: ' + eventError.message);
+        }
+        return;
       }
-    }
-    this.camera = null;
 
-    if (!this.flutterTexture) {
-      Log.e(TAG, 'switchToRearCamera: flutterTexture is null, cannot proceed');
-      return;
-    }
-
-    const dartMessenger = new DartMessenger(this.binaryMessenger, this.textureId);
-    let cameraProperties: CameraProperties;
-    try {
-      cameraProperties = new CameraPropertiesImpl(backCamera.cameraId, cameraManager);
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: create CameraPropertiesImpl failed: ' + e.message);
-      return;
-    }
-
-    this.camera = new Camera(
-      this.ability,
-      this.flutterTexture,
-      new CameraFeatureFactoryImpl(),
-      dartMessenger,
-      cameraProperties,
-      this.currentResolutionPreset,
-      this.currentEnableAudio,
-      this.cameraPermissions,
-      this.textureRegistry,
-      this.currentFps,
-      this.currentVideoBitrate,
-      this.currentAudioBitrate
-    );
-    this.camera.onAutoSwitchToRearCamera = (): void => {
-      this.switchToRearCamera().catch((e: Error): void =>
-        Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
-    };
-
-    // 重建 Camera 实例后重放会话级输出设置，避免自动切后摄后 Quality 失效。
-    this.replayCameraOutputSettings();
-
-    try {
-      await this.camera.open(this.currentImageFormat);
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
-      // Camera.open 失败不再自带错误事件（见 Camera.open 注释），此处补发以保持
-      // 三折叠自动切后摄失败对 Dart 侧的通知
       try {
-        const cameraEventApi = new CameraEventApi(
-            this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
-        cameraEventApi.error(e.message, { reply: () => {} });
-      } catch (eventError) {
-        Log.e(TAG, 'switchToRearCamera: send error event failed: ' + eventError.message);
+        const cameraEventApi = new CameraEventApi(this.binaryMessenger,
+          this.camera?.dartMessenger?.getCameraIdSuffix());
+        cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
       }
-      return;
-    }
-
-    try {
-      const cameraEventApi = new CameraEventApi(this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
-      cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
+    } finally {
+      this.isSwitchingCamera = false;
     }
   }
 
