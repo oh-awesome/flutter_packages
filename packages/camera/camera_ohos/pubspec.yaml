@@ -26,7 +26,7 @@ dependencies:
   stream_transform: ^2.0.0
   pigeon:
     git:
-      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
       ref: "br_pigeon-v26.1.5_ohos"
 
