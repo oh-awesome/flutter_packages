@@ -224,7 +224,7 @@ export class Camera implements CameraCaptureStateListener {
       if (this.cameraDevice.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
         Log.w(TAG, "Cannot open front camera in tri-fold dual-screen state");
         this.sendCameraErrorEvent("FRONT_CAMERA_UNAVAILABLE");
-        throw new Error("FRONT_CAMERA_UNAVAILABLE");
+        return;
       }
     }
 
@@ -1418,6 +1418,17 @@ export class Camera implements CameraCaptureStateListener {
 
   private enableAutoDeviceSwitch(session: camera.PhotoSession | camera.VideoSession): void {
     this.unregisterAutoDeviceSwitchListener();
+    // On tri-fold devices the plugin handles front-camera fold transitions itself via
+    // foldStatusChangeCallback -> switchToRearCamera. Leaving the system autoDeviceSwitch
+    // enabled here makes both mechanisms operate on the same session during a fast fold
+    // (the system runs SwitchDevice while the plugin is releasing the session), which
+    // surfaces as "Device conflict" when opening the rear camera. Disable it
+    // for the front camera on tri-fold devices; the rear camera keeps using it.
+    if (this.isTriFoldDevice() &&
+      this.cameraDevice?.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
+      Log.d(TAG, "Auto device switch disabled for front camera on tri-fold device");
+      return;
+    }
     if (!session.isAutoDeviceSwitchSupported()) {
       Log.d(TAG, "Auto device switch is not supported on this device");
       return;
