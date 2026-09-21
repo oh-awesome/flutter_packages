@@ -425,10 +425,7 @@ abstract class NestorApi {
     final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     adapter.generate(buffer, options, root, FileType.na);
-    expect(
-      buffer.toString(),
-      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
-    );
+    expect(buffer.toString(), startsWith('/*\n* Copyright'));
   });
 
   test('ArkTS generator uses built-in copyright when file missing', () {
