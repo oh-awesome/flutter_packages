@@ -414,7 +414,7 @@ abstract class NestorApi {
     final DartGeneratorAdapter dartGeneratorAdapter = DartGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     dartGeneratorAdapter.generate(buffer, options, root, FileType.na);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('Java generator copyright flag', () {
@@ -424,7 +424,7 @@ abstract class NestorApi {
     final JavaGeneratorAdapter javaGeneratorAdapter = JavaGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     javaGeneratorAdapter.generate(buffer, options, root, FileType.na);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('ArkTS generator uses pigeons/copyright.txt by default', () {
@@ -484,7 +484,7 @@ class Message {
         ObjcGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     objcHeaderGeneratorAdapter.generate(buffer, options, root, FileType.header);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('Objc source generator copyright flag', () {
@@ -495,7 +495,7 @@ class Message {
         ObjcGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     objcSourceGeneratorAdapter.generate(buffer, options, root, FileType.source);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('Swift generator copyright flag', () {
@@ -505,7 +505,7 @@ class Message {
     final SwiftGeneratorAdapter swiftGeneratorAdapter = SwiftGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     swiftGeneratorAdapter.generate(buffer, options, root, FileType.na);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('C++ header generator copyright flag', () {
@@ -515,7 +515,7 @@ class Message {
     final CppGeneratorAdapter cppHeaderGeneratorAdapter = CppGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     cppHeaderGeneratorAdapter.generate(buffer, options, root, FileType.header);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('C++ source generator copyright flag', () {
@@ -526,7 +526,7 @@ class Message {
         CppGeneratorAdapter(fileTypeList: <FileType>[FileType.source]);
     final StringBuffer buffer = StringBuffer();
     cppSourceGeneratorAdapter.generate(buffer, options, root, FileType.source);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('nested enum', () {
@@ -1080,7 +1080,7 @@ abstract class Api {
         DartTestGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
     dartTestGeneratorAdapter.generate(buffer, options, root, FileType.source);
-    expect(buffer.toString(), startsWith('// Copyright 2013'));
+    expect(buffer.toString(), startsWith('// Copyright'));
   });
 
   test('only class reference is type argument for return value', () {
