@@ -955,9 +955,9 @@ class MockExpensiveOhosViewController extends _i1.Mock
   );
 
   @override
-  _i8.Future<void> setOffset(_i4.Offset? off, {List<double>? transform}) =>
+  _i8.Future<void> setOffset(_i4.Offset? off) =>
       (super.noSuchMethod(
-            Invocation.method(#setOffset, [off], {#transform: transform}),
+            Invocation.method(#setOffset, [off]),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )
@@ -1375,9 +1375,9 @@ class MockSurfaceOhosViewController extends _i1.Mock
   );
 
   @override
-  _i8.Future<void> setOffset(_i4.Offset? off, {List<double>? transform}) =>
+  _i8.Future<void> setOffset(_i4.Offset? off) =>
       (super.noSuchMethod(
-            Invocation.method(#setOffset, [off], {#transform: transform}),
+            Invocation.method(#setOffset, [off]),
             returnValue: _i8.Future<void>.value(),
             returnValueForMissingStub: _i8.Future<void>.value(),
           )
