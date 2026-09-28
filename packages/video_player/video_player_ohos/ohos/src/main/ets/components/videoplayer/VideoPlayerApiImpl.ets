@@ -22,8 +22,10 @@ import common from '@ohos.app.ability.common';
 import { media } from '@kit.MediaKit';
 import { EventChannel } from '@ohos/flutter_ohos';
 import { GlobalContext } from './util/GlobalContext';
-import { window } from '@kit.ArkUI';
+import { window, display } from '@kit.ArkUI';
 import { image } from '@kit.ImageKit';
+import { isOhosHybridCompositionEnabled, requireHcppAvailable } from './HcppCapability';
+import fs from '@ohos.file.fs';
 
 const TAG: string = 'VideoPlayerApiImpl';
 const BLACK_COLOR = 0xFF000000;
@@ -94,6 +96,9 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   private binding: AbilityPluginBinding | null = null;
   private audioFocus: boolean = false;
   private pixelMaps: HashMap<string, image.PixelMap> = new HashMap();
+  // playerId -> openIndependentRawFd 打开的 fd，播放器释放后关闭。
+  private ownedAssetFds: HashMap<number, number> = new HashMap();
+  private rawFdQueue: Promise<void> = Promise.resolve();
 
   constructor(flutterState: FlutterState | null, binding: AbilityPluginBinding | null) {
     super();
@@ -103,21 +108,21 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
 
   disposeAllPlayers(): void {
     this.videoPlayers.forEach((videoPlayer, key) => {
+      const releaseTexture = videoPlayer != null && videoPlayer.usesExternalTexture();
       const releasePromise = videoPlayer?.release();
-      if (releasePromise) {
-        releasePromise.then(() => {
-          if (this.flutterState) {
-            this.flutterState.getTextureRegistry().unregisterTexture(key);
-          }
-        }, () => {
-          if (this.flutterState) {
-            this.flutterState.getTextureRegistry().unregisterTexture(key);
-          }
-        });
-      } else {
-        if (this.flutterState) {
-          this.flutterState.getTextureRegistry().unregisterTexture(key);
+      const unregister = (): void => {
+        if (key !== undefined) {
+          this.closeOwnedAssetFd(key);
         }
+        if (!releaseTexture || this.flutterState == null || key === undefined) {
+          return;
+        }
+        this.flutterState.getTextureRegistry().unregisterTexture(key);
+      };
+      if (releasePromise) {
+        releasePromise.then(unregister, unregister);
+      } else {
+        unregister();
       }
       if (key !== undefined) {
         this.pixelMapReleaseById(key);
@@ -156,20 +161,77 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     return image.createPixelMap(pixels32.buffer, opts);
   }
 
-  async create(arg: CreateMessage): Promise<number> {
-    let windowClass: window.Window;
+  private async closeOpenedRawFd(rawPath: string): Promise<void> {
     try {
-      windowClass = await window.getLastWindow(this.getContext());
+      await this.getContext().resourceManager.closeRawFd(rawPath);
     } catch (e) {
-      throw new Error(`getLastWindow failed: ${e}`);
+      Log.w(TAG, 'closeRawFd failed: ' + rawPath + ' ' + JSON.stringify(e));
     }
-    GlobalContext.getContext().setObject('windowClass', windowClass)
+  }
+
+  /**
+   * getRawFd 对同一路径返回同一个 HAP fd，媒体服务按它的共享文件偏移顺序读。
+   * 同一 asset 被两个读者同时读会互相改写偏移，解析失败后提前 EOS。
+   * 经 /proc/self/fd 重开得到独立偏移；失败返回 null，调用方沿用共享 fd。
+   * getRawFd/closeRawFd 按路径生效，所以串行执行。
+   */
+  private openIndependentRawFd(rawPath: string): Promise<resourceManager.RawFileDescriptor | null> {
+    const task = this.rawFdQueue.then(async (): Promise<resourceManager.RawFileDescriptor | null> => {
+      const shared = await this.getContext().resourceManager.getRawFd(rawPath);
+      let fd: number;
+      try {
+        fd = fs.openSync('/proc/self/fd/' + shared.fd, fs.OpenMode.READ_ONLY).fd;
+      } catch (e) {
+        Log.w(TAG, 'reopen raw fd failed, use shared fd: ' + rawPath + ' ' + JSON.stringify(e));
+        return null;
+      }
+      await this.closeOpenedRawFd(rawPath);
+      const independent: resourceManager.RawFileDescriptor = {
+        fd: fd,
+        offset: shared.offset,
+        length: shared.length
+      };
+      return independent;
+    });
+    this.rawFdQueue = task.then((): Promise<void> => {
+      return Promise.resolve();
+    }, (err: Object): Promise<void> => {
+      Log.w(TAG, 'raw fd queue step failed: ' + JSON.stringify(err));
+      return Promise.resolve();
+    });
+    return task;
+  }
+
+  private closeIndependentRawFd(fd: number | undefined): void {
+    if (fd === undefined) {
+      return;
+    }
+    try {
+      fs.closeSync(fd);
+    } catch (e) {
+      Log.w(TAG, 'close independent raw fd failed: ' + JSON.stringify(e));
+    }
+  }
+
+  private closeOwnedAssetFd(playerId: number): void {
+    if (!this.ownedAssetFds.hasKey(playerId)) {
+      return;
+    }
+    const fd = this.ownedAssetFds.get(playerId);
+    this.ownedAssetFds.remove(playerId);
+    this.closeIndependentRawFd(fd);
+  }
+
+  async create(arg: CreateMessage): Promise<number> {
     Log.i(TAG, 'enter create');
+    return await this.createPlayer(arg);
+  }
+
+  private async createPlayer(arg: CreateMessage): Promise<number> {
     if (this.flutterState == null) {
       throw new Error('Illegal flutterState null.');
     }
     let playerModel = new PlayerModel();
-    let flutterRenderer = this.flutterState.getTextureRegistry();
     let uri: string = arg.getUri();
     let asset: string = arg.getAsset();
      // packaged asset 的实际资源路径为 packages/<packageName>/<asset>，与 Android 对齐。
@@ -189,6 +251,17 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       }
       header[key.toString()] = value.toString();
     })
+    if (arg.getViewType() === PlatformVideoViewType.PLATFORM_VIEW) {
+      return this.createPlatformViewPlayer(uri, asset, assetKey, header);
+    }
+    let windowClass: window.Window;
+    try {
+      windowClass = await window.getLastWindow(this.getContext());
+    } catch (e) {
+      throw new Error(`getLastWindow failed: ${e}`);
+    }
+    GlobalContext.getContext().setObject('windowClass', windowClass)
+    let flutterRenderer = this.flutterState.getTextureRegistry();
     let textureId: number = flutterRenderer.getTextureId();
     let playerId: number = textureId;
     Log.i(TAG, 'enter getRawFd, textureId=' + textureId);
@@ -204,16 +277,25 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       flutterRenderer.setTextureBackGroundPixelMap(textureId, blackPixelMap);
       if (asset != null) {
         Log.i(TAG, 'asset create called, asset is' + asset);
+        const previewRawPath = 'flutter_assets/' + assetKey;
         let avMetaExtractor: media.AVMetadataExtractor | null = null;
         let avImageGenerator: media.AVImageGenerator | null = null;
+        let extractorRawOpened = false;
+        let generatorRawOpened = false;
+        let extractorFd: resourceManager.RawFileDescriptor | null = null;
+        let generatorFd: resourceManager.RawFileDescriptor | null = null;
         try {
           avMetaExtractor = await media.createAVMetadataExtractor();
-          avMetaExtractor.fdSrc = await this.getContext().resourceManager.getRawFd('flutter_assets/' + assetKey);
+          extractorFd = await this.openIndependentRawFd(previewRawPath);
+          extractorRawOpened = extractorFd == null;
+          avMetaExtractor.fdSrc = extractorFd ?? await this.getContext().resourceManager.getRawFd(previewRawPath);
           let mateData = await avMetaExtractor.fetchMetadata();
           if (mateData.hasVideo == CommonConstants.YES) {
             avImageGenerator = await media.createAVImageGenerator();
             Log.i(TAG, 'asset video create');
-            avImageGenerator.fdSrc = await this.getContext().resourceManager.getRawFd('flutter_assets/' + assetKey);
+            generatorFd = await this.openIndependentRawFd(previewRawPath);
+            generatorRawOpened = generatorFd == null;
+            avImageGenerator.fdSrc = generatorFd ?? await this.getContext().resourceManager.getRawFd(previewRawPath);
             let pixelMap = await avImageGenerator.fetchFrameByTime(0, media.AVImageQueryOptions.AV_IMAGE_QUERY_NEXT_SYNC, {
               width: -1,
               height: -1
@@ -228,6 +310,14 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           avImageGenerator = null;
           avMetaExtractor?.release();
           avMetaExtractor = null;
+          if (generatorRawOpened) {
+            await this.closeOpenedRawFd(previewRawPath);
+          }
+          if (extractorRawOpened) {
+            await this.closeOpenedRawFd(previewRawPath);
+          }
+          this.closeIndependentRawFd(generatorFd?.fd);
+          this.closeIndependentRawFd(extractorFd?.fd);
         }
       } else if (uri != null && uri.startsWith('fd://')) {
         Log.i(TAG, 'local create called, file is' + uri);
@@ -261,12 +351,23 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           avMetaExtractor = null;
         }
       }
-      let eventChannel: EventChannel = new EventChannel(this.flutterState.getBinaryMessenger(), 'flutter.io/videoPlayer/videoEvents' + textureId.toString());
+      let eventChannel: EventChannel = new EventChannel(
+        this.flutterState.getBinaryMessenger(),
+        'flutter.io/videoPlayer/videoEvents' + textureId.toString());
       if (asset != null) {
-        let rawFileDescriptor: resourceManager.RawFileDescriptor = await this.getContext().resourceManager.getRawFd('flutter_assets/' + assetKey);
-        videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, rawFileDescriptor, null, eventChannel, this.audioFocus, null);
+        const rawPath = 'flutter_assets/' + assetKey;
+        const independent = await this.openIndependentRawFd(rawPath);
+        if (independent != null) {
+          this.ownedAssetFds.set(playerId, independent.fd);
+        }
+        let rawFileDescriptor: resourceManager.RawFileDescriptor =
+          independent ?? await this.getContext().resourceManager.getRawFd(rawPath);
+        videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, rawFileDescriptor,
+          null, eventChannel, this.audioFocus, null, independent == null ? rawPath : null,
+          this.getContext().resourceManager);
       } else if (uri != null) {
-        videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, null, uri, eventChannel, this.audioFocus, header);
+        videoPlayer = new VideoPlayer(playerModel, surfaceTextureEntry, null, uri,
+          eventChannel, this.audioFocus, header);
       } else {
         throw new Error('Invalid video source');
       }
@@ -292,11 +393,104 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
         }
         this.videoPlayers.remove(playerId);
       }
-      if (e instanceof Error) {
-        throw e;
-      }
+      this.closeOwnedAssetFd(playerId);
       throw new Error(`${e}`);
     }
+  }
+
+  getPlayer(playerId: number): VideoPlayer | null {
+    return this.videoPlayers.get(playerId) ?? null;
+  }
+
+  /**
+   * PlatformView / HCPP: 同一台 VideoPlayer，不申请 Texture。
+   * 画布在 XComponent onLoad 之后由 setSurfaceId 补上。
+   */
+  private async createPlatformViewPlayer(
+    uri: string,
+    asset: string,
+    assetKey: string,
+    header: Record<string, string> | null
+  ): Promise<number> {
+    if (this.flutterState == null) {
+      throw new Error('Illegal flutterState null.');
+    }
+    this.logHdrDisplayCapability();
+    requireHcppAvailable(await this.readHcppEnabledFromBuildInfo());
+    try {
+      const windowClass = await window.getLastWindow(this.getContext());
+      GlobalContext.getContext().setObject('windowClass', windowClass);
+    } catch (e) {
+      Log.w(TAG, 'getLastWindow skipped for platform view: ' + e);
+    }
+    // 与纹理共用引擎计数器。这里只取号，不 registerTexture，dispose 不会 unregister。
+    const playerId = this.flutterState.getTextureRegistry().getTextureId();
+    Log.i(TAG, 'create platform view player, playerId=' + playerId);
+    const eventChannel: EventChannel = new EventChannel(
+      this.flutterState.getBinaryMessenger(),
+      'flutter.io/videoPlayer/videoEvents' + playerId.toString()
+    );
+    const playerModel = new PlayerModel();
+    let videoPlayer: VideoPlayer | null = null;
+    try {
+      if (asset != null && asset.length > 0) {
+        const rawPath = 'flutter_assets/' + assetKey;
+        const independent = await this.openIndependentRawFd(rawPath);
+        if (independent != null) {
+          this.ownedAssetFds.set(playerId, independent.fd);
+        }
+        const rawFile = independent ?? await this.getContext().resourceManager.getRawFd(rawPath);
+        videoPlayer = new VideoPlayer(playerModel, null, rawFile, null, eventChannel, this.audioFocus, null,
+          independent == null ? rawPath : null, this.getContext().resourceManager);
+      } else if (uri != null && uri.length > 0) {
+        videoPlayer = new VideoPlayer(playerModel, null, null, uri, eventChannel, this.audioFocus, header);
+      } else {
+        throw new Error('Invalid video source');
+      }
+      this.videoPlayers.set(playerId, videoPlayer);
+      await videoPlayer.createAVPlayer();
+      Log.i(TAG, 'platform view AVPlayer ready, playerId=' + playerId);
+      return playerId;
+    } catch (e) {
+      if (videoPlayer != null) {
+        try {
+          await videoPlayer.release();
+        } catch (releaseErr) {
+          Log.w(TAG, 'release failed during platform view cleanup: ' + releaseErr);
+        }
+      }
+      this.videoPlayers.remove(playerId);
+      this.closeOwnedAssetFd(playerId);
+      throw new Error(`${e}`);
+    }
+  }
+
+  private logHdrDisplayCapability(): void {
+    try {
+      const info = display.getDefaultDisplaySync();
+      Log.i(TAG, 'display hdrFormats=' + JSON.stringify((info as ESObject).hdrFormats));
+    } catch (e) {
+      Log.w(TAG, 'display hdrFormats check failed: ' + e);
+    }
+  }
+
+  private async readHcppEnabledFromBuildInfo(): Promise<boolean> {
+    let text = '';
+    try {
+      const content = await this.getContext().resourceManager.getRawFileContent('buildinfo.json5');
+      const bytes: Uint8Array = content instanceof Uint8Array
+        ? content
+        : new Uint8Array(content as ArrayBuffer);
+      for (let i = 0; i < bytes.length; i++) {
+        text += String.fromCharCode(bytes[i]);
+      }
+    } catch (e) {
+      Log.w(TAG, 'HCPP pre-check could not read buildinfo.json5: ' + e);
+      return false;
+    }
+    const enabled = isOhosHybridCompositionEnabled(text);
+    Log.i(TAG, 'HCPP pre-check enable_ohos_hybrid_composition=' + enabled);
+    return enabled;
   }
 
   pixelMapRelease() {
@@ -339,9 +533,10 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
         // 等待 release 完成后再释放纹理，避免异步释放未完成时的竞态。
         await videoPlayer.release();
       } finally {
-        if (this.flutterState) {
+        if (videoPlayer.usesExternalTexture() && this.flutterState) {
           this.flutterState.getTextureRegistry().unregisterTexture(playerId);
         }
+        this.closeOwnedAssetFd(playerId);
         // 释放并删除该播放器对应的 PixelMap，避免内存泄漏。
         this.pixelMapReleaseById(playerId);
         this.videoPlayers.remove(playerId);
@@ -436,7 +631,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   setMixWithOthers(mixWithOthers: boolean) {
     Log.d(TAG, 'set MixWithOthers:' + mixWithOthers);
     this.audioFocus = mixWithOthers;
-     this.videoPlayers.forEach((videoPlayer:VideoPlayer) => {
+    this.videoPlayers.forEach((videoPlayer:VideoPlayer) => {
       videoPlayer.setAudioFocus(mixWithOthers);
     });
   }

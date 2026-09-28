@@ -16,6 +16,8 @@ dependencies:
     sdk: flutter
   video_player_ohos:
     path: ../
+  video_player:
+    path: ../../video_player
   video_player_platform_interface: ^6.3.0
 
 dev_dependencies:
@@ -24,11 +26,17 @@ dev_dependencies:
   flutter_lints: ^2.0.0
 
 dependency_overrides:
+  video_player_ohos:
+    path: ../
   path_provider:
     git:
       url: https://gitcode.com/openharmony-sig/flutter_packages.git
       path: packages/path_provider/path_provider
       ref: "br_path_provider-v2.1.5_ohos"
+  # Local 6.9.0 APIs (videoPlayerOptions / setPreventsDisplaySleepDuringVideoPlayback)
+  # are not on pub.dev 6.7.0 yet.
+  video_player_platform_interface:
+    path: ../../video_player_platform_interface
 
 flutter:
   uses-material-design: true
@@ -36,3 +44,4 @@ flutter:
     - assets/flutter-mark-square-64.png
     - assets/Butterfly-209.mp4
     - assets/video1.mp4
+    - assets/video_hdr_hlg.mp4

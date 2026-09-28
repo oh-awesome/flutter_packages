@@ -13,9 +13,29 @@ import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { TextureRegistry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
 import { VideoPlayerApi } from './VideoPlayerApi';
 import { VideoPlayerApiImpl } from './VideoPlayerApiImpl';
+import { PlatformVideoViewFactory } from './PlatformVideoViewFactory';
 import fs from '@ohos.file.fs';
 
 const TAG: string = "VideoPlayerPlugin";
+const FILE_URI_PREFIX: string = 'file://';
+
+function openSandboxFile(filePath: string): fs.File {
+  try {
+    return fs.openSync(filePath);
+  } catch (e) {
+    if (!filePath.startsWith(FILE_URI_PREFIX)) {
+      throw e instanceof Error ? e : new Error(`${e}`);
+    }
+    let sandboxPath = filePath.substring(FILE_URI_PREFIX.length);
+    try {
+      sandboxPath = decodeURIComponent(sandboxPath);
+    } catch (decodeErr) {
+      Log.w(TAG, 'decode file uri failed: ' + JSON.stringify(decodeErr));
+    }
+    Log.i(TAG, 'retry open sandbox path: ' + sandboxPath);
+    return fs.openSync(sandboxPath);
+  }
+}
 
 // 将 FlutterState 类移到顶部定义
 export class FlutterState {
@@ -55,7 +75,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
       try {
         let filePath = call.argument("filePath") as string;
         Log.i(TAG, 'filePath: ' + filePath);
-        let openFile: fs.File = fs.openSync(filePath);
+        let openFile: fs.File = openSandboxFile(filePath);
         result.success(openFile.fd);
       } catch (e) {
         Log.e(TAG, 'getFileFdByPath failed with err: ' + e);
@@ -94,6 +114,12 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
     this.pluginBinding = binding;
     Log.i(TAG, "VideoPlayer onAttachedToEngine");
     this.flutterState = new FlutterState(this.pluginBinding.getBinaryMessenger(), this.pluginBinding.getTextureRegistry());
+    this.pluginBinding.getPlatformViewRegistry().registerViewFactory(
+      'plugins.flutter.io/video_player_ohos',
+      new PlatformVideoViewFactory((playerId: number) => {
+        return this.videoPlayerApiImpl?.getPlayer(playerId) ?? null;
+      })
+    );
     // ability 先于 engine attach 到达时的补偿：补充创建 VideoPlayerApiImpl 通道。
     if (this.pendingAbilityBinding != null && this.videoPlayerApiImpl == null) {
       Log.i(TAG, "VideoPlayer compensate VideoPlayerApiImpl setup after engine attach");

@@ -19,7 +19,6 @@ class AudioTracksDemo extends StatefulWidget {
 class _AudioTracksDemoState extends State<AudioTracksDemo> {
   MiniController? _controller;
   List<VideoAudioTrack> _audioTracks = <VideoAudioTrack>[];
-  bool _isLoading = false;
   String? _error;
   bool _isAudioTrackSupported = false;
 
@@ -34,6 +33,7 @@ class _AudioTracksDemoState extends State<AudioTracksDemo> {
   ];
 
   int _selectedVideoIndex = 0;
+  VideoViewType _viewType = VideoViewType.platformView;
 
   @override
   void initState() {
@@ -43,23 +43,26 @@ class _AudioTracksDemoState extends State<AudioTracksDemo> {
 
   Future<void> _initializeVideo() async {
     setState(() {
-      _isLoading = true;
       _error = null;
       _isAudioTrackSupported = false;
     });
 
+    final MiniController? previous = _controller;
+    previous?.removeListener(_onVideoPlayerValueChanged);
+    final MiniController controller = MiniController.network(
+      _sampleVideos[_selectedVideoIndex],
+      viewType: _viewType,
+    );
+    _controller = controller;
+    controller.addListener(_onVideoPlayerValueChanged);
+    if (mounted) {
+      setState(() {});
+    }
+    await WidgetsBinding.instance.endOfFrame;
+
     try {
-      await _controller?.dispose();
-
-      final controller = MiniController.network(
-        _sampleVideos[_selectedVideoIndex],
-      );
-      _controller = controller;
-
+      await previous?.dispose();
       await controller.initialize();
-
-      // Add listener for video player state changes
-      controller.addListener(_onVideoPlayerValueChanged);
 
       // Initialize tracking variables
       _wasPlaying = controller.value.isPlaying;
@@ -73,16 +76,13 @@ class _AudioTracksDemoState extends State<AudioTracksDemo> {
       if (!mounted) {
         return;
       }
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() {});
     } catch (e) {
       if (!mounted) {
         return;
       }
       setState(() {
         _error = 'Failed to initialize video: $e';
-        _isLoading = false;
       });
     }
   }
@@ -206,6 +206,31 @@ class _AudioTracksDemoState extends State<AudioTracksDemo> {
               ],
             ),
           ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SegmentedButton<VideoViewType>(
+              segments: const <ButtonSegment<VideoViewType>>[
+                ButtonSegment<VideoViewType>(
+                  value: VideoViewType.textureView,
+                  label: Text('Texture'),
+                ),
+                ButtonSegment<VideoViewType>(
+                  value: VideoViewType.platformView,
+                  label: Text('Platform view'),
+                ),
+              ],
+              selected: <VideoViewType>{_viewType},
+              onSelectionChanged: (Set<VideoViewType> next) {
+                if (next.first == _viewType) {
+                  return;
+                }
+                setState(() {
+                  _viewType = next.first;
+                });
+                _initializeVideo();
+              },
+            ),
+          ),
           // Video selection dropdown
           Padding(
             padding: const EdgeInsets.all(16.0),
@@ -255,43 +280,51 @@ class _AudioTracksDemoState extends State<AudioTracksDemo> {
   }
 
   Widget _buildVideoPlayer() {
-    if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    if (_error case final String error?) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Icon(Icons.error, size: 48, color: Colors.red[300]),
-            const SizedBox(height: 16),
-            Text(
-              error,
-              style: const TextStyle(color: Colors.white),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _initializeVideo,
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      );
-    }
-
     final MiniController? controller = _controller;
-    if (controller?.value.isInitialized ?? false) {
+    if (controller != null && _error == null) {
       return Stack(
         alignment: Alignment.center,
         children: <Widget>[
           AspectRatio(
-            aspectRatio: controller!.value.aspectRatio,
+            aspectRatio: controller.value.aspectRatio,
             child: VideoPlayer(controller),
           ),
-          _buildPlayPauseButton(),
+          if (!controller.value.isInitialized)
+            const CircularProgressIndicator(),
+          if (controller.value.isInitialized) _buildPlayPauseButton(),
         ],
+      );
+    }
+
+    if (_error case final String error?) {
+      return LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          return SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: <Widget>[
+                  Icon(Icons.error, size: 48, color: Colors.red[300]),
+                  const SizedBox(height: 16),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      error,
+                      style: const TextStyle(color: Colors.white),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: _initializeVideo,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
     }
 

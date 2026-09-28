@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -11,7 +10,6 @@ import 'package:flutter/services.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 VideoPlayerPlatform? _cachedPlatform;
-const bool _kEnableApiTimingLog = true;
 
 VideoPlayerPlatform get _platform {
   if (_cachedPlatform == null) {
@@ -44,14 +42,15 @@ class VideoPlayerValue {
 
   /// Returns an instance for a video that hasn't been loaded.
   const VideoPlayerValue.uninitialized()
-      : this(duration: Duration.zero, isInitialized: false);
+    : this(duration: Duration.zero, isInitialized: false);
 
   /// Returns an instance with the given [errorDescription].
   const VideoPlayerValue.erroneous(String errorDescription)
-      : this(
-            duration: Duration.zero,
-            isInitialized: false,
-            errorDescription: errorDescription);
+    : this(
+        duration: Duration.zero,
+        isInitialized: false,
+        errorDescription: errorDescription,
+      );
 
   /// The total duration of the video.
   ///
@@ -166,19 +165,19 @@ class VideoPlayerValue {
 
   @override
   int get hashCode => Object.hash(
-        duration,
-        position,
-        buffered,
-        isPlaying,
-        isBuffering,
-        playbackSpeed,
-        volume,
-        isLooping,
-        errorDescription,
-        size,
-        isInitialized,
-        rotationCorrection,
-      );
+    duration,
+    position,
+    buffered,
+    isPlaying,
+    isBuffering,
+    playbackSpeed,
+    volume,
+    isLooping,
+    errorDescription,
+    size,
+    isInitialized,
+    rotationCorrection,
+  );
 }
 
 /// A very minimal version of `VideoPlayerController` for running the example
@@ -189,23 +188,37 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// The name of the asset is given by the [dataSource] argument and must not be
   /// null. The [package] argument must be non-null when the asset comes from a
   /// package and null otherwise.
-  MiniController.asset(this.dataSource, {this.package})
-      : dataSourceType = DataSourceType.asset,
-        super(const VideoPlayerValue(duration: Duration.zero));
+  MiniController.asset(
+    this.dataSource, {
+    this.package,
+    this.viewType = VideoViewType.textureView,
+  }) : dataSourceType = DataSourceType.asset,
+       super(const VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [MiniController] playing a video from obtained from
   /// the network.
-  MiniController.network(this.dataSource)
-      : dataSourceType = DataSourceType.network,
-        package = null,
-        super(const VideoPlayerValue(duration: Duration.zero));
+  MiniController.network(
+    this.dataSource, {
+    this.viewType = VideoViewType.textureView,
+  }) : dataSourceType = DataSourceType.network,
+       package = null,
+       super(const VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [MiniController] playing a video from obtained from a file.
-  MiniController.file(int fileFd)
-      : dataSource = "fd://$fileFd",
-        dataSourceType = DataSourceType.file,
-        package = null,
-        super(const VideoPlayerValue(duration: Duration.zero));
+  MiniController.file(int fileFd, {this.viewType = VideoViewType.textureView})
+    : dataSource = "fd://$fileFd",
+      dataSourceType = DataSourceType.file,
+      package = null,
+      super(const VideoPlayerValue(duration: Duration.zero));
+
+  /// Plays a local file given a filesystem [path] (OHOS sandbox or hdc-pushed).
+  MiniController.filePath(
+    String path, {
+    this.viewType = VideoViewType.textureView,
+  }) : dataSource = path,
+       dataSourceType = DataSourceType.file,
+       package = null,
+       super(const VideoPlayerValue(duration: Duration.zero));
 
   /// The URI to the video file. This will be in different formats depending on
   /// the [DataSourceType] of the original video.
@@ -218,7 +231,12 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   /// Only set for [asset] videos. The package that the asset was loaded from.
   final String? package;
 
+  /// How decoded frames are shown. `platformView` needs HCPP enabled.
+  final VideoViewType viewType;
+
   Timer? _timer;
+  // 播放器默认 1 倍速。开播时再 setSpeed(1) 会重建 HDR 解码器并停在第一帧。
+  double _appliedPlaybackSpeed = 1.0;
   Completer<void>? _creatingCompleter;
   StreamSubscription<dynamic>? _eventSubscription;
 
@@ -265,9 +283,24 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
         break;
     }
 
-    _textureId = (await _platform.create(dataSourceDescription)) ??
-        kUninitializedTextureId;
-    _creatingCompleter!.complete(null);
+    try {
+      _textureId =
+          (await _platform.createWithOptions(
+            VideoCreationOptions(
+              dataSource: dataSourceDescription,
+              viewType: viewType,
+            ),
+          )) ??
+          kUninitializedTextureId;
+      _creatingCompleter!.complete(null);
+    } catch (e, st) {
+      if (!(_creatingCompleter?.isCompleted ?? true)) {
+        _creatingCompleter!.completeError(e, st);
+      }
+      rethrow;
+    }
+    // Platform view 在 create 返回后先入树，XComponent 才能给出 surface。
+    notifyListeners();
     final Completer<void> initializingCompleter = Completer<void>();
 
     void eventListener(VideoEvent event) {
@@ -279,7 +312,9 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
             size: event.size,
             isInitialized: event.duration != null,
           );
-          initializingCompleter.complete(null);
+          if (!initializingCompleter.isCompleted) {
+            initializingCompleter.complete(null);
+          }
           _platform.setVolume(_textureId, value.volume);
           _platform.setLooping(_textureId, value.isLooping);
           _applyPlayPause();
@@ -322,10 +357,16 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   @override
   Future<void> dispose() async {
     if (_creatingCompleter != null) {
-      await _creatingCompleter!.future;
+      try {
+        await _creatingCompleter!.future;
+      } catch (_) {
+        // create 失败时仍要走完释放，避免 dispose 永久挂起。
+      }
       _timer?.cancel();
       await _eventSubscription?.cancel();
-      await _platform.dispose(_textureId);
+      if (_textureId != kUninitializedTextureId) {
+        await _platform.dispose(_textureId);
+      }
     }
     super.dispose();
   }
@@ -344,19 +385,21 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
 
   Future<void> _applyPlayPause() async {
     _timer?.cancel();
+    if (_textureId == kUninitializedTextureId || !value.isInitialized) {
+      return;
+    }
     if (value.isPlaying) {
       await _platform.play(_textureId);
 
-      _timer = Timer.periodic(
-        const Duration(milliseconds: 500),
-        (Timer timer) async {
-          final Duration? newPosition = await position;
-          if (newPosition == null) {
-            return;
-          }
-          _updatePosition(newPosition);
-        },
-      );
+      _timer = Timer.periodic(const Duration(milliseconds: 500), (
+        Timer timer,
+      ) async {
+        final Duration? newPosition = await position;
+        if (newPosition == null) {
+          return;
+        }
+        _updatePosition(newPosition);
+      });
       await _applyPlaybackSpeed();
     } else {
       await _platform.pause(_textureId);
@@ -364,12 +407,11 @@ class MiniController extends ValueNotifier<VideoPlayerValue> {
   }
 
   Future<void> _applyPlaybackSpeed() async {
-    if (value.isPlaying) {
-      await _platform.setPlaybackSpeed(
-        _textureId,
-        value.playbackSpeed,
-      );
+    if (!value.isPlaying || value.playbackSpeed == _appliedPlaybackSpeed) {
+      return;
     }
+    await _platform.setPlaybackSpeed(_textureId, value.playbackSpeed);
+    _appliedPlaybackSpeed = value.playbackSpeed;
   }
 
   /// The position in the current video.
@@ -540,11 +582,11 @@ class _VideoPlayerState extends State<VideoPlayer> {
     return _textureId == MiniController.kUninitializedTextureId
         ? Container()
         : _VideoPlayerWithRotation(
-            rotation: widget.controller.value.rotationCorrection,
-            child: _platform.buildViewWithOptions(
-              VideoViewOptions(playerId: _textureId),
-            ),
-          );
+          rotation: widget.controller.value.rotationCorrection,
+          child: _platform.buildViewWithOptions(
+            VideoViewOptions(playerId: _textureId),
+          ),
+        );
   }
 }
 
@@ -564,10 +606,7 @@ class _VideoPlayerWithRotation extends StatelessWidget {
 }
 
 class _VideoScrubber extends StatefulWidget {
-  const _VideoScrubber({
-    required this.child,
-    required this.controller,
-  });
+  const _VideoScrubber({required this.child, required this.controller});
 
   final Widget child;
   final MiniController controller;

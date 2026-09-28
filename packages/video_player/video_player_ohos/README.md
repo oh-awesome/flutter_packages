@@ -124,8 +124,8 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 ## Usage Notes
 
 - This implementation renders video with `Texture` by default.
-- `platformView` video rendering is not exposed at the moment. This is not because OHOS lacks native `XComponent + AVPlayer` capability, but because the current `flutter_ohos` `PlatformView` path still relies on texture-based composition and does not match the media `XComponent` video output path well enough. In practice it can lead to cases such as audio playing without visible video, so it is not documented as a stable capability.
-- `DataSourceType.file` supports `fd://` file descriptor paths on OHOS.
+- `VideoViewType.platformView` uses the same `AVPlayer` as the texture path, drawing into an `XComponent` surface through Hybrid Composition++ (DISPLAY layer, not Flutter Texture). Volume, speed, mix-with-others, HTTP headers, and audio/video track selection match the texture path. Enable HCPP with `flutter run --enable-hcpp`, or set `enable_ohos_hybrid_composition: true` in the app `buildinfo.json5`. Without HCPP, `initialize` fails with `PlatformException(code: hcpp_unavailable)` and does not fall back to a texture view.
+- `DataSourceType.file` supports `fd://` file descriptor paths on OHOS. Both the texture path and `platformView` close the fd when the player is released.
 - `setPlaybackSpeed` supports: `0.125x`, `0.25x`, `0.5x`, `0.75x`, `1.0x`, `1.25x`, `1.5x`, `1.75x`, `2.0x`, `3.0x`.
   - **Difference from Android**: Android's `ExoPlayer` tolerates a wider continuous range (typically `0.25x ~ 4.0x`), while OHOS `AVPlayer` only supports discrete preset speed levels. If the requested value is not in the OHOS supported list, the plugin will **map it to the nearest supported level**.
   - **OHOS Playback Speed Mapping Table**:
@@ -143,7 +143,8 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
     | `1.75 ~ 2.0` | `2.0x` | Maps to `2.0x` |
     | `2.0 ~ 3.0` | `3.0x` | Maps to `3.0x` |
     | `> 3.0` | `3.0x` | Falls back to the maximum level |
-- Audio track APIs are supported: `getAudioTracks`, `selectAudioTrack`, `isAudioTrackSupportAvailable`.
+  - The table applies to both the texture path and `platformView`. Both call `AVPlayer.setSpeed`.
+- Audio and video track APIs (`getAudioTracks`, `selectAudioTrack`, `getVideoTracks`, `selectVideoTrack`) use the same AVPlayer implementation on both paths.
 - See [example](./example) for full demos.
 
 ## API Reference
@@ -170,7 +171,7 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 | selectAudioTrack                    | 方法 | `int playerId, String trackId`     | `Future<void>`                  | 是        | Switches to the specified audio track.                              |
 | sourceType                          | 属性 | 无                                  | `DataSourceType`                | 是        | Defines source mode: asset/network/file/contentUri.                 |
 | uri                                 | 属性 | 无                                  | `String?`                       | 是        | URI of the video source.                                            |
-| formatHint                          | 属性 | 无                                  | `VideoFormat`                   | 是        | Optional format hint that overrides default format detection.       |
+| formatHint                          | 属性 | 无                                  | `VideoFormat`                   | 未映射      | Optional format hint. Neither path writes it to `setMimeType`.      |
 | asset                               | 属性 | 无                                  | `String?`                       | 是        | Name of the bundled asset.                                          |
 | package                             | 属性 | 无                                  | `String?`                       | 是        | Package name that provides the asset.                               |
 | httpHeaders                         | 属性 | 无                                  | `Map<String, String>`           | 是        | HTTP request headers.                                               |
@@ -200,16 +201,17 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 
 - Supports audio track listing and track switching.
 - Supports local playback via OHOS file descriptor path (`fd://`).
+- Supports `VideoViewType.platformView` (requires engine Hybrid Composition++).
 
 ## Known Issues
 
-- Rendering is currently fixed to `Texture`; `platformView` mode is not exposed.
 - Obtain the legacy audio track data of the audio track and the differences (language, codec, bitrate) from other platforms.
 - Currently, resources of the mixed stream and separated stream types are not supported when switching audio tracks.
-- `setMixWithOthers` function still does not reach the system-level focus semantics of Android/iOS and can only provide the interruption mode mapping supported by OHOS AVPlayer.
+- `setMixWithOthers` function still does not reach the system-level focus semantics of Android/iOS and can only provide the interruption mode mapping supported by OHOS AVPlayer. Both the texture path and `platformView` use that mapping.
 
 ## FAQ
 
+- `initialize` throws `hcpp_unavailable`: `platformView` requires Hybrid Composition++. Use an engine that includes HCPP, and run with `--enable-hcpp` (or set `enable_ohos_hybrid_composition` to `true` in `buildinfo.json5`).
 - Network video cannot play: verify `ohos.permission.INTERNET` is configured.
 - Local file fails: verify path accessibility, or pass a valid `fd://` source.
 - Playback speed has no effect: ensure the speed value is in the supported list.

@@ -36,12 +36,16 @@ import { EventChannel, FlutterPluginBinding, MethodCall, MethodResult } from '@o
 import { QueuingEventSink } from '../../../main/ets/components/videoplayer/QueuingEventSink';
 import { EventSink } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventChannel';
 import { FlutterError, wrapError, CreateMessage, PlatformVideoViewType, OhosVideoPlayerApi } from '../../../main/ets/components/videoplayer/Messages';
+import { HCPP_UNAVAILABLE_CODE, isOhosHybridCompositionEnabled, requireHcppAvailable } from '../../../main/ets/components/videoplayer/HcppCapability';
 import { GlobalContext } from '../../../main/ets/components/videoplayer/util/GlobalContext';
 import { VideoPlayerApiCodec } from '../../../main/ets/components/videoplayer/VideoPlayerApiCodec';
 import { VideoPlayerApiImpl } from '../../../main/ets/components/videoplayer/VideoPlayerApiImpl';
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import { TextureRegistry } from '@ohos/flutter_ohos/src/main/ets/view/TextureRegistry';
 import { FlutterState, VideoPlayerPlugin } from '../../../main/ets/components/videoplayer/VideoPlayerPlugin';
+import { PlatformVideoViewFactory } from '../../../main/ets/components/videoplayer/PlatformVideoViewFactory';
+import { PlatformVideoView } from '../../../main/ets/components/videoplayer/PlatformVideoView';
+import common from '@ohos.app.ability.common';
 
 const TAG: string = 'VideoPlayerTest';
 
@@ -148,6 +152,19 @@ class MockBinaryMessenger {
 class MockTextureRegistry {
   getTextureId(): number {
     return 1;
+  }
+}
+
+/**
+ * 轻量替身实现 PlatformViewRegistry，供 onAttachedToEngine 注册 HCPP 工厂。
+ */
+class MockPlatformViewRegistry {
+  lastViewType: string = '';
+  lastFactory: Object | null = null;
+
+  registerViewFactory(viewType: string, factory: Object): void {
+    this.lastViewType = viewType;
+    this.lastFactory = factory;
   }
 }
 
@@ -264,10 +281,15 @@ class MockAVPlayer {
     }
   }
 
+  lastVolume: number = -1;
+  speedCalls: Array<number> = [];
+
   async setVolume(v: number): Promise<void> {
+    this.lastVolume = v;
   }
 
   async setSpeed(s: number): Promise<void> {
+    this.speedCalls.push(s);
   }
 
   async setMediaSource(src: Object, strategy?: Object): Promise<void> {
@@ -786,6 +808,42 @@ export default function videoPlayerTest() {
       expect(list[2]).assertContain('Cause: oops');
     })
 
+    it('isOhosHybridCompositionEnabled_true', 0, () => {
+      const text = '{"string":[{"name":"enable_impeller","value":"true"},' +
+        '{"name":"enable_ohos_hybrid_composition","value":"true"}]}';
+      expect(isOhosHybridCompositionEnabled(text)).assertTrue();
+    })
+
+    it('isOhosHybridCompositionEnabled_falseAndMissing', 0, () => {
+      expect(isOhosHybridCompositionEnabled(null)).assertFalse();
+      expect(isOhosHybridCompositionEnabled('')).assertFalse();
+      expect(isOhosHybridCompositionEnabled('{')).assertFalse();
+      expect(isOhosHybridCompositionEnabled('{"string":[]}')).assertFalse();
+      expect(isOhosHybridCompositionEnabled(
+        '{"string":[{"name":"enable_ohos_hybrid_composition","value":"false"}]}'
+      )).assertFalse();
+    })
+
+    it('isOhosHybridCompositionEnabled_json5Comments', 0, () => {
+      const text = '// flag\n{"string":[/* x */{"name":"enable_ohos_hybrid_composition","value":"true"}]}';
+      expect(isOhosHybridCompositionEnabled(text)).assertTrue();
+    })
+
+    it('requireHcppAvailable_disabled_throws', 0, () => {
+      try {
+        requireHcppAvailable(false);
+        expect(false).assertTrue();
+      } catch (e) {
+        const err = e as FlutterError;
+        expect(err.code).assertEqual(HCPP_UNAVAILABLE_CODE);
+      }
+    })
+
+    it('requireHcppAvailable_enabled_ok', 0, () => {
+      requireHcppAvailable(true);
+      expect(true).assertTrue();
+    })
+
     it('createMessage_defaults', 0, () => {
       const msg = new CreateMessage();
       expect(msg.getAsset()).assertEqual('');
@@ -1275,11 +1333,15 @@ export default function videoPlayerTest() {
       const p = videoPlayer as VideoPlayer;
       const mockAv = new MockAVPlayer();
       (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
+      (p as ESObject).isPrepared = true;
       // setLooping 有 player 分支（try 正常路径）。
       p.setLooping(true);
+      expect(mockAv.loop).assertTrue();
       // setVolume 有 player 分支（clampedVolume）。
       p.setVolume(2.0);
+      expect(mockAv.lastVolume).assertEqual(1.0);
       p.setVolume(0.5);
+      expect(mockAv.lastVolume).assertEqual(0.5);
       // getPosition 有 player 分支（currentTime）。
       expect(p.getPosition()).assertEqual(0);
       // setVideoSize：avPlayer.width/height 均为 0 → else 分支。
@@ -1306,12 +1368,57 @@ export default function videoPlayerTest() {
       const p = videoPlayer as VideoPlayer;
       const mockAv = new MockAVPlayer();
       (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
-      // state 为 idle → OPERATE_STATE 不含，setSpeed 提前返回。
+      (p as ESObject).isPrepared = false;
+      (p as ESObject).appliedPlaybackSpeed = media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
+      // 未 prepared → 记为 pendingSpeed，不调 AVPlayer。
       p.setSpeed(1.5);
-      // 设置 state 为 prepared 后 setSpeed 正常执行。
+      expect(mockAv.speedCalls.length).assertEqual(0);
+      expect((p as ESObject).pendingSpeed).assertEqual(1.5);
+      // prepared 后 setSpeed 正常执行。
+      (p as ESObject).isPrepared = true;
       (mockAv as ESObject).state = 'prepared';
       p.setSpeed(1.5);
-      expect(true).assertTrue();
+      expect(mockAv.speedCalls.length).assertEqual(1);
+      // 与已应用倍速相同 → 不重复调用。
+      p.setSpeed(1.5);
+      expect(mockAv.speedCalls.length).assertEqual(1);
+    })
+
+    it('videoPlayer_prepared_appliesPendingVolumeLoopSpeed', 0, async () => {
+      const p = new VideoPlayer(new PlayerModel(), new MockTextureEntry() as ESObject as SurfaceTextureEntry,
+        null, null, new MockEventChannel() as ESObject as EventChannel, false, null);
+      const mockAv = new MockAVPlayer();
+      (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
+      await p.bindState();
+      // prepare 之前（platformView 已发 initialized）Dart 下发的设置都先记下。
+      p.setVolume(0.3);
+      p.setLooping(true);
+      p.setSpeed(2.0);
+      expect(mockAv.lastVolume).assertEqual(-1);
+      expect(mockAv.loop).assertFalse();
+      expect(mockAv.speedCalls.length).assertEqual(0);
+      mockAv.state = 'prepared';
+      mockAv.triggerStateChange('prepared');
+      await new Promise<void>((resolve) => { setTimeout(resolve, 0); });
+      expect(mockAv.lastVolume).assertEqual(0.3);
+      expect(mockAv.loop).assertTrue();
+      expect(mockAv.speedCalls.length).assertEqual(1);
+      expect(mockAv.speedCalls[0]).assertEqual(2.0);
+      expect((p as ESObject).pendingVolume).assertNull();
+      expect((p as ESObject).pendingSpeed).assertNull();
+      await p.release();
+    })
+
+    it('videoPlayer_idle_resetsAppliedPlaybackSpeed', 0, async () => {
+      const p = new VideoPlayer(new PlayerModel(), new MockTextureEntry() as ESObject as SurfaceTextureEntry,
+        null, null, new MockEventChannel() as ESObject as EventChannel, false, null);
+      const mockAv = new MockAVPlayer();
+      (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
+      await p.bindState();
+      (p as ESObject).appliedPlaybackSpeed = 2.0;
+      mockAv.triggerStateChange('idle');
+      await new Promise<void>((resolve) => { setTimeout(resolve, 50); });
+      expect((p as ESObject).appliedPlaybackSpeed).assertEqual(media.PlaybackSpeed.SPEED_FORWARD_1_00_X);
     })
 
     it('videoPlayer_withAvPlayer_bindState_trigger', 0, async () => {
@@ -1412,9 +1519,25 @@ export default function videoPlayerTest() {
       const p = videoPlayer as VideoPlayer;
       const mockAv = new MockAVPlayer();
       (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
+      (p as ESObject).isPrepared = true;
       p.setLooping(true);
+      expect(mockAv.loop).assertTrue();
       p.setLooping(false);
-      expect(true).assertTrue();
+      expect(mockAv.loop).assertFalse();
+    })
+
+    it('videoPlayer_withAvPlayer_setVolumeLooping_beforePrepared_deferred', 0, () => {
+      const p = new VideoPlayer(new PlayerModel(), new MockTextureEntry() as ESObject as SurfaceTextureEntry,
+        null, null, new MockEventChannel() as ESObject as EventChannel, false, null);
+      const mockAv = new MockAVPlayer();
+      (p as ESObject).avPlayer = mockAv as ESObject as media.AVPlayer;
+      (p as ESObject).isPrepared = false;
+      p.setLooping(true);
+      p.setVolume(0.4);
+      expect(mockAv.loop).assertFalse();
+      expect(mockAv.lastVolume).assertEqual(-1);
+      expect((p as ESObject).loop).assertTrue();
+      expect((p as ESObject).pendingVolume).assertEqual(0.4);
     })
 
     // ===== VideoPlayer.play：shouldReplayFromStart true 分支（duration>0 且 position>=duration）=====
@@ -1651,22 +1774,27 @@ export default function videoPlayerTest() {
       const plugin = new VideoPlayerPlugin();
       const messenger = new MockBinaryMessenger();
       const registry = new MockTextureRegistry();
+      const views = new MockPlatformViewRegistry();
       const binding: ESObject = {
         getBinaryMessenger: () => messenger,
-        getTextureRegistry: () => registry
+        getTextureRegistry: () => registry,
+        getPlatformViewRegistry: () => views
       };
       plugin.onAttachedToEngine(binding as ESObject as FlutterPluginBinding);
-      // 补偿 branch：pendingAbilityBinding/pendingChannel 均为默认值，不进入。
-      expect(true).assertTrue();
+      // HCPP 工厂必须用 Dart PlatformViewPlayer 同一字符串注册。
+      expect(views.lastViewType).assertEqual('plugins.flutter.io/video_player_ohos');
+      expect(views.lastFactory != null).assertTrue();
     })
 
     it('videoPlayerPlugin_onDetachedFromEngine', 0, () => {
       const plugin = new VideoPlayerPlugin();
       const messenger = new MockBinaryMessenger();
       const registry = new MockTextureRegistry();
+      const views = new MockPlatformViewRegistry();
       const binding: ESObject = {
         getBinaryMessenger: () => messenger,
-        getTextureRegistry: () => registry
+        getTextureRegistry: () => registry,
+        getPlatformViewRegistry: () => views
       };
       plugin.onAttachedToEngine(binding as ESObject as FlutterPluginBinding);
       plugin.onDetachedFromEngine(binding as ESObject as FlutterPluginBinding);
@@ -1679,9 +1807,11 @@ export default function videoPlayerTest() {
       const plugin = new VideoPlayerPlugin();
       const messenger = new MockBinaryMessenger();
       const registry = new MockTextureRegistry();
+      const views = new MockPlatformViewRegistry();
       const binding: ESObject = {
         getBinaryMessenger: () => messenger,
-        getTextureRegistry: () => registry
+        getTextureRegistry: () => registry,
+        getPlatformViewRegistry: () => views
       };
       // 先 attach engine，使 flutterState 非空，可构造 VideoPlayerApiImpl。
       plugin.onAttachedToEngine(binding as ESObject as FlutterPluginBinding);
@@ -2880,7 +3010,72 @@ export default function videoPlayerTest() {
       expect(true).assertTrue();
     })
 
+    // ===== PlatformView / HCPP：Factory 按 playerId 取出已有 VideoPlayer =====
+
+    it('platformVideoViewFactory_unknownPlayerId_throws', 0, () => {
+      const factory = new PlatformVideoViewFactory((_id: number) => {
+        return null;
+      });
+      try {
+        factory.create({} as ESObject as common.Context, 1, { playerId: 42 } as ESObject);
+        expect(false).assertTrue();
+      } catch (e) {
+        expect(`${e}`).assertContain('Unable to find VideoPlayer');
+      }
+    })
+
+    it('platformVideoViewFactory_missingPlayerId_throws', 0, () => {
+      const factory = new PlatformVideoViewFactory((_id: number) => {
+        return null;
+      });
+      try {
+        factory.create({} as ESObject as common.Context, 1, {} as ESObject);
+        expect(false).assertTrue();
+      } catch (e) {
+        expect(`${e}`).assertContain('requires a playerId');
+      }
+    })
+
+    it('platformVideoViewFactory_create_withCreationParams', 0, () => {
+      const eventChannel = new MockEventChannel() as ESObject as EventChannel;
+      const player = new VideoPlayer(
+        new PlayerModel(), null, null, 'https://example.com/hdr.mp4', eventChannel, false, null
+      );
+      const factory = new PlatformVideoViewFactory((playerId: number) => {
+        return playerId === 1000006 ? player : null;
+      });
+      const args: Record<string, Object> = {
+        'playerId': 1000006,
+        'source': 'https://example.com/hdr.mp4',
+        'objectFit': 'cover',
+        'looping': true,
+        'speed': 1.5
+      };
+      const view = factory.create(
+        {} as ESObject as common.Context,
+        9,
+        args as ESObject
+      ) as PlatformVideoView;
+      expect(view.getPlayerId()).assertEqual(1000006);
+      expect(view.getPlayer()).assertEqual(player);
+      view.dispose();
+    })
+
+    it('platformVideoViewFactory_legacyNumericPlayerId', 0, () => {
+      const eventChannel = new MockEventChannel() as ESObject as EventChannel;
+      const player = new VideoPlayer(
+        new PlayerModel(), null, null, 'https://example.com/sdr.mp4', eventChannel, false, null
+      );
+      const factory = new PlatformVideoViewFactory((playerId: number) => {
+        return playerId === 1000007 ? player : null;
+      });
+      const view = factory.create(
+        {} as ESObject as common.Context,
+        3,
+        1000007 as ESObject
+      ) as PlatformVideoView;
+      expect(view.getPlayerId()).assertEqual(1000007);
+    })
+
   })
 }
-
-

@@ -45,6 +45,90 @@ void main() {
       );
     });
 
+    test(
+      'createWithOptions platformView propagates hcpp_unavailable',
+      () async {
+        final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
+            setUpMockPlayer();
+        when(api.create(any)).thenThrow(
+          PlatformException(
+            code: 'hcpp_unavailable',
+            message:
+                'VideoViewType.platformView requires Hybrid Composition++.',
+          ),
+        );
+
+        await expectLater(
+          player.createWithOptions(
+            VideoCreationOptions(
+              dataSource: DataSource(
+                sourceType: DataSourceType.network,
+                uri: 'https://x.mp4',
+              ),
+              viewType: VideoViewType.platformView,
+            ),
+          ),
+          throwsA(
+            isA<PlatformException>().having(
+              (PlatformException e) => e.code,
+              'code',
+              'hcpp_unavailable',
+            ),
+          ),
+        );
+      },
+    );
+
+    testWidgets('platformView file create failure closes the opened fd', (
+      WidgetTester tester,
+    ) async {
+      final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
+          setUpMockPlayer();
+      when(api.create(any)).thenThrow(
+        PlatformException(
+          code: 'hcpp_unavailable',
+          message: 'VideoViewType.platformView requires Hybrid Composition++.',
+        ),
+      );
+      final List<MethodCall> calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        VideoPlayerOhosChannel.channel,
+        (MethodCall call) async {
+          calls.add(call);
+          if (call.method == 'getFileFdByPath') {
+            return 42;
+          }
+          return null;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          VideoPlayerOhosChannel.channel,
+          null,
+        );
+      });
+
+      await expectLater(
+        player.createWithOptions(
+          VideoCreationOptions(
+            dataSource: DataSource(
+              sourceType: DataSourceType.file,
+              uri: '/data/local/tmp/a.mp4',
+            ),
+            viewType: VideoViewType.platformView,
+          ),
+        ),
+        throwsA(isA<PlatformException>()),
+      );
+
+      expect(calls.map((MethodCall call) => call.method).toList(), <String>[
+        'getFileFdByPath',
+        'closeFileFd',
+      ]);
+      final MethodCall closeCall = calls.last;
+      expect(closeCall.arguments['fd'], 42);
+    });
+
     test('create with file source and null uri throws', () async {
       final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
           setUpMockPlayer();
@@ -93,7 +177,7 @@ void main() {
       expect(message.uri, 'fd://42');
     });
 
-    testWidgets('create with file path when channel returns -1 keeps fd://-1', (
+    testWidgets('create with file path when channel returns -1 does not create', (
       WidgetTester tester,
     ) async {
       final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
@@ -111,13 +195,13 @@ void main() {
         );
       });
 
-      await player.create(
-        DataSource(sourceType: DataSourceType.file, uri: '/missing.mp4'),
+      await expectLater(
+        player.create(
+          DataSource(sourceType: DataSourceType.file, uri: '/missing.mp4'),
+        ),
+        throwsA(isA<PlatformException>()),
       );
-
-      final CreateMessage message =
-          verify(api.create(captureAny)).captured.single as CreateMessage;
-      expect(message.uri, 'fd://-1');
+      verifyNever(api.create(any));
     });
   });
 

@@ -4,7 +4,7 @@ repository: https://gitcode.com/CPF-Flutter/flutter_packages/tree/main/packages/
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev 
 issue_tracker: https://gitcode.com/CPF-Flutter/flutter_packages/issues
 
-version: 1.0.0+2
+version: 1.0.1
 
 environment:
   sdk: ^3.7.0
