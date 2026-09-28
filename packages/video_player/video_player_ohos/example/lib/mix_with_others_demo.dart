@@ -29,6 +29,7 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
   MiniController? _controllerA;
   MiniController? _controllerB;
   bool _mixWithOthers = true;
+  VideoViewType _viewType = VideoViewType.platformView;
   bool _isRebuilding = false;
   String? _error;
   String _status = '推荐验证顺序：先切换开关并重建，再执行“先播 A 再播 B”或“先播 B 再播 A”。';
@@ -102,8 +103,20 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
     required int token,
     required String stepLabel,
   }) async {
-    final MiniController controller = MiniController.asset(spec.asset);
+    final MiniController controller = MiniController.asset(
+      spec.asset,
+      viewType: _viewType,
+    );
     controller.addListener(_onControllerChanged);
+    if (stepLabel == 'A') {
+      _controllerA = controller;
+    } else {
+      _controllerB = controller;
+    }
+    if (mounted) {
+      setState(() {});
+    }
+    await WidgetsBinding.instance.endOfFrame;
     try {
       if (stepLabel == 'A') {
         await controller.setMixWithOthers(_mixWithOthers);
@@ -114,6 +127,12 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
       }
       return controller;
     } catch (_) {
+      if (stepLabel == 'A' && identical(_controllerA, controller)) {
+        _controllerA = null;
+      }
+      if (stepLabel == 'B' && identical(_controllerB, controller)) {
+        _controllerB = null;
+      }
       await _safeDispose(controller);
       rethrow;
     }
@@ -266,9 +285,10 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('setMixWithOthers 验证页')),
-      body: ListView(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
-        children: <Widget>[
+        child: Column(
+          children: <Widget>[
           _buildIntroCard(),
           const SizedBox(height: 12),
           _buildConfigCard(),
@@ -298,7 +318,8 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
                 ),
             onPause: () => _controllerB?.pause(),
           ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -348,6 +369,32 @@ class _MixWithOthersDemoState extends State<MixWithOthersDemo> {
                         setState(() {
                           _mixWithOthers = value;
                           _status = '开关已切到 $value，但还未生效。请点击“按当前开关重建播放器”。';
+                        });
+                      },
+            ),
+            const SizedBox(height: 8),
+            SegmentedButton<VideoViewType>(
+              segments: const <ButtonSegment<VideoViewType>>[
+                ButtonSegment<VideoViewType>(
+                  value: VideoViewType.textureView,
+                  label: Text('Texture'),
+                ),
+                ButtonSegment<VideoViewType>(
+                  value: VideoViewType.platformView,
+                  label: Text('Platform view'),
+                ),
+              ],
+              selected: <VideoViewType>{_viewType},
+              onSelectionChanged:
+                  _isRebuilding
+                      ? null
+                      : (Set<VideoViewType> next) {
+                        if (next.first == _viewType) {
+                          return;
+                        }
+                        setState(() {
+                          _viewType = next.first;
+                          _status = '出画已切到 ${next.first.name}，请点击“按当前开关重建播放器”。';
                         });
                       },
             ),
@@ -452,10 +499,13 @@ class _PlayerCard extends StatelessWidget {
               aspectRatio: isReady ? current!.value.aspectRatio : 16 / 9,
               child: ColoredBox(
                 color: Colors.black,
-                child:
-                    isReady
-                        ? VideoPlayer(current!)
-                        : const Center(child: CircularProgressIndicator()),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: <Widget>[
+                    if (current != null) VideoPlayer(current),
+                    if (!isReady) const CircularProgressIndicator(),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),
