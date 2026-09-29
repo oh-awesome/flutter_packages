@@ -16,6 +16,10 @@ export class QueuingEventSink implements EventSink {
     this.delegate = delegate;
     this.maybeFlush();
   }
+
+  hasDelegate(): boolean {
+    return this.delegate != null;
+  }
   success(event: Object): void {
     this.enqueue(event);
     this.maybeFlush();

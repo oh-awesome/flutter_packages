@@ -6,12 +6,14 @@
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
-import 'video_player_ohos_channel.dart';
 import 'messages.g.dart';
+import 'platform_view_player.dart';
+import 'video_player_ohos_channel.dart';
 
 /// An OHOS implementation of [VideoPlayerPlatform] that uses the
 /// Pigeon-generated [OhosVideoPlayerApi].
@@ -20,6 +22,11 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     : _api = pluginApi ?? OhosVideoPlayerApi();
 
   final OhosVideoPlayerApi _api;
+
+  /// playerId → 出画方式。两条路径的 playerId 都由引擎全局计数器分配。
+  /// 纹理路径会 registerTexture；PlatformView 只取号，不注册纹理。
+  final Map<int, VideoPlayerViewState> _viewStates =
+      <int, VideoPlayerViewState>{};
 
   // 用于在显式选择视频轨道时等待轨道切换完成，由原生侧成功切换后
   // 发送的 videoTrackChanged 事件驱动此 completer 完成。
@@ -34,11 +41,14 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
   Future<void> init() => _api.initialize();
 
   @override
-  Future<void> dispose(int textureId) => _api.dispose(textureId);
+  Future<void> dispose(int textureId) {
+    _viewStates.remove(textureId);
+    return _api.dispose(textureId);
+  }
 
   @override
   Future<int?> create(DataSource dataSource) async {
-    return _create(dataSource);
+    return _create(dataSource, viewType: VideoViewType.textureView);
   }
 
   @override
@@ -47,24 +57,34 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     // 仅读取以确保与新版 VideoCreationOptions 序列化保持一致。
     final int? backBufferDurationMs =
         options.videoPlayerOptions?.backBufferDurationMs;
-    return _create(options.dataSource, backBufferDurationMs: backBufferDurationMs);
+    return _create(
+      options.dataSource,
+      viewType: options.viewType,
+      backBufferDurationMs: backBufferDurationMs,
+    );
   }
 
   Future<int?> _create(
     DataSource dataSource, {
+    required VideoViewType viewType,
     int? backBufferDurationMs,
   }) async {
     String? asset;
     String? uri;
     int? openedFd;
     final String? packageName = dataSource.package;
-    final String? formatHint = dataSource.formatHint == null
-        ? null
-        : _videoFormatStringMap[dataSource.formatHint];
-    final httpHeaders = dataSource.httpHeaders.isEmpty
-        ? null
-        : Map<String?, String?>.fromEntries(dataSource.httpHeaders.entries
-            .map((e) => MapEntry(e.key, e.value)));
+    final String? formatHint =
+        dataSource.formatHint == null
+            ? null
+            : _videoFormatStringMap[dataSource.formatHint];
+    final httpHeaders =
+        dataSource.httpHeaders.isEmpty
+            ? null
+            : Map<String?, String?>.fromEntries(
+              dataSource.httpHeaders.entries.map(
+                (e) => MapEntry(e.key, e.value),
+              ),
+            );
 
     switch (dataSource.sourceType) {
       case DataSourceType.asset:
@@ -78,7 +98,14 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
           uri = dataSource.uri;
         } else {
           openedFd = await VideoPlayerOhosChannel.getFileFdByPath(
-              dataSource.uri!);
+            dataSource.uri!,
+          );
+          if (openedFd < 0) {
+            throw PlatformException(
+              code: 'video_player_ohos',
+              message: 'Failed to open file: ${dataSource.uri}',
+            );
+          }
           uri = 'fd://$openedFd';
         }
         break;
@@ -92,14 +119,20 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       uri: uri,
       packageName: packageName,
       formatHint: formatHint,
-      viewType: PlatformVideoViewType.textureView,
+      viewType: _toPlatformViewType(viewType),
       backBufferDurationMs: backBufferDurationMs,
     );
 
     try {
-      return await _api.create(message);
+      final int playerId = await _api.create(message);
+      _viewStates[playerId] =
+          viewType == VideoViewType.platformView
+              ? VideoPlayerPlatformViewState(source: _sourceLabel(dataSource))
+              : VideoPlayerTextureViewState(textureId: playerId);
+      return playerId;
     } catch (e) {
-      // create 失败时播放器不会接管 fd，需回收避免泄漏。
+      // create 失败时播放器还没接管这个 fd（hcpp_unavailable 甚至还没构造播放器）。
+      // 成功路径仍由 VideoPlayer.release() 关闭 externalFd。
       if (openedFd != null && openedFd >= 0) {
         await VideoPlayerOhosChannel.closeFileFd(openedFd);
       }
@@ -109,6 +142,10 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<void> setLooping(int textureId, bool looping) {
+    _updatePlatformViewState(
+      textureId,
+      (VideoPlayerPlatformViewState state) => state.copyWith(looping: looping),
+    );
     return _api.setLooping(textureId, looping);
   }
 
@@ -130,6 +167,10 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
   @override
   Future<void> setPlaybackSpeed(int textureId, double speed) {
     assert(speed > 0);
+    _updatePlatformViewState(
+      textureId,
+      (VideoPlayerPlatformViewState state) => state.copyWith(speed: speed),
+    );
     return _api.setPlaybackSpeed(textureId, speed);
   }
 
@@ -146,23 +187,25 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Stream<VideoEvent> videoEventsFor(int textureId) {
-    return _eventChannelFor(textureId)
-        .receiveBroadcastStream()
-        .map((dynamic event) {
+    return _eventChannelFor(textureId).receiveBroadcastStream().map((
+      dynamic event,
+    ) {
       final Map<dynamic, dynamic> map = event as Map<dynamic, dynamic>;
       switch (map['event']) {
         case 'initialized':
           return VideoEvent(
             eventType: VideoEventType.initialized,
-            duration: Duration(milliseconds: (map['duration'] as num?)?.toInt() ?? 0),
-            size: Size((map['width'] as num?)?.toDouble() ?? 0.0,
-                (map['height'] as num?)?.toDouble() ?? 0.0),
+            duration: Duration(
+              milliseconds: (map['duration'] as num?)?.toInt() ?? 0,
+            ),
+            size: Size(
+              (map['width'] as num?)?.toDouble() ?? 0.0,
+              (map['height'] as num?)?.toDouble() ?? 0.0,
+            ),
             rotationCorrection: map['rotationCorrection'] as int? ?? 0,
           );
         case 'completed':
-          return VideoEvent(
-            eventType: VideoEventType.completed,
-          );
+          return VideoEvent(eventType: VideoEventType.completed);
         case 'bufferingUpdate':
           final List<dynamic> values = map['values'] as List<dynamic>;
           return VideoEvent(
@@ -197,7 +240,31 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Widget buildView(int textureId) {
-    return Texture(textureId: textureId);
+    return buildViewWithOptions(VideoViewOptions(playerId: textureId));
+  }
+
+  @override
+  Widget buildViewWithOptions(VideoViewOptions options) {
+    final VideoPlayerViewState? viewState = _viewStates[options.playerId];
+    return switch (viewState) {
+      VideoPlayerTextureViewState(:final int textureId) => Texture(
+        textureId: textureId,
+      ),
+      VideoPlayerPlatformViewState(
+        :final String source,
+        :final BoxFit objectFit,
+        :final bool looping,
+        :final double speed,
+      ) =>
+        PlatformViewPlayer(
+          playerId: options.playerId,
+          source: source,
+          objectFit: objectFit,
+          looping: looping,
+          speed: speed,
+        ),
+      null => Texture(textureId: options.playerId),
+    };
   }
 
   @override
@@ -221,9 +288,7 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     if (playerId < 0) {
       return <VideoAudioTrack>[];
     }
-    final List<Object?> nativeTracks = await _api.getAudioTracks(
-      playerId,
-    );
+    final List<Object?> nativeTracks = await _api.getAudioTracks(playerId);
     return nativeTracks
         .map(
           (Object? track) => _toVideoAudioTrack(
@@ -253,9 +318,7 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     if (playerId < 0) {
       return <VideoTrack>[];
     }
-    final List<Object?> nativeTracks = await _api.getVideoTracks(
-      playerId,
-    );
+    final List<Object?> nativeTracks = await _api.getVideoTracks(playerId);
     return nativeTracks
         .map(
           (Object? track) => _toVideoTrack(
@@ -315,13 +378,49 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     return EventChannel('flutter.io/videoPlayer/videoEvents$textureId');
   }
 
+  void _updatePlatformViewState(
+    int playerId,
+    VideoPlayerPlatformViewState Function(VideoPlayerPlatformViewState) update,
+  ) {
+    final VideoPlayerViewState? state = _viewStates[playerId];
+    if (state is VideoPlayerPlatformViewState) {
+      _viewStates[playerId] = update(state);
+    }
+  }
+
+  static String _sourceLabel(DataSource dataSource) {
+    switch (dataSource.sourceType) {
+      case DataSourceType.asset:
+        final String? asset = dataSource.asset;
+        if (asset == null || asset.isEmpty) {
+          return '';
+        }
+        final String? packageName = dataSource.package;
+        if (packageName != null && packageName.isNotEmpty) {
+          return 'packages/$packageName/$asset';
+        }
+        return asset;
+      case DataSourceType.network:
+      case DataSourceType.file:
+      case DataSourceType.contentUri:
+        return dataSource.uri ?? '';
+    }
+  }
+
+  static PlatformVideoViewType _toPlatformViewType(VideoViewType viewType) {
+    return switch (viewType) {
+      VideoViewType.textureView => PlatformVideoViewType.textureView,
+      VideoViewType.platformView => PlatformVideoViewType.platformView,
+    };
+  }
+
   static const Map<VideoFormat, String> _videoFormatStringMap =
       <VideoFormat, String>{
-    VideoFormat.ss: 'ss',
-    VideoFormat.hls: 'hls',
-    VideoFormat.dash: 'dash',
-    VideoFormat.other: 'other',
-  };
+        VideoFormat.ss: 'ss',
+        VideoFormat.hls: 'hls',
+        VideoFormat.dash: 'dash',
+        VideoFormat.other: 'other',
+      };
 
   DurationRange _toDurationRange(dynamic value) {
     final List<dynamic> pair = value as List<dynamic>;
@@ -355,7 +454,8 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     final double? frameRate = _toDouble(track['frameRate']);
     final bool isSelected = track['isSelected'] == true;
     // 与 Android 实现对齐：label 缺失时根据分辨率生成（如 "1080p"）。
-    final String? label = track['label']?.toString() ??
+    final String? label =
+        track['label']?.toString() ??
         (width != null && height != null ? '${height}p' : null);
     return VideoTrack(
       id: track['id']?.toString() ?? '',
@@ -412,5 +512,59 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     }
 
     return (groupIndex, trackIndex);
+  }
+}
+
+/// How a player presents frames to Flutter.
+sealed class VideoPlayerViewState {
+  const VideoPlayerViewState();
+}
+
+/// Frames go through [TextureRegistry] and are sampled as a Flutter [Texture].
+@visibleForTesting
+final class VideoPlayerTextureViewState extends VideoPlayerViewState {
+  /// Creates texture view state for [textureId].
+  const VideoPlayerTextureViewState({required this.textureId});
+
+  /// Engine texture handle. Equal to playerId on the OHOS texture path.
+  final int textureId;
+}
+
+/// Frames go to an XComponent surface; HCPP composites that layer.
+@visibleForTesting
+final class VideoPlayerPlatformViewState extends VideoPlayerViewState {
+  /// Creates platform-view presentation state for the HCPP hole.
+  const VideoPlayerPlatformViewState({
+    required this.source,
+    this.objectFit = BoxFit.contain,
+    this.looping = false,
+    this.speed = 1.0,
+  });
+
+  /// Data source label forwarded in PlatformView [creationParams].
+  final String source;
+
+  /// Initial object-fit forwarded in PlatformView creation params.
+  final BoxFit objectFit;
+
+  /// Initial looping flag.
+  final bool looping;
+
+  /// Initial playback speed.
+  final double speed;
+
+  /// Copies this state with the given fields replaced.
+  VideoPlayerPlatformViewState copyWith({
+    String? source,
+    BoxFit? objectFit,
+    bool? looping,
+    double? speed,
+  }) {
+    return VideoPlayerPlatformViewState(
+      source: source ?? this.source,
+      objectFit: objectFit ?? this.objectFit,
+      looping: looping ?? this.looping,
+      speed: speed ?? this.speed,
+    );
   }
 }

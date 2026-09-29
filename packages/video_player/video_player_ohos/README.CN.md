@@ -33,14 +33,14 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 |---|---|---|
-| 3.44 | video_player-v2.14.0-ohos-1.0.0 | oh-3.44.9-dev |
+| 3.44 | video_player-v2.14.0-ohos-1.0.1 | oh-3.44.9-dev |
 
 > TAG 命名规则：`原库版本-ohos-版本号`。
 
 **版本升级与迁移（v2.11.1 → v2.14.0，Flutter 3.35 → 3.44）**
 
 1. 更新 Flutter SDK 到 3.44.9-ohos-1.0.0（含配套 DevEco Studio 6.1.1.268、SDK 5.0.0(12)）。
-2. 将 `pubspec.yaml` 中 `video_player_ohos` 的 `ref` 从 `video_player-v2.11.1-ohos-1.0.0` 改为 `video_player-v2.14.0-ohos-1.0.0`，`video_player` 主包同步升到 `^2.14.0`。
+2. 将 `pubspec.yaml` 中 `video_player_ohos` 的 `ref` 从 `video_player-v2.11.1-ohos-1.0.0` 改为 `video_player-v2.14.0-ohos-1.0.1`，`video_player` 主包同步升到 `^2.14.0`。
 3. 执行 `flutter pub get` 后重新构建 HAP。主包 2.12.0 起 `VideoPlayerController` 构造新增 `VideoPlayerOptions.backBufferDurationMs`，OHOS 侧当前忽略该参数，升级无需改业务代码。
 4. 若旧工程使用 `br_video_player-v2.11.1_ohos` 分支，请切换到 `oh-3.44.9-dev` 分支后重新拉取。
 
@@ -147,10 +147,10 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 ## 使用说明
 
 - 本实现默认使用 `Texture` 渲染视频画面。
-- 当前未开放 `platformView` 视频渲染选项。原因不是 OHOS 原生 `XComponent + AVPlayer` 能力缺失，而是当前 `flutter_ohos` 的 `PlatformView` 仍走纹理合成承载路径，和媒体 `XComponent` 的视频输出链路不完全匹配，实测会出现“有声音无画面”等问题，因此暂不作为正式能力开放。
+- 支持 `VideoViewType.platformView`：同一台 `AVPlayer` 画到 `XComponent` 的 Surface，由引擎 Hybrid Composition++ 作为 DISPLAY 系统层合成，不经过 Flutter Texture。音量、倍速、混音、请求头、音轨和画质轨与纹理路径相同。使用该模式时需开启 HCPP：`flutter run --enable-hcpp`，或在应用 `entry/src/main/resources/rawfile/buildinfo.json5` 中设置 `enable_ohos_hybrid_composition: true`。未开启时 `initialize` 会以 `PlatformException(code: hcpp_unavailable)` 失败，不会静默改走纹理。
 - `DataSourceType.asset` 支持通过 `package` 参数访问其他包（插件）内打包的资源，实际读取路径为 `flutter_assets/packages/<package>/<asset>`。
-- `DataSourceType.file` 在 OHOS 下支持 `fd://` 形式文件描述符路径；传入普通路径时插件侧自动打开文件并转换为 `fd://`，播放器释放时会一并关闭该文件描述符。
-- `formatHint` 当前支持：`VideoFormat.hls`、`VideoFormat.dash`。ArkTS 原生层会把它们映射到 `MediaSource.setMimeType`。
+- `DataSourceType.file` 在 OHOS 下支持 `fd://` 形式文件描述符路径；传入普通路径时插件侧自动打开文件并转换为 `fd://`。纹理路径和 `platformView` 都在播放器 `release` 时关闭该 fd。
+- `formatHint` 当前两条路径都未映射到 `MediaSource.setMimeType`。HLS / DASH 由 AVPlayer 自行识别。
 - `VideoFormat.ss` 当前为“尽力而为”：插件不会主动拦截，但若系统侧不存在可用的 MIME 映射或协议解析能力，播放可能失败并返回媒体不支持相关错误。
 - `setPlaybackSpeed` 在 OHOS 支持倍速：`0.125x`、`0.25x`、`0.5x`、`0.75x`、`1.0x`、`1.25x`、`1.5x`、`1.75x`、`2.0x`、`3.0x`。
   - **与 Android 的差异**：Android 的 `ExoPlayer` 对播放速率的容忍度更高，通常支持 `0.25x ~ 4.0x` 的连续范围；而 OHOS 的 `AVPlayer` 仅支持离散的预设档位。若传入值不在 OHOS 支持列表中，插件会将其就近映射到支持的最接近档位。
@@ -168,12 +168,12 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
     | `(1.6, 1.8]` | `1.75x` | 就近映射到 `1.75x` |
     | `(1.8, 2.0]` | `2.0x` | 就近映射到 `2.0x` |
     | `> 2.0` | `3.0x` | 超过 `2.0x` 时取最大值 |
-- 支持音轨能力查询与切换：`getAudioTracks`、`selectAudioTrack`、`isAudioTrackSupportAvailable`。
+  - 上表对纹理路径和 `platformView` 同样适用，两条路径都使用 `AVPlayer.setSpeed`。
 - `selectAudioTrack` 内部直接调用 `AVPlayer.selectTrack` 并 `await` 返回；不存在“等待 trackChange 事件 + 5 秒超时”机制。
 - 支持画质轨能力查询与切换：`getVideoTracks`、`selectVideoTrack`、`enableAutoVideoQuality`（传 `null` 恢复自适应画质）、`isVideoTrackSupportAvailable`。
   - **关于恢复自适应画质的限制**：OHOS AVPlayer 未提供清除单条视频轨道选择（deselect）的等价接口，传 `null` 恢复自适应时，实现会重新 `selectTrack` 默认轨道来近似模拟。因此该操作无法真正做到"真正的自适应码流"，只能回退到某一条固定轨道；若此前锁定过画质轨，回退目标是默认轨道而非继续自适应，功能语义上不等价于 Android/iOS 的"清除 override 恢复自适应"。上层如有对该契约的强依赖，请知悉此差异。
 - `setMixWithOthers` 在 OHOS 映射为 AVPlayer 的 `audioInterruptMode`。这更接近播放器实例级中断模式，而不是 Android/iOS 的系统级音频焦点/共享会话语义；同应用与跨应用场景可能存在行为差异。
-- `setPreventsDisplaySleepDuringVideoPlayback` 在 OHOS 上已支持：该标志会透传到原生侧，播放期间按标志控制屏幕常亮（停止时恢复窗口原始配置）；为 `false` 时允许播放过程中屏幕休眠。
+- `setPreventsDisplaySleepDuringVideoPlayback` 在 OHOS 上已支持：纹理路径与 `platformView` 均在播放中按标志调用 `window.setWindowKeepScreenOn`（停止/结束时恢复窗口原始配置）。`platformView` 取窗失败不阻断 `create`，此时常亮不生效。
 - `backBufferDurationMs`（2.12.0 引入）在 OHOS 暂不支持：AVPlayer 无回放缓冲时长控制能力，该参数会被忽略，不影响正常播放。
 - `getAudioTracks`/`getVideoTracks` 的 `isSelected` 为近似值：AVPlayer `getTrackDescription` 未暴露真实选中轨道，实现按“首条轨道即默认选中”上报；多音轨组（混流）场景下轨道 ID 采用 `groupIndex=0` 展平，`selectAudioTrack` 不支持选择 `groupIndex != 0` 的轨道。
 - 以下主包 Widget 为平台无关组件，OHOS 上与 Android/iOS 行为一致：`VideoPlayer`、`VideoProgressIndicator`、`VideoProgressColors`、`VideoScrubber`、`ClosedCaption`（含 `ClosedCaptionFile`、`Caption`、`SubRipCaptionFile`、`WebVTTCaptionFile` 字幕解析）。
@@ -217,7 +217,7 @@ await _controller.setPlaybackSpeed(1.5); // OHOS 支持的离散档位见上方�
 
 ```dart
 // 传入普通文件路径时插件自动打开并转换为 fd://，释放时自动关闭
-final controller = VideoPlayerController.file(File('/data/storage/el2/base/haps/entry/files/video.mp4'));
+final controller = VideoPlayerController.file(File('/data/storage/el2/base/haps/entry/files/video1.mp4'));
 ```
 
 若通过平台接口层（`video_player_platform_interface`）直接构造 `DataSource`，也支持传入 `fd://<n>` 形式的 URI，此时插件不会重复打开文件。
@@ -230,7 +230,7 @@ final controller = VideoPlayerController.file(File('/data/storage/el2/base/haps/
 |-----|-----|---------|--------|---------------|
 | sourceType | 指定数据源类型（asset/network/file/contentUri） | `DataSourceType` | 是 | 是 |
 | uri | 视频文件的 URI | `String?` | 否 | 是 |
-| formatHint | 使用该格式提示覆盖默认格式识别 | `VideoFormat` | 否 | 是 |
+| formatHint | 可选格式提示。两条路径目前都不写入 `setMimeType` | `VideoFormat` | 否 | 未映射 |
 | asset | 资源名称 | `String?` | 否 | 是 |
 | package | 资源所属包名 | `String?` | 否 | 是 |
 | httpHeaders | HTTP 请求头 | `Map<String, String>` | 否 | 是 |
@@ -284,23 +284,24 @@ final controller = VideoPlayerController.file(File('/data/storage/el2/base/haps/
 
 - 支持音轨列表读取与音轨切换能力。
 - 支持画质轨列表读取、切换与自适应画质恢复。
-- 支持 OHOS 文件描述符模式（`fd://`）本地文件播放，播放器释放时自动关闭插件侧打开的文件描述符。
+- 支持 OHOS 文件描述符模式（`fd://`）本地文件播放；纹理路径和 `platformView` 都在 `release` 时关闭 fd。
 - 支持打包资源（`package` 参数）形式的 asset 播放。
+- 支持 `VideoViewType.platformView`（依赖引擎 Hybrid Composition++）。
 
 ## 遗留问题
 
-- 当前实现固定使用 `Texture` 渲染，未开放 `platformView` 渲染选项。
 - 获取到的音轨数据与其它平台存在差异（`language`、`codec`、`bitrate` 字段取决于系统 `getTrackDescription` 能提供的信息）。
 - 切换音轨时混合流加分离流类型的资源目前不支持。
-- `setMixWithOthers` 仍未达到 Android/iOS 的系统级焦点语义，只能提供 OHOS AVPlayer 可支持的中断模式映射。
+- `setMixWithOthers` 仍未达到 Android/iOS 的系统级焦点语义，只能提供 OHOS AVPlayer 可支持的中断模式映射。纹理路径和 `platformView` 都使用该映射。
 - 画质轨"恢复自适应"（`selectVideoTrack(null)`）为近似实现：OHOS AVPlayer 无清除单条画质轨选择的接口，只能回退到默认轨道，无法真正做到 Android/iOS 的"清除 override 恢复自适应"。
 
 ## 常见问题
 
+- `initialize` 报 `hcpp_unavailable`：`platformView` 需要 Hybrid Composition++。请使用含 HCPP 的引擎，并以 `flutter run --enable-hcpp` 运行（或在 `buildinfo.json5` 里将 `enable_ohos_hybrid_composition` 设为 `true`）。
 - 网络视频无法播放：检查是否已配置 `ohos.permission.INTERNET`。
 - 本地文件无法播放：确认文件路径可访问，或改用 `fd://` 形式输入。
 - 倍速设置不生效：确认输入倍速属于当前实现支持范围。
-- `formatHint` 使用建议：优先使用 `hls/dash`。`ss` 若播放失败，通常是系统底层协议解析能力或 MIME 映射缺失导致。
+- `formatHint` 使用建议：优先使用 `hls/dash`。`ss` 若播放失败，通常是系统底层协议解析能力或 MIME 映射缺失导致。两条路径目前都不把 `formatHint` 写入 `setMimeType`。
 
 ## 目录结构
 
