@@ -1490,19 +1490,24 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
       },
       onReceivedSslError: (
         ohos_webview.WebView webView,
+        ohos_webview.SslErrorHandler handler,
         String url,
         String certificate,
         String description,
-      ) {
+      ) async {
         final SslAuthErrorCallback? callback = weakThis.target?._onSslAuthError;
+
         if (callback != null) {
-          OhosSslAuthError.fromNativeCallback(
-            url: url,
-            certificateData: certificate,
-            description: description,
-          ).then((sslAuthError) {
-            callback(sslAuthError);
-          });
+          callback(
+            await OhosSslAuthError.fromNativeCallback(
+              handler: handler,
+              url: url,
+              certificateHint: certificate,
+              description: description,
+            ),
+          );
+        } else {
+          await handler.cancel();
         }
       },
 

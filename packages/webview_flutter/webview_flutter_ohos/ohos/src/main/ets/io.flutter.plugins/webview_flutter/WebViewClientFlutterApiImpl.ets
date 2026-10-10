@@ -12,8 +12,10 @@ import {
   WebViewClientFlutterApi,
   WebViewFlutterApi,
   HttpAuthHandler,
+  SslErrorHandler,
 } from './GeneratedOhosWebView';
 import { HttpAuthHandlerFlutterApiImpl } from './HttpAuthHandlerFlutterApiImpl';
+import { SslErrorHandlerFlutterApiImpl } from './SslErrorHandlerFlutterApiImpl';
 import { InstanceManager } from './InstanceManager';
 import { WebViewClient } from './WebViewClientHostApiImpl';
 import { WebViewFlutterApiImpl } from './WebViewFlutterApiImpl';
@@ -185,6 +187,32 @@ export class WebViewClientFlutterApiImpl extends WebViewClientFlutterApi {
         host,
         realm,
         callback);
+  }
+
+  onReceivedSslErrorImpl(
+    webViewClient: WebViewClient,
+    webView: WebViewPlatformView,
+    sslHandler: SslErrorHandler,
+    urlArg: string,
+    certificateArg: string,
+    descriptionArg: string,
+    callback: Reply<void>,
+  ) {
+    const sslFlutterApi =
+      new SslErrorHandlerFlutterApiImpl(this.binaryMessenger, this.instanceManager);
+    sslFlutterApi.create(sslHandler as ESObject, {
+      reply: () => {
+        this.onReceivedSslError(
+          this.instanceManager.getIdentifier(webViewClient),
+          this.instanceManager.getIdentifier(webView),
+          this.instanceManager.getIdentifier(sslHandler as ESObject),
+          urlArg,
+          certificateArg,
+          descriptionArg,
+          callback,
+        );
+      },
+    });
   }
 
   getIdentifierForClient(webViewClient: WebViewClient): number {
