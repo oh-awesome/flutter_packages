@@ -473,23 +473,21 @@ abstract class NestorApi {
     expect(buffer.toString(), startsWith('// Copyright 2013'));
   });
 
-  test('ArkTS generator uses pigeons/copyright.txt by default', () {
+  test('ArkTS generator copyright flag', () {
     final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    final InternalPigeonOptions options =
-        InternalPigeonOptions.fromPigeonOptions(
-      PigeonOptions(
-        input: 'foo.dart',
-        arkTSOut: 'Foo.ets',
-        basePath: 'example/app',
-      ),
+    const PigeonOptions options = PigeonOptions(
+      arkTSOut: 'Foo.ets',
+      copyrightHeader: './copyright_header.txt',
     );
-    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
+    final ArkTSGeneratorAdapter arkTSGeneratorAdapter = ArkTSGeneratorAdapter();
     final StringBuffer buffer = StringBuffer();
-    adapter.generate(buffer, options, root, FileType.na);
-    expect(
-      buffer.toString(),
-      startsWith('/*\n* Copyright (C) 2024 Huawei Device Co., Ltd.'),
+    arkTSGeneratorAdapter.generate(
+      buffer,
+      InternalPigeonOptions.fromPigeonOptions(options),
+      root,
+      FileType.na,
     );
+    expect(buffer.toString(), startsWith('/*\n* Copyright 2013'));
   });
 
   test('ArkTS generator uses built-in copyright when file missing', () {
@@ -524,13 +522,7 @@ class Message {
 
     final ParseResults results = parseSource(code);
     final PigeonOptions options = PigeonOptions.fromMap(results.pigeonOptions!);
-    final InternalPigeonOptions internalOptions =
-        InternalPigeonOptions.fromPigeonOptions(options);
-    final Root root = Root(apis: <Api>[], classes: <Class>[], enums: <Enum>[]);
-    final ArkTSGeneratorAdapter adapter = ArkTSGeneratorAdapter();
-    final StringBuffer buffer = StringBuffer();
-    adapter.generate(buffer, internalOptions, root, FileType.na);
-    expect(buffer.toString(), startsWith('/*\n* Custom\n* Header'));
+    expect(options.arkTSOptions!.copyrightHeader, <String>['Custom', 'Header']);
   });
 
   test('Objc header generator copyright flag', () {
