@@ -34,6 +34,9 @@ const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
 const JSON_LIST_PREFIX = LIST_IDENTIFIER + "!";
 const BIG_INTEGER_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy";
 const DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu";
+// Legacy prefix used by old plugin versions which encoded doubles on the
+// Dart side ("This is the prefix for a double."). Fixes #1689.
+const LEGACY_DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4";
 // ListEncoder implementation
 interface ListEncoder {
   encode(list: string[]): string;
@@ -88,7 +91,9 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
         return null;
       }
       if (typeof value === 'string') {
-        if (!value.startsWith(LIST_IDENTIFIER)) {
+        if (!value.startsWith(LIST_IDENTIFIER) &&
+            !value.startsWith(DOUBLE_PREFIX) &&
+            !value.startsWith(LEGACY_DOUBLE_PREFIX)) {
           return value;
         }
         return Promise.reject(this.typeMismatch(key, 'string', value));
@@ -134,6 +139,22 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
         return value;
       } else if (typeof value === 'bigint') {
         return Number(value);
+      } else if (typeof value === 'string' && value.startsWith(DOUBLE_PREFIX)) {
+        // Decode doubles written by quality-hardened v2.3.x builds, whose
+        // setDouble stores DOUBLE_PREFIX + value as a string. Fall through
+        // to the type mismatch error when the remainder is not a valid
+        // number. Fixes #1689.
+        const decoded = parseFloat(value.substring(DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      } else if (typeof value === 'string' && value.startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side
+        // encoding). Fixes #1689. Same NaN guard as above.
+        const decoded = parseFloat(value.substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
       }
       return Promise.reject(this.typeMismatch(key, 'number', value));
     } catch (err) {
@@ -637,7 +658,8 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     if (
       value.startsWith(LIST_IDENTIFIER) ||
       value.startsWith(BIG_INTEGER_PREFIX) ||
-      value.startsWith(DOUBLE_PREFIX)
+      value.startsWith(DOUBLE_PREFIX) ||
+      value.startsWith(LEGACY_DOUBLE_PREFIX)
     ) {
       return Promise.reject(
         new Error(
@@ -662,7 +684,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       return Promise.reject(new Error(PREFERENCES_NOT_INITIALIZED_ERROR));
     }
     try {
-      await preferences.put(key, value);
+      // putSync updates the in-memory cache synchronously in method-call
+      // arrival order, so concurrent writes are deterministic (last write
+      // wins, matching Android). flush() still persists asynchronously.
+      preferences.putSync(key, value);
       await preferences.flush();
     } catch (err) {
       Log.w(TAG, `${failureMessage}${JSON.stringify(err)}`);
@@ -744,6 +769,22 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
         } catch (err) {
           Log.w(TAG, "Failed to decode legacy list: " + JSON.stringify(err));
           return value;
+        }
+      } else if (value.startsWith(DOUBLE_PREFIX)) {
+        // Decode doubles written by quality-hardened v2.3.x builds, whose
+        // setDouble stores DOUBLE_PREFIX + value as a string. Fall through
+        // to the raw string when the remainder is not a valid number, so no
+        // NaN is produced and no data is lost. Fixes #1689.
+        const decoded = parseFloat(value.substring(DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      } else if (value.startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side
+        // encoding). Fixes #1689. Same NaN guard as above.
+        const decoded = parseFloat(value.substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
         }
       }
     }
