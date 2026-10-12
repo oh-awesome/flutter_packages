@@ -20,6 +20,8 @@ flutter:
         default_package: video_player_avfoundation
       web:
         default_package: video_player_web
+      ohos:
+        default_package: video_player_ohos
 
 dependencies:
   collection: ^1.18.0
