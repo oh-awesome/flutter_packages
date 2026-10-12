@@ -21,6 +21,7 @@ import 'ohos_pigeon_test_mocks.dart';
 @GenerateMocks(<Type>[
   ohos_webview.HttpAuthHandler,
   ohos_webview.DownloadListener,
+  ohos_webview.SslErrorHandler,
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -694,15 +695,101 @@ void main() {
       verify(mockAuthHandler.cancel());
     });
 
-    // SSL 测试暂时跳过，因为 OHOS 的 SSL 实现与 Android 不同
-    // onReceivedSslError 的签名是 (WebView, String url, String certificate, String description)
-    // 而不是 Android 的 (WebView, SslErrorHandler, SslError)
-    test('setOnSSlAuthError - SSL tests skipped due to API differences', () {
-      // OHOS SSL API 与 Android 不同，需要单独适配
+    test('setOnSSlAuthError emits url and description', () async {
+      final ohosNavigationDelegate = OhosNavigationDelegate(
+        OhosNavigationDelegateCreationParams
+            .fromPlatformNavigationDelegateCreationParams(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      );
+
+      OhosSslAuthError? callbackError;
+      ohosNavigationDelegate.setOnSSlAuthError((PlatformSslAuthError error) {
+        callbackError = error as OhosSslAuthError;
+      });
+
+      final mockSslErrorHandler = MockSslErrorHandler();
+
+      ohosNavigationDelegate.ohosWebViewClient.onReceivedSslError!(
+        TestWebView(),
+        mockSslErrorHandler,
+        'https://www.google.com',
+        'issuer-hint',
+        'Certificate mismatch',
+      );
+
+      // onReceivedSslError 回调为 async，等待微任务队列清空后再断言
+      await Future<void>.delayed(Duration.zero);
+
+      expect(callbackError, isNotNull);
+      expect(callbackError!.url, 'https://www.google.com');
+      expect(
+        callbackError!.description,
+        'Certificate mismatch\nIssuer hint: issuer-hint',
+      );
+      expect(callbackError!.certificate, isNull);
+      verifyNever(mockSslErrorHandler.cancel());
+      verifyNever(mockSslErrorHandler.proceed());
     });
 
-    test('setOnSSlAuthError calls cancel by default - skipped', () {
-      // OHOS SSL API 与 Android 不同，需要单独适配
+    test('setOnSSlAuthError cancel/proceed delegates to SslErrorHandler', () async {
+      final ohosNavigationDelegate = OhosNavigationDelegate(
+        OhosNavigationDelegateCreationParams
+            .fromPlatformNavigationDelegateCreationParams(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      );
+
+      late final OhosSslAuthError callbackError;
+      ohosNavigationDelegate.setOnSSlAuthError((PlatformSslAuthError error) {
+        callbackError = error as OhosSslAuthError;
+      });
+
+      final mockSslErrorHandler = MockSslErrorHandler();
+
+      ohosNavigationDelegate.ohosWebViewClient.onReceivedSslError!(
+        TestWebView(),
+        mockSslErrorHandler,
+        'https://www.google.com',
+        '',
+        'Certificate mismatch',
+      );
+
+      // onReceivedSslError 回调为 async，等待微任务队列清空后再断言
+      await Future<void>.delayed(Duration.zero);
+
+      expect(callbackError.description, 'Certificate mismatch');
+
+      await callbackError.cancel();
+      await callbackError.proceed();
+
+      verify(mockSslErrorHandler.cancel());
+      verify(mockSslErrorHandler.proceed());
+    });
+
+    test('setOnSSlAuthError calls cancel by default', () async {
+      final ohosNavigationDelegate = OhosNavigationDelegate(
+        OhosNavigationDelegateCreationParams
+            .fromPlatformNavigationDelegateCreationParams(
+          const PlatformNavigationDelegateCreationParams(),
+        ),
+      );
+
+      final mockSslErrorHandler = MockSslErrorHandler();
+
+      ohosNavigationDelegate.ohosWebViewClient.onReceivedSslError!(
+        TestWebView(),
+        mockSslErrorHandler,
+        'https://www.google.com',
+        '',
+        'Certificate mismatch',
+      );
+
+      // onReceivedSslError 回调为 async，等待微任务队列清空后再断言
+      await Future<void>.delayed(Duration.zero);
+
+      verify(mockSslErrorHandler.cancel());
+      verifyNever(mockSslErrorHandler.proceed());
     });
   });
 }
