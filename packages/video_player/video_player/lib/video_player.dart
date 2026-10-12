@@ -525,8 +525,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     }
 
     void errorListener(Object obj) {
-      final PlatformException e = obj as PlatformException;
-      value = VideoPlayerValue.erroneous(e.message!);
+      // Stream errors are not always PlatformException (e.g. a TypeError
+      // thrown while parsing an event); guard the cast to avoid a secondary
+      // crash and always surface a readable error message.
+      final String message = obj is PlatformException
+          ? (obj.message ?? 'Video player had error.')
+          : 'Video player had error: $obj';
+      value = VideoPlayerValue.erroneous(message);
       _timer?.cancel();
       if (!initializingCompleter.isCompleted) {
         initializingCompleter.completeError(obj);

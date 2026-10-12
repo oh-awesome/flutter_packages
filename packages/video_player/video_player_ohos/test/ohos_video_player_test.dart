@@ -5,6 +5,7 @@
 
 import 'dart:async';
 
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
@@ -566,6 +567,92 @@ void main() {
 
       final Duration position = await player.getPosition(1);
       expect(position, const Duration(milliseconds: positionMilliseconds));
+    });
+
+    group('videoEventsFor', () {
+      const EventChannel eventChannel = EventChannel(
+        'flutter.io/videoPlayer/videoEvents1',
+      );
+
+      // Emits the given raw event maps on the mocked native event stream.
+      void mockEventStream(List<Object?> events) {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockStreamHandler(
+          eventChannel,
+          MockStreamHandler.inline(
+            onListen: (Object? arguments, MockStreamHandlerEventSink sink) {
+              for (final Object? event in events) {
+                sink.success(event);
+              }
+            },
+          ),
+        );
+      }
+
+      tearDown(() {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockStreamHandler(eventChannel, null);
+      });
+
+      test(
+          'initialized event with null duration does not throw '
+          '(live stream with undefined duration)', () async {
+        mockEventStream(<Object?>[
+          <String, Object?>{
+            'event': 'initialized',
+            // Live streams may report an undefined duration, which arrives
+            // as null. This must not throw a TypeError.
+            'duration': null,
+            'width': 480,
+            'height': 270,
+            'rotationCorrection': 0,
+          },
+        ]);
+
+        final (OhosVideoPlayer player, _) = setUpMockPlayer(playerId: 1);
+        final List<Object?> received = <Object?>[];
+        final StreamSubscription<VideoEvent> subscription = player
+            .videoEventsFor(1)
+            .listen(received.add, onError: (Object e) => received.add(e));
+        await pumpEventQueue();
+
+        expect(received, hasLength(1));
+        expect(received.single, isA<VideoEvent>());
+        final VideoEvent event = received.single as VideoEvent;
+        expect(event.eventType, VideoEventType.initialized);
+        expect(event.duration, Duration.zero);
+        expect(event.size, const Size(480, 270));
+        expect(event.rotationCorrection, 0);
+
+        await subscription.cancel();
+      });
+
+      test('initialized event with int duration parses normally', () async {
+        mockEventStream(<Object?>[
+          <String, Object?>{
+            'event': 'initialized',
+            'duration': 98765,
+            'width': 1920,
+            'height': 1080,
+            'rotationCorrection': 90,
+          },
+        ]);
+
+        final (OhosVideoPlayer player, _) = setUpMockPlayer(playerId: 1);
+        final List<VideoEvent> events = <VideoEvent>[];
+        final StreamSubscription<VideoEvent> subscription = player
+            .videoEventsFor(1)
+            .listen(events.add);
+        await pumpEventQueue();
+
+        expect(events, hasLength(1));
+        expect(events.single.eventType, VideoEventType.initialized);
+        expect(events.single.duration, const Duration(milliseconds: 98765));
+        expect(events.single.size, const Size(1920, 1080));
+        expect(events.single.rotationCorrection, 90);
+
+        await subscription.cancel();
+      });
     });
 
     // group('video events', () {
