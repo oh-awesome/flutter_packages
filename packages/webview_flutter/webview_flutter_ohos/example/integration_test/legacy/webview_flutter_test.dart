@@ -371,7 +371,9 @@ Future<void> main() async {
             controllerCompleter1.complete(controller);
           },
           onPageFinished: (String url) {
-            pageLoaded.complete(null);
+            if (!pageLoaded.isCompleted) {
+              pageLoaded.complete(null);
+            }
           },
         ),
       ),
@@ -399,7 +401,9 @@ Future<void> main() async {
             controllerCompleter.complete(controller);
           },
           onPageFinished: (String url) {
-            pageLoaded.complete(null);
+            if (!pageLoaded.isCompleted) {
+              pageLoaded.complete(null);
+            }
           },
         ),
       ),
@@ -593,7 +597,9 @@ Future<void> main() async {
               ),
             },
             onPageFinished: (String url) {
-              pageLoaded.complete(null);
+              if (!pageLoaded.isCompleted) {
+                pageLoaded.complete(null);
+              }
             },
             initialMediaPlaybackPolicy: AutoMediaPlaybackPolicy.always_allow,
             allowsInlineMediaPlayback: true,
@@ -1211,7 +1217,9 @@ Future<void> main() async {
               controllerCompleter.complete(controller);
             },
             onPageFinished: (String url) {
-              pageLoaded.complete(null);
+              if (!pageLoaded.isCompleted) {
+                pageLoaded.complete(null);
+              }
             },
           ),
         ),
@@ -1379,7 +1387,11 @@ Future<void> main() async {
             key: GlobalKey(),
             initialUrl: primaryUrl,
             javascriptMode: JavascriptMode.unrestricted,
-            onPageFinished: (_) => pageLoadCompleter.complete(),
+            onPageFinished: (String url) {
+              if (!pageLoadCompleter.isCompleted) {
+                pageLoadCompleter.complete();
+              }
+            },
             onWebViewCreated: (WebViewController controller) {
               controllerCompleter.complete(controller);
             },
@@ -1426,8 +1438,29 @@ Future<String> _runJavaScriptReturningResult(
   WebViewController controller,
   String js,
 ) async {
-  return jsonDecode(await controller.runJavascriptReturningResult(js))
-      as String;
+  // OHOS: ArkWeb 的 runJavaScript 在脚本执行失败或页面 JS 上下文尚未就绪时
+  // 不抛异常，而是返回 'null'（见 @ohos.web.webview 文档）。首个
+  // onPageFinished 可能早于目标页面 DOM 可用，这里轮询重试直到脚本真正执行。
+  // 本文件中该辅助函数只执行不可能合法返回 null 的脚本
+  // （navigator.userAgent / JSON.stringify(...)）。
+  var result = '';
+  for (var attempt = 0; attempt < 20; attempt++) {
+    result = await controller.runJavascriptReturningResult(js);
+    if (result.isNotEmpty && result != 'null') {
+      break;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+  }
+  // 重试耗尽仍未拿到有效结果时，抛出携带脚本内容的明确超时异常，
+  // 避免 jsonDecode('null')/jsonDecode('') 落到与根因无关的
+  // TypeError/FormatException。
+  if (result.isEmpty || result == 'null') {
+    throw TimeoutException(
+      'JavaScript did not return a valid result after 20 retries '
+      '(last result: "$result"): $js',
+    );
+  }
+  return jsonDecode(result) as String;
 }
 
 class ResizableWebView extends StatefulWidget {

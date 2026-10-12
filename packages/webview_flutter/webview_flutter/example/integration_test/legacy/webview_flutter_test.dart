@@ -329,9 +329,17 @@ Future<void> main() async {
         ),
       ),
     );
-    // OHOS: wait for rebuild and userAgent re-apply
+    // OHOS: ArkWeb's setCustomUserAgent, unlike Android WebView, does not
+    // reload the current page (the native side only refreshes in
+    // onControllerAttached), so no second onPageFinished fires. Reload
+    // explicitly to apply the new userAgent, as documented for this API.
     if (_isOhos()) {
-      await pageFinishedCompleter2.future;
+      await controller1.reload();
+      await pageFinishedCompleter2.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => fail(
+            'OHOS: no onPageFinished after reload with new userAgent'),
+      );
     }
 
     final String customUserAgent2 = await _getUserAgent(controller1);
@@ -387,9 +395,13 @@ Future<void> main() async {
         ),
       ),
     );
-    // OHOS: 等待重建后 userAgent 生效
+    // OHOS: ArkWeb 在 userAgent 变化后不会自动刷新页面，需显式 reload
     if (_isOhos()) {
-      await pageFinishedCompleter2.future;
+      await controller.reload();
+      await pageFinishedCompleter2.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => fail('OHOS: reload 后未触发 onPageFinished'),
+      );
     }
     final String customUserAgent = await _getUserAgent(controller);
     expect(customUserAgent, 'Custom_User_Agent');
@@ -397,6 +409,7 @@ Future<void> main() async {
     // OHOS: 使用相同 GlobalKey 重建 WebView 会复用原生 Web 组件，
     // _setUserAgent 在 userAgent 缺失时为 no-op，不会重置原生 setCustomUserAgent。
     // 传空字符串 '' 可触发 setUserAgentString('')，根据注释空字符串会使用系统默认值。
+    final Completer<void> pageFinishedCompleter3 = Completer<void>();
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -406,9 +419,23 @@ Future<void> main() async {
           javascriptMode: JavascriptMode.unrestricted,
           // OHOS: 传空字符串重置为系统默认 userAgent
           userAgent: _isOhos() ? '' : null,
+          onPageFinished: (String url) {
+            if (!pageFinishedCompleter3.isCompleted) {
+              pageFinishedCompleter3.complete();
+            }
+          },
         ),
       ),
     );
+    // OHOS: 同样需要显式 reload，重置后的系统默认 userAgent 才会反映到
+    // navigator.userAgent。
+    if (_isOhos()) {
+      await controller.reload();
+      await pageFinishedCompleter3.future.timeout(
+        const Duration(seconds: 60),
+        onTimeout: () => fail('OHOS: 重置 userAgent 后 reload 未触发 onPageFinished'),
+      );
+    }
 
     final String customUserAgent2 = await _getUserAgent(controller);
     expect(customUserAgent2, defaultPlatformUserAgent);
