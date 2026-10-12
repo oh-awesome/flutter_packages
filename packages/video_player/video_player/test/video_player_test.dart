@@ -563,6 +563,23 @@ void main() {
           expect(controller.value.hasError, equals(false));
         },
       );
+
+      test(
+          'error stream events that are not PlatformException do not crash the error listener',
+          () async {
+        final VideoPlayerController controller =
+            VideoPlayerController.networkUrl(_localhostUri);
+        await controller.initialize();
+
+        // A non-PlatformException stream error, e.g. a TypeError thrown while
+        // parsing a native event, must not crash the error listener.
+        fakeVideoPlayerPlatform.streams[controller.playerId]!
+            .addError(TypeError(), StackTrace.current);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.hasError, isTrue);
+        expect(controller.value.errorDescription, contains('$TypeError'));
+      });
     });
 
     test('contentUri', () async {
