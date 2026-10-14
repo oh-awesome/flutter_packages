@@ -17,16 +17,22 @@ class FileSelector {
   // }
 
   @override
-  Future<int?> openFile({
+  /// Returns the document URI selected by the user.
+  ///
+  /// The plugin opens that URI itself, once for metadata and once for
+  /// playback, so the two readers do not share a file offset.
+  Future<String?> openFile({
     List<XTypeGroup>? acceptedTypeGroups,
     String? confirmButtonText,
   }) async {
     final FileResponse? file = await _api.openFile(
       _fileTypesFromTypeGroups(acceptedTypeGroups),
     );
-    print("openfile#");
-    print(file?.fd);
-    return file?.fd;
+    final String? uri = file?.path.trim();
+    if (uri == null || uri.isEmpty) {
+      return null;
+    }
+    return uri;
   }
 
 

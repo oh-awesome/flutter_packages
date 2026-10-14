@@ -26,7 +26,6 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * */
 
-import fs from '@ohos.file.fs';
 import picker from '@ohos.file.picker';
 import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { Result, FileTypes, FileResponse, FileSelectorApiCodec, wrapError } from './GeneratedFileSelectorApi'
@@ -66,9 +65,12 @@ export class FileSelector {
           return;
         }
         uris = documentSelectResult;
-        Log.i(TAG, 'documentViewPicker select file succeed and uris are:' + uris);
-        let file = fs.openSync(uris[0], fs.OpenMode.READ_ONLY);
-        let response = new FileResponse(file.path, file.name, file.fd);
+        const uri = uris[0];
+        Log.i(TAG, 'documentViewPicker select file succeed and uri is:' + uri);
+        const slash = uri.lastIndexOf('/');
+        const name = slash >= 0 ? uri.substring(slash + 1) : uri;
+        // 不在这里打开 fd。插件会对这个 URI 再打开两次，探测和播放各持一支。
+        let response = new FileResponse(uri, name, -1);
         result.success(response);
       }).catch((err: BusinessError) => {
         Log.e(TAG, 'Invoke documentPickerSelect failed with err: ' + err);

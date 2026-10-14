@@ -94,16 +94,23 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
         uri = dataSource.uri;
         break;
       case DataSourceType.file:
-        if (dataSource.uri?.startsWith('fd://') == true) {
-          uri = dataSource.uri;
+        final String? fileUri = dataSource.uri;
+        // file:// 是否原样传递取决于 viewType。
+        // Platform view 要按原串再开一支做探测。先收成 fd:// 再经 /proc/self/fd
+        // 复制会丢掉选择器授权，宽高变成 0。
+        // 纹理不走这次探测，file:// 仍由 getFileFdByPath 收成 fd。
+        // fd:// 两种视图都原样传递。沙箱裸路径两种视图都走 getFileFdByPath。
+        if (fileUri != null &&
+            (fileUri.startsWith('fd://') ||
+                (viewType == VideoViewType.platformView &&
+                    fileUri.startsWith('file://')))) {
+          uri = fileUri;
         } else {
-          openedFd = await VideoPlayerOhosChannel.getFileFdByPath(
-            dataSource.uri!,
-          );
+          openedFd = await VideoPlayerOhosChannel.getFileFdByPath(fileUri!);
           if (openedFd < 0) {
             throw PlatformException(
               code: 'video_player_ohos',
-              message: 'Failed to open file: ${dataSource.uri}',
+              message: 'Failed to open file: $fileUri',
             );
           }
           uri = 'fd://$openedFd';
