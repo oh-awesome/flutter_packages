@@ -464,20 +464,19 @@ class _LocalFileVideo extends StatefulWidget {
 
 class _LocalFileVideoState extends State<_LocalFileVideo> {
   late MiniController _controller;
-  int? fileFd;
+  String? _pickedUri;
   _PlayerPauseRegistry? _pauseRegistry;
   late final VoidCallback _pauseCallback;
   String _sourceHint = '未选择本地文件';
 
   Future<void> selectorFile() async {
-    print("selectorFile");
     const XTypeGroup typeGroup = XTypeGroup(
       label: 'video',
       extensions: <String>['mp4'],
       uniformTypeIdentifiers: <String>['public.video'],
     );
     final FileSelector instance = FileSelector();
-    fileFd = await instance.openFile(
+    _pickedUri = await instance.openFile(
       acceptedTypeGroups: <XTypeGroup>[typeGroup],
     );
   }
@@ -512,15 +511,15 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
     }
   }
 
-  void getFileFd() {
-    print("getFileFd");
-    selectorFile().then((value) {
-      if (fileFd == null) {
+  void pickVideoFile() {
+    selectorFile().then((_) {
+      final String? uri = _pickedUri;
+      if (uri == null || uri.isEmpty) {
         return;
       }
       _attachController(
-        MiniController.file(fileFd ?? 0, viewType: widget.viewType),
-        sourceHint: '文件选择器 fd://$fileFd',
+        MiniController.filePath(uri, viewType: widget.viewType),
+        sourceHint: uri,
       );
     });
   }
@@ -677,7 +676,7 @@ class _LocalFileVideoState extends State<_LocalFileVideo> {
                 ElevatedButton(
                   style: style,
                   child: const Text('Open a video file'),
-                  onPressed: () => {getFileFd()},
+                  onPressed: pickVideoFile,
                 ),
                 const SizedBox(height: 8),
                 if (widget.hdr)

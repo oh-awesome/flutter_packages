@@ -177,6 +177,79 @@ void main() {
       expect(message.uri, 'fd://42');
     });
 
+    testWidgets('texture file uri is opened with getFileFdByPath', (
+      WidgetTester tester,
+    ) async {
+      final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
+          setUpMockPlayer();
+      when(api.create(any)).thenAnswer((_) async => 1);
+      const String documentUri =
+          'file://docs/storage/Users/currentUser/video.mp4';
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        VideoPlayerOhosChannel.channel,
+        (MethodCall call) async {
+          expect(call.method, 'getFileFdByPath');
+          expect(call.arguments['filePath'], documentUri);
+          return 42;
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          VideoPlayerOhosChannel.channel,
+          null,
+        );
+      });
+
+      final int? playerId = await player.create(
+        DataSource(sourceType: DataSourceType.file, uri: documentUri),
+      );
+
+      expect(playerId, 1);
+      final CreateMessage message =
+          verify(api.create(captureAny)).captured.single as CreateMessage;
+      expect(message.uri, 'fd://42');
+    });
+
+    testWidgets('platformView file uri is passed through for a second open', (
+      WidgetTester tester,
+    ) async {
+      final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
+          setUpMockPlayer();
+      when(api.create(any)).thenAnswer((_) async => 1);
+      const String documentUri =
+          'file://docs/storage/Users/currentUser/video.mp4';
+
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        VideoPlayerOhosChannel.channel,
+        (MethodCall call) async {
+          fail('file:// must not be converted with ${call.method}');
+        },
+      );
+      addTearDown(() {
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          VideoPlayerOhosChannel.channel,
+          null,
+        );
+      });
+
+      final int? playerId = await player.createWithOptions(
+        VideoCreationOptions(
+          dataSource: DataSource(
+            sourceType: DataSourceType.file,
+            uri: documentUri,
+          ),
+          viewType: VideoViewType.platformView,
+        ),
+      );
+
+      expect(playerId, 1);
+      final CreateMessage message =
+          verify(api.create(captureAny)).captured.single as CreateMessage;
+      expect(message.uri, documentUri);
+      expect(message.viewType, PlatformVideoViewType.platformView);
+    });
+
     testWidgets('create with file path when channel returns -1 does not create', (
       WidgetTester tester,
     ) async {
