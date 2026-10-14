@@ -1433,19 +1433,26 @@ export class VideoPlayer {
       return;
     }
     this.initializedSent = true;
-    Log.i(TAG, 'sendInitialized')
     const playerWidth = this.avPlayer != null && this.avPlayer.width > 0 ? this.avPlayer.width : 0;
     const playerHeight = this.avPlayer != null && this.avPlayer.height > 0 ? this.avPlayer.height : 0;
     const playerDuration = this.avPlayer != null && this.avPlayer.duration > 0 ? this.avPlayer.duration : 0;
-    const width = playerWidth > 0 ? playerWidth : this.probedWidth;
-    const height = playerHeight > 0 ? playerHeight : this.probedHeight;
+    let width = playerWidth > 0 ? playerWidth : this.probedWidth;
+    let height = playerHeight > 0 ? playerHeight : this.probedHeight;
     const duration = playerDuration > 0 ? playerDuration : this.probedDurationMs;
+    let rotation = this.cachedRotationCorrection;
+    if (!this.usesExternalTexture() && (rotation === 90 || rotation === 270)) {
+      const swapped = width;
+      width = height;
+      height = swapped;
+      rotation = 0;
+    }
+    Log.i(TAG, 'sendInitialized width=' + width + ' height=' + height + ' rotation=' + rotation);
     let event: HashMap<string, Object> = new HashMap<string, Object>();
     event.set('event', 'initialized');
     event.set('duration', duration);
     event.set('width', width);
     event.set('height', height);
-    event.set('rotationCorrection', this.cachedRotationCorrection);
+    event.set('rotationCorrection', rotation);
     this.eventSink?.success(event);
   }
 
@@ -1478,11 +1485,13 @@ export class VideoPlayer {
   private async getRotationCorrection(): Promise<number> {
     let extractor: media.AVMetadataExtractor | null = null;
     let fd: fs.File | null = null;
+    let probeRawFd: number = -1;
     try {
       extractor = await media.createAVMetadataExtractor();
       if (this.url?.startsWith('file://')) {
-        fd = fs.openSync(this.url.substring(7), fs.OpenMode.READ_ONLY);
-        extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
+        // 文档 URI 不能经 /proc/self/fd 复制。这里单独 open 一次，和播放用的 fd 不是同一支。
+        probeRawFd = this.openFileUri(this.url);
+        extractor.fdSrc = this.descriptorForWholeFile(probeRawFd);
       } else if (this.url?.startsWith('fd://')) {
         // 提取器不能和 AVPlayer 共用同一个打开的文件，经 /proc/self/fd 另开一份。
         fd = fs.openSync('/proc/self/fd/' + this.url.substring(5), fs.OpenMode.READ_ONLY);
@@ -1525,7 +1534,32 @@ export class VideoPlayer {
       if (fd) {
         fs.closeSync(fd);
       }
+      if (probeRawFd >= 0) {
+        try {
+          fs.closeSync(probeRawFd);
+        } catch (closeErr) {
+          Log.w(TAG, 'close probe fd failed: ' + JSON.stringify(closeErr));
+        }
+      }
     }
+  }
+
+  /** 整文件描述符。size 为 0 时不写 length，避免被当成空文件。 */
+  private descriptorForWholeFile(fdNumber: number): media.AVFileDescriptor {
+    let length = 0;
+    try {
+      const size = fs.statSync(fdNumber).size;
+      if (size > 0) {
+        length = size;
+      } 
+    } catch (e) {
+      Log.w(TAG, 'stat probe fd failed: ' + JSON.stringify(e));
+    }
+    const descriptor: media.AVFileDescriptor = { fd: fdNumber, offset: 0 };
+    if (length > 0) {
+      descriptor.length = length;
+    }
+    return descriptor;
   }
 
   sendCompleted(): void {
