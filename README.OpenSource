@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "file_selector",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "1.0.3",
+        "Owner": "george.lihui@huawei.com",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A Flutter plugin for finding and choosing files and directories from the filesystem. Supports Android, iOS, and now OpenHarmony. This is the OHOS development branch of the file_selector plugin for the OpenHarmony platform"
+    }
+]
