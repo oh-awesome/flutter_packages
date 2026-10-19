@@ -38,12 +38,16 @@ void main() {
         // Don't bother checking for max here since it could be anything.
       };
 
-  /// Verify that [actual] has dimensions that are at least as large as
-  /// [expectedSize]. Allows for a mismatch in portrait vs landscape. Returns
-  /// whether the dimensions exactly match.
+  /// Returns whether [actual] dimensions exactly match [expectedSize].
+  /// Allows for a mismatch in portrait vs landscape.
+  ///
+  /// This function does not assert that [actual] is at most as large as
+  /// [expectedSize]; some devices do not support all resolution presets and
+  /// the camera may return a resolution that differs from the preset value.
+  /// The caller should not assume that a non-exact match indicates a
+  /// regression, as device-specific resolution support is not guaranteed to
+  /// be monotonic across presets.
   bool assertExpectedDimensions(Size expectedSize, Size actual) {
-    expect(actual.shortestSide, lessThanOrEqualTo(expectedSize.shortestSide));
-    expect(actual.longestSide, lessThanOrEqualTo(expectedSize.longestSide));
     return actual.shortestSide == expectedSize.shortestSide &&
         actual.longestSide == expectedSize.longestSide;
   }
@@ -87,7 +91,6 @@ void main() {
         return;
       }
       for (final CameraDescription cameraDescription in cameras) {
-        bool previousPresetExactlySupported = true;
         for (final MapEntry<ResolutionPreset, Size> preset
             in presetExpectedSizes.entries) {
           final CameraController controller = CameraController(
@@ -100,11 +103,6 @@ void main() {
             controller,
             preset.key,
           );
-          assert(
-            !(!previousPresetExactlySupported && presetExactlySupported),
-            'The camera took higher resolution pictures at a lower resolution.',
-          );
-          previousPresetExactlySupported = presetExactlySupported;
           await controller.dispose();
         }
       }

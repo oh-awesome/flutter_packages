@@ -134,7 +134,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _refreshAvailableCameras();
-      _initializeCameraController(cameraController.description);
+      _initializeCameraController(
+        _selectedCameraDescription ?? cameraController.description,
+      );
     }
   }
 
@@ -222,6 +224,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       return Listener(
         onPointerDown: (_) => _pointers++,
         onPointerUp: (_) => _pointers--,
+        onPointerCancel: (_) => _pointers--,
         child: CameraPreview(
           controller!,
           child: LayoutBuilder(
@@ -752,6 +755,30 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           'Auto-switched to rear camera in tri-fold dual-screen mode',
         );
       }
+    }
+    if (controller != null) {
+      _currentScale = 1.0;
+      _currentExposureOffset = 0.0;
+      Future.wait(<Future<Object?>>[
+        CameraPlatform.instance
+            .getMaxZoomLevel(controller!.cameraId)
+            .then((double value) => _maxAvailableZoom = value),
+        CameraPlatform.instance
+            .getMinZoomLevel(controller!.cameraId)
+            .then((double value) => _minAvailableZoom = value),
+        CameraPlatform.instance
+            .getMinExposureOffset(controller!.cameraId)
+            .then((double value) => _minAvailableExposureOffset = value),
+        CameraPlatform.instance
+            .getMaxExposureOffset(controller!.cameraId)
+            .then((double value) => _maxAvailableExposureOffset = value),
+      ]).then((_) {
+        if (mounted) {
+          setState(() {});
+        }
+      }).catchError((Object e) {
+        debugPrint('Failed to refresh camera ranges after auto switch: $e');
+      });
     }
   }
 
