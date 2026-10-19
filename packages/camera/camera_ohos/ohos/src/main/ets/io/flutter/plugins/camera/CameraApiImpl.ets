@@ -300,6 +300,9 @@ export class CameraApiImpl extends CameraApi {
   private cameraIdPositionMap: Map<string, camera.CameraPosition> = new Map();
   private isSwitchingCamera: boolean = false;
 
+  private _disposeTimerId: number = -1;
+  private static readonly DISPOSE_GRACE_MS: number = 800;
+
   constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
     super();
     this.ability = ability;
@@ -321,6 +324,7 @@ export class CameraApiImpl extends CameraApi {
   // 在 create 方法中增强错误处理
   create(cameraName: string, mediaSettings: PlatformMediaSettings, result: Result<number>): void {
     try {
+      this._cancelPendingDispose();
 
       console.log('mediaSettings:', JSON.stringify(mediaSettings));
 
@@ -331,7 +335,7 @@ export class CameraApiImpl extends CameraApi {
       this.curStatus = STATUS.CREATE_ING;
 
       if (this.camera) {
-        this.camera.releaseCamera();
+        this.camera.dispose().catch((e: Error): void => Log.e(TAG, 'create: dispose old camera failed: ' + e.message));
       }
       if (this.textureId > -1) {
         this.unregisterTexture(this.textureId);
@@ -446,7 +450,7 @@ export class CameraApiImpl extends CameraApi {
 
   // 在 initialize 方法中增强错误处理
   async initialize(imageFormat: PlatformImageFormatGroup): Promise<void> {
-
+    this._cancelPendingDispose();
 
     this.curStatus = STATUS.INITIALIZE_ING;
     if (this.camera != null) {
@@ -480,28 +484,57 @@ export class CameraApiImpl extends CameraApi {
 
   // 在 dispose 方法中改进错误处理
   async dispose(): Promise<void> {
+    if (this._disposeTimerId !== -1) {
+      Log.w(TAG, 'dispose: already pending, ignoring');
+      return;
+    }
+    this._disposeTimerId = setTimeout((): void => {
+      this._disposeTimerId = -1;
+      this._doRealDispose();
+    }, CameraApiImpl.DISPOSE_GRACE_MS);
+    Log.w(TAG, `dispose: deferred ${CameraApiImpl.DISPOSE_GRACE_MS}ms (lifecycle jitter grace window)`);
+  }
+
+  private _cancelPendingDispose(): void {
+    if (this._disposeTimerId !== -1) {
+      clearTimeout(this._disposeTimerId);
+      this._disposeTimerId = -1;
+      Log.w(TAG, 'dispose: cancelled by initialize/create (resumed reinit)');
+    }
+  }
+
+  async disposeImmediately(): Promise<void> {
+    this._cancelPendingDispose();
+    await this._doRealDispose();
+  }
+
+  private async _doRealDispose(): Promise<void> {
+    const cam = this.camera;
     try {
       // 先停止相机
-      if (this.camera) {
+      if (cam) {
         try {
-          await this.camera.close();
+          await cam.close();
         } catch (closeError) {
           console.error(`Failed to close camera: ${closeError}`);
         }
         try {
-          await this.camera.dispose();
+          await cam.dispose();
         } catch (disposeError) {
           console.error(`Failed to dispose camera: ${disposeError}`);
         }
-        this.camera = null;
       }
-      // 释放纹理
-      if (this.textureId > -1) {
-        try {
-          this.unregisterTexture(this.textureId);
-        } catch (textureError) {
-          console.error(`Failed to unregister texture: ${textureError}`);
+      if (this.camera === cam) {
+        this.camera = null;
+        if (this.textureId > -1) {
+          try {
+            this.unregisterTexture(this.textureId);
+          } catch (textureError) {
+            console.error(`Failed to unregister texture: ${textureError}`);
+          }
         }
+      } else {
+        Log.w(TAG, '_doRealDispose: camera replaced during await, keeping new camera');
       }
     } catch (error) {
       console.error(`DISPOSE_ERROR: ${(error as Error).message}`);
@@ -831,6 +864,8 @@ export class CameraApiImpl extends CameraApi {
     const resolutionPreset: ResolutionPreset = call.argument('resolutionPreset') as ResolutionPreset;
     let enableAudio: boolean = call.argument('enableAudio') as boolean;
 
+    this._cancelPendingDispose();
+
     this.currentResolutionPreset = resolutionPreset;
     this.currentEnableAudio = enableAudio;
     cameraName = this.resolveCurrentCameraId(cameraName);
@@ -877,6 +912,7 @@ export class CameraApiImpl extends CameraApi {
 
   // 停止监听方法
   stopListening(): void {
+    this._cancelPendingDispose();
     this.methodChannel.setMethodCallHandler(null);
   }
 
@@ -890,6 +926,7 @@ export class CameraApiImpl extends CameraApi {
       return;
     }
     this.isSwitchingCamera = true;
+    this._cancelPendingDispose();
     try {
       const cameraManager = CameraUtils.getCameraManager(this.context);
       let allCameraDevices: camera.CameraDevice[];
