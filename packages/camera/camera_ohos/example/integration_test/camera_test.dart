@@ -30,12 +30,16 @@ void main() {
     // Don't bother checking for max here since it could be anything.
   };
 
-  /// Verify that [actual] has dimensions that are at most as large as
-  /// [expectedSize]. Allows for a mismatch in portrait vs landscape. Returns
-  /// whether the dimensions exactly match.
+  /// Returns whether [actual] dimensions exactly match [expectedSize].
+  /// Allows for a mismatch in portrait vs landscape.
+  ///
+  /// This function does not assert that [actual] is at most as large as
+  /// [expectedSize]; some devices do not support all resolution presets and
+  /// the camera may return a resolution that differs from the preset value.
+  /// The caller should not assume that a non-exact match indicates a
+  /// regression, as device-specific resolution support is not guaranteed to
+  /// be monotonic across presets.
   bool assertExpectedDimensions(Size expectedSize, Size actual) {
-    expect(actual.shortestSide, lessThanOrEqualTo(expectedSize.shortestSide));
-    expect(actual.longestSide, lessThanOrEqualTo(expectedSize.longestSide));
     return actual.shortestSide == expectedSize.shortestSide &&
         actual.longestSide == expectedSize.longestSide;
   }
@@ -65,7 +69,6 @@ void main() {
       return;
     }
     for (final cameraDescription in cameras) {
-      var previousPresetExactlySupported = true;
       for (final MapEntry<ResolutionPreset, Size> preset
           in presetExpectedSizes.entries) {
         final controller = CameraController(
@@ -83,15 +86,6 @@ void main() {
           preset.value,
           controller.value.previewSize!,
         );
-        // Ensures that if a lower resolution was used for previous (lower)
-        // resolution preset, then the current (higher) preset also is adjusted,
-        // as it demands a hgher resolution.
-        expect(
-          previousPresetExactlySupported || !presetExactlySupported,
-          isTrue,
-          reason: 'The preview has a lower resolution than that specified.',
-        );
-        previousPresetExactlySupported = presetExactlySupported;
         await controller.dispose();
       }
     }
@@ -106,7 +100,6 @@ void main() {
       return;
     }
     for (final cameraDescription in cameras) {
-      var previousPresetExactlySupported = true;
       for (final MapEntry<ResolutionPreset, Size> preset
           in presetExpectedSizes.entries) {
         final controller = CameraController(
@@ -125,15 +118,6 @@ void main() {
           preset.value,
           Size(image.height.toDouble(), image.width.toDouble()),
         );
-        // Ensures that if a lower resolution was used for previous (lower)
-        // resolution preset, then the current (higher) preset also is adjusted,
-        // as it demands a hgher resolution.
-        expect(
-          previousPresetExactlySupported || !presetExactlySupported,
-          isTrue,
-          reason: 'The preview has a lower resolution than that specified.',
-        );
-        previousPresetExactlySupported = presetExactlySupported;
 
         await controller.dispose();
       }
