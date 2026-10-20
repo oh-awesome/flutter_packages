@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "camera",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "0.12.0+1",
+        "Owner": "george.lihui@huawei.com",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A Flutter plugin for getting information about and controlling the camera on the device. Supports previewing the camera stream, capturing images, and recording videos on Android, iOS, and now OpenHarmony. This is the OHOS adaptation branch of the camera plugin for the OpenHarmony platform"
+    }
+]
