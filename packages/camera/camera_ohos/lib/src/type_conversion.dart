@@ -29,13 +29,32 @@ CameraImageFormat _cameraImageFormatFromPlatformData(dynamic data) {
 }
 
 ImageFormatGroup _imageFormatGroupFromPlatformData(dynamic data) {
+  // Maps OHOS native camera.CameraFormat constants to [ImageFormatGroup]. The
+  // full CameraFormat set is RGBA_8888(3) / YUV_420_SP(1003) / JPEG(2000) /
+  // YCBCR_P010(2001) / YCRCB_P010(2002) / HEIC(2003). Constants without a
+  // faithful [ImageFormatGroup] counterpart fall through to `unknown` on
+  // purpose - mislabeling a stream is worse than reporting it as unknown:
+  // - RGBA_8888(3): the closest group, `bgra8888`, describes BGRA byte order
+  //   and would mislead consumers;
+  // - YCBCR_P010(2001) / YCRCB_P010(2002): there is no 10-bit group;
+  // - HEIC(2003): a HEIC container is not JPEG-decodable, so it must not be
+  //   reported as `jpeg`.
+  // Any other value - including the legacy Android ImageFormat constants -
+  // also falls through to `unknown`, matching the precedent of
+  // camera_avfoundation which only maps its own iOS constants.
   switch (data) {
-    case 35:
-      return ImageFormatGroup.yuv420;
-    case 256:
-      return ImageFormatGroup.jpeg;
-    case 17:
+    case 1003:
+      // OHOS camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP: the image stream
+      // delivers NV21 (YUV420 semi-planar, V first) frames from the preview
+      // stream. Confirmed on device by chroma-pair order measurement, and per
+      // the OpenHarmony docs which state this constant corresponds to NV21.
+      // Mapped to nv21 to match Android's ImageFormatGroup.nv21 semantics
+      // (single buffer, VU byte order).
       return ImageFormatGroup.nv21;
+    case 2000:
+      // OHOS camera.CameraFormat.CAMERA_FORMAT_JPEG: if a device's preview
+      // profiles deliver JPEG-compressed stream frames, they are labeled jpeg.
+      return ImageFormatGroup.jpeg;
   }
 
   return ImageFormatGroup.unknown;
