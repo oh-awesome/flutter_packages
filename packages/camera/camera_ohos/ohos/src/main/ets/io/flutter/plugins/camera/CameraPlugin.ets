@@ -47,7 +47,7 @@ export default class CameraPlugin implements FlutterPlugin, AbilityAware {
     const apiImpl = this.cameraApiImpl;
     this.cameraApiImpl = null;
     if (apiImpl != null) {
-      apiImpl.dispose().catch((e: Error) => {
+      apiImpl.disposeImmediately().catch((e: Error): void => {
         console.error('CameraPlugin.onDetachedFromEngine: dispose failed: ' + e.message);
       });
     }
@@ -89,7 +89,7 @@ export default class CameraPlugin implements FlutterPlugin, AbilityAware {
 
     if (apiImpl != null) {
       try {
-        await apiImpl.dispose();   // 内部执行 camera.close() + camera.dispose() + unregisterTexture
+        await apiImpl.disposeImmediately();
       } catch (e) {
         console.error('CameraPlugin.onDetachedFromAbility: dispose failed: ' + (e as Error).message);
       }
