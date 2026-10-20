@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "pigeon",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "26.3.4",
+        "Owner": "george.lihui@huawei.com",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A code generator for communicating with native platform APIs without writing boilerplate platform channel code, providing type-safe interfaces for Dart and native sides. This is the OHOS adaptation branch of the pigeon package for the OpenHarmony platform"
+    }
+]
