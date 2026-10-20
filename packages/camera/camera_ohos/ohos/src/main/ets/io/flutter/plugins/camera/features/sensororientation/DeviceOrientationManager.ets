@@ -31,6 +31,8 @@ export class DeviceOrientationManager {
   private readonly sensorOrientation: number;
   private lastOrientation: DeviceOrientation = DeviceOrientation.PORTRAIT_UP;
   private displayClass: display.Display | null = null;
+  private displayChangeCallback: Callback<number> | null = null;
+  private started: boolean = false;
 
 
   public static create(
@@ -54,16 +56,27 @@ export class DeviceOrientationManager {
   }
 
   public start() {
+    if (this.started) {
+      return;
+    }
     this.handleUIOrientationChange();
-    let callback: Callback<number> = (data: number) => {
+    this.displayChangeCallback = (data: number) => {
       this.handleUIOrientationChange();
     };
-    display.on('change', callback)
+    display.on('change', this.displayChangeCallback);
+    this.started = true;
   }
 
   public stop() {
-    display.off('change');
+    if (!this.started) {
+      return;
+    }
+    if (this.displayChangeCallback != null) {
+      display.off('change', this.displayChangeCallback);
+      this.displayChangeCallback = null;
+    }
     this.displayClass = null;
+    this.started = false;
   }
 
   public getPhotoOrientation(orientation?: DeviceOrientation) {
