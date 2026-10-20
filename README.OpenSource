@@ -1,0 +1,11 @@
+[
+    {
+        "Name": "flutter_packages",
+        "License": "BSD 3-Clause License",
+        "License File": "LICENSE",
+        "Version Number": "3.44.9",
+        "Owner": "george.lihui@huawei.com",
+        "Upstream URL": "https://github.com/flutter/packages",
+        "Description": "A collection of Flutter packages and plugins maintained by the Flutter team, including both API packages and plugin packages, adapted for the OpenHarmony platform. This is the OHOS development branch of flutter_packages for the OpenHarmony platform"
+    }
+]
