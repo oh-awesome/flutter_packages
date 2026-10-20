@@ -70,6 +70,10 @@ export default class CameraPlugin implements FlutterPlugin, AbilityAware {
   onDetachedFromAbility(): void {
     if (this.cameraApiImpl != null) {
       CameraApi.setUp(this.flutterPluginBinding!.getBinaryMessenger(), null);
+      this.cameraApiImpl.disposeImmediately().catch((e: Error): void => {
+        console.error('CameraPlugin.onDetachedFromAbility: dispose failed: ' + e.message);
+      });
+      this.cameraApiImpl.stopListening();
       this.cameraApiImpl = null;
     }
     if (this.methodCallHandler != null) {
