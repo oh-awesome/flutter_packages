@@ -7,6 +7,9 @@
   `setJpegImageQuality` (1-100) with post-capture JPEG re-encoding via `ImagePacker` and replay of output settings across camera switches.
   `cameraSwitched` event aligned on the Dart side through the Pigeon `CameraEventApi`.
   Test helpers and Coverage Gap / Edge Case groups in `test/ohos_camera_test.dart`.
+  Unit tests covering the OHOS image stream format mapping for `1003` (`ImageFormatGroup.nv21`). ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Unit tests covering the OHOS image stream format mapping for `2000` (`ImageFormatGroup.jpeg`). ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Unit tests asserting legacy Android constants (`35`/`256`/`17`) fall through to `unknown`. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
 
 * **Changed:**
 
@@ -18,11 +21,18 @@
   Replaced the misleading `supportedImageFormats` map with `getSupportedImageFormat()` and recognized OHOS JPEG format `2000`.
   Upgraded to Flutter 3.44 / Dart ^3.12 / `camera_platform_interface` ^2.13 / Pigeon fork `v26.3.4-ohos-1.0.0`.
   Made `Timeout` usable and `DeviceOrientationManager.start/stop` idempotent with reference-based listener removal.
+  Image stream format reporting now follows the actual `format` of the selected `previewProfile` instead of the `ImageReceiver` creation format. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  `_imageFormatGroupFromPlatformData` maps `1003` to `ImageFormatGroup.nv21`, matching the NV21 byte order confirmed on device. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  `_imageFormatGroupFromPlatformData` maps `2000` to `ImageFormatGroup.jpeg`. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Adapted the `ohosTest` `ImageStreamReader` construction to the new constructor signature. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
 
 * **Removed:**
 
   Legacy MethodChannel path (`MethodCallHandlerImpl`, `DartMessenger` event channels) — communication is now Pigeon-only.
   16 dead-code files (placeholders, empty classes and unused utilities) and the `CameraProperties` interface slim-down (15 → 5 methods).
+  Legacy Android dead branch (`case 35` → `ImageFormatGroup.yuv420`) from the OHOS format mapping. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Legacy Android dead branch (`case 256` → `ImageFormatGroup.jpeg`) from the OHOS format mapping. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Legacy Android dead branch (`case 17` → `ImageFormatGroup.nv21`) from the OHOS format mapping. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
 
 * **Fixed:**
 
@@ -30,6 +40,8 @@
   Listener leaks: precise `photoAssetAvailable` unregistration, `ImageStreamReader` subscribe/close de-dup, and sensor `once` listener removal after `Promise.race`.
   Error-path leaks (three-fold front-camera `ImageStreamReader`, `nextImage.release()`) and double-response/double-throw in `getFocusMode` and `convertBufferToFile`.
   Plugin lifecycle (`onAttachedToAbility`/`onDetachedFromAbility`/`onDetachedFromEngine`) against detach races and direct engine destruction.
+  `sensorExposureTime` no longer reports the sensor sensitivity value. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
+  Misleading fallback log message now reports the actual output format. ([#1766](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1766))  
 
 ## 0.10.8+8
 
