@@ -49,3 +49,6 @@ ohos/**/oh_modules
 ohos/**.har
 ohos/**/BuildProfile.ets
 ohos/**/oh-package-lock.json5
+
+# FVM Version Cache
+.fvm/
