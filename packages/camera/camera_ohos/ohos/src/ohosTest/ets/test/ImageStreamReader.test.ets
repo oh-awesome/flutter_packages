@@ -40,7 +40,7 @@ let factoryFailureMessage: string = '';
 function tryMakeReader(): ImageStreamReader | null {
   try {
     const size: Size = { width: 16, height: 16 };
-    return new ImageStreamReader(size, image.ImageFormat.JPEG, 3);
+    return new ImageStreamReader(size, image.ImageFormat.JPEG, 3, image.ImageFormat.JPEG);
   } catch (e) {
     factoryFailureMessage = (e as Error).message;
     return null;
@@ -102,6 +102,22 @@ export default function imageStreamReaderTest() {
       const planes: ArrayList<HashMap<string, object>> =
         (payload.get('planes') as ESObject) as ArrayList<HashMap<string, object>>;
       expect(planes.length).assertEqual(1);
+    });
+
+    it('onImageAvailable_reportsFormatUpdatedAfterConstruction', 0, async (): Promise<void> => {
+      const reader: ImageStreamReader | null = tryMakeReader();
+      expect(reader != null).assertTrue();
+      if (reader == null) {
+        return;
+      }
+      reader.setReportedImageFormat(image.ImageFormat.YUV420);
+      const sink: StubEventSink = new StubEventSink();
+      const img: image.Image = makeFakeImage(16, 16);
+      await reader.onImageAvailable(img, makeFakeComponent(8, 1, 4),
+        new CameraCaptureProperties(), sink);
+      const payload: HashMap<string, Object> =
+        (sink.successEvents[0] as ESObject) as HashMap<string, Object>;
+      expect(payload.get('format')).assertEqual(image.ImageFormat.YUV420);
     });
 
     it('onImageAvailable_defaultSensitivityZeroPassesThrough', 0, async (): Promise<void> => {
