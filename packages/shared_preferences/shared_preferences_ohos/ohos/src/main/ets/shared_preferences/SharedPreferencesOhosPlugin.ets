@@ -36,6 +36,10 @@ const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
 // 与 Android 对齐，增加 BIG_INTEGER_PREFIX 和 DOUBLE_PREFIX 特殊前缀常量
 const BIG_INTEGER_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy";
 const DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu";
+// Legacy prefix used by old plugin versions which encoded doubles on the Dart side
+// ("This is the prefix for a double."). Kept for reading data written before
+// the native DOUBLE_PREFIX encoding was introduced. Fixes #1689.
+const LEGACY_DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4";
 
 export default class SharedPreferencesOhosPlugin implements FlutterPlugin, SharedPreferencesApi {
 
@@ -276,7 +280,8 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   setString(key: string, value: string): Promise<void> {
     if (value.startsWith(LIST_IDENTIFIER) ||
         value.startsWith(BIG_INTEGER_PREFIX) ||
-        value.startsWith(DOUBLE_PREFIX)) {
+        value.startsWith(DOUBLE_PREFIX) ||
+        value.startsWith(LEGACY_DOUBLE_PREFIX)) {
       return Promise.reject(new Error(
         "StorageError: This string cannot be stored as it clashes with special identifier prefixes"));
     }
@@ -412,6 +417,14 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       } else if (stringValue.startsWith(DOUBLE_PREFIX)) {
         // 解码 DOUBLE_PREFIX 编码的 double 值
         return parseFloat(stringValue.substring(DOUBLE_PREFIX.length));
+      } else if (stringValue.startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side encoding).
+        // Fall through to the raw string when the remainder is not a valid
+        // number, so no NaN is produced and no data is lost.
+        const decoded = parseFloat(stringValue.substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
       } else if (stringValue.startsWith(BIG_INTEGER_PREFIX)) {
         // 解码 BIG_INTEGER_PREFIX 编码的 BigInteger 值（确认无跨平台共享场景）
         let encoded = stringValue.substring(BIG_INTEGER_PREFIX.length);
@@ -493,6 +506,7 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       if (typeof value === 'string' &&
           !(value as string).startsWith(LIST_IDENTIFIER) &&
           !(value as string).startsWith(DOUBLE_PREFIX) &&
+          !(value as string).startsWith(LEGACY_DOUBLE_PREFIX) &&
           !(value as string).startsWith(BIG_INTEGER_PREFIX)) {
         return value as string;
       }
@@ -537,6 +551,14 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       } else if (typeof value === 'string' && (value as string).startsWith(DOUBLE_PREFIX)) {
         // 解码 DOUBLE_PREFIX 编码的 double 值
         return parseFloat((value as string).substring(DOUBLE_PREFIX.length));
+      } else if (typeof value === 'string' && (value as string).startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side encoding).
+        // Fall through to the type mismatch error when the remainder is not a
+        // valid number.
+        const decoded = parseFloat((value as string).substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
       } else if (typeof value === 'bigint') {
         return Number(value);
       }

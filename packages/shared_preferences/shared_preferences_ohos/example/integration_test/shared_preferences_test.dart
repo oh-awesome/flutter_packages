@@ -480,6 +480,8 @@ void main() {
         'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu',
         // Prefix for doubles:
         'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu',
+        // Prefix for doubles written by legacy plugin versions (#1689):
+        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4',
       ];
       for (final String prefix in specialPrefixes) {
         expect(preferences.setValue('String', key, prefix + value),
@@ -699,6 +701,30 @@ void main() {
       expect(await preferences.getInt(intKey, emptyOptions), testInt);
       expect(await preferences.getDouble(doubleKey, emptyOptions), testDouble);
       expect(await preferences.getStringList(listKey, emptyOptions), testList);
+    });
+
+    testWidgets('setString rejects special prefixes', (WidgetTester _) async {
+      final SharedPreferencesAsyncPlatform preferences = await getPreferences();
+
+      // Strings starting with a reserved prefix are rejected on write so
+      // they can never shadow values stored for another type (#1689).
+      // The list prefix is rejected on the Dart side (ArgumentError), the
+      // double prefixes on the native side (PlatformException).
+      const List<String> specialPrefixes = <String>[
+        // Prefix for lists:
+        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu',
+        // Prefix for doubles:
+        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu',
+        // Prefix for doubles written by legacy plugin versions (#1689):
+        'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4',
+      ];
+      for (final String prefix in specialPrefixes) {
+        expect(
+          preferences.setString(stringKey, prefix + testString, emptyOptions),
+          throwsA(anyOf(isA<PlatformException>(), isA<ArgumentError>())),
+        );
+        expect(await preferences.getString(stringKey, emptyOptions), null);
+      }
     });
   });
 }
