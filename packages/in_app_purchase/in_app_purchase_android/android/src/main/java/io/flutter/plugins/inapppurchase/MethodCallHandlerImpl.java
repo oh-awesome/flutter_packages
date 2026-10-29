@@ -39,7 +39,6 @@ import com.android.billingclient.api.QueryPurchasesParams;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
 import kotlin.Result;
 import kotlin.Unit;
 import kotlin.jvm.functions.Function1;
@@ -118,9 +117,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
 
   @Override
   public void showAlternativeBillingOnlyInformationDialog(
-      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformBillingResult>, Unit> callback =
-        replyOnce("showAlternativeBillingOnlyInformationDialog", rawCallback);
+      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -144,9 +141,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   public void createAlternativeBillingOnlyReportingDetailsAsync(
       @NonNull
           Function1<? super Result<PlatformAlternativeBillingOnlyReportingDetailsResponse>, Unit>
-              rawCallback) {
-    final Function1<? super Result<PlatformAlternativeBillingOnlyReportingDetailsResponse>, Unit>
-        callback = replyOnce("createAlternativeBillingOnlyReportingDetailsAsync", rawCallback);
+              callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -166,9 +161,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
 
   @Override
   public void isAlternativeBillingOnlyAvailableAsync(
-      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformBillingResult>, Unit> callback =
-        replyOnce("isAlternativeBillingOnlyAvailableAsync", rawCallback);
+      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -186,9 +179,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   public void showInAppMessages(
       @NotNull
           Function1<? super @NotNull Result<@NotNull PlatformInAppMessageResult>, @NotNull Unit>
-              rawCallback) {
-    final Function1<? super Result<PlatformInAppMessageResult>, Unit> callback =
-        replyOnce("showInAppMessages", rawCallback);
+              callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -213,9 +204,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
 
   @Override
   public void getBillingConfigAsync(
-      @NonNull Function1<? super Result<PlatformBillingConfigResponse>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformBillingConfigResponse>, Unit> callback =
-        replyOnce("getBillingConfigAsync", rawCallback);
+      @NonNull Function1<? super Result<PlatformBillingConfigResponse>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -254,9 +243,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   @Override
   public void queryProductDetailsAsync(
       @NonNull List<PlatformQueryProduct> products,
-      @NonNull Function1<? super Result<PlatformProductDetailsResponse>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformProductDetailsResponse>, Unit> callback =
-        replyOnce("queryProductDetailsAsync", rawCallback);
+      @NonNull Function1<? super Result<PlatformProductDetailsResponse>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -282,13 +269,6 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
     }
   }
 
-  // SubscriptionUpdateParams.Builder.setSubscriptionReplacementMode is deprecated as of Google
-  // Play Billing Library 8.1.0 in favour of SubscriptionProductReplacementParams, but remains
-  // functional in 9.x. Migrating is not a drop-in change: the replacement mode constants were
-  // renumbered, so it would alter the values carried by the Dart ReplacementMode enum.
-  // TODO(gmackall): migrate to setSubscriptionProductReplacementParams as a
-  // separate breaking change. https://github.com/flutter/flutter/issues/194324
-  @SuppressWarnings("deprecation")
   @Override
   public @NonNull PlatformBillingResult launchBillingFlow(
       @NonNull PlatformBillingFlowParams params) {
@@ -404,9 +384,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   @Override
   public void consumeAsync(
       @NonNull String purchaseToken,
-      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformBillingResult>, Unit> callback =
-        replyOnce("consumeAsync", rawCallback);
+      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -430,9 +408,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   @Override
   public void queryPurchasesAsync(
       @NonNull PlatformProductType productType,
-      @NonNull Function1<? super Result<PlatformPurchasesResponse>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformPurchasesResponse>, Unit> callback =
-        replyOnce("queryPurchasesAsync", rawCallback);
+      @NonNull Function1<? super Result<PlatformPurchasesResponse>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -511,9 +487,7 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
   @Override
   public void acknowledgePurchase(
       @NonNull String purchaseToken,
-      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> rawCallback) {
-    final Function1<? super Result<PlatformBillingResult>, Unit> callback =
-        replyOnce("acknowledgePurchase", rawCallback);
+      @NonNull Function1<? super Result<PlatformBillingResult>, Unit> callback) {
     if (billingClient == null) {
       ResultUtilsKt.completeWithError(callback, getNullBillingClientError());
       return;
@@ -538,28 +512,6 @@ class MethodCallHandlerImpl implements Application.ActivityLifecycleCallbacks, I
     for (ProductDetails productDetails : productDetailsList) {
       cachedProducts.put(productDetails.getProductId(), productDetails);
     }
-  }
-
-  // The Play Billing library can invoke a response listener more than once for
-  // a single call (e.g. via its internal watchdog/timeout path). The pigeon
-  // reply may only be submitted once; a second completion throws
-  // "IllegalStateException: Reply already submitted" on the main thread and
-  // crashes the app (https://github.com/flutter/flutter/issues/103432).
-  // startConnection already guards this with its own alreadyFinished flag;
-  // this wraps the other async methods' callbacks so the first completion wins
-  // and duplicates are dropped. Call sites bind the pigeon parameter as
-  // rawCallback and rebind `callback` to this wrapper, keeping the method
-  // bodies otherwise unchanged.
-  private static <T> @NonNull Function1<? super Result<T>, Unit> replyOnce(
-      @NonNull String methodName, @NonNull Function1<? super Result<T>, Unit> callback) {
-    final AtomicBoolean replied = new AtomicBoolean(false);
-    return result -> {
-      if (replied.getAndSet(true)) {
-        Log.d(TAG, "Ignoring duplicate billing response for " + methodName + ".");
-        return Unit.INSTANCE;
-      }
-      return callback.invoke(result);
-    };
   }
 
   private @NonNull FlutterError getNullBillingClientError() {

@@ -4,11 +4,6 @@
 
 #import "./include/in_app_purchase_storekit_objc/FIAObjectTranslator.h"
 
-// StoreKit 1 is intentionally used as the fallback on iOS < 15 and macOS < 12,
-// where StoreKit 2 is unavailable. Suppress its deprecation warnings.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
 #pragma mark - SKProduct Coders
 
 @implementation FIAObjectTranslator
@@ -272,7 +267,7 @@
 }
 
 + (nullable FIASKPaymentTransactionMessage *)convertTransactionToPigeon:
-    (nullable SKPaymentTransaction *)transaction {
+    (nullable SKPaymentTransaction *)transaction API_AVAILABLE(ios(12.2)) {
   if (!transaction) {
     return nil;
   }
@@ -318,7 +313,8 @@
   }
 }
 
-+ (nullable FIASKPaymentMessage *)convertPaymentToPigeon:(nullable SKPayment *)payment {
++ (nullable FIASKPaymentMessage *)convertPaymentToPigeon:(nullable SKPayment *)payment
+    API_AVAILABLE(ios(12.2)) {
   if (!payment) {
     return nil;
   }
@@ -333,7 +329,7 @@
 }
 
 + (nullable FIASKPaymentDiscountMessage *)convertPaymentDiscountToPigeon:
-    (nullable SKPaymentDiscount *)discount {
+    (nullable SKPaymentDiscount *)discount API_AVAILABLE(ios(12.2)) {
   if (!discount) {
     return nil;
   }
@@ -344,7 +340,8 @@
                                                timestamp:[discount.timestamp intValue]];
 }
 
-+ (nullable FIASKStorefrontMessage *)convertStorefrontToPigeon:(nullable SKStorefront *)storefront {
++ (nullable FIASKStorefrontMessage *)convertStorefrontToPigeon:(nullable SKStorefront *)storefront
+    API_AVAILABLE(ios(13.0)) {
   if (!storefront) {
     return nil;
   }
@@ -353,7 +350,7 @@
 }
 
 + (nullable FIASKProductSubscriptionPeriodMessage *)convertSKProductSubscriptionPeriodToPigeon:
-    (nullable SKProductSubscriptionPeriod *)period {
+    (nullable SKProductSubscriptionPeriod *)period API_AVAILABLE(ios(12.2)) {
   if (!period) {
     return nil;
   }
@@ -379,7 +376,7 @@
 }
 
 + (nullable FIASKProductDiscountMessage *)convertProductDiscountToPigeon:
-    (nullable SKProductDiscount *)productDiscount {
+    (nullable SKProductDiscount *)productDiscount API_AVAILABLE(ios(12.2)) {
   if (!productDiscount) {
     return nil;
   }
@@ -418,7 +415,8 @@
                     type:type];
 }
 
-+ (nullable FIASKPriceLocaleMessage *)convertNSLocaleToPigeon:(nullable NSLocale *)locale {
++ (nullable FIASKPriceLocaleMessage *)convertNSLocaleToPigeon:(nullable NSLocale *)locale
+    API_AVAILABLE(ios(12.2)) {
   if (!locale) {
     return nil;
   }
@@ -427,7 +425,8 @@
                                              countryCode:locale.countryCode];
 }
 
-+ (nullable FIASKProductMessage *)convertProductToPigeon:(nullable SKProduct *)product {
++ (nullable FIASKProductMessage *)convertProductToPigeon:(nullable SKProduct *)product
+    API_AVAILABLE(ios(12.2)) {
   if (!product) {
     return nil;
   }
@@ -454,7 +453,7 @@
 }
 
 + (nullable FIASKProductsResponseMessage *)convertProductsResponseToPigeon:
-    (nullable SKProductsResponse *)productsResponse {
+    (nullable SKProductsResponse *)productsResponse API_AVAILABLE(ios(12.2)) {
   if (!productsResponse) {
     return nil;
   }
@@ -472,5 +471,3 @@
 }
 
 @end
-
-#pragma clang diagnostic pop

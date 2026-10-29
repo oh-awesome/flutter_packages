@@ -169,14 +169,8 @@ extension Product.SubscriptionOffer.PaymentMode {
 
 extension Locale {
   var convertToPigeon: SK2PriceLocaleMessage {
-    let code: String
-    if #available(iOS 16.0, macOS 13.0, *) {
-      code = currency?.identifier ?? ""
-    } else {
-      code = currencyCode ?? ""
-    }
     return SK2PriceLocaleMessage(
-      currencyCode: code,
+      currencyCode: currencyCode ?? "",
       currencySymbol: currencySymbol ?? ""
     )
   }
