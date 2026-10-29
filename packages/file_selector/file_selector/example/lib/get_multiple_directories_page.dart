@@ -12,7 +12,7 @@ class GetMultipleDirectoriesPage extends StatelessWidget {
   const GetMultipleDirectoriesPage({super.key});
 
   Future<void> _getDirectoryPaths(BuildContext context) async {
-    const confirmButtonText = 'Choose';
+    const String confirmButtonText = 'Choose';
     final List<String?> directoryPaths = await getDirectoryPaths(
       confirmButtonText: confirmButtonText,
     );
@@ -20,8 +20,8 @@ class GetMultipleDirectoriesPage extends StatelessWidget {
       // Operation was canceled by the user.
       return;
     }
-    var paths = '';
-    for (final path in directoryPaths) {
+    String paths = '';
+    for (final String? path in directoryPaths) {
       paths += '${path!} \n';
     }
     if (context.mounted) {
@@ -45,7 +45,9 @@ class GetMultipleDirectoriesPage extends StatelessWidget {
                 backgroundColor: Colors.blue,
                 foregroundColor: Colors.white,
               ),
-              child: const Text('Press to ask user to choose multiple directories'),
+              child: const Text(
+                'Press to ask user to choose multiple directories',
+              ),
               onPressed: () => _getDirectoryPaths(context),
             ),
           ],
@@ -67,9 +69,14 @@ class TextDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       title: const Text('Selected Directories'),
-      content: Scrollbar(child: SingleChildScrollView(child: Text(directoriesPaths))),
+      content: Scrollbar(
+        child: SingleChildScrollView(child: Text(directoriesPaths)),
+      ),
       actions: <Widget>[
-        TextButton(child: const Text('Close'), onPressed: () => Navigator.pop(context)),
+        TextButton(
+          child: const Text('Close'),
+          onPressed: () => Navigator.pop(context),
+        ),
       ],
     );
   }
