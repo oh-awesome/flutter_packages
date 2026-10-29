@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -11,144 +10,144 @@ import Testing
   import UIKit
 #endif
 
-@Suite struct ScrollViewProxyAPITests {
+class ScrollViewProxyAPITests: XCTestCase {
   #if os(iOS)
-    @MainActor @Test func getContentOffset() throws {
+    @MainActor func testGetContentOffset() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView(frame: .zero)
-      let value = try api.pigeonDelegate.getContentOffset(pigeonApi: api, pigeonInstance: instance)
+      let value = try? api.pigeonDelegate.getContentOffset(pigeonApi: api, pigeonInstance: instance)
 
-      #expect(value == [instance.contentOffset.x, instance.contentOffset.y] as [Double])
+      XCTAssertEqual(value, [instance.contentOffset.x, instance.contentOffset.y])
     }
 
-    @MainActor @Test func scrollBy() throws {
+    @MainActor func testScrollBy() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView(frame: .zero)
       instance.contentOffset = CGPoint(x: 1.0, y: 1.0)
-      try api.pigeonDelegate.scrollBy(pigeonApi: api, pigeonInstance: instance, x: 1.0, y: 1.0)
+      try? api.pigeonDelegate.scrollBy(pigeonApi: api, pigeonInstance: instance, x: 1.0, y: 1.0)
 
-      #expect(instance.setContentOffsetArgs as? [Double] == [2.0, 2.0])
+      XCTAssertEqual(instance.setContentOffsetArgs as? [Double], [2.0, 2.0])
     }
 
-    @MainActor @Test func setContentOffset() throws {
+    @MainActor func testSetContentOffset() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView(frame: .zero)
       let x = 1.0
       let y = 1.0
-      try api.pigeonDelegate.setContentOffset(pigeonApi: api, pigeonInstance: instance, x: x, y: y)
+      try? api.pigeonDelegate.setContentOffset(pigeonApi: api, pigeonInstance: instance, x: x, y: y)
 
-      #expect(instance.setContentOffsetArgs as? [Double] == [x, y])
+      XCTAssertEqual(instance.setContentOffsetArgs as? [Double], [x, y])
     }
 
-    @MainActor @Test func setDelegate() throws {
+    @MainActor func testSetDelegate() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView(frame: .zero)
       let delegate = ScrollViewDelegateImpl(
         api: registrar.apiDelegate.pigeonApiUIScrollViewDelegate(registrar), registrar: registrar)
-      try api.pigeonDelegate.setDelegate(
+      try? api.pigeonDelegate.setDelegate(
         pigeonApi: api, pigeonInstance: instance, delegate: delegate)
 
-      #expect(instance.setDelegateArgs == [delegate])
+      XCTAssertEqual(instance.setDelegateArgs, [delegate])
     }
 
     @MainActor
-    @Test func setBounces() throws {
+    func testSetBounces() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView()
       let value = true
-      try api.pigeonDelegate.setBounces(pigeonApi: api, pigeonInstance: instance, value: value)
+      try? api.pigeonDelegate.setBounces(pigeonApi: api, pigeonInstance: instance, value: value)
 
-      #expect(instance.bounces == value)
+      XCTAssertEqual(instance.bounces, value)
     }
 
     #if compiler(>=6.0)
       @available(iOS 17.4, *)
       @MainActor
-      @Test func setBouncesHorizontally() throws {
+      func testSetBouncesHorizontally() {
         let registrar = TestProxyApiRegistrar()
         let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
         let instance = TestScrollView()
         let value = true
-        try api.pigeonDelegate.setBouncesHorizontally(
+        try? api.pigeonDelegate.setBouncesHorizontally(
           pigeonApi: api, pigeonInstance: instance, value: value)
 
-        #expect(instance.bouncesHorizontally == value)
+        XCTAssertEqual(instance.bouncesHorizontally, value)
       }
 
       @available(iOS 17.4, *)
       @MainActor
-      @Test func setBouncesVertically() throws {
+      func testSetBouncesVertically() {
         let registrar = TestProxyApiRegistrar()
         let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
         let instance = TestScrollView()
         let value = true
-        try api.pigeonDelegate.setBouncesVertically(
+        try? api.pigeonDelegate.setBouncesVertically(
           pigeonApi: api, pigeonInstance: instance, value: value)
 
-        #expect(instance.bouncesVertically == value)
+        XCTAssertEqual(instance.bouncesVertically, value)
       }
     #endif
 
     @MainActor
-    @Test func setAlwaysBounceVertical() throws {
+    func testSetAlwaysBounceVertical() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView()
       let value = true
-      try api.pigeonDelegate.setAlwaysBounceVertical(
+      try? api.pigeonDelegate.setAlwaysBounceVertical(
         pigeonApi: api, pigeonInstance: instance, value: value)
 
-      #expect(instance.alwaysBounceVertical == value)
+      XCTAssertEqual(instance.alwaysBounceVertical, value)
     }
 
     @MainActor
-    @Test func setAlwaysBounceHorizontal() throws {
+    func testSetAlwaysBounceHorizontal() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView()
       let value = true
-      try api.pigeonDelegate.setAlwaysBounceHorizontal(
+      try? api.pigeonDelegate.setAlwaysBounceHorizontal(
         pigeonApi: api, pigeonInstance: instance, value: value)
 
-      #expect(instance.alwaysBounceHorizontal == value)
+      XCTAssertEqual(instance.alwaysBounceHorizontal, value)
     }
 
-    @MainActor @Test func setShowsVerticalScrollIndicator() throws {
+    @MainActor func testSetShowsVerticalScrollIndicator() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView()
       let value = true
-      try api.pigeonDelegate.setShowsVerticalScrollIndicator(
+      try? api.pigeonDelegate.setShowsVerticalScrollIndicator(
         pigeonApi: api, pigeonInstance: instance, value: value)
 
-      #expect(instance.showsVerticalScrollIndicator == value)
+      XCTAssertEqual(instance.showsVerticalScrollIndicator, value)
     }
 
-    @MainActor @Test func setShowsHorizontalScrollIndicator() throws {
+    @MainActor func testSetShowsHorizontalScrollIndicator() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIScrollView(registrar)
 
       let instance = TestScrollView()
       let value = true
-      try api.pigeonDelegate.setShowsHorizontalScrollIndicator(
+      try? api.pigeonDelegate.setShowsHorizontalScrollIndicator(
         pigeonApi: api, pigeonInstance: instance, value: value)
 
-      #expect(instance.showsHorizontalScrollIndicator == value)
+      XCTAssertEqual(instance.showsHorizontalScrollIndicator, value)
     }
   #endif
 }

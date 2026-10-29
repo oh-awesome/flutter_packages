@@ -575,8 +575,9 @@ void main() {
         final mockProtectionSpace = MockURLProtectionSpace();
         when(mockProtectionSpace.port).thenReturn(port);
         when(mockProtectionSpace.host).thenReturn(host);
-        when(mockProtectionSpace.authenticationMethod)
-            .thenReturn(NSUrlAuthenticationMethod.serverTrust);
+        when(
+          mockProtectionSpace.authenticationMethod,
+        ).thenReturn(NSUrlAuthenticationMethod.serverTrust);
         when(mockProtectionSpace.getServerTrust()).thenAnswer((_) async => testTrust);
         return mockProtectionSpace;
       });
@@ -641,8 +642,9 @@ void main() {
       final mockChallenge = MockURLAuthenticationChallenge();
       when(mockChallenge.getProtectionSpace()).thenAnswer((_) async {
         final mockProtectionSpace = MockURLProtectionSpace();
-        when(mockProtectionSpace.authenticationMethod)
-            .thenReturn(NSUrlAuthenticationMethod.httpBasic);
+        when(
+          mockProtectionSpace.authenticationMethod,
+        ).thenReturn(NSUrlAuthenticationMethod.httpBasic);
         return mockProtectionSpace;
       });
 

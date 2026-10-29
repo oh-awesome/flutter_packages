@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -11,15 +10,15 @@ import Testing
   import UIKit
 #endif
 
-@Suite struct ColorProxyAPITests {
+class ColorProxyAPITests: XCTestCase {
   #if os(iOS)
-    @Test func pigeonDefaultConstructor() {
+    func testPigeonDefaultConstructor() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIColor(registrar)
 
       let instance = try? api.pigeonDelegate.pigeonDefaultConstructor(
         pigeonApi: api, red: 1.0, green: 1.0, blue: 1.0, alpha: 1.0)
-      #expect(instance != nil)
+      XCTAssertNotNil(instance)
     }
   #endif
 }

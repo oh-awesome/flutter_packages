@@ -2,42 +2,41 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct ErrorProxyAPITests {
-  @Test func code() throws {
+class ErrorProxyAPITests: XCTestCase {
+  func testCode() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSError(registrar)
 
     let code = 0
     let instance = NSError(domain: "", code: code)
-    let value = try api.pigeonDelegate.code(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.code(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == Int64(code))
+    XCTAssertEqual(value, Int64(code))
   }
 
-  @Test func domain() throws {
+  func testDomain() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSError(registrar)
 
     let domain = "domain"
     let instance = NSError(domain: domain, code: 0)
-    let value = try api.pigeonDelegate.domain(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.domain(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == domain)
+    XCTAssertEqual(value, domain)
   }
 
-  @Test func userInfo() throws {
+  func testUserInfo() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSError(registrar)
 
     let userInfo: [String: String?] = ["some": "info"]
     let instance = NSError(domain: "", code: 0, userInfo: userInfo as [String: Any])
-    let value = try api.pigeonDelegate.userInfo(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.userInfo(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value as! [String: String?] == userInfo)
+    XCTAssertEqual(value as! [String: String?], userInfo)
   }
 }

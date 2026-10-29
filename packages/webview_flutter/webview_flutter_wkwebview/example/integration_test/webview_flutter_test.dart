@@ -155,8 +155,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -180,8 +181,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -206,17 +208,18 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
 
     await pageLoads.stream.firstWhere((String url) => url == headersUrl);
 
-    final content = await controller.runJavaScriptReturningResult(
-      'document.documentElement.innerText',
-    ) as String;
+    final content =
+        await controller.runJavaScriptReturningResult('document.documentElement.innerText')
+            as String;
     expect(content.contains('flutter_test_header'), isTrue);
   });
 
@@ -233,8 +236,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -266,8 +270,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -301,8 +306,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -347,8 +353,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -365,8 +372,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -463,7 +471,7 @@ Future<void> main() async {
               final double currentTime = double.parse(message.message);
               // Let it play for at least 1 second to make sure the related video's properties are set.
               if (currentTime > 1 && !videoPlaying.isCompleted) {
-                videoPlaying.complete();
+                videoPlaying.complete(null);
               }
             },
           ),
@@ -519,7 +527,7 @@ Future<void> main() async {
                 final double currentTime = double.parse(message.message);
                 // Let it play for at least 1 second to make sure the related video's properties are set.
                 if (currentTime > 1 && !videoPlaying.isCompleted) {
-                  videoPlaying.complete();
+                  videoPlaying.complete(null);
                 }
               },
             ),
@@ -674,8 +682,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1188,8 +1197,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(WebKitWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            WebKitWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1220,8 +1230,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(WebKitWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            WebKitWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1239,8 +1250,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1263,8 +1275,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1287,8 +1300,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1324,8 +1338,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1351,8 +1366,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );
@@ -1376,8 +1392,9 @@ Future<void> main() async {
     await tester.pumpWidget(
       Builder(
         builder: (BuildContext context) {
-          return PlatformWebViewWidget(PlatformWebViewWidgetCreationParams(controller: controller))
-              .build(context);
+          return PlatformWebViewWidget(
+            PlatformWebViewWidgetCreationParams(controller: controller),
+          ).build(context);
         },
       ),
     );

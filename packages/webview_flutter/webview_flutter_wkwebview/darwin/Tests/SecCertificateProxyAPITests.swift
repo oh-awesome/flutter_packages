@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -15,7 +14,7 @@ import Testing
   #error("Unsupported platform.")
 #endif
 
-@Suite struct SecCertificateProxyAPITests {
+class SecCertificateProxyAPITests: XCTestCase {
   func createDummyCertificate() -> SecCertificate {
     let url = FlutterAssetManager().urlForAsset("assets/test_cert.der")!
     let certificateData = NSData(contentsOf: url)
@@ -23,15 +22,15 @@ import Testing
     return SecCertificateCreateWithData(nil, certificateData!)!
   }
 
-  @Test func copyData() throws {
+  func testCopyData() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecCertificateProxyAPIDelegate()
     let api = PigeonApiSecCertificate(pigeonRegistrar: registrar, delegate: delegate)
 
-    let value = try api.pigeonDelegate.copyData(
+    let value = try? api.pigeonDelegate.copyData(
       pigeonApi: api, certificate: SecCertificateWrapper(value: createDummyCertificate()))
 
-    #expect(value.data == delegate.data)
+    XCTAssertEqual(value?.data, delegate.data)
   }
 }
 

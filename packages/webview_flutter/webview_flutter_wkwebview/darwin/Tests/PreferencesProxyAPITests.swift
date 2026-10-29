@@ -2,16 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct PreferencesProxyAPITests {
-  @MainActor @Test func setJavaScriptEnabled() throws {
+class PreferencesProxyAPITests: XCTestCase {
+  @MainActor func testSetJavaScriptEnabled() throws {
     if #available(iOS 14.0, macOS 11.0, *) {
-      return
+      throw XCTSkip("Required API is not available for this test.")
 
     } else {
       let registrar = TestProxyApiRegistrar()
@@ -19,14 +18,14 @@ import WebKit
 
       let instance = WKPreferences()
       let enabled = true
-      try api.pigeonDelegate.setJavaScriptEnabled(
+      try? api.pigeonDelegate.setJavaScriptEnabled(
         pigeonApi: api, pigeonInstance: instance, enabled: enabled)
 
-      #expect(instance.javaScriptEnabled == enabled)
+      XCTAssertEqual(instance.javaScriptEnabled, enabled)
     }
   }
 
-  @MainActor @Test func setJavaScriptCanOpenWindowsAutomatically() throws {
+  @MainActor func testSetJavaScriptCanOpenWindowsAutomatically() throws {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKPreferences(registrar)
 
@@ -35,6 +34,6 @@ import WebKit
     try api.pigeonDelegate.setJavaScriptCanOpenWindowsAutomatically(
       pigeonApi: api, pigeonInstance: instance, enabled: enabled)
 
-    #expect(instance.javaScriptCanOpenWindowsAutomatically == enabled)
+    XCTAssertEqual(instance.javaScriptCanOpenWindowsAutomatically, enabled)
   }
 }

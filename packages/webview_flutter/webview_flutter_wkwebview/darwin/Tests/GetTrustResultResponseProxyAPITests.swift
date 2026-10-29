@@ -2,29 +2,28 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct GetTrustResultResponseProxyAPITests {
-  @Test func result() throws {
+class GetTrustResultResponseProxyAPITests: XCTestCase {
+  func testResult() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiGetTrustResultResponse(registrar)
 
     let instance = GetTrustResultResponse(result: SecTrustResultType.invalid, resultCode: -1)
-    let value = try api.pigeonDelegate.result(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.result(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == DartSecTrustResultType.invalid)
+    XCTAssertEqual(value, DartSecTrustResultType.invalid)
   }
 
-  @Test func resultCode() throws {
+  func testResultCode() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiGetTrustResultResponse(registrar)
 
     let instance = GetTrustResultResponse(result: SecTrustResultType.invalid, resultCode: -1)
-    let value = try api.pigeonDelegate.resultCode(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.resultCode(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == -1)
+    XCTAssertEqual(value, -1)
   }
 }

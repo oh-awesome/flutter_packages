@@ -2,31 +2,30 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct NavigationResponseProxyAPITests {
-  @MainActor @Test func response() {
+class NavigationResponseProxyAPITests: XCTestCase {
+  @MainActor func testResponse() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKNavigationResponse(registrar)
 
     let instance = TestNavigationResponse.instance
     let value = try? api.pigeonDelegate.response(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.response)
+    XCTAssertEqual(value, instance.response)
   }
 
-  @MainActor @Test func isForMainFrame() throws {
+  @MainActor func testIsForMainFrame() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKNavigationResponse(registrar)
 
     let instance = TestNavigationResponse.instance
-    let value = try api.pigeonDelegate.isForMainFrame(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.isForMainFrame(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.isForMainFrame)
+    XCTAssertEqual(value, instance.isForMainFrame)
   }
 }
 

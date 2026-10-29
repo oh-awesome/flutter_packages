@@ -2,34 +2,33 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct HTTPCookieProxyAPITests {
-  @Test func pigeonDefaultConstructor() {
+class HTTPCookieProxyAPITests: XCTestCase {
+  func testPigeonDefaultConstructor() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiHTTPCookie(registrar)
 
     let instance = try? api.pigeonDelegate.pigeonDefaultConstructor(
       pigeonApi: api,
       properties: [.name: "foo", .value: "bar", .domain: "http://google.com", .path: "/anything"])
-    #expect(instance != nil)
+    XCTAssertNotNil(instance)
   }
 
-  @Test func getProperties() throws {
+  func testGetProperties() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiHTTPCookie(registrar)
 
     let instance = HTTPCookie(properties: [
       .name: "foo", .value: "bar", .domain: "http://google.com", .path: "/anything",
     ])!
-    let value = try api.pigeonDelegate.getProperties(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.getProperties(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value?[.name] as? String == "foo")
-    #expect(value?[.value] as? String == "bar")
-    #expect(value?[.domain] as? String == "http://google.com")
-    #expect(value?[.path] as? String == "/anything")
+    XCTAssertEqual(value?[.name] as? String, "foo")
+    XCTAssertEqual(value?[.value] as? String, "bar")
+    XCTAssertEqual(value?[.domain] as? String, "http://google.com")
+    XCTAssertEqual(value?[.path] as? String, "/anything")
   }
 }

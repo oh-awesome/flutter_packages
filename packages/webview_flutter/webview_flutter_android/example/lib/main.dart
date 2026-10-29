@@ -329,7 +329,6 @@ enum MenuOptions {
   videoExample,
   logExample,
   basicAuthentication,
-  webAuthentication,
   javaScriptAlert,
   viewportMeta,
 }
@@ -384,8 +383,6 @@ class SampleMenu extends StatelessWidget {
             _onLogExample();
           case MenuOptions.basicAuthentication:
             _promptForUrl(context);
-          case MenuOptions.webAuthentication:
-            _onWebAuthenticationExample(context);
           case MenuOptions.javaScriptAlert:
             _onJavaScriptAlertExample(context);
           case MenuOptions.viewportMeta:
@@ -445,10 +442,6 @@ class SampleMenu extends StatelessWidget {
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.basicAuthentication,
           child: Text('Basic Authentication Example'),
-        ),
-        const PopupMenuItem<MenuOptions>(
-          value: MenuOptions.webAuthentication,
-          child: Text('Web Authentication Example'),
         ),
         const PopupMenuItem<MenuOptions>(
           value: MenuOptions.javaScriptAlert,
@@ -569,30 +562,6 @@ class SampleMenu extends StatelessWidget {
     return androidController.loadRequest(
       LoadRequestParams(uri: Uri.parse('https://www.youtube.com/watch?v=4AoFA19gbLo')),
     );
-  }
-
-  Future<void> _onWebAuthenticationExample(BuildContext context) async {
-    final androidController = webViewController as AndroidWebViewController;
-    final bool supported = await androidController.isWebViewFeatureSupported(
-      WebViewFeatureType.webAuthentication,
-    );
-
-    if (!supported) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Web Authentication is not supported on this device.')),
-        );
-      }
-      return;
-    }
-
-    await androidController.setWebAuthenticationSupport(WebAuthenticationSupport.forApp);
-
-    if (context.mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Web Authentication enabled.')));
-    }
   }
 
   Future<void> _onDoPostRequest() {
