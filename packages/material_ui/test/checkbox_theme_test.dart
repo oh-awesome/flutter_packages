@@ -11,14 +11,6 @@ void main() {
   test('CheckboxThemeData copyWith, ==, hashCode basics', () {
     expect(const CheckboxThemeData(), const CheckboxThemeData().copyWith());
     expect(const CheckboxThemeData().hashCode, const CheckboxThemeData().copyWith().hashCode);
-    expect(
-      const CheckboxThemeData().copyWith(markInsets: const EdgeInsets.all(2.0)),
-      const CheckboxThemeData(markInsets: EdgeInsets.all(2.0)),
-    );
-    expect(
-      const CheckboxThemeData(markInsets: EdgeInsets.all(2.0)),
-      isNot(const CheckboxThemeData(markInsets: EdgeInsets.all(3.0))),
-    );
   });
 
   test('CheckboxThemeData lerp special cases', () {
@@ -69,7 +61,6 @@ void main() {
       splashRadius: 1.0,
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.standard,
-      markInsets: EdgeInsets.all(2.0),
     ).debugFillProperties(builder);
 
     final List<String> description = builder.properties
@@ -87,7 +78,6 @@ void main() {
         'splashRadius: 1.0',
         'materialTapTargetSize: MaterialTapTargetSize.shrinkWrap',
         'visualDensity: VisualDensity#00000(h: 0.0, v: 0.0)',
-        'markInsets: EdgeInsets.all(2.0)',
       ]),
     );
   });
@@ -443,7 +433,6 @@ void main() {
     expect(lerped.visualDensity, null);
     expect(lerped.shape, null);
     expect(lerped.side, null);
-    expect(lerped.markInsets, null);
   });
 
   test('CheckboxThemeData lerp from populated to null parameters', () {
@@ -456,7 +445,6 @@ void main() {
       visualDensity: const VisualDensity(vertical: 1.0, horizontal: 1.0),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4.0))),
       side: const BorderSide(width: 4.0),
-      markInsets: const EdgeInsets.all(4.0),
     );
     final CheckboxThemeData lerped = CheckboxThemeData.lerp(theme, null, 0.5);
 
@@ -472,7 +460,6 @@ void main() {
     );
     expect(lerped.side!.width, 2.0);
     expect(lerped.side!.color, isSameColorAs(const Color(0x80000000)));
-    expect(lerped.markInsets, const EdgeInsets.all(2.0));
   });
 
   test('CheckboxThemeData lerp from null to populated parameters', () {
@@ -485,7 +472,6 @@ void main() {
       visualDensity: const VisualDensity(vertical: 1.0, horizontal: 1.0),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4.0))),
       side: const BorderSide(width: 4.0),
-      markInsets: const EdgeInsets.all(4.0),
     );
     final CheckboxThemeData lerped = CheckboxThemeData.lerp(null, theme, 0.25);
 
@@ -510,7 +496,6 @@ void main() {
     );
     expect(lerped.side!.width, 1.0);
     expect(lerped.side!.color, isSameColorAs(const Color(0x40000000)));
-    expect(lerped.markInsets, const EdgeInsets.all(1.0));
   });
 
   test('CheckboxThemeData lerp from populated parameters', () {
@@ -523,7 +508,6 @@ void main() {
       visualDensity: const VisualDensity(vertical: 1.0, horizontal: 1.0),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(4.0))),
       side: const BorderSide(width: 4.0),
-      markInsets: const EdgeInsets.all(4.0),
     );
     final themeB = CheckboxThemeData(
       fillColor: WidgetStateProperty.all(const Color(0xfffffff3)),
@@ -534,7 +518,6 @@ void main() {
       visualDensity: const VisualDensity(vertical: 2.0, horizontal: 2.0),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(1.0))),
       side: const BorderSide(width: 3.0),
-      markInsets: const EdgeInsets.all(2.0),
     );
     final CheckboxThemeData lerped = CheckboxThemeData.lerp(themeA, themeB, 0.5);
 
@@ -549,7 +532,6 @@ void main() {
       const RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(2.5))),
     );
     expect(lerped.side, const BorderSide(width: 3.5));
-    expect(lerped.markInsets, const EdgeInsets.all(3.0));
   });
 
   testWidgets('WidgetStateBorderSide properly lerp in CheckboxThemeData.side', (
