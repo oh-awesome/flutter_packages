@@ -5,30 +5,29 @@
 #import "../video_player_avfoundation_objc/include/video_player_avfoundation_objc/FVPNativeVideoView.h"
 
 #import <AVFoundation/AVFoundation.h>
-#import <UIKit/UIKit.h>
 
 @interface FVPPlayerView : UIView
 @end
 
 @implementation FVPPlayerView
 + (Class)layerClass {
-  return AVPlayerLayer.class;
+  return [AVPlayerLayer class];
 }
 
 - (void)setPlayer:(AVPlayer *)player {
-  ((AVPlayerLayer *)(self.layer)).player = player;
+  [(AVPlayerLayer *)[self layer] setPlayer:player];
 }
 @end
 
 @interface FVPNativeVideoView ()
-@property(nonatomic, nonnull) FVPPlayerView *playerView;
+@property(nonatomic) FVPPlayerView *playerView;
 @end
 
 @implementation FVPNativeVideoView
 - (instancetype)initWithPlayer:(AVPlayer *)player {
   if (self = [super init]) {
     _playerView = [[FVPPlayerView alloc] init];
-    _playerView.player = player;
+    [_playerView setPlayer:player];
   }
   return self;
 }
