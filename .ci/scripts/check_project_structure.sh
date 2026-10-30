@@ -21,7 +21,7 @@ check_project_structure() {
     run_cmd "ls -la $PROJECT_DIR"
 
     log_info "Creating necessary directories"
-    run_cmd "mkdir -p $ARCHIVE_DIR/out"
+    run_cmd "mkdir -p $ARCHIVE_DIR"
 }
 
 check_project_structure

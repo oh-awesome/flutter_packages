@@ -11,17 +11,15 @@ function build_hap() {
     WORK_DIR=$(pwd)
     PROJECT_DIR="$WORK_DIR/third_party"
     ARCHIVE_DIR="$WORK_DIR/Archive/out"
-    # Build mode, randomly select one from debug, profile and release
-    MODES=("debug" "profile" "release")
-    BUILD_MODE=${MODES[$RANDOM % ${#MODES[@]}]}
+    # Build mode
+    BUILD_MODE="release"
     local project_name="$1"
     local hap_name="${2:-entry}"
 
     log_info "Checking Flutter environment"
     run_cmd "flutter doctor -v"
 
-    # TODO
-    cd "$PROJECT_DIR/$project_name"
+    cd "$PROJECT_DIR/$project_name" || { log_error "Failed to cd to $project_name directory"; exit 1; }
 
     log_info "Building hap for $project_name in $BUILD_MODE mode"
     local build_cmd="flutter build hap --$BUILD_MODE"

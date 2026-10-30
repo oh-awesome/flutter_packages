@@ -4,7 +4,7 @@
 # found in the LICENSE_HW file.
 #
 # USE IN CI
-# preCompile：sh ./third_party/flutter_packages/.ci/prepare.sh
+# preCompile: sh ./third_party/flutter_packages/.ci/prepare.sh
 
 # Get script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
