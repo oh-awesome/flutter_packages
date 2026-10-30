@@ -16,7 +16,13 @@ public class LegacySharedPreferencesPlugin: NSObject, FlutterPlugin, LegacyUserD
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = LegacySharedPreferencesPlugin()
-    LegacyUserDefaultsApiSetup.register(api: instance)
+    // Workaround for https://github.com/flutter/flutter/issues/118103.
+    #if os(iOS)
+      let messenger = registrar.messenger()
+    #else
+      let messenger = registrar.messenger
+    #endif
+    LegacyUserDefaultsApiSetup.setUp(binaryMessenger: messenger, api: instance)
   }
 
   func getAll(prefix: String, allowList: [String]?) -> [String: Any] {
@@ -68,7 +74,13 @@ public class SharedPreferencesPlugin: NSObject, FlutterPlugin, UserDefaultsApi {
 
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = SharedPreferencesPlugin()
-    UserDefaultsApiSetup.register(api: instance)
+    // Workaround for https://github.com/flutter/flutter/issues/118103.
+    #if os(iOS)
+      let messenger = registrar.messenger()
+    #else
+      let messenger = registrar.messenger
+    #endif
+    UserDefaultsApiSetup.setUp(binaryMessenger: messenger, api: instance)
     LegacySharedPreferencesPlugin.register(with: registrar)
   }
 
@@ -77,20 +89,20 @@ public class SharedPreferencesPlugin: NSObject, FlutterPlugin, UserDefaultsApi {
   {
     #if os(iOS)
       if !(options.suiteName?.starts(with: "group.") ?? true) {
-        throw PigeonError(
+        throw FlutterError(
           code: argumentError,
           message:
             "The provided Suite Name '\(options.suiteName!)' does not follow the predefined requirements",
-          details: "")
+          details: "") as! Error
       }
     #endif
     let prefs = UserDefaults(suiteName: options.suiteName)
 
     if prefs == nil {
-      throw PigeonError(
+      throw FlutterError(
         code: argumentError,
         message: "The provided Suite Name '\(options.suiteName!)' does not exist",
-        details: "")
+        details: "") as! Error
     }
     return prefs!
   }

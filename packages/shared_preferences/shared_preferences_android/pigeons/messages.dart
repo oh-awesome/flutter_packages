@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // TODO(stuartmorgan): Consider merging this with messages_async.dart now that
-// they both use the Kotlin generator.
+//  they both use the Kotlin generator.
 
 import 'package:pigeon/pigeon.dart';
 
@@ -11,11 +11,7 @@ import 'package:pigeon/pigeon.dart';
   PigeonOptions(
     input: 'pigeons/messages.dart',
     kotlinOut: 'android/src/main/kotlin/io/flutter/plugins/sharedpreferences/Messages.g.kt',
-    kotlinOptions: KotlinOptions(
-      package: 'io.flutter.plugins.sharedpreferences',
-      useJni: true,
-      appDirectory: 'example/',
-    ),
+    kotlinOptions: KotlinOptions(package: 'io.flutter.plugins.sharedpreferences'),
     dartOut: 'lib/src/messages.g.dart',
     copyrightHeader: 'pigeons/copyright.txt',
   ),
@@ -23,40 +19,40 @@ import 'package:pigeon/pigeon.dart';
 @HostApi()
 abstract class SharedPreferencesApi {
   /// Removes property from shared preferences data set.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool remove(String key);
 
   /// Adds property to shared preferences data set of type `bool`.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setBool(String key, bool value);
 
   /// Adds property to shared preferences data set of type `String`.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setString(String key, String value);
 
   /// Adds property to shared preferences data set of type `int`.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setInt(String key, int value);
 
   /// Adds property to shared preferences data set of type `double`.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setDouble(String key, double value);
 
   /// Adds property to shared preferences data set of type `List<String>`.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setEncodedStringList(String key, String value);
 
   /// Adds property to shared preferences data set of type `List<String>`.
   ///
   /// Deprecated, this is only here for testing purposes.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool setDeprecatedStringList(String key, List<String> value);
 
   /// Removes all properties from shared preferences data set with matching prefix.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   bool clear(String prefix, List<String>? allowList);
 
   /// Gets all properties from shared preferences data set with matching prefix.
-  @async
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   Map<String, Object> getAll(String prefix, List<String>? allowList);
 }
