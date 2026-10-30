@@ -613,7 +613,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
     _playerId =
         (await _videoPlayerPlatform.createWithOptions(creationOptions)) ?? kUninitializedPlayerId;
-    _creatingCompleter!.complete();
+    _creatingCompleter!.complete(null);
     final initializingCompleter = Completer<void>();
 
     await _videoPlayerPlatform.setPreventsDisplaySleepDuringVideoPlayback(
@@ -651,7 +651,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           if (initializingCompleter.isCompleted) {
             throw StateError('VideoPlayerController already initialized');
           }
-          initializingCompleter.complete();
+          initializingCompleter.complete(null);
           _applyLooping();
           _applyVolume();
           _applyPlayPause();

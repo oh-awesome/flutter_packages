@@ -6,9 +6,9 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-/// Handles event/status callbacks from VideoPlayer.
+/// Handles event/status callbacks from FVPVideoPlayer.
 ///
-/// This is an abstraction around the event channel to avoid coupling VideoPlayer directly to
+/// This is an abstraction around the event channel to avoid coupling FVPVideoPlayer directly to
 /// implementation details specific to the plugin communication method.
 @protocol FVPVideoEventListener <NSObject>
 @required
