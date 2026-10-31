@@ -34,7 +34,7 @@ class BrowserRouterParams {
 @Entry
 @Component
 export struct InAppBrowser {
-  // 声明为可空类型，以便 aboutToDisappear 时置 null 尽早释放 Web 内核资源引用
+  // Nullable so it can be set to null in aboutToDisappear to release the Web kernel reference early
   webviewController: web_webview.WebviewController | null = new web_webview.WebviewController()
 
   private url?: string;
@@ -44,40 +44,42 @@ export struct InAppBrowser {
   private showTitle: boolean = false;
   private pageTitle: string = '';
   @State statusBarHeight: number = 32;
-  // 组件存活标志位，防止异步回调访问已销毁组件
+  // Component alive flag: prevents async callbacks from accessing a destroyed component
   private isAlive: boolean = true;
-  // 保存回调引用，emitter.off 时传入实现精确移除；可空类型以便销毁时置 null 释放引用
+  // Keep the callback reference so emitter.off can remove it precisely; nullable so it can
+  // be set to null on destroy to release the reference
   private closeWebViewCallback: (() => void) | null = () => {
     console.info('closeWebView');
     router.back();
   };
-  // emitter 订阅状态追踪标志位，避免未订阅时调用 off 或重复订阅
+  // emitter subscription tracking flag: avoids calling off before subscribing, or double subscribing
   private isEmitterSubscribed: boolean = false;
 
   aboutToDisappear() {
     this.isAlive = false;
-    // 仅在已订阅时执行 off，避免未订阅时调用 off 产生警告
+    // Only call off when subscribed, to avoid warnings from unsubscribing without a subscription
     if (this.isEmitterSubscribed && this.closeWebViewCallback !== null) {
       emitter.off('closeWebView', this.closeWebViewCallback);
       this.isEmitterSubscribed = false;
     }
-    // 释放 WebviewController 持有的 Web 内核资源
+    // Release the Web kernel resources held by the WebviewController
     try {
       this.webviewController?.clearHistory();
     } catch (e) {
-      // 组件销毁阶段控制器可能已失效，忽略
+      // The controller may already be invalid during component teardown; ignore
     }
-    // 显式清理组件持有的引用，打破 InAppBrowser → Web 组件 → 回调 → InAppBrowser 潜在循环引用链
+    // Explicitly clear the component-held references to break the potential
+    // InAppBrowser -> Web component -> callback -> InAppBrowser reference cycle
     this.url = undefined;
     this.headers = {};
     this.pageTitle = '';
     this.closeWebViewCallback = null;
-    // 释放 Web 内核资源引用，尽早让 GC 回收 WebviewController
+    // Release the Web kernel reference so the GC can reclaim the WebviewController early
     this.webviewController = null;
   }
 
   aboutToAppear(){
-    // router.getParams() 可能返回 null（如直接通过路由跳转未传 params），需可选链防护
+    // router.getParams() may return null (e.g. navigating to the route without params); guard with optional chaining
     let params = router.getParams() as BrowserRouterParams | null;
     this.url = params?.url ?? '';
     this.enableJavaScript = (params?.options?.['enableJavaScript'] as boolean) ?? true;
@@ -90,13 +92,14 @@ export struct InAppBrowser {
       emitter.once('closeWebView', this.closeWebViewCallback);
       this.isEmitterSubscribed = true;
     }
-    // 显式声明 self 引用，提高闭包捕获意图可读性（ArkTS 箭头函数自动捕获 this，
-    // isAlive 标志位已缓解组件销毁后异步回调竞态访问）
+    // Declare an explicit self reference to clarify what the closure captures
+    // (ArkTS arrow functions capture this automatically; the isAlive flag mitigates
+    // racing async callbacks after the component is destroyed)
     const self = this;
     try {
       let context = getContext(self) as common.UIAbilityContext;
       window.getLastWindow(context).then((win) => {
-        // 组件已销毁则不再更新状态，避免竞态访问
+        // Skip state updates when the component is already destroyed, to avoid racing access
         if (!self.isAlive) {
           return;
         }
@@ -140,7 +143,7 @@ export struct InAppBrowser {
             console.error('InAppBrowser: url is empty, skip loadUrl');
             return;
           }
-          // webviewController 在 aboutToDisappear 后置 null，此处需非空检查
+          // webviewController is set to null in aboutToDisappear; a null check is required here
           if (this.webviewController === null) {
             console.error('InAppBrowser: webviewController is null, skip loadUrl');
             return;

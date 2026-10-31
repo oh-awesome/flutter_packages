@@ -90,8 +90,9 @@ export class WebViewOptions {
     if (setterArg == null) {
       throw new ReferenceError('Nonnull field "headers" is null.');
     }
-    // 防御性过滤：Dart 侧 Pigeon 生成 Map<String?, String?> 允许 null key/value，
-    // OHOS 侧 Map<string, string> 不接受 null，过滤掉可能的 null entry 避免运行时异常
+    // Defensive filtering: the Dart-side Pigeon-generated Map<String?, String?> allows null
+    // keys/values, while the OHOS-side Map<string, string> does not accept null; filter out
+    // possible null entries to avoid runtime exceptions
     let filtered = new Map<string, string>();
     setterArg.forEach((value: string, key: string) => {
       if (key != null && value != null) {
@@ -201,11 +202,11 @@ export interface UrlLauncherApi {
   canLaunchUrl(url: string): boolean;
 
   /** Opens the URL externally, returning true if successful.
-   *  异步接口：startAbility() 返回 Promise，需 await 后反映实际启动结果 */
+   *  Async API: startAbility() returns a Promise; await it to reflect the actual launch result. */
   launchUrl(url: string, headers: Map<string, string>): Promise<boolean>;
 
   /** Opens the URL in an in-app WebView, returning true if it opens successfully.
-   *  异步接口：router.pushUrl() 返回 Promise，需 await 后反映实际启动结果 */
+   *  Async API: router.pushUrl() returns a Promise; await it to reflect the actual launch result. */
   openUrlInWebView(url: string, options: WebViewOptions, browserOptions: BrowserOptions): Promise<boolean>;
 
   /** Closes the view opened by [openUrlInSafariViewController]. */

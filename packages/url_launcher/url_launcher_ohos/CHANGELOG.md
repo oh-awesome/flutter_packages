@@ -1,3 +1,8 @@
+## url_launcher_v6.3.3-ohos-1.0.0-2026.10
+
+### Added
+* Support Flutter 3.47 ([#1789](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1789)).
+
 ## url_launcher_v6.3.2-ohos-1.0.2-2026.8
 
 - Fixed the reference leak in `UrlLauncherPlugin` caused by failing to clean up the message handler and null out `urlLauncherApi` (which holds `UIAbilityContext`) in `onDetachedFromAbility`/`onDetachedFromEngine`.

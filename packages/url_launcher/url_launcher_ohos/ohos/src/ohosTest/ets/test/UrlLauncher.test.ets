@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,7 +16,7 @@ import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from
 import { UrlLauncher, FlutterError, WebViewOptions, BrowserOptions } from '../../../../index';
 import emitter from '@ohos.events.emitter';
 
-/** 构造 WebViewOptions/BrowserOptions 的辅助类（fromList 是公开工厂） */
+/** Helper for building WebViewOptions/BrowserOptions (fromList is the public factory) */
 class TestWebViewOptions {
   private headers: Map<string, string>;
 
@@ -38,10 +38,10 @@ class TestWebViewOptions {
 }
 
 /**
- * Fake UIAbilityContext：startAbility 可注入成败并记录 Want 参数。
- * UrlLauncher 仅通过构造函数持有 context 并调用 startAbility/filesDir，
- * 因此该 fake 可完整驱动 launchWeb/Mail/AppGallery/Other 等以 startAbility
- * 为终点的路径（无需拦截任何 @ohos.* 系统模块）。
+ * Fake UIAbilityContext: startAbility success/failure is injectable and Want arguments
+ * are recorded. UrlLauncher only holds the context via its constructor and calls
+ * startAbility/filesDir, so this fake can fully drive the launchWeb/Mail/AppGallery/Other
+ * paths that end in startAbility (no @ohos.* system module interception needed).
  */
 class StartAbilityRecord {
   want: Record<string, Object> | null = null;
@@ -69,14 +69,15 @@ function expectFlutterError(e: Object | null, code: string): void {
   expect((e as FlutterError).code).assertEqual(code);
 }
 
-/** 异常断言辅助：记录是否抛出，未抛出时断言 caught 标志失败并返回 null */
+/** Error assertion helper: records whether an error was thrown;
+ * when nothing is thrown, the caller's assertion on the caught flag fails */
 class ErrorCaptor {
   caught: boolean = false;
   error: Object | null = null;
 
   capture(action: () => Promise<ESObject>): Promise<void> {
     return action().then(() => {
-      // 未抛出：由调用方断言 caught 标志失败
+      // Nothing thrown: the caller asserts the caught flag fails
     }).catch((e: Object) => {
       this.caught = true;
       this.error = e;
@@ -90,7 +91,7 @@ class ErrorCaptor {
 }
 
 /**
- * UrlLauncher.ets 单元测试（自包含，fake 全部内联，不依赖 src/mock）
+ * UrlLauncher.ets unit tests (self-contained, all fakes inlined, no src/mock dependency)
  */
 export default function urlLauncherTest() {
   describe('UrlLauncherTest', () => {
@@ -110,7 +111,7 @@ export default function urlLauncherTest() {
     afterAll(() => {
     });
 
-    // ---------- 静态常量与正则 ----------
+    // ---------- Static constants and regex ----------
     it('launch_type_constants', 0, () => {
       expect(UrlLauncher.LAUNCH_TYPE_TEL).assertEqual('tel:');
       expect(UrlLauncher.LAUNCH_TYPE_WEB_HTTP).assertEqual('http:');
@@ -153,7 +154,7 @@ export default function urlLauncherTest() {
       expect(launcher.parseUrl(undefined as ESObject as string, 'tel:')).assertEqual('');
     });
 
-    // ---------- format 入参校验（i18n 成功路径依赖真机 PhoneNumberFormat） ----------
+    // ---------- format input validation (i18n success path needs the on-device PhoneNumberFormat) ----------
     it('format_empty_returns_empty', 0, () => {
       expect(launcher.format('')).assertEqual('');
       expect(launcher.format('   ')).assertEqual('');
@@ -168,22 +169,22 @@ export default function urlLauncherTest() {
       expect(launcher.format(123 as ESObject as string)).assertEqual('');
     });
 
-    // ---------- canLaunchUrl 入参校验 ----------
+    // ---------- canLaunchUrl input validation ----------
     it('canLaunchUrl_empty_returns_false', 0, () => {
       expect(launcher.canLaunchUrl('')).assertFalse();
       expect(launcher.canLaunchUrl('   ')).assertFalse();
       expect(launcher.canLaunchUrl(null as ESObject as string)).assertFalse();
     });
 
-    // ---------- launchUrl 入参/环境校验 ----------
+    // ---------- launchUrl input/environment validation ----------
     it('launchUrl_empty_url_returns_false', 0, async () => {
-      // 源码无 INVALID_URL 抛出分支：canLaunchUrl('') 前缀判断不命中 → 直接返回 false
+      // No INVALID_URL throw branch in the source: the canLaunchUrl('') prefix check misses → returns false directly
       let result = await launcher.launchUrl('', new Map<string, string>());
       expect(result).assertFalse();
     });
 
     it('launchUrl_blank_url_with_null_headers_returns_false', 0, async () => {
-      // null headers 兜底为空 Map；空格 URL 前缀判断不命中 → 返回 false
+      // null headers falls back to an empty Map; the blank URL prefix check misses → returns false
       let result = await launcher.launchUrl(' ', null as ESObject as Map<string, string>);
       expect(result).assertFalse();
     });
@@ -195,7 +196,7 @@ export default function urlLauncherTest() {
       captor.expectCode('NO_ABILITY');
     });
 
-    // ---------- launchUrl 各协议分发（startAbility 可注入，全路径断言 Want） ----------
+    // ---------- launchUrl scheme dispatch (startAbility is injectable; every path asserts the Want) ----------
     it('launchUrl_http_dispatches_to_launchWeb_with_headers', 0, async () => {
       let headers = new Map<string, string>();
       headers.set('X-Token', 'abc');
@@ -242,7 +243,7 @@ export default function urlLauncherTest() {
 
     // ---------- launchWeb ----------
     it('launchWeb_empty_url_starts_ability_and_returns_true', 0, async () => {
-      // 源码 launchWeb 无空 URL 校验，fake startAbility 成功 → true
+      // launchWeb has no empty-URL check in the source; the fake startAbility succeeds → true
       expect(await launcher.launchWeb('', new Map<string, string>())).assertTrue();
     });
 
@@ -262,7 +263,7 @@ export default function urlLauncherTest() {
 
     // ---------- launchMail ----------
     it('launchMail_empty_url_starts_ability_and_returns_true', 0, async () => {
-      // 源码 launchMail 无空 URL 校验，fake startAbility 成功 → true
+      // launchMail has no empty-URL check in the source; the fake startAbility succeeds → true
       expect(await launcher.launchMail('')).assertTrue();
     });
 
@@ -279,7 +280,7 @@ export default function urlLauncherTest() {
 
     // ---------- launchAppGallery ----------
     it('launchAppGallery_empty_url_starts_ability_and_returns_true', 0, async () => {
-      // 源码 launchAppGallery 无空 URL 校验，fake startAbility 成功 → true
+      // launchAppGallery has no empty-URL check in the source; the fake startAbility succeeds → true
       expect(await launcher.launchAppGallery('')).assertTrue();
     });
 
@@ -296,7 +297,7 @@ export default function urlLauncherTest() {
 
     // ---------- launchOther ----------
     it('launchOther_blank_url_starts_ability_and_returns_true', 0, async () => {
-      // 源码 launchOther 无空白 URL 校验，fake startAbility 成功 → true
+      // launchOther has no blank-URL check in the source; the fake startAbility succeeds → true
       expect(await launcher.launchOther(' ')).assertTrue();
     });
 
@@ -311,33 +312,34 @@ export default function urlLauncherTest() {
       captor.expectCode('LAUNCH_ERROR');
     });
 
-    // ---------- launchTel / launchSms / launchFile 空参数路径 ----------
+    // ---------- launchTel / launchSms / launchFile empty-argument paths ----------
     it('launchTel_empty_number_returns_true', 0, async () => {
-      // 源码无空号码校验：call.makeCall('') 在测试环境正常 resolve → true
+      // No empty-number check in the source: call.makeCall('') resolves normally in the test environment → true
       expect(await launcher.launchTel('tel:')).assertTrue();
     });
 
     it('launchSms_empty_number_starts_mms_ability', 0, async () => {
-      // 源码无空号码校验：phoneNumber 为空仍构造 Want 并 startAbility（fake 成功）→ true
+      // No empty-number check in the source: an empty phoneNumber still builds the Want
+      // and calls startAbility (fake succeeds) → true
       expect(await launcher.launchSms('sms:')).assertTrue();
     });
 
     it('launchFile_empty_name_starts_ability', 0, async () => {
-      // 源码无空文件名校验：filesDir + '/' 可转 uri 并 startAbility → true
+      // No empty-filename check in the source: filesDir + '/' converts to a uri and startAbility runs → true
       expect(await launcher.launchFile('file:///')).assertTrue();
     });
 
-    // ---------- openUrlInWebView 空参路径 ----------
-    // （路由跳转依赖 @ohos.router，真机路径）
+    // ---------- openUrlInWebView empty-argument paths ----------
+    // (route navigation depends on @ohos.router; on-device path)
     it('openUrlInWebView_empty_url_throws_missing_config', 0, async () => {
-      // 源码无空 URL 校验：先走 headers 的 harmony_browser_page 检查 → MISSING_CONFIG
+      // No empty-URL check in the source: the headers harmony_browser_page check runs first → MISSING_CONFIG
       let opts = new TestWebViewOptions();
       let captor = new ErrorCaptor();
       await captor.capture(() => launcher.openUrlInWebView('', opts.toOptions(), opts.toBrowserOptions()));
       captor.expectCode('MISSING_CONFIG');
     });
 
-    // ---------- openUrlInWebView 主体分支（真机：router.pushUrl 可达） ----------
+    // ---------- openUrlInWebView main branches (on device: router.pushUrl is reachable) ----------
     it('openUrlInWebView_missing_harmony_browser_page_throws_missing_config', 0, async () => {
       let opts = new TestWebViewOptions();
       let captor = new ErrorCaptor();
@@ -346,7 +348,7 @@ export default function urlLauncherTest() {
     });
 
     it('openUrlInWebView_blank_harmony_browser_page_throws_launch_error', 0, async () => {
-      // 源码无空白页校验：'   ' 交给 router.pushUrl 跳转失败 → LAUNCH_ERROR
+      // No blank-page check in the source: '   ' is handed to router.pushUrl, which fails → LAUNCH_ERROR
       let headers = new Map<string, string>();
       headers.set('harmony_browser_page', '   ');
       let opts = new TestWebViewOptions(headers);
@@ -361,13 +363,15 @@ export default function urlLauncherTest() {
       let opts = new TestWebViewOptions(headers);
       let captor = new ErrorCaptor();
       await captor.capture(() => launcher.openUrlInWebView('https://example.com', opts.toOptions(), opts.toBrowserOptions()));
-      // router.pushUrl 失败（页面不存在）→ LAUNCH_ERROR；INVALID_URL 等其他码视为失败
+      // router.pushUrl fails (page does not exist) → LAUNCH_ERROR; any other code
+      // such as INVALID_URL is treated as failure
       captor.expectCode('LAUNCH_ERROR');
     });
 
     // ---------- closeWebView ----------
     it('closeWebView_emits_event_to_subscriber', 0, async () => {
-      // 知识库：emit 走事件队列异步调度，不保证回调立即执行，需轮询等待
+      // emit dispatches asynchronously through the event queue; the callback is not
+      // guaranteed to run immediately, so poll and wait
       let closeCount: number = 0;
       let callback = () => {
         closeCount++;
@@ -381,7 +385,7 @@ export default function urlLauncherTest() {
       }
       expect(closeCount).assertEqual(1);
       emitter.off('closeWebView', callback);
-      // 注销后再次 emit 不应触发回调
+      // After unregistering, emitting again must not trigger the callback
       launcher.closeWebView();
       for (let i = 0; i < 20 && closeCount !== 1; i++) {
         await new Promise<void>((resolve) => {
@@ -391,9 +395,9 @@ export default function urlLauncherTest() {
       expect(closeCount).assertEqual(1);
     });
 
-    // ---------- launchSms / launchTel / launchFile 成功路径（真机系统能力） ----------
+    // ---------- launchSms / launchTel / launchFile success paths (on-device system capabilities) ----------
     it('launchSms_with_number_starts_mms_ability', 0, async () => {
-      // sms:10086 → startAbility(bundleName=com.ohos.mms) 成功返回 true
+      // sms:10086 → startAbility(bundleName=com.ohos.mms) succeeds and returns true
       let result = await launcher.launchSms('sms:10086');
       expect(result).assertTrue();
       expect(ctx.records.length).assertEqual(1);
@@ -417,7 +421,7 @@ export default function urlLauncherTest() {
     });
 
     it('launchSms_invalid_body_fallback_uses_raw', 0, async () => {
-      // %zz 非法转义：decodeURIComponent 抛错 → messageBody 回退原文
+      // %zz is an invalid escape: decodeURIComponent throws → messageBody falls back to the raw value
       let result = await launcher.launchSms('sms:10086?body=%zz');
       expect(result).assertTrue();
       let params = ctx.records[0].want!['parameters'] as Record<string, string>;
@@ -425,8 +429,9 @@ export default function urlLauncherTest() {
     });
 
     it('launchTel_success_or_permission_denied', 0, async () => {
-      // call.makeCall 需系统授予 ohos.permission.PLACE_CALL：
-      // 有权限时触发拨号确认并 resolve true；无权限时抛 FlutterError LAUNCH_ERROR
+      // call.makeCall requires the system-granted ohos.permission.PLACE_CALL:
+      // with permission it triggers the dial confirmation and resolves true; without it
+      // a FlutterError LAUNCH_ERROR is thrown
       let captor = new ErrorCaptor();
       await captor.capture(() => launcher.launchTel('tel:10086'));
       if (captor.caught) {
@@ -435,7 +440,7 @@ export default function urlLauncherTest() {
     });
 
     it('launchTel_encoded_number_is_decoded', 0, async () => {
-      // tel:+86%2013800138000 → decodeURIComponent 后去空格再走 makeCall（权限行为同上）
+      // tel:+86%2013800138000 → decoded, whitespace stripped, then makeCall (permission behavior as above)
       let captor = new ErrorCaptor();
       await captor.capture(() => launcher.launchTel('tel:+86%2013800138000'));
       if (captor.caught) {
@@ -444,7 +449,7 @@ export default function urlLauncherTest() {
     });
 
     it('launchFile_sandbox_name_starts_ability', 0, async () => {
-      // filesDir + '/a.txt' 真机可转 uri 并 startAbility
+      // filesDir + '/a.txt' converts to a uri on device and startAbility runs
       let result = await launcher.launchFile('file:///a.txt');
       expect(result).assertTrue();
       expect(ctx.records.length).assertEqual(1);
@@ -459,14 +464,14 @@ export default function urlLauncherTest() {
       captor.expectCode('LAUNCH_ERROR');
     });
 
-    // ---------- format 成功路径（i18n.PhoneNumberFormat 真机可用） ----------
+    // ---------- format success path (i18n.PhoneNumberFormat is available on device) ----------
     it('format_valid_number_returns_formatted', 0, () => {
       let out = launcher.format('138 0013 8000');
-      // 返回非空格式化结果（具体格式随系统区域而变）
+      // Returns a non-empty formatted result (the exact format varies with the system region)
       expect(out.length > 0).assertTrue();
     });
 
-    // ---------- canLaunchUrl 各协议回退分支（真机 canOpenLink 可用） ----------
+    // ---------- canLaunchUrl scheme fallback branches (canOpenLink is available on device) ----------
     it('canLaunchUrl_tel_prefix_returns_true', 0, () => {
       expect(launcher.canLaunchUrl('tel:10086')).assertTrue();
     });
@@ -491,7 +496,7 @@ export default function urlLauncherTest() {
       expect(launcher.canLaunchUrl('store://appgallery.huawei.com/app/detail?id=C1')).assertTrue();
     });
 
-    // ---------- launchUrl 分发补充分支 ----------
+    // ---------- launchUrl dispatch supplementary branches ----------
     it('launchUrl_sms_dispatches_to_launchSms', 0, async () => {
       let result = await launcher.launchUrl('sms:10086', new Map<string, string>());
       expect(result).assertTrue();
@@ -504,13 +509,13 @@ export default function urlLauncherTest() {
     });
 
     it('launchUrl_unsupported_scheme_returns_false', 0, async () => {
-      // 源码无 CANNOT_LAUNCH 抛出分支：canLaunchUrl('ftp:') 前缀判断不命中 → 返回 false
+      // No CANNOT_LAUNCH throw branch in the source: the canLaunchUrl('ftp:') prefix check misses → returns false
       let result = await launcher.launchUrl('ftp://example.com', new Map<string, string>());
       expect(result).assertFalse();
     });
 
     it('launchUrl_null_headers_defaults_to_empty', 0, async () => {
-      // null headers 兜底为空 Map 后正常分发 http
+      // null headers falls back to an empty Map, then http dispatches normally
       let result = await launcher.launchUrl('https://example.com', null as ESObject as Map<string, string>);
       expect(result).assertTrue();
     });
@@ -521,29 +526,30 @@ export default function urlLauncherTest() {
       expect(launcher.getCodec()).assertEqual(launcher.getCodec());
     });
 
-    // ---------- canLaunchUrl canOpenLink 命中分支（querySchemes 已配置 https/http） ----------
+    // ---------- canLaunchUrl canOpenLink hit branch (querySchemes already configures https/http) ----------
     it('canLaunchUrl_https_via_canOpenLink_returns_true', 0, () => {
-      // canOpenLink('https://...') 返回 true → 直接 return true（不走前缀回退）
+      // canOpenLink('https://...') returns true → returns true directly (no prefix fallback)
       expect(launcher.canLaunchUrl('https://example.com')).assertTrue();
     });
 
     it('launchSms_invalid_escape_falls_back_to_raw_number', 0, async () => {
-      // %zz 非法转义：decodeURIComponent 抛错 → catch 内回退原文后走 startAbility
+      // %zz is an invalid escape: decodeURIComponent throws → the catch falls back to
+      // the raw value and startAbility runs
       let result = await launcher.launchSms('sms:138%zz0013');
       expect(result).assertTrue();
       expect(ctx.records.length).assertEqual(1);
     });
 
-    // ---------- openUrlInWebView 业务 header 过滤分支 ----------
+    // ---------- openUrlInWebView business-header filtering branch ----------
     it('openUrlInWebView_filters_out_harmony_browser_page_header', 0, async () => {
-      // 除 harmony_browser_page 外的业务 header 保留进入 pushUrl params
+      // Business headers other than harmony_browser_page are kept and enter the pushUrl params
       let headers = new Map<string, string>();
       headers.set('harmony_browser_page', 'pages/NotExists');
       headers.set('X-Token', 'abc');
       let opts = new TestWebViewOptions(headers);
       let captor = new ErrorCaptor();
       await captor.capture(() => launcher.openUrlInWebView('https://example.com', opts.toOptions(), opts.toBrowserOptions()));
-      // pushUrl 失败，但 forEach 过滤分支已执行
+      // pushUrl fails, but the forEach filtering branch has already run
       captor.expectCode('LAUNCH_ERROR');
     });
   });

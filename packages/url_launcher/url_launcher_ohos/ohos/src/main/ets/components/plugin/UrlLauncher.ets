@@ -45,7 +45,7 @@ export class UrlLauncher implements UrlLauncherApi {
   static LAUNCH_TYPE_SMS: string = 'sms:';
   static LAUNCH_TYPE_FILE: string = 'file:';
   static LAUNCH_TYPE_APP_GALLERY: string = 'store:';
-  static LAUNCH_TYPE_ENTERPRISE: string = 'store://enterprise' // 添加企业安装方式
+  static LAUNCH_TYPE_ENTERPRISE: string = 'store://enterprise' // Add enterprise installation mode
 
   static MMS_BUNDLE_NAME = 'com.ohos.mms';
   static MMS_ABILITY_NAME = 'com.ohos.mms.MainAbility';
@@ -60,14 +60,16 @@ export class UrlLauncher implements UrlLauncherApi {
 
   canLaunchUrl(url: string): boolean {
     let encodedUri = encodeURI(url);
-    // 先尝试用 canOpenLink 动态验证处理应用是否存在（与 Android resolveActivity 行为对齐）
+    // Try canOpenLink first to dynamically verify that a handling app exists
+    // (aligned with the Android resolveActivity behavior)
     try {
       if (bundleManager.canOpenLink(encodedUri)) {
         return true;
       }
     } catch (error) {
-      // Trick：由于 sms、tel、file、mailto 用 bundleManager.canOpenLink 判断会报 17700055 错误，
-      // 这些内置协议回退到前缀判断（无法完全验证处理应用存在性，见 README 平台限制说明）
+      // Trick: bundleManager.canOpenLink throws error 17700055 for sms, tel, file and mailto,
+      // so these built-in schemes fall back to prefix checks (the existence of a handling app
+      // cannot be fully verified; see the README platform limitations)
       Log.e(TAG, 'canOpenLink error: ', JSON.stringify(error));
     }
     if (encodedUri.startsWith(UrlLauncher.LAUNCH_TYPE_TEL) ||
@@ -114,7 +116,7 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   format(number: string): string {
-    // 参数校验：避免 null/undefined/空字符串触发 number.replace TypeError
+    // Input validation: avoid a number.replace TypeError on null/undefined/empty strings
     if (!number || typeof number !== 'string' || number.trim().length === 0) {
       Log.e(TAG, 'format: number is empty or invalid');
       return '';
@@ -179,7 +181,8 @@ export class UrlLauncher implements UrlLauncherApi {
       ]
     };
     Log.i(TAG, 'jumpToMms want: %s', JSON.stringify(params));
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(str);
       Log.i(TAG, 'jumpToMms success.');
@@ -196,7 +199,7 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async launchTel(url: string): Promise<boolean> {
-    // LAUNCH_TYPE_TEL = 'tel:'，直接作为 prefix 传给 parseUrl 剥离协议前缀
+    // LAUNCH_TYPE_TEL = 'tel:' is passed to parseUrl as the prefix to strip the scheme
     let phoneNum = this.parseUrl(url, UrlLauncher.LAUNCH_TYPE_TEL);
     try {
       phoneNum = decodeURIComponent(phoneNum).replace(/\s+/g, '');
@@ -204,7 +207,8 @@ export class UrlLauncher implements UrlLauncherApi {
       phoneNum = phoneNum.replace(/\s+/g, '');
     };
     Log.d(TAG, 'launchTel:' + phoneNum);
-    // await call.makeCall() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the call.makeCall() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await call.makeCall(phoneNum);
       Log.i(TAG, 'launchTel success');
@@ -220,11 +224,12 @@ export class UrlLauncher implements UrlLauncherApi {
     }
   }
 
-  // 只支持沙箱路径
+  // Only sandbox paths are supported
   async launchFile(url: string): Promise<boolean> {
     let fileName = url.substring(url.lastIndexOf('/') + 1);
     let filePath = this.context.filesDir + '/' + fileName;
-    // 将沙箱路径转换为uri（路径非法时 getUriFromPath 会同步抛出 401 参数错误）
+    // Convert the sandbox path to a uri (getUriFromPath throws a synchronous
+    // 401 parameter error when the path is invalid)
     let uriFromPath: string;
     try {
       uriFromPath = fileuri.getUriFromPath(filePath);
@@ -235,11 +240,12 @@ export class UrlLauncher implements UrlLauncherApi {
     Log.d(TAG, 'launchFile url:' + url + '  uriFromPath:' + uriFromPath);
     let want: Want = {
       flags: wantConstant.Flags.FLAG_AUTH_WRITE_URI_PERMISSION | wantConstant.Flags.FLAG_AUTH_READ_URI_PERMISSION,
-      // 配置分享应用的隐式拉起规则
+      // Implicit launch rule for sharing applications
       action: 'ohos.want.action.viewData',
       uri: uriFromPath,
     }
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(want);
       Log.i(TAG, 'launchFile startAbility succeeded.');
@@ -269,7 +275,8 @@ export class UrlLauncher implements UrlLauncherApi {
       entities: ['entity.system.browsable'],
       action: 'ohos.want.action.viewData',
     }
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(want);
       Log.i(TAG, 'launchWeb success.');
@@ -286,14 +293,16 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   async launchMail(url: string): Promise<boolean> {
-    // Want.uri 需完整 mailto: URI 供系统路由，直接使用原始 url
-    // （原 parseUrl(url, LAUNCH_TYPE_MAILTO + ':') 拼接为 'mailto::' 无法匹配，且剥离后 Want.uri 缺少协议前缀）
+    // Want.uri requires the full mailto: URI for system routing, so use the original url directly
+    // (the former parseUrl(url, LAUNCH_TYPE_MAILTO + ':') concatenated to 'mailto::' which cannot
+    // match, and the stripped Want.uri also lacked the scheme prefix)
     let mailAddress = url;
     let want: Want = {
       uri: mailAddress,
       action: 'ohos.want.action.sendToData',
     }
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(want);
       Log.i(TAG, 'launchMail success.');
@@ -310,19 +319,18 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   /**
-   * 跳转到应用商店详情页
-   * 文档参考：https://developer.huawei.com/consumer/cn/doc/harmonyos-faqs/faqs-ability-kit#section42001122242
+   * Opens the app store detail page.
    * @param url
    * @returns
    */
   async launchAppGallery(url: string): Promise<boolean> {
     Log.d(TAG, 'launchAppGallery:' + url);
-    //url 格式示范 store://appgallery.huawei.com/app/detail?id=C5765880207855137621
     let want: Want = {
       'action': 'ohos.want.action.appdetail',
       'uri': url,
     };
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(want);
       Log.i(TAG, 'launchAppGallery success.');
@@ -342,7 +350,8 @@ export class UrlLauncher implements UrlLauncherApi {
     let want: Want = {
       uri: url,
     }
-    // await startAbility() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the startAbility() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await this.context.startAbility(want);
       Log.i(TAG, 'launchOther success.');
@@ -359,7 +368,7 @@ export class UrlLauncher implements UrlLauncherApi {
   }
 
   parseUrl(url: string, prefix: string): string {
-    // 严格等号检查，符合 ArkTS 严格模式规范
+    // Strict equality check, per ArkTS strict-mode conventions
     if (url === null || url === undefined) {
       return ''
     }
@@ -377,7 +386,8 @@ export class UrlLauncher implements UrlLauncherApi {
     let headers = options.getHeaders();
     if (!headers.has('harmony_browser_page')) {
       promptAction.showToast({
-        message: '请在 launch 函数的 headers 参数中添加 harmony_browser_page 和对应的值，并在鸿蒙工程中增加对应的页面和配置路由',
+        message: 'Please add harmony_browser_page and its value in the headers parameter, ' +
+          'and configure the corresponding page and route in the ohos project.',
       });
       throw new FlutterError(
         'MISSING_CONFIG',
@@ -394,7 +404,8 @@ export class UrlLauncher implements UrlLauncherApi {
       }
     });
 
-    // await router.pushUrl() Promise，异常通过 FlutterError 传播具体错误码到 Flutter 层
+    // await the router.pushUrl() promise; errors propagate the concrete error code
+    // to the Flutter layer via FlutterError
     try {
       await router.pushUrl({
         url: harmonyBrowserPage,
@@ -412,7 +423,8 @@ export class UrlLauncher implements UrlLauncherApi {
       Log.e(TAG, 'Failed to open url: ', harmonyBrowserPage, ', Error: ', JSON.stringify(businessError));
       if (businessError.code == 100002) {
         promptAction.showToast({
-          message: `页面 '${harmonyBrowserPage}' 不存在， 请在鸿蒙工程中创建该页面并注册路由。`,
+          message: `Page '${harmonyBrowserPage}' does not exist. ` +
+            `Please create the page and register the route in the ohos project.`,
         });
       }
       throw new FlutterError(
@@ -483,7 +495,8 @@ export class UrlLauncher implements UrlLauncherApi {
             let headersArg: Map<string, string>;
             try {
               urlArg = args[0] as string;
-              // 过滤 Dart 侧 Map<String?, String?> 可能传入的 null key/value（与 WebViewOptions.setHeaders 一致）
+              // Filter possible null keys/values from the Dart-side Map<String?, String?>
+              // (consistent with WebViewOptions.setHeaders)
               let rawHeaders = args[1] as Map<string, string>;
               headersArg = new Map<string, string>();
               rawHeaders.forEach((value: string, key: string) => {
@@ -495,7 +508,7 @@ export class UrlLauncher implements UrlLauncherApi {
               reply.reply(wrapError(err));
               return;
             }
-            // launchUrl 返回 Promise<boolean>，异步 resolve 后 reply 实际结果
+            // launchUrl returns Promise<boolean>; reply with the actual result once it resolves
             api.launchUrl(urlArg, headersArg).then((output: boolean) => {
               let wrapped = new Array<Object>();
               wrapped.push(output);
@@ -529,7 +542,7 @@ export class UrlLauncher implements UrlLauncherApi {
               reply.reply(wrapError(err));
               return;
             }
-            // openUrlInWebView 返回 Promise<boolean>，异步 resolve 后 reply 实际结果
+            // openUrlInWebView returns Promise<boolean>; reply with the actual result once it resolves
             api.openUrlInWebView(urlArg, optionsArg, browserOptionsArg).then((output: boolean) => {
               let wrapped = new Array<Object>();
               wrapped.push(output);

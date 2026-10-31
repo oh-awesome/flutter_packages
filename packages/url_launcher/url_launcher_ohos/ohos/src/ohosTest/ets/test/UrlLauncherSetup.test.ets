@@ -17,7 +17,7 @@ import { UrlLauncher } from '../../../../index';
 import { BinaryMessenger, TaskQueue, BinaryMessageHandler, BinaryReply } from '@ohos/flutter_ohos';
 
 /**
- * FakeBinaryMessenger：捕获 setMessageHandler 注册的 handler
+ * FakeBinaryMessenger: captures the handlers registered by setMessageHandler
  */
 class FakeBinaryMessenger implements BinaryMessenger {
   public registered: Map<string, BinaryMessageHandler | null> = new Map();
@@ -44,11 +44,11 @@ const CH_OPEN_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.openUrlInWebView';
 const CH_CLOSE_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.closeWebView';
 
 /**
- * UrlLauncher.setup() 单元测试（自包含，不依赖 src/mock）
+ * UrlLauncher.setup() unit tests (self-contained, no src/mock dependency)
  *
- * 覆盖：4 个 Pigeon 通道的注册/反注册/null 参数守卫。
- * 消息编解码路径（onMessage 二进制协议）依赖 flutter_ohos 的
- * StandardMessageCodec → @ohos.util / libflutter.so，属真机/ohosTest 验证范畴。
+ * Coverage: registration/deregistration/null-argument guards for the 4 Pigeon channels.
+ * The message codec path (the onMessage binary protocol) depends on flutter_ohos
+ * StandardMessageCodec → @ohos.util / libflutter.so, which belongs to on-device/ohosTest scope.
  */
 export default function urlLauncherSetupTest() {
   describe('UrlLauncherSetupTest', () => {
@@ -67,7 +67,7 @@ export default function urlLauncherSetupTest() {
     afterAll(() => {
     });
 
-    // ---------- 通道注册 ----------
+    // ---------- Channel registration ----------
     it('setup_registers_canLaunchUrl_channel', 0, () => {
       expect(messenger.registered.get(CH_CAN_LAUNCH) !== null).assertTrue();
     });
@@ -88,9 +88,10 @@ export default function urlLauncherSetupTest() {
       expect(messenger.registered.size).assertEqual(4);
     });
 
-    // ---------- null 参数守卫 ----------
+    // ---------- null-argument guards ----------
     it('setup_null_messenger_is_noop', 0, () => {
-      // null messenger 直接 return，不触碰任何注册状态（既有 4 通道注册保持原样）
+      // A null messenger returns directly without touching any registration state
+      // (the existing 4 registered channels stay untouched)
       let before: number = messenger.registered.size;
       launcher.setup(null as ESObject, launcher as ESObject);
       expect(messenger.registered.size).assertEqual(before);
@@ -111,7 +112,7 @@ export default function urlLauncherSetupTest() {
     });
 
     it('setup_undefined_api_deregisters_all_channels', 0, () => {
-      // api != null && api != undefined 守卫：undefined 同样走反注册分支
+      // The api != null && api != undefined guard: undefined also takes the deregistration branch
       let m3 = new FakeBinaryMessenger();
       m3.registered.set(CH_CAN_LAUNCH, {} as BinaryMessageHandler);
       m3.registered.set(CH_LAUNCH, {} as BinaryMessageHandler);
@@ -124,12 +125,13 @@ export default function urlLauncherSetupTest() {
       expect(m3.registered.get(CH_CLOSE_WEBVIEW)).assertNull();
     });
 
-    // ---------- 重复 setup 覆盖 ----------
+    // ---------- Repeated setup overwrites ----------
     it('setup_reregistration_keeps_channel_set_stable', 0, () => {
       let m4 = new FakeBinaryMessenger();
       launcher.setup(m4 as ESObject, launcher as ESObject);
       launcher.setup(m4 as ESObject, launcher as ESObject);
-      // 通道名固定，重复 setup 后 4 个通道仍全部有效注册（Map 键覆盖，无新增/丢失）
+      // Channel names are fixed; after repeated setup all 4 channels remain actively registered
+      // (Map keys overwritten, nothing added or lost)
       expect(m4.registered.size).assertEqual(4);
       expect(m4.registered.get(CH_CAN_LAUNCH) !== null).assertTrue();
       expect(m4.registered.get(CH_LAUNCH) !== null).assertTrue();

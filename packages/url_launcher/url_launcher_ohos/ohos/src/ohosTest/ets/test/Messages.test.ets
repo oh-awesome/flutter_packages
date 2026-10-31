@@ -22,7 +22,7 @@ import {
 } from '../../../../index';
 
 /**
- * Messages.ets 单元测试（数据类、wrapError、Codec 纯逻辑分支）
+ * Messages.ets unit tests (data classes, wrapError, pure Codec logic branches)
  */
 export default function messagesTest() {
   describe('MessagesTest', () => {
@@ -147,8 +147,8 @@ export default function messagesTest() {
     });
 
     it('webViewOptions_setHeaders_filters_null_entries', 0, () => {
-      // Dart 侧 Pigeon 生成 Map<String?, String?> 允许 null key/value，
-      // setHeaders 应过滤 null entry 避免运行时异常
+      // The Dart-side Pigeon-generated Map<String?, String?> allows null keys/values;
+      // setHeaders must filter null entries to avoid runtime exceptions
       let raw = new Map<string, string>();
       raw.set('valid', 'v');
       raw.set('nullValue' as string, null as ESObject as string);
@@ -211,13 +211,13 @@ export default function messagesTest() {
     });
 
     it('codec_decodeMessage_null_returns_null', 0, () => {
-      // 二进制解码入口的 null 守卫（不触碰 @ohos.util 编解码器）
+      // Null guard at the binary decode entry (does not touch the @ohos.util codec)
       expect(UrlLauncherApiCodec.INSTANCE.decodeMessage(null)).assertNull();
     });
 
-    // ---------- Codec 编解码往返（真机 ByteBuffer/StandardMessageCodec 可用） ----------
+    // ---------- Codec encode/decode round trips (on-device ByteBuffer/StandardMessageCodec available) ----------
     it('codec_webViewOptions_roundtrip', 0, () => {
-      // writeValue(WebViewOptions) → [128, ...toList]；decodeMessage → readValueOfType(128) → fromList
+      // writeValue(WebViewOptions) → [128, ...toList]; decodeMessage → readValueOfType(128) → fromList
       let headers = new Map<string, string>();
       headers.set('k', 'v');
       let options = WebViewOptions.fromList([true, true, headers]);
@@ -239,7 +239,7 @@ export default function messagesTest() {
     });
 
     it('codec_primitive_values_fallthrough', 0, () => {
-      // 基础类型走 super.writeValue / super.readValueOfType 默认分支
+      // Primitive values go through the super.writeValue / super.readValueOfType default branches
       let encoded: ArrayBuffer = UrlLauncherApiCodec.INSTANCE.encodeMessage('hello');
       let decoded: ESObject = UrlLauncherApiCodec.INSTANCE.decodeMessage(encoded);
       expect(decoded).assertEqual('hello');

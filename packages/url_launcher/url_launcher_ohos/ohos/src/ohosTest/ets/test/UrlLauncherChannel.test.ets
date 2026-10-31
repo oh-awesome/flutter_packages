@@ -28,7 +28,7 @@ const CH_LAUNCH = 'dev.flutter.pigeon.UrlLauncherApi.launchUrl';
 const CH_OPEN_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.openUrlInWebView';
 const CH_CLOSE_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.closeWebView';
 
-/** 捕获注册 handler 的 fake messenger */
+/** Fake messenger that captures registered handlers */
 class FakeBinaryMessenger implements BinaryMessenger {
   public registered: Map<string, BinaryMessageHandler | null> = new Map();
 
@@ -48,7 +48,7 @@ class FakeBinaryMessenger implements BinaryMessenger {
 class EmptyTaskQueue implements TaskQueue {
 }
 
-/** 捕获二进制回包 */
+/** Captures binary replies */
 class ReplyCaptor implements BinaryReply {
   public replyValue: ArrayBuffer | null = null;
 
@@ -57,7 +57,7 @@ class ReplyCaptor implements BinaryReply {
   }
 }
 
-/** fake context：startAbility 可注入成败并记录 Want */
+/** Fake context: startAbility success/failure is injectable and the Want is recorded */
 class FakeContext {
   behavior: string = 'success';
   failCode: number = 16000001;
@@ -73,8 +73,8 @@ class FakeContext {
 }
 
 /**
- * 以 StandardMessageCodec 语义手工构造消息字节流。
- * 字节布局：type(1B) + payload；LIST=12, STRING=7, NULL=0, TRUE=1, FALSE=2, MAP=13。
+ * Builds message byte streams by hand following StandardMessageCodec semantics.
+ * Byte layout: type(1B) + payload; LIST=12, STRING=7, NULL=0, TRUE=1, FALSE=2, MAP=13.
  */
 function encodeStandardMessage(value: ESObject): ArrayBuffer {
   let stream = ByteBuffer.from(new ArrayBuffer(1024));
@@ -105,7 +105,7 @@ function writeStandardValue(stream: ByteBuffer, value: ESObject): void {
       writeStandardValue(stream, value[i]);
     }
   } else if (value instanceof Map) {
-    // MAP = key + value 交替
+    // MAP = alternating key + value
     stream.writeInt8(13); // MAP
     let map: Map<ESObject, ESObject> = value as Map<ESObject, ESObject>;
     writeStandardSize(stream, map.size);
@@ -114,13 +114,13 @@ function writeStandardValue(stream: ByteBuffer, value: ESObject): void {
       writeStandardValue(stream, v);
     });
   } else if (value instanceof WebViewOptions) {
-    // 自定义类型 128：payload 为标准 LIST 编码（与 Pigeon writeValue(toList()) 一致）
+    // Custom type 128: the payload is a standard LIST encoding (matching Pigeon writeValue(toList()))
     stream.writeInt8(128);
     let opts: WebViewOptions = value as WebViewOptions;
     let list: Array<ESObject> = [opts.getEnableJavaScript(), opts.getEnableDomStorage(), opts.getHeaders()];
     writeStandardValue(stream, list);
   } else if (value instanceof BrowserOptions) {
-    // 自定义类型 129：payload 为标准 LIST 编码
+    // Custom type 129: the payload is a standard LIST encoding
     stream.writeInt8(129);
     let opts: BrowserOptions = value as BrowserOptions;
     let list: Array<ESObject> = [opts.getShowTitle()];
@@ -138,7 +138,7 @@ function writeStandardSize(stream: ByteBuffer, value: number): void {
   }
 }
 
-/** 解码回包：仅取第一个顶层元素（TRUE/FALSE/NULL/LIST） */
+/** Decodes a reply: takes only the first top-level element (TRUE/FALSE/NULL/LIST) */
 function decodeStandardMessage(message: ArrayBuffer | null): ESObject {
   if (message === null || message === undefined) {
     return null;
@@ -177,7 +177,7 @@ function readStandardValue(buffer: ByteBuffer): ESObject {
   throw new Error('unsupported decode type: ' + type);
 }
 
-/** 驱动某一通道 handler 并返回解码后的回包（同步 reply 场景） */
+/** Drives a channel handler and returns the decoded reply (synchronous reply scenario) */
 function invokeChannel(messenger: FakeBinaryMessenger, channel: string, message: Array<ESObject>): ESObject {
   let handler = messenger.registered.get(channel);
   if (handler === null || handler === undefined) {
@@ -189,8 +189,8 @@ function invokeChannel(messenger: FakeBinaryMessenger, channel: string, message:
 }
 
 /**
- * 驱动异步通道（launchUrl / openUrlInWebView）：handler 内部起 Promise.then，
- * 需 await 若干微任务循环让 reply 落地。
+ * Drives an async channel (launchUrl / openUrlInWebView): the handler starts a Promise.then
+ * internally, so several microtask cycles must be awaited before the reply lands.
  */
 async function invokeChannelAsync(messenger: FakeBinaryMessenger, channel: string,
   message: Array<ESObject>): Promise<ESObject> {
@@ -230,11 +230,11 @@ export default function urlLauncherChannelTest() {
     afterAll(() => {
     });
 
-    // ---------- canLaunchUrl 通道 ----------
+    // ---------- canLaunchUrl channel ----------
     it('channel_canLaunchUrl_success_replies_true', 0, () => {
-      // http 前缀：canOpenLink 未命中时回退前缀判断 → true
+      // http prefix: canOpenLink misses and falls back to the prefix check → true
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, ['http://example.com']);
-      // Pigeon 成功回包为 [result] 单元素列表
+      // A Pigeon success reply is a single-element [result] list
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
       expect(wrapped[0]).assertTrue();
@@ -242,14 +242,14 @@ export default function urlLauncherChannelTest() {
 
     it('channel_canLaunchUrl_unsupported_scheme_replies_false', 0, () => {
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, ['ftp://example.com']);
-      // Pigeon 成功回包为 [result] 单元素列表
+      // A Pigeon success reply is a single-element [result] list
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
       expect(wrapped[0]).assertFalse();
     });
 
     it('channel_canLaunchUrl_empty_args_replies_false', 0, () => {
-      // args 为空：args[0] 为 undefined，canLaunchUrl 前缀判断不命中 → 成功回包 [false]
+      // Empty args: args[0] is undefined, the canLaunchUrl prefix check misses → success reply [false]
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, []);
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
@@ -257,17 +257,17 @@ export default function urlLauncherChannelTest() {
     });
 
     it('channel_canLaunchUrl_null_url_replies_false', 0, () => {
-      // url 为 null：encodeURI(null)='null' 前缀判断不命中 → 成功回包 [false]
+      // url is null: encodeURI(null)='null', the prefix check misses → success reply [false]
       let reply: ESObject = invokeChannel(messenger, CH_CAN_LAUNCH, [null]);
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
       expect(wrapped[0]).assertFalse();
     });
 
-    // ---------- launchUrl 通道（异步） ----------
+    // ---------- launchUrl channel (async) ----------
     it('channel_launchUrl_web_success_replies_true_and_starts_ability', 0, async () => {
       let reply: ESObject = await invokeChannelAsync(messenger, CH_LAUNCH, ['https://example.com', []]);
-      // Pigeon 成功回包为 [result] 单元素列表
+      // A Pigeon success reply is a single-element [result] list
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
       expect(wrapped[0]).assertTrue();
@@ -276,8 +276,8 @@ export default function urlLauncherChannelTest() {
     });
 
     it('channel_launchUrl_missing_headers_replies_typeerror', 0, async () => {
-      // 参数不足（仅 1 个元素）：args[1] 为 undefined → rawHeaders.forEach 抛 TypeError
-      // → wrapError 普通错误回包 [name, message, stacktrace]
+      // Insufficient args (only 1 element): args[1] is undefined → rawHeaders.forEach throws TypeError
+      // → wrapError plain-error reply [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_LAUNCH, ['https://example.com']);
       let arr: Array<ESObject> = reply as Array<ESObject>;
       expect(arr.length).assertEqual(3);
@@ -294,7 +294,7 @@ export default function urlLauncherChannelTest() {
     });
 
     it('channel_launchUrl_with_headers_map_success_replies_true', 0, async () => {
-      // headers 非空 Map → 匿名回调内 forEach 过滤分支执行
+      // A non-empty headers Map → the forEach filtering branch inside the anonymous callback runs
       let headers: Map<string, string> = new Map<string, string>();
       headers.set('X-Token', 'abc');
       let reply: ESObject = await invokeChannelAsync(messenger, CH_LAUNCH, ['https://example.com', headers]);
@@ -304,22 +304,23 @@ export default function urlLauncherChannelTest() {
       expect(ctx.wants.length).assertEqual(1);
     });
 
-    // ---------- openUrlInWebView 通道（异步） ----------
+    // ---------- openUrlInWebView channel (async) ----------
     it('channel_openUrlInWebView_with_options_replies_result', 0, async () => {
-      // 完整 3 参数（url + WebViewOptions(128) + BrowserOptions(129)）→ 参数解析与 then 回调执行
+      // Full 3 args (url + WebViewOptions(128) + BrowserOptions(129)) → argument parsing and the then callback run
       let headers: Map<string, string> = new Map<string, string>();
       headers.set('harmony_browser_page', 'pages/NotExists');
       let opts: WebViewOptions = WebViewOptions.fromList([true, true, headers]);
       let browserOpts: BrowserOptions = BrowserOptions.fromList([true]);
       let reply: ESObject = await invokeChannelAsync(messenger, CH_OPEN_WEBVIEW, ['https://example.com', opts, browserOpts]);
-      // pushUrl 失败 → wrapError 三元素列表
+      // pushUrl fails → wrapError three-element list
       let arr: Array<ESObject> = reply as Array<ESObject>;
       expect(arr[0]).assertEqual('LAUNCH_ERROR');
     });
 
     it('channel_openUrlInWebView_null_options_replies_typeerror', 0, async () => {
-      // args[1] 为 null：options.getHeaders() 抛 TypeError（async 函数内同步抛出 → Promise 拒绝）
-      // → wrapError 普通错误回包 [name, message, stacktrace]
+      // args[1] is null: options.getHeaders() throws TypeError (thrown synchronously inside the
+      // async function → Promise rejection)
+      // → wrapError plain-error reply [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_OPEN_WEBVIEW, ['https://example.com', null, null]);
       let arr: Array<ESObject> = reply as Array<ESObject>;
       expect(arr.length).assertEqual(3);
@@ -327,19 +328,19 @@ export default function urlLauncherChannelTest() {
     });
 
     it('channel_openUrlInWebView_missing_options_replies_typeerror', 0, async () => {
-      // args 不足（仅 url）：args[1]/args[2] 为 undefined → options.getHeaders() 抛 TypeError
-      // → wrapError 普通错误回包 [name, message, stacktrace]
+      // Insufficient args (url only): args[1]/args[2] are undefined → options.getHeaders() throws TypeError
+      // → wrapError plain-error reply [name, message, stacktrace]
       let reply: ESObject = await invokeChannelAsync(messenger, CH_OPEN_WEBVIEW, ['https://example.com']);
       let arr: Array<ESObject> = reply as Array<ESObject>;
       expect(arr.length).assertEqual(3);
       expect(arr[0]).assertEqual('TypeError');
     });
 
-    // ---------- closeWebView 通道 ----------
+    // ---------- closeWebView channel ----------
     it('channel_closeWebView_success_replies_null', 0, () => {
-      // emitter.emit('closeWebView') 无订阅者时正常返回，wrapped=[null]
+      // emitter.emit('closeWebView') returns normally with no subscribers, wrapped=[null]
       let reply: ESObject = invokeChannel(messenger, CH_CLOSE_WEBVIEW, []);
-      // Pigeon void 回包为 [null] 单元素列表
+      // A Pigeon void reply is a single-element [null] list
       let wrapped: Array<ESObject> = reply as Array<ESObject>;
       expect(wrapped.length).assertEqual(1);
       expect(wrapped[0] === null).assertTrue();

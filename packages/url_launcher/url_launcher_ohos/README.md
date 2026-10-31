@@ -16,7 +16,8 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages
       path: packages/url_launcher/url_launcher_ohos
-      ref: br_url_launcher-v6.3.2_ohos
+      # ref: Select the TAG version that matches your Flutter framework version from the table below
+      ref: TAG  # Select a TAG from the TAG version mapping table below
 ```
 
 Run the command:
@@ -24,6 +25,13 @@ Run the command:
 ```bash
 flutter pub get
 ```
+### TAG Version Mapping
+
+ | Flutter Version | TAG Name | Branch |
+ |---|---|---|
+ | 3.41 | url_launcher_v6.3.3-ohos-1.0.0 | oh-3.47.7 |
+ | 3.44 | url_launcher_v6.3.3-ohos-1.0.0 | oh-3.47.7 |
+ | 3.47 | url_launcher_v6.3.3-ohos-1.0.0 | oh-3.47.7 | 
 
 ## Constraints and Limitations
 
@@ -31,8 +39,9 @@ flutter pub get
 
 Tested and passed in the following versions:
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.0.830; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.41.9+ohos-1.0.2; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
+2. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
+3. Flutter: 3.47.7+ohos-1.0.0; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
 
 ### Permission Requirements
 

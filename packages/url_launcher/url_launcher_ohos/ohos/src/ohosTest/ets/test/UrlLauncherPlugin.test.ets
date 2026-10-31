@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ class FakeBinaryMessenger implements BinaryMessenger {
 class EmptyTaskQueue implements TaskQueue {
 }
 
-/** fake Ability context（UrlLauncher 仅持有引用并读 filesDir） */
+/** Fake Ability context (UrlLauncher only holds the reference and reads filesDir) */
 class FakeAbilityContext {
   filesDir: string = '/data/app/files';
 }
@@ -44,7 +44,7 @@ class FakeAbility {
   context: FakeAbilityContext = new FakeAbilityContext();
 }
 
-/** 模拟 FlutterPluginBinding：插件仅调用 getBinaryMessenger()，经 as ESObject 传入 */
+/** Simulates a FlutterPluginBinding: the plugin only calls getBinaryMessenger(); passed in via as ESObject */
 class FakeEngineBinding {
   private messenger: FakeBinaryMessenger;
 
@@ -57,7 +57,7 @@ class FakeEngineBinding {
   }
 }
 
-/** 模拟 AbilityPluginBinding：插件仅调用 getAbility().context */
+/** Simulates an AbilityPluginBinding: the plugin only calls getAbility().context */
 class FakeAbilityBinding {
   private ability: FakeAbility;
 
@@ -76,8 +76,9 @@ const CH_OPEN_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.openUrlInWebView';
 const CH_CLOSE_WEBVIEW = 'dev.flutter.pigeon.UrlLauncherApi.closeWebView';
 
 /**
- * 统计有效（非 null）handler 的通道数。
- * 反注册是 setMessageHandler(ch, null)：Map 键保留、值为 null，故不能直接用 size。
+ * Counts the channels with an active (non-null) handler.
+ * Deregistration is setMessageHandler(ch, null): the Map key is kept with a null value,
+ * so size cannot be used directly.
  */
 function activeChannelCount(m: FakeBinaryMessenger): number {
   let n = 0;
@@ -101,12 +102,14 @@ function activeChannelCount(m: FakeBinaryMessenger): number {
 }
 
 /**
- * UrlLauncherPlugin.ets 单元测试（生命周期全路径，fake binding 注入）
+ * UrlLauncherPlugin.ets unit tests (full lifecycle paths, fake bindings injected)
  *
- * 源码语义：
- * - onAttachedToEngine：仅保存 binding；若 urlLauncherApi 已存在（Ability 先到）才补注册
- * - onAttachedToAbility：创建 api 并 setup（engine 未到时 messenger 为 null → setup 空操作）
- * - onDetachedFromAbility / onDetachedFromEngine：setup(messenger, null) 反注册 4 通道
+ * Source semantics:
+ * - onAttachedToEngine: only stores the binding; registration happens only if urlLauncherApi
+ *   already exists (Ability attached first)
+ * - onAttachedToAbility: creates the api and calls setup (if the engine has not arrived,
+ *   messenger is null → setup is a no-op)
+ * - onDetachedFromAbility / onDetachedFromEngine: setup(messenger, null) deregisters the 4 channels
  */
 export default function urlLauncherPluginTest() {
   describe('UrlLauncherPluginTest', () => {
@@ -129,20 +132,20 @@ export default function urlLauncherPluginTest() {
     afterAll(() => {
     });
 
-    // ---------- 标识 ----------
+    // ---------- Identity ----------
     it('getUniqueClassName_returns_class_name', 0, () => {
       expect(plugin.getUniqueClassName()).assertEqual('UrlLauncherPlugin');
     });
 
-    // ---------- 生命周期：Engine 先、Ability 后 ----------
+    // ---------- Lifecycle: engine first, ability later ----------
     it('attachEngine_then_attachAbility_registers_channels', 0, () => {
-      // Engine 单独到达：api 为 null，不注册通道
+      // Engine arrives alone: api is null, no channels registered
       plugin.onAttachedToEngine(engineBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(0);
-      // Ability 到达：创建 api 并 setup → 4 通道生效
+      // Ability arrives: creates the api and calls setup → 4 channels active
       plugin.onAttachedToAbility(abilityBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(4);
-      // 清理
+      // Teardown
       plugin.onDetachedFromAbility();
       expect(activeChannelCount(messenger)).assertEqual(0);
       plugin.onDetachedFromEngine(engineBinding as ESObject);
@@ -158,12 +161,12 @@ export default function urlLauncherPluginTest() {
       plugin.onDetachedFromEngine(engineBinding as ESObject);
     });
 
-    // ---------- 生命周期：Ability 先、Engine 后（延迟 setup） ----------
+    // ---------- Lifecycle: ability first, engine later (deferred setup) ----------
     it('attachAbility_before_engine_defers_setup', 0, () => {
-      // Ability 先到：pluginBinding 为 null → setup(null, api) 空操作
+      // Ability arrives first: pluginBinding is null → setup(null, api) is a no-op
       plugin.onAttachedToAbility(abilityBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(0);
-      // Engine 到达：api 已存在 → 补注册 4 通道
+      // Engine arrives: the api already exists → the 4 channels are registered retroactively
       plugin.onAttachedToEngine(engineBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(4);
       plugin.onDetachedFromAbility();
@@ -174,13 +177,13 @@ export default function urlLauncherPluginTest() {
       plugin.onAttachedToEngine(engineBinding as ESObject);
       plugin.onAttachedToAbility(abilityBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(4);
-      // 解绑 Engine：反注册且 api/binding 置空
+      // Detach the engine: deregisters and nulls api/binding
       plugin.onDetachedFromEngine(engineBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(0);
-      // 重新附着 Engine：api 为 null，不注册
+      // Re-attach the engine: api is null, nothing registered
       plugin.onAttachedToEngine(engineBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(0);
-      // 重新附着 Ability 后才恢复 4 通道
+      // Only after re-attaching the Ability are the 4 channels restored
       plugin.onAttachedToAbility(abilityBinding as ESObject);
       expect(activeChannelCount(messenger)).assertEqual(4);
       plugin.onDetachedFromAbility();
@@ -195,7 +198,7 @@ export default function urlLauncherPluginTest() {
       expect(activeChannelCount(messenger)).assertEqual(0);
     });
 
-    // ---------- 未附着时的空态安全 ----------
+    // ---------- No-attach empty-state safety ----------
     it('onDetachedFromAbility_without_attach_is_noop', 0, () => {
       plugin.onDetachedFromAbility();
       expect(activeChannelCount(messenger)).assertEqual(0);

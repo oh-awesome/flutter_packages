@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -361,31 +361,21 @@ void main() {
       expect(await launcher.supportsMode(PreferredLaunchMode.platformDefault), true);
     });
 
-    // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
-    test(skip: true, 'returns true for external application', () async {
+    test('returns true for external application', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       expect(await launcher.supportsMode(PreferredLaunchMode.externalApplication), true);
     });
 
-    // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
-    test(skip: true, 'returns true for in app web view', () async {
+    test('returns true for in app web view', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
       expect(await launcher.supportsMode(PreferredLaunchMode.inAppWebView), true);
     });
 
-    // OHOS not supported,`UrlLauncherOhos`未重写`supportsMode()`，使用 `UrlLauncherPlatform` 的默认实现，仅对 `platformDefault` 返回 true，其他所有模式返回 fals
-    test(skip: true, 'returns true for in app browser view when available', () async {
+    test('returns true for in app browser view when available', () async {
       final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      // api.hasCustomTabSupport = true; // OHOS not supported
+      // On OHOS, inAppBrowserView always goes through the WebView path, so
+      // supportsMode() returns true regardless of custom tab availability.
       expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView), true);
-    });
-
-    // OHOS not supported, OHOS 上 inAppBrowserView 走 WebView 路径，supportsMode 恒返回 true，
-    // 不存在"不可用"的情况
-    test(skip: true, 'returns false for in app browser view when not available', () async {
-      final UrlLauncherOhos launcher = UrlLauncherOhos(api: api);
-      // api.hasCustomTabSupport = false; // OHOS not supported
-      expect(await launcher.supportsMode(PreferredLaunchMode.inAppBrowserView), false);
     });
   });
 
@@ -486,11 +476,4 @@ class _FakeUrlLauncherApi implements UrlLauncherApi {
     }
   }
 
-  @override
-  // ignore: non_constant_identifier_names
-  BinaryMessenger? get pigeonVar_binaryMessenger => null;
-
-  @override
-  // ignore: non_constant_identifier_names
-  String get pigeonVar_messageChannelSuffix => '';
 }

@@ -43,7 +43,7 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/url_launcher/url_launcher_ohos"
-      ref: "oh-3.44.9-dev"
+      ref: "oh-3.47.7-dev"
 dev_dependencies:
   flutter_test:
     sdk: flutter
