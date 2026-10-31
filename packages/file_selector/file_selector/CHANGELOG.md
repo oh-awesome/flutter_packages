@@ -1,19 +1,7 @@
-## NEXT
-
-* Updates minimum supported SDK version to Flutter 3.41/Dart 3.11.
-* Updates README to reflect that the latest versions of `file_selector_ios`
-  and `file_selector_macos` require iOS 15 and macOS 12.
-  * Applications built with older versions of Flutter will continue to use
-    compatible versions of the platform implementations.
-
 ## 1.1.0
 
 * Adds `canCreateDirectories` param to `getSaveLocation`, `getDirectoryPath` and `getDirectoryPaths` to control whether users can create directories during location selection.
 * Updates minimum supported SDK version to Flutter 3.32/Dart 3.8.
-* Updates README to reflect currently supported OS versions for the latest
-  versions of the endorsed platform implementations.
-  * Applications built with older versions of Flutter will continue to
-    use compatible versions of the platform implementations.
 
 ## 1.0.4
 
