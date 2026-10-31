@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -12,9 +11,9 @@ import Testing
   import UIKit
 #endif
 
-@Suite struct WebViewFlutterPluginTests {
+class WebViewFlutterPluginTests: XCTestCase {
   #if os(iOS)
-    @MainActor @Test func instanceManagerIsDeallocatedInApplicationWillTerminate() async throws {
+    func testInstanceManagerIsDeallocatedInApplicationWillTerminate() {
       let plugin = WebViewFlutterPlugin(binaryMessenger: TestBinaryMessenger())
       plugin.proxyApiRegistrar!.setUp()
 
@@ -30,22 +29,21 @@ import Testing
       }
       objc_setAssociatedObject(
         plugin.proxyApiRegistrar!.instanceManager, key, finalizer, .OBJC_ASSOCIATION_RETAIN)
-
-      await confirmation("Wait for InstanceManager to be deallocated.") { confirm in
-        TestFinalizer.onDeinit = {
-          confirm()
-        }
-
-        // Ensure method is from `FlutterApplicationLifeCycleDelegate`.
-        (plugin as FlutterApplicationLifeCycleDelegate).applicationWillTerminate!(
-          UIApplication.shared)
-        #expect(plugin.proxyApiRegistrar == nil)
-
-        finalizer = nil
+      let expectation = self.expectation(description: "Wait for InstanceManager to be deallocated.")
+      TestFinalizer.onDeinit = {
+        expectation.fulfill()
       }
+
+      // Ensure method is from `FlutterApplicationLifeCycleDelegate`.
+      (plugin as FlutterApplicationLifeCycleDelegate).applicationWillTerminate!(
+        UIApplication.shared)
+      XCTAssertNil(plugin.proxyApiRegistrar)
+
+      finalizer = nil
+      waitForExpectations(timeout: 5.0)
     }
 
-    @MainActor @Test func instanceManagerIsDeallocatedInSceneDidDisconnect() async throws {
+    func testInstanceManagerIsDeallocatedInSceneDidDisconnect() {
       let plugin = WebViewFlutterPlugin(binaryMessenger: TestBinaryMessenger())
       plugin.proxyApiRegistrar!.setUp()
 
@@ -61,20 +59,19 @@ import Testing
       }
       objc_setAssociatedObject(
         plugin.proxyApiRegistrar!.instanceManager, key, finalizer, .OBJC_ASSOCIATION_RETAIN)
-
-      await confirmation("Wait for InstanceManager to be deallocated.") { confirm in
-        TestFinalizer.onDeinit = {
-          confirm()
-        }
-
-        let scene = UIApplication.shared.connectedScenes.first!
-
-        // Ensure method is from `FlutterSceneLifeCycleDelegate`.
-        (plugin as FlutterSceneLifeCycleDelegate).sceneDidDisconnect?(scene)
-        #expect(plugin.proxyApiRegistrar == nil)
-
-        finalizer = nil
+      let expectation = self.expectation(description: "Wait for InstanceManager to be deallocated.")
+      TestFinalizer.onDeinit = {
+        expectation.fulfill()
       }
+
+      let scene = UIApplication.shared.connectedScenes.first!
+
+      // Ensure method is from `FlutterSceneLifeCycleDelegate`.
+      (plugin as FlutterSceneLifeCycleDelegate).sceneDidDisconnect?(scene)
+      XCTAssertNil(plugin.proxyApiRegistrar)
+
+      finalizer = nil
+      waitForExpectations(timeout: 5.0)
     }
   #endif
 }

@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -11,9 +10,9 @@ import Testing
   import UIKit
 #endif
 
-@Suite struct UIViewProxyAPITests {
+class UIViewProxyAPITests: XCTestCase {
   #if os(iOS)
-    @MainActor @Test func setBackgroundColor() throws {
+    @MainActor func testSetBackgroundColor() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIView(registrar)
 
@@ -22,22 +21,23 @@ import Testing
       let green = 0.2
       let blue = 0.3
       let alpha = 0.4
-      try api.pigeonDelegate.setBackgroundColor(
+      try? api.pigeonDelegate.setBackgroundColor(
         pigeonApi: api, pigeonInstance: instance,
         value: UIColor(red: red, green: green, blue: blue, alpha: alpha))
 
-      #expect(instance.backgroundColor == UIColor(red: red, green: green, blue: blue, alpha: alpha))
+      XCTAssertEqual(
+        instance.backgroundColor, UIColor(red: red, green: green, blue: blue, alpha: alpha))
     }
 
-    @MainActor @Test func setOpaque() throws {
+    @MainActor func testSetOpaque() {
       let registrar = TestProxyApiRegistrar()
       let api = registrar.apiDelegate.pigeonApiUIView(registrar)
 
       let instance = UIView(frame: .zero)
       let opaque = true
-      try api.pigeonDelegate.setOpaque(pigeonApi: api, pigeonInstance: instance, opaque: opaque)
+      try? api.pigeonDelegate.setOpaque(pigeonApi: api, pigeonInstance: instance, opaque: opaque)
 
-      #expect(instance.isOpaque == opaque)
+      XCTAssertEqual(instance.isOpaque, opaque)
     }
   #endif
 }

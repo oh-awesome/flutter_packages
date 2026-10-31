@@ -63,8 +63,9 @@ void main() {
         webpagePreferences: MockWKWebpagePreferences(),
       );
 
-      when(mocks.webViewWidgetProxy.createWebView(any, observeValue: anyNamed('observeValue')))
-          .thenReturn(PlatformWebView.fromNativeWebView(mocks.webView));
+      when(
+        mocks.webViewWidgetProxy.createWebView(any, observeValue: anyNamed('observeValue')),
+      ).thenReturn(PlatformWebView.fromNativeWebView(mocks.webView));
       when(
         mocks.webViewWidgetProxy.createUIDelgate(
           onCreateWebView: captureAnyNamed('onCreateWebView'),
@@ -83,17 +84,21 @@ void main() {
         ),
       ).thenReturn(mocks.navigationDelegate);
       when(mocks.webView.configuration).thenReturn(mocks.webViewConfiguration);
-      when(mocks.webViewConfiguration.getUserContentController())
-          .thenAnswer((_) => Future<WKUserContentController>.value(mocks.userContentController));
-      when(mocks.webViewConfiguration.getPreferences())
-          .thenAnswer((_) => Future<WKPreferences>.value(mocks.preferences));
-      when(mocks.webViewConfiguration.getDefaultWebpagePreferences())
-          .thenAnswer((_) => Future<WKWebpagePreferences>.value(mocks.webpagePreferences));
+      when(
+        mocks.webViewConfiguration.getUserContentController(),
+      ).thenAnswer((_) => Future<WKUserContentController>.value(mocks.userContentController));
+      when(
+        mocks.webViewConfiguration.getPreferences(),
+      ).thenAnswer((_) => Future<WKPreferences>.value(mocks.preferences));
+      when(
+        mocks.webViewConfiguration.getDefaultWebpagePreferences(),
+      ).thenAnswer((_) => Future<WKWebpagePreferences>.value(mocks.webpagePreferences));
 
       when(mocks.webView.scrollView).thenReturn(mocks.scrollView);
 
-      when(mocks.webViewConfiguration.getWebsiteDataStore())
-          .thenAnswer((_) => Future<WKWebsiteDataStore>.value(mocks.websiteDataStore));
+      when(
+        mocks.webViewConfiguration.getWebsiteDataStore(),
+      ).thenAnswer((_) => Future<WKWebsiteDataStore>.value(mocks.websiteDataStore));
       return mocks;
     }
 
@@ -169,8 +174,9 @@ void main() {
     group('CreationParams', () {
       testWidgets('initialUrl', (WidgetTester tester) async {
         final _WebViewMocks mocks = configureMocks();
-        when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-            .thenReturn(MockURLRequest());
+        when(
+          mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+        ).thenReturn(MockURLRequest());
 
         await buildWidget(
           tester,
@@ -498,8 +504,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-            .thenReturn(MockURLRequest());
+        when(
+          mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+        ).thenReturn(MockURLRequest());
 
         await testController.loadUrl('https://www.google.com', <String, String>{'a': 'header'});
 
@@ -524,8 +531,9 @@ void main() {
           final _WebViewMocks mocks = configureMocks();
           final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-          when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-              .thenReturn(MockURLRequest());
+          when(
+            mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+          ).thenReturn(MockURLRequest());
 
           await testController.loadRequest(
             WebViewRequest(
@@ -543,8 +551,9 @@ void main() {
           final _WebViewMocks mocks = configureMocks();
           final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-          when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-              .thenReturn(MockURLRequest());
+          when(
+            mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+          ).thenReturn(MockURLRequest());
 
           await testController.loadRequest(
             WebViewRequest(
@@ -563,8 +572,9 @@ void main() {
           final _WebViewMocks mocks = configureMocks();
           final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-          when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-              .thenReturn(MockURLRequest());
+          when(
+            mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+          ).thenReturn(MockURLRequest());
 
           await testController.loadRequest(
             WebViewRequest(
@@ -581,8 +591,9 @@ void main() {
           final _WebViewMocks mocks = configureMocks();
           final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-          when(mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'))
-              .thenReturn(MockURLRequest());
+          when(
+            mocks.webViewWidgetProxy.createRequest(url: 'https://www.google.com'),
+          ).thenReturn(MockURLRequest());
 
           await testController.loadRequest(
             WebViewRequest(
@@ -642,8 +653,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<String>.value('returnString'));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<String>.value('returnString'));
         expect(testController.evaluateJavascript('runJavaScript'), completion('returnString'));
       });
 
@@ -651,8 +663,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value());
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value());
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies null
         // is represented the way it is in Objective-C.
@@ -663,8 +676,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value(true));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value(true));
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies bool
         // is represented the way it is in Objective-C.
@@ -676,8 +690,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value(1.0));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value(1.0));
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies
         // double is represented the way it is in Objective-C. If a double
@@ -691,8 +706,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value(<Object?>[1, 'string', null]));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value(<Object?>[1, 'string', null]));
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies list
         // is represented the way it is in Objective-C.
@@ -706,8 +722,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value(<Object?, Object?>{1: 'string', null: null}));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value(<Object?, Object?>{1: 'string', null: null}));
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies map
         // is represented the way it is in Objective-C.
@@ -729,8 +746,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<String>.value('returnString'));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<String>.value('returnString'));
         expect(
           testController.runJavascriptReturningResult('runJavaScript'),
           completion('returnString'),
@@ -743,8 +761,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<String?>.value());
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<String?>.value());
         expect(
           () => testController.runJavascriptReturningResult('runJavaScript'),
           throwsArgumentError,
@@ -757,8 +776,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<Object?>.value(false));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<Object?>.value(false));
         // The legacy implementation of webview_flutter_wkwebview would convert
         // objects to strings before returning them to Dart. This verifies bool
         // is represented the way it is in Objective-C.
@@ -770,8 +790,9 @@ void main() {
         final _WebViewMocks mocks = configureMocks();
         final WebKitWebViewPlatformController testController = await buildWidget(tester, mocks);
 
-        when(mocks.webView.evaluateJavaScript('runJavaScript'))
-            .thenAnswer((_) => Future<String>.value('returnString'));
+        when(
+          mocks.webView.evaluateJavaScript('runJavaScript'),
+        ).thenAnswer((_) => Future<String>.value('returnString'));
         expect(testController.runJavascript('runJavaScript'), completes);
       });
 
@@ -840,8 +861,9 @@ void main() {
 
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
-        when(mocks.scrollView.getContentOffset())
-            .thenAnswer((_) => Future<List<double>>.value(const <double>[8.0, 16.0]));
+        when(
+          mocks.scrollView.getContentOffset(),
+        ).thenAnswer((_) => Future<List<double>>.value(const <double>[8.0, 16.0]));
         expect(testController.getScrollX(), completion(8.0));
 
         debugDefaultTargetPlatformOverride = null;
@@ -853,8 +875,9 @@ void main() {
 
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
-        when(mocks.scrollView.getContentOffset())
-            .thenAnswer((_) => Future<List<double>>.value(const <double>[8.0, 16.0]));
+        when(
+          mocks.scrollView.getContentOffset(),
+        ).thenAnswer((_) => Future<List<double>>.value(const <double>[8.0, 16.0]));
         expect(testController.getScrollY(), completion(16.0));
 
         debugDefaultTargetPlatformOverride = null;

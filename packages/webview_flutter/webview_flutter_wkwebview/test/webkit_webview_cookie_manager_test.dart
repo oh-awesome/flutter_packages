@@ -121,8 +121,9 @@ void main() {
         },
       );
 
-      when(mockCookieStore.getAllCookies())
-          .thenAnswer((_) async => [mockCookie1, mockCookie2, mockCookie3]);
+      when(
+        mockCookieStore.getAllCookies(),
+      ).thenAnswer((_) async => [mockCookie1, mockCookie2, mockCookie3]);
 
       PigeonOverrides.wKWebsiteDataStore_defaultDataStore = mockWKWebsiteDataStore;
 

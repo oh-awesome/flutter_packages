@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -15,7 +14,7 @@ import Testing
   #error("Unsupported platform.")
 #endif
 
-@Suite struct SecTrustProxyAPITests {
+class SecTrustProxyAPITests: XCTestCase {
   func createTrust(delegate: TestSecTrustProxyAPIDelegate) -> SecTrustWrapper {
     var trust: SecTrust?
     SecTrustCreateWithCertificates(
@@ -24,70 +23,74 @@ import Testing
     return SecTrustWrapper(value: trust!)
   }
 
-  @Test func evaluateWithError() async throws {
+  func testEvaluateWithError() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecTrustProxyAPIDelegate()
     let api = PigeonApiSecTrust(pigeonRegistrar: registrar, delegate: delegate)
 
-    let resultValue: Bool = try await withCheckedThrowingContinuation { continuation in
-      let trust = createTrust(delegate: delegate)
-      api.pigeonDelegate.evaluateWithError(pigeonApi: api, trust: trust) { result in
-        switch result {
-        case .success(let value):
-          continuation.resume(returning: value)
-        case .failure(let error):
-          continuation.resume(throwing: error)
-        }
+    let expect = expectation(description: "Wait for setCookie.")
+    let trust = createTrust(delegate: delegate)
+    var resultValue: Bool?
+
+    api.pigeonDelegate.evaluateWithError(pigeonApi: api, trust: trust) { result in
+      switch result {
+      case .success(let value):
+        resultValue = value
+      case .failure(_):
+        break
       }
+      expect.fulfill()
     }
-    #expect(resultValue == true)
+
+    wait(for: [expect], timeout: 5.0)
+    XCTAssertEqual(resultValue, true)
   }
 
-  @Test func copyExceptions() throws {
+  func testCopyExceptions() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecTrustProxyAPIDelegate()
     let api = PigeonApiSecTrust(pigeonRegistrar: registrar, delegate: delegate)
 
     let trust = createTrust(delegate: delegate)
-    let value = try api.pigeonDelegate.copyExceptions(pigeonApi: api, trust: trust)
+    let value = try? api.pigeonDelegate.copyExceptions(pigeonApi: api, trust: trust)
 
-    #expect(value?.data == Data())
+    XCTAssertEqual(value?.data, Data())
   }
 
-  @Test func setExceptions() throws {
+  func testSetExceptions() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecTrustProxyAPIDelegate()
     let api = PigeonApiSecTrust(pigeonRegistrar: registrar, delegate: delegate)
 
     let trust = createTrust(delegate: delegate)
-    let value = try api.pigeonDelegate.setExceptions(
+    let value = try? api.pigeonDelegate.setExceptions(
       pigeonApi: api, trust: trust, exceptions: FlutterStandardTypedData(bytes: Data()))
 
-    #expect(value == false)
+    XCTAssertEqual(value, false)
   }
 
-  @Test func getTrustResult() throws {
+  func testGetTrustResult() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecTrustProxyAPIDelegate()
     let api = PigeonApiSecTrust(pigeonRegistrar: registrar, delegate: delegate)
 
     let trust = createTrust(delegate: delegate)
-    let value = try api.pigeonDelegate.getTrustResult(pigeonApi: api, trust: trust)
+    let value = try? api.pigeonDelegate.getTrustResult(pigeonApi: api, trust: trust)
 
-    #expect(value.result == SecTrustResultType.invalid)
-    #expect(value.resultCode == -1)
+    XCTAssertEqual(value?.result, SecTrustResultType.invalid)
+    XCTAssertEqual(value?.resultCode, -1)
   }
 
-  @Test func copyCertificateChain() throws {
+  func testCopyCertificateChain() {
     let registrar = TestProxyApiRegistrar()
     let delegate = TestSecTrustProxyAPIDelegate()
     let api = PigeonApiSecTrust(pigeonRegistrar: registrar, delegate: delegate)
 
     let trust = createTrust(delegate: delegate)
-    let value = try api.pigeonDelegate.copyCertificateChain(pigeonApi: api, trust: trust)
+    let value = try? api.pigeonDelegate.copyCertificateChain(pigeonApi: api, trust: trust)
 
-    #expect(value?.count == 1)
-    #expect(value?.first?.value != nil)
+    XCTAssertEqual(value?.count, 1)
+    XCTAssertNotNil(value?.first?.value)
   }
 }
 
@@ -121,7 +124,7 @@ class TestSecTrustProxyAPIDelegate: SecTrustProxyAPIDelegate {
   }
 
   override func secTrustCopyCertificateChain(_ trust: SecTrust) -> CFArray? {
-    if #available(iOS 15.0, macOS 12.0, *) {
+    if #available(iOS 15.0, *) {
       return [createDummyCertificate()] as CFArray
     }
 

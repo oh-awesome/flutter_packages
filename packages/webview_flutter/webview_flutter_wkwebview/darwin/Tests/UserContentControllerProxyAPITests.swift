@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct UserContentControllerProxyAPITests {
-  @MainActor @Test func addScriptMessageHandler() throws {
+class UserContentControllerProxyAPITests: XCTestCase {
+  @MainActor func testAddScriptMessageHandler() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKUserContentController(registrar)
 
@@ -17,54 +16,54 @@ import WebKit
     let handler = ScriptMessageHandlerImpl(
       api: registrar.apiDelegate.pigeonApiWKScriptMessageHandler(registrar), registrar: registrar)
     let name = "myString"
-    try api.pigeonDelegate.addScriptMessageHandler(
+    try? api.pigeonDelegate.addScriptMessageHandler(
       pigeonApi: api, pigeonInstance: instance, handler: handler, name: name)
 
-    #expect(instance.addScriptMessageHandlerArgs == [handler, name])
+    XCTAssertEqual(instance.addScriptMessageHandlerArgs, [handler, name])
   }
 
-  @MainActor @Test func removeScriptMessageHandler() throws {
+  @MainActor func testRemoveScriptMessageHandler() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKUserContentController(registrar)
 
     let instance = TestUserContentController()
     let name = "myString"
-    try api.pigeonDelegate.removeScriptMessageHandler(
+    try? api.pigeonDelegate.removeScriptMessageHandler(
       pigeonApi: api, pigeonInstance: instance, name: name)
 
-    #expect(instance.removeScriptMessageHandlerArgs == [name])
+    XCTAssertEqual(instance.removeScriptMessageHandlerArgs, [name])
   }
 
-  @MainActor @Test func removeAllScriptMessageHandlers() throws {
+  @MainActor func testRemoveAllScriptMessageHandlers() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKUserContentController(registrar)
 
     let instance = TestUserContentController()
-    try api.pigeonDelegate.removeAllScriptMessageHandlers(pigeonApi: api, pigeonInstance: instance)
+    try? api.pigeonDelegate.removeAllScriptMessageHandlers(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(instance.removeAllScriptMessageHandlersCalled)
+    XCTAssertTrue(instance.removeAllScriptMessageHandlersCalled)
   }
 
-  @MainActor @Test func addUserScript() throws {
+  @MainActor func testAddUserScript() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKUserContentController(registrar)
 
     let instance = TestUserContentController()
     let userScript = WKUserScript(source: "", injectionTime: .atDocumentEnd, forMainFrameOnly: true)
-    try api.pigeonDelegate.addUserScript(
+    try? api.pigeonDelegate.addUserScript(
       pigeonApi: api, pigeonInstance: instance, userScript: userScript)
 
-    #expect(instance.addUserScriptArgs == [userScript])
+    XCTAssertEqual(instance.addUserScriptArgs, [userScript])
   }
 
-  @MainActor @Test func removeAllUserScripts() throws {
+  @MainActor func testRemoveAllUserScripts() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKUserContentController(registrar)
 
     let instance = TestUserContentController()
-    try api.pigeonDelegate.removeAllUserScripts(pigeonApi: api, pigeonInstance: instance)
+    try? api.pigeonDelegate.removeAllUserScripts(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(instance.removeAllUserScriptsCalled)
+    XCTAssertTrue(instance.removeAllUserScriptsCalled)
   }
 
 }

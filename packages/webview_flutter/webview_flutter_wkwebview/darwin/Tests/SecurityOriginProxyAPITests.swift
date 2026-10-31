@@ -2,44 +2,43 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
 @MainActor
-@Suite struct SecurityOriginProxyAPITests {
+class SecurityOriginProxyAPITests: XCTestCase {
   static let testSecurityOrigin = TestSecurityOrigin.customInit()
 
-  @MainActor @Test func host() {
+  @MainActor func testHost() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKSecurityOrigin(registrar)
 
     let instance = SecurityOriginProxyAPITests.testSecurityOrigin
     let value = try? api.pigeonDelegate.host(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.host)
+    XCTAssertEqual(value, instance.host)
   }
 
-  @MainActor @Test func port() throws {
+  @MainActor func testPort() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKSecurityOrigin(registrar)
 
     let instance = SecurityOriginProxyAPITests.testSecurityOrigin
-    let value = try api.pigeonDelegate.port(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.port(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == Int64(instance.port))
+    XCTAssertEqual(value, Int64(instance.port))
   }
 
-  @MainActor @Test func securityProtocol() throws {
+  @MainActor func testSecurityProtocol() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKSecurityOrigin(registrar)
 
     let instance = SecurityOriginProxyAPITests.testSecurityOrigin
-    let value = try api.pigeonDelegate.securityProtocol(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.securityProtocol(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.`protocol`)
+    XCTAssertEqual(value, instance.`protocol`)
   }
 }
 

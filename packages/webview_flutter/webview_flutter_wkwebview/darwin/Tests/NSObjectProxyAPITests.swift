@@ -2,21 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct ObjectProxyAPITests {
-  @Test func pigeonDefaultConstructor() {
+class ObjectProxyAPITests: XCTestCase {
+  func testPigeonDefaultConstructor() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSObject(registrar)
 
     let instance = try? api.pigeonDelegate.pigeonDefaultConstructor(pigeonApi: api)
-    #expect(instance != nil)
+    XCTAssertNotNil(instance)
   }
 
-  @Test func addObserver() throws {
+  func testAddObserver() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSObject(registrar)
 
@@ -24,30 +23,30 @@ import Testing
     let observer = NSObject()
     let keyPath = "myString"
     let options: [KeyValueObservingOptions] = [.newValue]
-    try api.pigeonDelegate.addObserver(
+    try? api.pigeonDelegate.addObserver(
       pigeonApi: api, pigeonInstance: instance, observer: observer, keyPath: keyPath,
       options: options)
 
     var nativeOptions: NSKeyValueObservingOptions = []
     nativeOptions.insert(.new)
 
-    #expect(instance.addObserverArgs == [observer, keyPath, nativeOptions.rawValue])
+    XCTAssertEqual(instance.addObserverArgs, [observer, keyPath, nativeOptions.rawValue])
   }
 
-  @Test func removeObserver() throws {
+  func testRemoveObserver() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiNSObject(registrar)
 
     let instance = TestObject()
     let object = NSObject()
     let keyPath = "myString"
-    try api.pigeonDelegate.removeObserver(
+    try? api.pigeonDelegate.removeObserver(
       pigeonApi: api, pigeonInstance: instance, observer: object, keyPath: keyPath)
 
-    #expect(instance.removeObserverArgs == [object, keyPath])
+    XCTAssertEqual(instance.removeObserverArgs, [object, keyPath])
   }
 
-  @Test func observeValue() throws {
+  func testObserveValue() {
     let api = TestObjectApi()
 
     let registrar = TestProxyApiRegistrar()
@@ -57,7 +56,7 @@ import Testing
     let change = [NSKeyValueChangeKey.indexesKey: -1]
     instance.observeValue(forKeyPath: keyPath, of: object, change: change, context: nil)
 
-    #expect(api.observeValueArgs == [keyPath, object, [KeyValueChangeKey.indexes: -1]])
+    XCTAssertEqual(api.observeValueArgs, [keyPath, object, [KeyValueChangeKey.indexes: -1]])
   }
 }
 

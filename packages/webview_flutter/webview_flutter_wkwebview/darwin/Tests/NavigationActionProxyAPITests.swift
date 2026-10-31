@@ -2,41 +2,40 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct NavigationActionProxyAPITests {
-  @MainActor @Test func request() throws {
+class NavigationActionProxyAPITests: XCTestCase {
+  @MainActor func testRequest() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKNavigationAction(registrar)
 
     let instance: TestNavigationAction? = TestNavigationAction()
-    let value = try api.pigeonDelegate.request(pigeonApi: api, pigeonInstance: instance!)
+    let value = try? api.pigeonDelegate.request(pigeonApi: api, pigeonInstance: instance!)
 
-    #expect(value.value == instance!.request)
+    XCTAssertEqual(value?.value, instance!.request)
   }
 
-  @MainActor @Test func targetFrame() throws {
+  @MainActor func testTargetFrame() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKNavigationAction(registrar)
 
     let instance: TestNavigationAction? = TestNavigationAction()
-    let value = try api.pigeonDelegate.targetFrame(pigeonApi: api, pigeonInstance: instance!)
+    let value = try? api.pigeonDelegate.targetFrame(pigeonApi: api, pigeonInstance: instance!)
 
-    #expect(value == instance!.targetFrame)
+    XCTAssertEqual(value, instance!.targetFrame)
   }
 
-  @MainActor @Test func navigationType() throws {
+  @MainActor func testNavigationType() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKNavigationAction(registrar)
 
     let instance: TestNavigationAction? = TestNavigationAction()
-    let value = try api.pigeonDelegate.navigationType(pigeonApi: api, pigeonInstance: instance!)
+    let value = try? api.pigeonDelegate.navigationType(pigeonApi: api, pigeonInstance: instance!)
 
-    #expect(value == .formSubmitted)
+    XCTAssertEqual(value, .formSubmitted)
   }
 }
 

@@ -2,13 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct ProtectionSpaceProxyAPITests {
-  @Test func host() {
+class ProtectionSpaceProxyAPITests: XCTestCase {
+  func testHost() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLProtectionSpace(registrar)
 
@@ -17,56 +16,56 @@ import Testing
     )
     let value = try? api.pigeonDelegate.host(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.host)
+    XCTAssertEqual(value, instance.host)
   }
 
-  @Test func port() throws {
+  func testPort() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLProtectionSpace(registrar)
 
     let instance = URLProtectionSpace(
       host: "host", port: 23, protocol: "protocol", realm: "realm", authenticationMethod: "myMethod"
     )
-    let value = try api.pigeonDelegate.port(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.port(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == Int64(instance.port))
+    XCTAssertEqual(value, Int64(instance.port))
   }
 
-  @Test func realm() throws {
+  func testRealm() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLProtectionSpace(registrar)
 
     let instance = URLProtectionSpace(
       host: "host", port: 23, protocol: "protocol", realm: "realm", authenticationMethod: "myMethod"
     )
-    let value = try api.pigeonDelegate.realm(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.realm(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.realm)
+    XCTAssertEqual(value, instance.realm)
   }
 
-  @Test func authenticationMethod() throws {
+  func testAuthenticationMethod() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLProtectionSpace(registrar)
 
     let instance = URLProtectionSpace(
       host: "host", port: 23, protocol: "protocol", realm: "realm", authenticationMethod: "myMethod"
     )
-    let value = try api.pigeonDelegate.authenticationMethod(
+    let value = try? api.pigeonDelegate.authenticationMethod(
       pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.authenticationMethod)
+    XCTAssertEqual(value, instance.authenticationMethod)
   }
 
-  @Test func getServerTrust() throws {
+  func testGetServerTrust() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLProtectionSpace(registrar)
 
     let instance = TestProtectionSpace(
       host: "host", port: 23, protocol: "protocol", realm: "realm", authenticationMethod: "myMethod"
     )
-    let value = try api.pigeonDelegate.getServerTrust(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.getServerTrust(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value!.value == instance.serverTrust)
+    XCTAssertEqual(value!.value, instance.serverTrust)
   }
 }
 

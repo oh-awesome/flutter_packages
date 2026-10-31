@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
@@ -15,37 +14,37 @@ import Testing
   #error("Unsupported platform.")
 #endif
 
-@Suite struct RequestProxyAPITests {
-  @Test func pigeonDefaultConstructor() {
+class RequestProxyAPITests: XCTestCase {
+  func testPigeonDefaultConstructor() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = try? api.pigeonDelegate.pigeonDefaultConstructor(pigeonApi: api, url: "myString")
-    #expect(instance != nil)
+    XCTAssertNotNil(instance)
   }
 
-  @Test func getUrl() throws {
+  func testGetUrl() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = URLRequestWrapper(URLRequest(url: URL(string: "http://google.com")!))
-    let value = try api.pigeonDelegate.getUrl(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.getUrl(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == instance.value.url?.absoluteString)
+    XCTAssertEqual(value, instance.value.url?.absoluteString)
   }
 
-  @Test func setHttpMethod() throws {
+  func testSetHttpMethod() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = URLRequestWrapper(URLRequest(url: URL(string: "http://google.com")!))
     let method = "GET"
-    try api.pigeonDelegate.setHttpMethod(pigeonApi: api, pigeonInstance: instance, method: method)
+    try? api.pigeonDelegate.setHttpMethod(pigeonApi: api, pigeonInstance: instance, method: method)
 
-    #expect(instance.value.httpMethod == method)
+    XCTAssertEqual(instance.value.httpMethod, method)
   }
 
-  @Test func getHttpMethod() throws {
+  func testGetHttpMethod() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
@@ -53,47 +52,47 @@ import Testing
 
     let method = "POST"
     instance.value.httpMethod = method
-    let value = try api.pigeonDelegate.getHttpMethod(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.getHttpMethod(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == method)
+    XCTAssertEqual(value, method)
   }
 
-  @Test func setHttpBody() throws {
+  func testSetHttpBody() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = URLRequestWrapper(URLRequest(url: URL(string: "http://google.com")!))
     let body = FlutterStandardTypedData(bytes: Data())
-    try api.pigeonDelegate.setHttpBody(pigeonApi: api, pigeonInstance: instance, body: body)
+    try? api.pigeonDelegate.setHttpBody(pigeonApi: api, pigeonInstance: instance, body: body)
 
-    #expect(instance.value.httpBody == body.data)
+    XCTAssertEqual(instance.value.httpBody, body.data)
   }
 
-  @Test func getHttpBody() throws {
+  func testGetHttpBody() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = URLRequestWrapper(URLRequest(url: URL(string: "http://google.com")!))
     let body = FlutterStandardTypedData(bytes: Data())
     instance.value.httpBody = body.data
-    let value = try api.pigeonDelegate.getHttpBody(pigeonApi: api, pigeonInstance: instance)
+    let value = try? api.pigeonDelegate.getHttpBody(pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value?.data == body.data)
+    XCTAssertEqual(value?.data, body.data)
   }
 
-  @Test func setAllHttpHeaderFields() throws {
+  func testSetAllHttpHeaderFields() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
     let instance = URLRequestWrapper(URLRequest(url: URL(string: "http://google.com")!))
     let fields = ["key": "value"]
-    try api.pigeonDelegate.setAllHttpHeaderFields(
+    try? api.pigeonDelegate.setAllHttpHeaderFields(
       pigeonApi: api, pigeonInstance: instance, fields: fields)
 
-    #expect(instance.value.allHTTPHeaderFields == fields)
+    XCTAssertEqual(instance.value.allHTTPHeaderFields, fields)
   }
 
-  @Test func getAllHttpHeaderFields() throws {
+  func testGetAllHttpHeaderFields() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiURLRequest(registrar)
 
@@ -101,9 +100,9 @@ import Testing
     let fields = ["key": "value"]
     instance.value.allHTTPHeaderFields = fields
 
-    let value = try api.pigeonDelegate.getAllHttpHeaderFields(
+    let value = try? api.pigeonDelegate.getAllHttpHeaderFields(
       pigeonApi: api, pigeonInstance: instance)
 
-    #expect(value == fields)
+    XCTAssertEqual(value, fields)
   }
 }

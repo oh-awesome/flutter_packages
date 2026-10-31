@@ -2,14 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import Foundation
-import Testing
 import WebKit
+import XCTest
 
 @testable import webview_flutter_wkwebview
 
-@Suite struct HTTPCookieStoreProxyAPITests {
-  @MainActor @Test func setCookie() async throws {
+class HTTPCookieStoreProxyAPITests: XCTestCase {
+  @MainActor func testSetCookie() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKHTTPCookieStore(registrar)
 
@@ -19,24 +18,26 @@ import WebKit
       .path: "/anything",
     ])!
 
-    try await withCheckedThrowingContinuation { continuation in
-      api.pigeonDelegate.setCookie(
-        pigeonApi: api,
-        pigeonInstance: instance!,
-        cookie: cookie
-      ) { result in
-        switch result {
-        case .success(_):
-          continuation.resume()
-        case .failure(let error):
-          continuation.resume(throwing: error)
-        }
+    let expect = expectation(description: "Wait for setCookie.")
+    api.pigeonDelegate.setCookie(
+      pigeonApi: api,
+      pigeonInstance: instance!,
+      cookie: cookie
+    ) {
+      result in
+      switch result {
+      case .success(_):
+        XCTAssertEqual(instance!.setCookieArg, cookie)
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      expect.fulfill()
     }
-    #expect(instance!.setCookieArg == cookie)
+
+    wait(for: [expect], timeout: 1.0)
   }
 
-  @MainActor @Test func getCookies() async throws {
+  @MainActor func testGetCookies() {
     let registrar = TestProxyApiRegistrar()
     let api = registrar.apiDelegate.pigeonApiWKHTTPCookieStore(registrar)
 
@@ -51,20 +52,23 @@ import WebKit
     instance!.allCookies = [cookie1, cookie2]
 
     // Test fetching all cookies
-    let cookies = try await withCheckedThrowingContinuation { continuation in
-      api.pigeonDelegate.getAllCookies(
-        pigeonApi: api,
-        pigeonInstance: instance!
-      ) { result in
-        switch result {
-        case .success(let cookies):
-          continuation.resume(returning: cookies)
-        case .failure(let error):
-          continuation.resume(throwing: error)
-        }
+    let expectAll = expectation(description: "Wait for getAllCookies.")
+    api.pigeonDelegate.getAllCookies(
+      pigeonApi: api,
+      pigeonInstance: instance!
+    ) { result in
+      switch result {
+      case .success(let cookies):
+        XCTAssertEqual(cookies.count, 2)
+        XCTAssertTrue(cookies.contains(cookie1))
+        XCTAssertTrue(cookies.contains(cookie2))
+      case .failure(let error):
+        XCTFail("\(error)")
       }
+      expectAll.fulfill()
     }
-    #expect(cookies == [cookie1, cookie2])
+
+    wait(for: [expectAll], timeout: 1.0)
   }
 }
 
