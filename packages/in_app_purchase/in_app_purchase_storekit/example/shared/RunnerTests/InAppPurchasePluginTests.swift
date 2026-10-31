@@ -51,6 +51,7 @@ final class InAppPurchasePluginTests: XCTestCase {
       restoreTransactionFailed: nil,
       restoreCompletedTransactionsFinished: nil,
       shouldAddStorePayment: nil,
+      updatedDownloads: nil,
       transactionCache: cache)
 
     var error: FlutterError?
@@ -121,6 +122,7 @@ final class InAppPurchasePluginTests: XCTestCase {
       restoreTransactionFailed: nil,
       restoreCompletedTransactionsFinished: nil,
       shouldAddStorePayment: nil,
+      updatedDownloads: nil,
       transactionCache: cache)
 
     var error: FlutterError?
@@ -437,6 +439,7 @@ final class InAppPurchasePluginTests: XCTestCase {
         expectation.fulfill()
       },
       shouldAddStorePayment: nil,
+      updatedDownloads: nil,
       transactionCache: cacheStub)
     queueStub.add(plugin.paymentQueueHandler!)
 
@@ -601,6 +604,7 @@ final class InAppPurchasePluginTests: XCTestCase {
       restoreTransactionFailed: nil,
       restoreCompletedTransactionsFinished: nil,
       shouldAddStorePayment: nil,
+      updatedDownloads: nil,
       transactionCache: cacheStub)
 
     var error: FlutterError?
@@ -662,6 +666,7 @@ final class InAppPurchasePluginTests: XCTestCase {
         restoreTransactionFailed: nil,
         restoreCompletedTransactionsFinished: nil,
         shouldAddStorePayment: nil,
+        updatedDownloads: nil,
         transactionCache: cacheStub)
 
       plugin.registrar = FlutterPluginRegistrarStub()
@@ -687,6 +692,7 @@ final class InAppPurchasePluginTests: XCTestCase {
         restoreTransactionFailed: nil,
         restoreCompletedTransactionsFinished: nil,
         shouldAddStorePayment: nil,
+        updatedDownloads: nil,
         transactionCache: cacheStub)
 
       plugin.registrar = FlutterPluginRegistrarStub()
@@ -853,6 +859,7 @@ final class InAppPurchasePluginTests: XCTestCase {
         restoreTransactionFailed: nil,
         restoreCompletedTransactionsFinished: nil,
         shouldAddStorePayment: nil,
+        updatedDownloads: nil,
         transactionCache: cacheStub)
 
       var error: FlutterError?

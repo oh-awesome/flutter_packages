@@ -6,11 +6,6 @@
 #import "./include/in_app_purchase_storekit_objc/FIAPPaymentQueueDelegate.h"
 #import "./include/in_app_purchase_storekit_objc/FIATransactionCache.h"
 
-// StoreKit 1 is intentionally used as the fallback on iOS < 15 and macOS < 12,
-// where StoreKit 2 is unavailable. Suppress its deprecation warnings.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wdeprecated-declarations"
-
 @interface FIAPaymentQueueHandler ()
 
 /// The SKPaymentQueue instance connected to the App Store and responsible for processing
@@ -34,6 +29,9 @@
 /// Callback method that is called each time an in-app purchase has been initiated from the App
 /// Store.
 @property(nonatomic, nullable, copy) ShouldAddStorePayment shouldAddStorePayment;
+
+/// Callback method that is called each time the App Store indicates downloads are updated.
+@property(nonatomic, nullable, copy) UpdatedDownloads updatedDownloads;
 
 /// The transaction cache responsible for caching transactions.
 ///
@@ -61,13 +59,15 @@
                 restoreTransactionFailed:(nullable RestoreTransactionFailed)restoreTransactionFailed
     restoreCompletedTransactionsFinished:
         (nullable RestoreCompletedTransactionsFinished)restoreCompletedTransactionsFinished
-                   shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment {
+                   shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment
+                        updatedDownloads:(nullable UpdatedDownloads)updatedDownloads {
   return [[FIAPaymentQueueHandler alloc] initWithQueue:queue
                                    transactionsUpdated:transactionsUpdated
                                     transactionRemoved:transactionsRemoved
                               restoreTransactionFailed:restoreTransactionFailed
                   restoreCompletedTransactionsFinished:restoreCompletedTransactionsFinished
                                  shouldAddStorePayment:shouldAddStorePayment
+                                      updatedDownloads:updatedDownloads
                                       transactionCache:[[DefaultTransactionCache alloc] init]];
 }
 
@@ -78,6 +78,7 @@
     restoreCompletedTransactionsFinished:
         (nullable RestoreCompletedTransactionsFinished)restoreCompletedTransactionsFinished
                    shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment
+                        updatedDownloads:(nullable UpdatedDownloads)updatedDownloads
                         transactionCache:(nonnull id<FLTTransactionCacheProtocol>)transactionCache {
   self = [super init];
   if (self) {
@@ -87,6 +88,7 @@
     _restoreTransactionFailed = restoreTransactionFailed;
     _paymentQueueRestoreCompletedTransactionsFinished = restoreCompletedTransactionsFinished;
     _shouldAddStorePayment = shouldAddStorePayment;
+    _updatedDownloads = updatedDownloads;
     _transactionCache = transactionCache;
 
     [_queue addTransactionObserver:self];
@@ -120,6 +122,11 @@
       [self.transactionCache getObjectsForKey:TransactionCacheKeyUpdatedTransactions];
   if (cachedObjects.count != 0) {
     self.transactionsUpdated(cachedObjects);
+  }
+
+  cachedObjects = [self.transactionCache getObjectsForKey:TransactionCacheKeyUpdatedDownloads];
+  if (cachedObjects.count != 0) {
+    self.updatedDownloads(cachedObjects);
   }
 
   cachedObjects = [self.transactionCache getObjectsForKey:TransactionCacheKeyRemovedTransactions];
@@ -206,6 +213,15 @@
   self.paymentQueueRestoreCompletedTransactionsFinished();
 }
 
+// Sent when the download state has changed.
+- (void)paymentQueue:(SKPaymentQueue *)queue updatedDownloads:(NSArray<SKDownload *> *)downloads {
+  if (!self.observingTransactions) {
+    [_transactionCache addObjects:downloads forKey:TransactionCacheKeyUpdatedDownloads];
+    return;
+  }
+  self.updatedDownloads(downloads);
+}
+
 // Sent when a user initiates an IAP buy from the App Store
 - (BOOL)paymentQueue:(SKPaymentQueue *)queue
     shouldAddStorePayment:(SKPayment *)payment
@@ -217,10 +233,8 @@
   return self.queue.transactions;
 }
 
-- (SKStorefront *)storefront {
+- (SKStorefront *)storefront API_AVAILABLE(ios(13.0)) {
   return self.queue.storefront;
 }
 
 @end
-
-#pragma clang diagnostic pop

@@ -483,6 +483,7 @@
     restoreCompletedTransactionsFinished:
         (nullable RestoreCompletedTransactionsFinished)restoreCompletedTransactionsFinished
                    shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment
+                        updatedDownloads:(nullable UpdatedDownloads)updatedDownloads
                         transactionCache:(nonnull id<FLTTransactionCacheProtocol>)transactionCache {
   return [[PaymentQueueHandlerStub alloc] init];
 }
@@ -519,7 +520,8 @@
                 restoreTransactionFailed:(nullable RestoreTransactionFailed)restoreTransactionFailed
     restoreCompletedTransactionsFinished:
         (nullable RestoreCompletedTransactionsFinished)restoreCompletedTransactionsFinished
-                   shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment {
+                   shouldAddStorePayment:(nullable ShouldAddStorePayment)shouldAddStorePayment
+                        updatedDownloads:(nullable UpdatedDownloads)updatedDownloads {
   return [[PaymentQueueHandlerStub alloc] init];
 }
 

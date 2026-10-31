@@ -731,7 +731,7 @@ void main() {
       final Stream<List<PurchaseDetails>> purchaseStream = iapAndroidPlatform.purchaseStream;
       late StreamSubscription<List<PurchaseDetails>> subscription;
       subscription = purchaseStream.listen((_) {
-        consumeCompleter.complete();
+        consumeCompleter.complete(null);
         subscription.cancel();
       }, onDone: () {});
       final purchaseParam = GooglePlayPurchaseParam(

@@ -539,7 +539,13 @@ class SKPaymentDiscountWrapper {
 
   /// Creates a Map object describes the payment object.
   Map<String, dynamic> toMap() {
-    return _$SKPaymentDiscountWrapperToJson(this);
+    return <String, dynamic>{
+      'identifier': identifier,
+      'keyIdentifier': keyIdentifier,
+      'nonce': nonce,
+      'signature': signature,
+      'timestamp': timestamp,
+    };
   }
 
   /// The identifier of the discount offer.

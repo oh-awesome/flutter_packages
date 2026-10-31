@@ -54,6 +54,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -84,6 +85,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -114,6 +116,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -144,6 +147,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -174,6 +178,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -207,6 +212,7 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: nil,
       transactionCache: TransactionCacheStub())
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
@@ -231,15 +237,21 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: { _ in
+        XCTFail("updatedDownloads callback should not be called when cache is empty.")
+      },
       transactionCache: cacheStub)
 
     var transactionCacheKeyUpdatedTransactionsInvokedCount = 0
+    var transactionCacheKeyUpdatedDownloadsInvokedCount = 0
     var transactionCacheKeyRemovedTransactionsInvokedCount = 0
 
     cacheStub.getObjectsForKeyStub = { key in
       switch key {
       case .updatedTransactions:
         transactionCacheKeyUpdatedTransactionsInvokedCount += 1
+      case .updatedDownloads:
+        transactionCacheKeyUpdatedDownloadsInvokedCount += 1
       case .removedTransactions:
         transactionCacheKeyRemovedTransactionsInvokedCount += 1
       default:
@@ -251,6 +263,7 @@ final class PaymentQueueTest: XCTestCase {
     handler.startObservingPaymentQueue()
 
     XCTAssertEqual(transactionCacheKeyUpdatedTransactionsInvokedCount, 1)
+    XCTAssertEqual(transactionCacheKeyUpdatedDownloadsInvokedCount, 1)
     XCTAssertEqual(transactionCacheKeyRemovedTransactionsInvokedCount, 1)
   }
 
@@ -271,15 +284,22 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: { _ in
+        XCTFail("updatedDownloads callback should not be called when cache is empty.")
+      },
       transactionCache: cacheStub)
 
     var transactionCacheKeyUpdatedTransactionsInvokedCount = 0
+    var transactionCacheKeyUpdatedDownloadsInvokedCount = 0
     var transactionCacheKeyRemovedTransactionsInvokedCount = 0
 
     cacheStub.getObjectsForKeyStub = { key in
       switch key {
       case .updatedTransactions:
         transactionCacheKeyUpdatedTransactionsInvokedCount += 1
+        return []
+      case .updatedDownloads:
+        transactionCacheKeyUpdatedDownloadsInvokedCount += 1
         return []
       case .removedTransactions:
         transactionCacheKeyRemovedTransactionsInvokedCount += 1
@@ -293,6 +313,7 @@ final class PaymentQueueTest: XCTestCase {
     handler.startObservingPaymentQueue()
 
     XCTAssertEqual(transactionCacheKeyUpdatedTransactionsInvokedCount, 1)
+    XCTAssertEqual(transactionCacheKeyUpdatedDownloadsInvokedCount, 1)
     XCTAssertEqual(transactionCacheKeyRemovedTransactionsInvokedCount, 1)
   }
 
@@ -301,7 +322,10 @@ final class PaymentQueueTest: XCTestCase {
       description: "transactionsUpdated callback should be called with one transaction.")
     let removeTransactionsExpectation = expectation(
       description: "transactionsRemoved callback should be called with one transaction.")
+    let updateDownloadsExpectation = expectation(
+      description: "downloadsUpdated callback should be called with one transaction.")
     let transactionStub = SKPaymentTransactionStub()
+    let downloadStub = SKDownload()
     let cacheStub = TransactionCacheStub()
     let handler = FIAPaymentQueueHandler(
       queue: PaymentQueueStub(),
@@ -318,9 +342,14 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: { downloads in
+        XCTAssertEqual(downloads as NSArray, [downloadStub] as NSArray)
+        updateDownloadsExpectation.fulfill()
+      },
       transactionCache: cacheStub)
 
     var transactionCacheKeyUpdatedTransactionsInvokedCount = 0
+    var transactionCacheKeyUpdatedDownloadsInvokedCount = 0
     var transactionCacheKeyRemovedTransactionsInvokedCount = 0
 
     cacheStub.getObjectsForKeyStub = { key in
@@ -328,6 +357,9 @@ final class PaymentQueueTest: XCTestCase {
       case .updatedTransactions:
         transactionCacheKeyUpdatedTransactionsInvokedCount += 1
         return [transactionStub]
+      case .updatedDownloads:
+        transactionCacheKeyUpdatedDownloadsInvokedCount += 1
+        return [downloadStub]
       case .removedTransactions:
         transactionCacheKeyRemovedTransactionsInvokedCount += 1
         return [transactionStub]
@@ -346,6 +378,7 @@ final class PaymentQueueTest: XCTestCase {
 
     waitForExpectations(timeout: 5)
     XCTAssertEqual(transactionCacheKeyUpdatedTransactionsInvokedCount, 1)
+    XCTAssertEqual(transactionCacheKeyUpdatedDownloadsInvokedCount, 1)
     XCTAssertEqual(transactionCacheKeyRemovedTransactionsInvokedCount, 1)
     XCTAssertEqual(clearInvokedCount, 1)
   }
@@ -366,17 +399,23 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: { _ in
+        XCTFail("updatedDownloads callback should not be called when cache is empty.")
+      },
       transactionCache: cacheStub)
 
     let payment = SKPayment(product: SKProductStub(map: productResponseMap))
 
     var transactionCacheKeyUpdatedTransactionsInvokedCount = 0
+    var transactionCacheKeyUpdatedDownloadsInvokedCount = 0
     var transactionCacheKeyRemovedTransactionsInvokedCount = 0
 
     cacheStub.addObjectsStub = { objects, key in
       switch key {
       case .updatedTransactions:
         transactionCacheKeyUpdatedTransactionsInvokedCount += 1
+      case .updatedDownloads:
+        transactionCacheKeyUpdatedDownloadsInvokedCount += 1
       case .removedTransactions:
         transactionCacheKeyRemovedTransactionsInvokedCount += 1
       default:
@@ -387,6 +426,7 @@ final class PaymentQueueTest: XCTestCase {
     handler.add(payment)
 
     XCTAssertEqual(transactionCacheKeyUpdatedTransactionsInvokedCount, 1)
+    XCTAssertEqual(transactionCacheKeyUpdatedDownloadsInvokedCount, 0)
     XCTAssertEqual(transactionCacheKeyRemovedTransactionsInvokedCount, 0)
   }
 
@@ -395,7 +435,10 @@ final class PaymentQueueTest: XCTestCase {
       description: "transactionsUpdated callback should be called with one transaction.")
     let removeTransactionsExpectation = expectation(
       description: "transactionsRemoved callback should be called with one transaction.")
+    let updateDownloadsExpectation = expectation(
+      description: "downloadsUpdated callback should be called with one transaction.")
     let transactionStub = SKPaymentTransactionStub()
+    let downloadStub = SKDownload()
     let queue = PaymentQueueStub()
     queue.testState = .purchased
     let cacheStub = TransactionCacheStub()
@@ -414,6 +457,10 @@ final class PaymentQueueTest: XCTestCase {
       shouldAddStorePayment: { _, _ in
         return true
       },
+      updatedDownloads: { downloads in
+        XCTAssertEqual(downloads as NSArray, [downloadStub] as NSArray)
+        updateDownloadsExpectation.fulfill()
+      },
       transactionCache: cacheStub)
 
     let paymentQueueStub = SKPaymentQueueStub()
@@ -421,16 +468,20 @@ final class PaymentQueueTest: XCTestCase {
     handler.startObservingPaymentQueue()
     handler.paymentQueue(paymentQueueStub, updatedTransactions: [transactionStub])
     handler.paymentQueue(paymentQueueStub, removedTransactions: [transactionStub])
+    handler.paymentQueue(paymentQueueStub, updatedDownloads: [downloadStub])
 
     waitForExpectations(timeout: 5)
 
     var transactionCacheKeyUpdatedTransactionsInvokedCount = 0
+    var transactionCacheKeyUpdatedDownloadsInvokedCount = 0
     var transactionCacheKeyRemovedTransactionsInvokedCount = 0
 
     cacheStub.addObjectsStub = { objects, key in
       switch key {
       case .updatedTransactions:
         transactionCacheKeyUpdatedTransactionsInvokedCount += 1
+      case .updatedDownloads:
+        transactionCacheKeyUpdatedDownloadsInvokedCount += 1
       case .removedTransactions:
         transactionCacheKeyRemovedTransactionsInvokedCount += 1
       default:
@@ -439,6 +490,7 @@ final class PaymentQueueTest: XCTestCase {
     }
 
     XCTAssertEqual(transactionCacheKeyUpdatedTransactionsInvokedCount, 0)
+    XCTAssertEqual(transactionCacheKeyUpdatedDownloadsInvokedCount, 0)
     XCTAssertEqual(transactionCacheKeyRemovedTransactionsInvokedCount, 0)
   }
 }
