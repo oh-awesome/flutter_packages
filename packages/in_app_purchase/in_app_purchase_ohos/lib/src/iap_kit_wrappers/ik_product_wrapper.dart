@@ -70,14 +70,12 @@ enum IKSubscriptionPeriodUnit {
   @JsonValue(0)
   day,
 
-  /// An interval lasting one month.
-  @JsonValue(1)
-
   /// An interval lasting one week.
+  @JsonValue(1)
   week,
-  @JsonValue(2)
 
   /// An interval lasting one month.
+  @JsonValue(2)
   month,
 
   /// An interval lasting one year.
@@ -206,76 +204,84 @@ class IKProductWrapper {
     return _$IKProductWrapperFromJson(map);
   }
 
-  /// 商品ID
+  /// The product ID.
   final String id;
 
-  /// 商品类型
+  /// The product type.
   final ProductType type;
 
-  /// 商品名称，为配置商品信息时配置的名称。用于显示在应用内支付收银台
+  /// The product name configured in AppGallery Connect, shown in the IAP
+  /// checkout UI.
   final String name;
 
-  /// 商品描述，即配置商品信息时配置的描述信息
+  /// The product description configured in AppGallery Connect.
   final String description;
 
-  /// 商品的展示价格，包含商品币种和价格，格式为“币种+商品价格”，例如 EUR 0.15。部分国家/地区会返回“货币符号+商品价格”，例如中国大陆返回“￥0.15”。此价格含税。可选。
+  /// The displayed price, in the form "currency + price" (e.g. "EUR 0.15", or
+  /// "￥0.15" in the Chinese mainland). Tax included.
   final String localPrice;
 
-  /// 商品实际价格乘以1,000,000后的微单位价格。例如某个商品实际价格是1.99美元，则该商品对应的微单位价格为：1.99*1000000=1990000。
+  /// The actual price in micro units, i.e. the actual price multiplied by
+  /// 1,000,000 (e.g. $1.99 -> 1990000).
   final int microPrice;
 
-  /// 商品的原价，包含商品币种和价格，格式为“币种+商品价格”，例如 EUR 0.15。部分国家/地区会返回“货币符号+商品价格”，例如中国大陆返回“￥0.15”。此价格含税。
+  /// The original displayed price, in the same "currency + price" format as
+  /// the current price. Tax included.
   final String originalLocalPrice;
 
-  /// 商品原价的微单位价格。商品原价乘以1,000,000后的微单位价格。例如某个商品原价是1.99美元，则该商品对应的微单位价格为：1.99*1000000=1990000。
+  /// The original price in micro units, i.e. the original price multiplied by
+  /// 1,000,000.
   final int originalMicroPrice;
 
-  /// 用于支付该商品的币种，必须符合ISO 4217标准，例如USD、CNY、MYR。
+  /// The ISO 4217 currency code used to pay for the product, e.g. USD, CNY,
+  /// MYR.
   final String currency;
 
-  /// 商品状态
+  /// The product status.
   final ProductStatus? status;
 
-  /// 自动续期订阅商品相关的信息。可选。
+  /// Information about the auto-renewable subscription. Optional.
   // final SubscriptionInfo? subscriptionInfo;
 
-  /// 订阅商品支持的优惠信息列表
+  /// The list of promotional offers supported by the subscription product.
   // final PromotionalOffer[]? promotionalOffers;
 
-  /// 商品详细信息的原始JSON字符串
+  /// The raw JSON string of the product details.
   final String? jsonRepresentation;
 }
 
-/// 商品状态枚举
+/// The type of the product.
 enum ProductType {
-  /// 消耗型商品
+  /// Consumable product.
   @JsonValue(0)
   CONSUMABLE,
 
-  /// 非消耗型商品
+  /// Non-consumable product.
   @JsonValue(1)
   NONCONSUMABLE,
 
-  /// 自动续期订阅商品
+  /// Auto-renewable subscription product.
   @JsonValue(2)
   AUTORENEWABLE,
 
-  /// 非续期订阅商品
+  /// Non-renewable subscription product.
   @JsonValue(3)
   NONRENEWABLE,
 }
 
-/// 商品状态枚举
+/// The status of the product.
 enum ProductStatus {
-  /// 有效状态。
+  /// The product is valid.
   @JsonValue(0)
   VALID,
 
-  /// 取消状态，即删除。此状态的商品不可续订，也不可订阅。
+  /// The product has been canceled (deleted). It can no longer be subscribed
+  /// or renewed.
   @JsonValue(1)
   CANCELED,
 
-  /// 下线状态，不能订阅，但老用户仍可续订。
+  /// The product is offline. New subscriptions are not allowed, but existing
+  /// subscribers can still renew.
   @JsonValue(3)
   OFFLINE,
 }

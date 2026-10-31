@@ -66,12 +66,12 @@ class NoopMessenger implements BinaryMessenger {
 }
 
 /**
- * Builds a handler bound to a real UIAbility context. The constructor discards
- * its context argument, so setContext() must be called explicitly.
+ * Builds a handler bound to a real UIAbility context. The handler is created
+ * without a context, so setContext() must be called explicitly.
  */
 function buildHandler(context: common.UIAbilityContext): MethodCallHandlerImpl {
   const channel: MethodChannel = new MethodChannel(new NoopMessenger(), 'plugins.flutter.io/in_app_purchase');
-  const handler: MethodCallHandlerImpl = new MethodCallHandlerImpl(context, channel);
+  const handler: MethodCallHandlerImpl = new MethodCallHandlerImpl(channel);
   handler.setContext(context);
   return handler;
 }

@@ -83,7 +83,7 @@ class IKPaymentQueueWrapper {
     );
   }
 
-  // 暂未实现
+  /// Restores previously completed purchases by invoking the platform restoreTransactions channel.
   Future<void> restoreTransactions({String? applicationUserName}) async {
     await channel.invokeMethod<void>(
         'iap#restoreTransactions', applicationUserName);
@@ -101,7 +101,6 @@ class IKPaymentQueueWrapper {
     switch (call.method) {
       case 'updatedTransactions':
         {
-          print('MethodCallHandlerImpl   handleObserverCallbacks');
           final List<IKPaymentTransactionWrapper> transactions =
               _getTransactionList(call.arguments as List<dynamic>);
           return Future<void>(() {
@@ -229,26 +228,27 @@ class IKPaymentWrapper {
     };
   }
 
-  /// 待支付的商品ID。商品ID来源于开发者在AppGallery Connect中配置商品信息时设置的“商品ID”，具体请参见配置商品信息。
+  /// The ID of the product to purchase, as configured in AppGallery Connect.
   final String productId;
 
-  /// 需要查询的商品类型
+  /// The type of product to query.
   final ProductType? productType;
 
-  /// 商户侧保留信息
+  /// Merchant-side reserved information.
   final String? developerPayload;
 
-  /// 要求JSON String格式，商户可以将额外需要传入的字段以key-value的形式设置在JSON String中，并通过该参数传入。
+  /// A JSON string carrying merchant-defined extra fields as key-value pairs.
   final String? reservedInfo;
 
-  /// 优惠ID。优惠ID来源于开发者在AppGallery Connect中配置商品信息时设置的促销优惠标识符，
-  /// 具体请参见设置促销价格。传递该字段且要生效，需传递jwsRepresentation字段包含促销优惠信息。
+  /// The promotional offer ID configured in AppGallery Connect. To take
+  /// effect, the [jwsRepresentation] field must contain the offer information.
   final String? promotionalOfferId;
 
-  /// 用户账户相关联的混淆字符串，唯一标识用户。传递优惠ID场景，可以传递该字段。
+  /// An obfuscated string that uniquely identifies the user's account.
   final String? applicationUserName;
 
-  /// 包含购买参数信息的JWS格式签名数据。购买参数，如促销优惠等。
+  /// JWS-formatted signed data containing purchase parameters such as
+  /// promotional offers.
   final String? jwsRepresentation;
 
   @override

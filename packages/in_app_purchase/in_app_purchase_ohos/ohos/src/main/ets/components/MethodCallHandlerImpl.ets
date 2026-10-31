@@ -56,7 +56,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
     return productType === iap.ProductType.NONRENEWABLE && err.code === 401
   }
 
-  constructor(context: common.Context, methodChannel: MethodChannel) {
+  constructor(methodChannel: MethodChannel) {
     this.methodChannel = methodChannel
   }
 
@@ -192,7 +192,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         result.error('UNAVAILABLE', 'productId is null or empty!', null)
         return
       }
-      // 拉起支付接口前更新状态为支付中
+      // Update transaction state to purchasing before invoking the payment API
       let mapRes: Map<string, Any> = new Map()
       mapRes.set('payment', args)
       mapRes.set('transactionState', TransactionState.purchasing)
@@ -572,7 +572,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         this.handlePurchaseError(args, parseError)
         result.error('IAP_' + parseError.code, parseError.message, parseError)
       }).catch((err: BusinessError) => {
-        Log.e(TAG, `Failed to create purchase1. Code is ${err.code}, message is ${err.message}`);
+        Log.e(TAG, `Failed to create purchase. Code is ${err.code}, message is ${err.message}`);
         this.handlePurchaseError(args, err);
         result.error('IAP_' + err.code, err.message, err);
       })
@@ -661,7 +661,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       let purchaseOrderId = ''
       try {
         type = JSON.parse(purchaseData).type
-        //自动订阅类型
+        // Auto-renewable subscription type
         if (type == iap.ProductType.AUTORENEWABLE) {
           let jwsSubscriptionStatus = (JSON.parse(purchaseData) as PurchaseData).jwsSubscriptionStatus;
           if (!jwsSubscriptionStatus) {
@@ -691,7 +691,7 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           purchaseToken = purchaseOrderPayload.lastSubscriptionStatus.purchaseToken
           purchaseOrderId = purchaseOrderPayload.lastSubscriptionStatus.lastPurchaseOrder.purchaseOrderId
         } else {
-          //非自动订阅类型
+          // Non-auto-renewable subscription type
           let jwsPurchaseOrder = (JSON.parse(purchaseData) as PurchaseData).jwsPurchaseOrder;
           if (!jwsPurchaseOrder) {
             Log.e(TAG, 'queryPurchases, jwsPurchaseOrder invalid');

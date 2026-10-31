@@ -10,11 +10,11 @@ import 'package:integration_test/integration_test.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('Can create InAppPurchaseStoreKit instance',
+  testWidgets('Can create InAppPurchaseOhos instance',
           (WidgetTester tester) async {
         InAppPurchaseOhosPlatform.registerPlatform();
-        final InAppPurchasePlatform androidPlatform =
+        final InAppPurchasePlatform ohosPlatform =
             InAppPurchasePlatform.instance;
-        expect(androidPlatform, isNotNull);
+        expect(ohosPlatform, isNotNull);
       });
 }

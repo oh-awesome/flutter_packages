@@ -19,7 +19,6 @@ import {
   MethodChannel, MethodCall, MethodResult, BinaryMessenger, BinaryReply, TaskQueue, TaskQueueOptions,
   StandardMethodCodec, Any,
 } from '@ohos/flutter_ohos';
-import { common } from '@kit.AbilityKit';
 import { BusinessError } from '@kit.BasicServicesKit';
 import { iap } from '@kit.IAPKit';
 import { util } from '@kit.ArkTS';
@@ -78,17 +77,6 @@ class RecordingBinaryMessenger implements BinaryMessenger {
 }
 
 /**
- * Returns a typed null for a non-nullable parameter. ArkTS rejects `null as T`,
- * `null as unknown as T` and inline `null -> T | null -> T` casts because the
- * compiler narrows the null literal back to `null`. `nullable()` keeps the
- * declared `Object | null` return type, which is not narrowed, so it can be
- * narrowed to the target type.
- */
-function nullContext(): common.Context {
-  return nullable() as common.Context;
-}
-
-/**
  * Returns a null value whose static type is `Object | null`. A null literal that
  * is assigned to a variable or cast inline is narrowed back to `null` by ArkTS,
  * which then rejects `null -> T`. Returning null from a function keeps the
@@ -107,8 +95,7 @@ function nullable(): Object | null {
 function createHandler(messenger?: BinaryMessenger): MethodCallHandlerImpl {
   const m: BinaryMessenger = messenger ?? new RecordingBinaryMessenger();
   const channel: MethodChannel = new MethodChannel(m, 'plugins.flutter.io/in_app_purchase');
-  const context: common.Context = nullContext();
-  return new MethodCallHandlerImpl(context, channel);
+  return new MethodCallHandlerImpl(channel);
 }
 
 function createPurchaseArgs(productId: string, productType?: number): Map<string, Object> {

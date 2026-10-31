@@ -34,7 +34,7 @@ export class InAppPurchasePlugin implements FlutterPlugin, AbilityAware {
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     try {
-      this.setUpMethodChannel(binding.getBinaryMessenger(), binding.getApplicationContext());
+      this.setUpMethodChannel(binding.getBinaryMessenger());
     } catch (e) {
       Log.e(TAG, `Failed to set up method channel on engine attach. err: ${JSON.stringify(e)}`);
     }
@@ -63,10 +63,9 @@ export class InAppPurchasePlugin implements FlutterPlugin, AbilityAware {
     return TAG
   }
 
-  setUpMethodChannel(messenger: BinaryMessenger, context: common.Context) {
+  setUpMethodChannel(messenger: BinaryMessenger) {
     this.methodChannel = new MethodChannel(messenger, "plugins.flutter.io/in_app_purchase");
-    this.methodCallHandler =
-      new MethodCallHandlerImpl(context, this.methodChannel);
+    this.methodCallHandler = new MethodCallHandlerImpl(this.methodChannel);
     this.methodChannel.setMethodCallHandler(this.methodCallHandler);
   }
 
