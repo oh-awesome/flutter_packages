@@ -11,12 +11,11 @@ import androidx.preference.PreferenceManager
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
 import io.mockk.every
 import io.mockk.mockk
 import java.io.ByteArrayOutputStream
 import java.io.ObjectOutputStream
-import kotlinx.coroutines.async
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -50,10 +49,14 @@ internal class SharedPreferencesTest {
 
   private fun pluginSetup(options: SharedPreferencesPigeonOptions): SharedPreferencesAsyncApi {
     val plugin = SharedPreferencesPlugin()
+    val binaryMessenger = mockk<BinaryMessenger>()
     val flutterPluginBinding = mockk<FlutterPlugin.FlutterPluginBinding>()
+    every { flutterPluginBinding.binaryMessenger } returns binaryMessenger
     every { flutterPluginBinding.applicationContext } returns testContext
     plugin.onAttachedToEngine(flutterPluginBinding)
-    val backend = SharedPreferencesBackend(flutterPluginBinding.applicationContext)
+    val backend =
+        SharedPreferencesBackend(
+            flutterPluginBinding.binaryMessenger, flutterPluginBinding.applicationContext)
     return if (options.useDataStore) {
       plugin
     } else {
@@ -62,35 +65,35 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetBoolWithDataStore() = runBlocking {
+  fun testSetAndGetBoolWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     Assert.assertEquals(plugin.getBool(boolKey, dataStoreOptions), testBool)
   }
 
   @Test
-  fun testSetAndGetStringWithDataStore() = runBlocking {
+  fun testSetAndGetStringWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
     Assert.assertEquals(plugin.getString(stringKey, dataStoreOptions), testString)
   }
 
   @Test
-  fun testSetAndGetIntWithDataStore() = runBlocking {
+  fun testSetAndGetIntWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setInt(intKey, testInt, dataStoreOptions)
     Assert.assertEquals(plugin.getInt(intKey, dataStoreOptions), testInt)
   }
 
   @Test
-  fun testSetAndGetDoubleWithDataStore() = runBlocking {
+  fun testSetAndGetDoubleWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setDouble(doubleKey, testDouble, dataStoreOptions)
     Assert.assertEquals(plugin.getDouble(doubleKey, dataStoreOptions), testDouble)
   }
 
   @Test
-  fun testSetAndGetStringListWithDataStore() = runBlocking {
+  fun testSetAndGetStringListWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setEncodedStringList(listKey, testList, dataStoreOptions)
     val result = plugin.getStringList(listKey, dataStoreOptions)
@@ -99,7 +102,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetStringListWithDataStoreRedirectsForPlatformEncoded() = runBlocking {
+  fun testSetAndGetStringListWithDataStoreRedirectsForPlatformEncoded() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setDeprecatedStringList(listKey, listOf(""), dataStoreOptions)
     val result = plugin.getStringList(listKey, dataStoreOptions)
@@ -108,7 +111,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetStringListWithDataStoreReportsRawString() = runBlocking {
+  fun testSetAndGetStringListWithDataStoreReportsRawString() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setString(listKey, testString, dataStoreOptions)
     val result = plugin.getStringList(listKey, dataStoreOptions)
@@ -117,7 +120,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetKeysWithDataStore() = runBlocking {
+  fun testGetKeysWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
@@ -131,7 +134,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testClearWithDataStore() = runBlocking {
+  fun testClearWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
@@ -149,7 +152,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetAllWithDataStore() = runBlocking {
+  fun testGetAllWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
@@ -167,7 +170,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testClearWithAllowListWithDataStore() = runBlocking {
+  fun testClearWithAllowListWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
@@ -185,7 +188,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetAllWithAllowListWithDataStore() = runBlocking {
+  fun testGetAllWithAllowListWithDataStore() {
     val plugin = pluginSetup(dataStoreOptions)
     plugin.setBool(boolKey, testBool, dataStoreOptions)
     plugin.setString(stringKey, testString, dataStoreOptions)
@@ -203,35 +206,35 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetBoolWithSharedPreferences() = runBlocking {
+  fun testSetAndGetBoolWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     Assert.assertEquals(plugin.getBool(boolKey, sharedPreferencesOptions), testBool)
   }
 
   @Test
-  fun testSetAndGetStringWithSharedPreferences() = runBlocking {
+  fun testSetAndGetStringWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
     Assert.assertEquals(plugin.getString(stringKey, sharedPreferencesOptions), testString)
   }
 
   @Test
-  fun testSetAndGetIntWithSharedPreferences() = runBlocking {
+  fun testSetAndGetIntWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setInt(intKey, testInt, sharedPreferencesOptions)
     Assert.assertEquals(plugin.getInt(intKey, sharedPreferencesOptions), testInt)
   }
 
   @Test
-  fun testSetAndGetDoubleWithSharedPreferences() = runBlocking {
+  fun testSetAndGetDoubleWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setDouble(doubleKey, testDouble, sharedPreferencesOptions)
     Assert.assertEquals(plugin.getDouble(doubleKey, sharedPreferencesOptions), testDouble)
   }
 
   @Test
-  fun testSetAndGetStringListWithSharedPreferences() = runBlocking {
+  fun testSetAndGetStringListWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setEncodedStringList(listKey, testList, sharedPreferencesOptions)
     val result = plugin.getStringList(listKey, sharedPreferencesOptions)
@@ -240,7 +243,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetStringListWithSharedPreferencesRedirectsForPlatformEncoded() = runBlocking {
+  fun testSetAndGetStringListWithSharedPreferencesRedirectsForPlatformEncoded() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setDeprecatedStringList(listKey, listOf(""), sharedPreferencesOptions)
     val result = plugin.getStringList(listKey, sharedPreferencesOptions)
@@ -249,7 +252,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSetAndGetStringListWithSharedPreferencesReportsRawString() = runBlocking {
+  fun testSetAndGetStringListWithSharedPreferencesReportsRawString() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setString(listKey, testString, sharedPreferencesOptions)
     val result = plugin.getStringList(listKey, sharedPreferencesOptions)
@@ -258,7 +261,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetKeysWithSharedPreferences() = runBlocking {
+  fun testGetKeysWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
@@ -272,7 +275,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testClearWithSharedPreferences() = runBlocking {
+  fun testClearWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
@@ -290,7 +293,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetAllWithSharedPreferences() = runBlocking {
+  fun testGetAllWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
@@ -308,7 +311,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testClearWithAllowListWithSharedPreferences() = runBlocking {
+  fun testClearWithAllowListWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
@@ -326,7 +329,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testGetAllWithAllowListWithSharedPreferences() = runBlocking {
+  fun testGetAllWithAllowListWithSharedPreferences() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     plugin.setBool(boolKey, testBool, sharedPreferencesOptions)
     plugin.setString(stringKey, testString, sharedPreferencesOptions)
@@ -344,7 +347,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSharedPreferencesWithMultipleFiles() = runBlocking {
+  fun testSharedPreferencesWithMultipleFiles() {
     val plugin = pluginSetup(sharedPreferencesOptions)
     val optionsWithNewFile =
         SharedPreferencesPigeonOptions(useDataStore = false, fileName = "test_file")
@@ -355,7 +358,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testSharedPreferencesDefaultFile() = runBlocking {
+  fun testSharedPreferencesDefaultFile() {
     val defaultPreferences: SharedPreferences =
         PreferenceManager.getDefaultSharedPreferences(testContext)
     defaultPreferences.edit().putString(stringKey, testString).commit()
@@ -364,7 +367,7 @@ internal class SharedPreferencesTest {
   }
 
   @Test
-  fun testUnexpectedClassDecodeThrows(): Unit = runBlocking {
+  fun testUnexpectedClassDecodeThrows() {
     // Only String should be allowed in an encoded list.
     val badList = listOf(1, 2, 3)
     // Replicate the behavior of ListEncoder.encode, but with a non-List<String> list.
@@ -379,62 +382,7 @@ internal class SharedPreferencesTest {
     // Inject the bad pref as a string, as that is how string lists are stored internally.
     plugin.setString(badListKey, badPref, dataStoreOptions)
     assertThrows(ClassNotFoundException::class.java) {
-      runBlocking { plugin.getPlatformEncodedStringList(badListKey, dataStoreOptions) }
-    }
-  }
-
-  @Test
-  fun testExecutesOnBackgroundThreadSeriallyInFifoOrder() = runBlocking {
-    for (options in listOf(dataStoreOptions, sharedPreferencesOptions)) {
-      val callerThread = Thread.currentThread()
-      val executionThreads = java.util.Collections.synchronizedList(mutableListOf<Thread>())
-      val executionOrder = java.util.Collections.synchronizedList(mutableListOf<Int>())
-      val activeCount = java.util.concurrent.atomic.AtomicInteger(0)
-      val maxConcurrent = java.util.concurrent.atomic.AtomicInteger(0)
-
-      val trackingEncoder =
-          object : SharedPreferencesListEncoder {
-            override fun encode(list: List<String>): String {
-              val currentActive = activeCount.incrementAndGet()
-              maxConcurrent.updateAndGet { maxOf(it, currentActive) }
-              executionThreads.add(Thread.currentThread())
-              val index = list.first().toInt()
-              if (index == 0) {
-                Thread.sleep(50)
-              }
-              executionOrder.add(index)
-              activeCount.decrementAndGet()
-              return ListEncoder().encode(list)
-            }
-
-            override fun decode(listString: String): List<String> = ListEncoder().decode(listString)
-          }
-
-      val plugin = SharedPreferencesPlugin(trackingEncoder)
-      val flutterPluginBinding = mockk<FlutterPlugin.FlutterPluginBinding>()
-      every { flutterPluginBinding.applicationContext } returns testContext
-      plugin.onAttachedToEngine(flutterPluginBinding)
-
-      val api: SharedPreferencesAsyncApi =
-          if (options.useDataStore) {
-            plugin
-          } else {
-            SharedPreferencesBackend(testContext, trackingEncoder)
-          }
-
-      val jobs =
-          (0 until 5).map { i ->
-            async {
-              @Suppress("DEPRECATION")
-              api.setDeprecatedStringList("key_$i", arrayListOf("$i", "val"), options)
-            }
-          }
-      jobs.forEach { it.await() }
-      api.clear(null, options)
-
-      Assert.assertEquals(listOf(0, 1, 2, 3, 4), executionOrder)
-      Assert.assertEquals(1, maxConcurrent.get())
-      Assert.assertTrue(executionThreads.all { it != callerThread })
+      plugin.getPlatformEncodedStringList(badListKey, dataStoreOptions)
     }
   }
 }

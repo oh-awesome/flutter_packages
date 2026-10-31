@@ -18,14 +18,12 @@ import 'strings.dart';
 /// This class implements the `package:shared_preferences` functionality for Android.
 class SharedPreferencesAndroid extends SharedPreferencesStorePlatform {
   /// Creates a new plugin implementation instance.
-  SharedPreferencesAndroid({@visibleForTesting SharedPreferencesApi? api}) : _apiOverride = api;
-
-  final SharedPreferencesApi? _apiOverride;
+  SharedPreferencesAndroid({@visibleForTesting SharedPreferencesApi? api})
+    : api = api ?? SharedPreferencesApi();
 
   /// The pigeon API used to send messages to the platform.
   @visibleForTesting
-  late final SharedPreferencesApi api =
-      _apiOverride ?? SharedPreferencesApi.createWithNativeInteropApi();
+  final SharedPreferencesApi api;
 
   /// Registers this class as the default instance of [SharedPreferencesStorePlatform].
   static void registerWith() {

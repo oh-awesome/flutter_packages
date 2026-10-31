@@ -19,15 +19,15 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.preference.PreferenceManager
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.plugin.common.BinaryMessenger
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.ObjectOutputStream
 import java.lang.ClassCastException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 
 const val TAG = "SharedPreferencesPlugin"
 const val SHARED_PREFERENCES_NAME = "FlutterSharedPreferences"
@@ -44,8 +44,6 @@ const val DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu"
 class SharedPreferencesPlugin() : FlutterPlugin, SharedPreferencesAsyncApi {
   private lateinit var context: Context
   private var backend: SharedPreferencesBackend? = null
-  private var legacyPlugin: LegacySharedPreferencesPlugin? = null
-  private val backgroundDispatcher = Dispatchers.IO.limitedParallelism(1)
 
   private var listEncoder = ListEncoder() as SharedPreferencesListEncoder
 
@@ -54,48 +52,38 @@ class SharedPreferencesPlugin() : FlutterPlugin, SharedPreferencesAsyncApi {
     this.listEncoder = listEncoder
   }
 
-  private fun setUp(context: Context) {
+  private fun setUp(messenger: BinaryMessenger, context: Context) {
     this.context = context
     try {
-      SharedPreferencesAsyncApiRegistrar().register(this, "data_store")
-      backend = SharedPreferencesBackend(context, listEncoder)
+      SharedPreferencesAsyncApi.setUp(messenger, this, "data_store")
+      backend = SharedPreferencesBackend(messenger, context, listEncoder)
     } catch (ex: Exception) {
       Log.e(TAG, "Received exception while setting up SharedPreferencesPlugin", ex)
     }
   }
 
   override fun onAttachedToEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    setUp(binding.applicationContext)
-    legacyPlugin = LegacySharedPreferencesPlugin().also { it.onAttachedToEngine(binding) }
+    setUp(binding.binaryMessenger, binding.applicationContext)
+    LegacySharedPreferencesPlugin().onAttachedToEngine(binding)
   }
 
   override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
-    SharedPreferencesAsyncApiRegistrar().register(null, "data_store")
+    SharedPreferencesAsyncApi.setUp(binding.binaryMessenger, null, "data_store")
     backend?.tearDown()
     backend = null
-    legacyPlugin?.onDetachedFromEngine(binding)
-    legacyPlugin = null
   }
 
   /** Adds property to data store of type bool. */
-  override suspend fun setBool(
-      key: String,
-      value: Boolean,
-      options: SharedPreferencesPigeonOptions
-  ) {
-    withContext(backgroundDispatcher) {
+  override fun setBool(key: String, value: Boolean, options: SharedPreferencesPigeonOptions) {
+    return runBlocking {
       val boolKey = booleanPreferencesKey(key)
       context.sharedPreferencesDataStore.edit { preferences -> preferences[boolKey] = value }
     }
   }
 
   /** Adds property to data store of type String. */
-  override suspend fun setString(
-      key: String,
-      value: String,
-      options: SharedPreferencesPigeonOptions
-  ) {
-    withContext(backgroundDispatcher) { dataStoreSetString(key, value) }
+  override fun setString(key: String, value: String, options: SharedPreferencesPigeonOptions) {
+    return runBlocking { dataStoreSetString(key, value) }
   }
 
   private suspend fun dataStoreSetString(key: String, value: String) {
@@ -104,50 +92,44 @@ class SharedPreferencesPlugin() : FlutterPlugin, SharedPreferencesAsyncApi {
   }
 
   /** Adds property to data store of type int. Converted to Long by pigeon, and saved as such. */
-  override suspend fun setInt(key: String, value: Long, options: SharedPreferencesPigeonOptions) {
-    withContext(backgroundDispatcher) {
+  override fun setInt(key: String, value: Long, options: SharedPreferencesPigeonOptions) {
+    return runBlocking {
       val intKey = longPreferencesKey(key)
       context.sharedPreferencesDataStore.edit { preferences -> preferences[intKey] = value }
     }
   }
 
   /** Adds property to data store of type double. */
-  override suspend fun setDouble(
-      key: String,
-      value: Double,
-      options: SharedPreferencesPigeonOptions
-  ) {
-    withContext(backgroundDispatcher) {
+  override fun setDouble(key: String, value: Double, options: SharedPreferencesPigeonOptions) {
+    return runBlocking {
       val doubleKey = doublePreferencesKey(key)
       context.sharedPreferencesDataStore.edit { preferences -> preferences[doubleKey] = value }
     }
   }
 
   /** Adds property to data store of type List<String> as encoded String. */
-  override suspend fun setEncodedStringList(
+  override fun setEncodedStringList(
       key: String,
       value: String,
       options: SharedPreferencesPigeonOptions
   ) {
-    withContext(backgroundDispatcher) { dataStoreSetString(key, value) }
+    return runBlocking { dataStoreSetString(key, value) }
   }
 
   /** Deprecated, for testing purposes only. Adds property to data store of type List<String>. */
   @Deprecated("This is just for testing, use `setEncodedStringList`")
-  override suspend fun setDeprecatedStringList(
+  override fun setDeprecatedStringList(
       key: String,
       value: List<String>,
       options: SharedPreferencesPigeonOptions
   ) {
-    withContext(backgroundDispatcher) {
-      val valueString = LIST_PREFIX + listEncoder.encode(value)
-      dataStoreSetString(key, valueString)
-    }
+    val valueString = LIST_PREFIX + listEncoder.encode(value)
+    return runBlocking { dataStoreSetString(key, valueString) }
   }
 
   /** Removes all properties from data store. */
-  override suspend fun clear(allowList: List<String>?, options: SharedPreferencesPigeonOptions) {
-    withContext(backgroundDispatcher) {
+  override fun clear(allowList: List<String>?, options: SharedPreferencesPigeonOptions) {
+    runBlocking {
       context.sharedPreferencesDataStore.edit { preferences ->
         allowList?.let { list ->
           list.forEach { key ->
@@ -160,98 +142,111 @@ class SharedPreferencesPlugin() : FlutterPlugin, SharedPreferencesAsyncApi {
   }
 
   /** Gets all properties from data store. */
-  override suspend fun getAll(
+  override fun getAll(
       allowList: List<String>?,
       options: SharedPreferencesPigeonOptions
-  ): Map<String, Any> = withContext(backgroundDispatcher) { getPrefs(allowList) }
+  ): Map<String, Any> {
+    return runBlocking { getPrefs(allowList) }
+  }
 
   /** Gets int (as long) at [key] from data store. */
-  override suspend fun getInt(key: String, options: SharedPreferencesPigeonOptions): Long? =
-      withContext(backgroundDispatcher) {
-        val preferencesKey = longPreferencesKey(key)
-        val preferenceFlow: Flow<Long?> =
-            context.sharedPreferencesDataStore.data.map { preferences ->
-              (preferences[preferencesKey] as Any?) as Long?
-            }
-        preferenceFlow.firstOrNull()
-      }
+  override fun getInt(key: String, options: SharedPreferencesPigeonOptions): Long? {
+    val value: Long?
+    runBlocking {
+      val preferencesKey = longPreferencesKey(key)
+      val preferenceFlow: Flow<Long?> =
+          context.sharedPreferencesDataStore.data.map { preferences -> preferences[preferencesKey] }
+      value = preferenceFlow.firstOrNull()
+    }
+    return value
+  }
 
   /** Gets bool at [key] from data store. */
-  override suspend fun getBool(key: String, options: SharedPreferencesPigeonOptions): Boolean? =
-      withContext(backgroundDispatcher) {
-        val preferencesKey = booleanPreferencesKey(key)
-        val preferenceFlow: Flow<Boolean?> =
-            context.sharedPreferencesDataStore.data.map { preferences ->
-              (preferences[preferencesKey] as Any?) as Boolean?
-            }
-        preferenceFlow.firstOrNull()
-      }
+  override fun getBool(key: String, options: SharedPreferencesPigeonOptions): Boolean? {
+    val value: Boolean?
 
+    runBlocking {
+      val preferencesKey = booleanPreferencesKey(key)
+      val preferenceFlow: Flow<Boolean?> =
+          context.sharedPreferencesDataStore.data.map { preferences -> preferences[preferencesKey] }
+
+      value = preferenceFlow.firstOrNull()
+    }
+    return value
+  }
   /** Gets double at [key] from data store. */
-  override suspend fun getDouble(key: String, options: SharedPreferencesPigeonOptions): Double? =
-      withContext(backgroundDispatcher) {
-        val preferencesKey = stringPreferencesKey(key)
-        val preferenceFlow: Flow<Double?> =
-            context.sharedPreferencesDataStore.data.map { preferences ->
-              transformPref(preferences[preferencesKey] as Any?, listEncoder) as Double?
-            }
-        preferenceFlow.firstOrNull()
-      }
+  override fun getDouble(key: String, options: SharedPreferencesPigeonOptions): Double? {
+    val value: Double?
+    runBlocking {
+      val preferencesKey = stringPreferencesKey(key)
+      val preferenceFlow: Flow<Double?> =
+          context.sharedPreferencesDataStore.data.map { preferences ->
+            transformPref(preferences[preferencesKey] as Any?, listEncoder) as Double?
+          }
+
+      value = preferenceFlow.firstOrNull()
+    }
+    return value
+  }
 
   /** Gets String at [key] from data store. */
-  override suspend fun getString(key: String, options: SharedPreferencesPigeonOptions): String? =
-      withContext(backgroundDispatcher) {
-        val preferencesKey = stringPreferencesKey(key)
-        val preferenceFlow: Flow<String?> =
-            context.sharedPreferencesDataStore.data.map { preferences ->
-              (preferences[preferencesKey] as Any?) as String?
-            }
-        preferenceFlow.firstOrNull()
-      }
+  override fun getString(key: String, options: SharedPreferencesPigeonOptions): String? {
+    val value: String?
+    runBlocking {
+      val preferencesKey = stringPreferencesKey(key)
+      val preferenceFlow: Flow<String?> =
+          context.sharedPreferencesDataStore.data.map { preferences -> preferences[preferencesKey] }
+
+      value = preferenceFlow.firstOrNull()
+    }
+    return value
+  }
 
   /** Gets StringList at [key] from data store. */
-  override suspend fun getStringList(
+  override fun getStringList(
       key: String,
       options: SharedPreferencesPigeonOptions
-  ): StringListResult? =
-      withContext(backgroundDispatcher) {
-        val stringValue = getString(key, options)
-        stringValue?.let {
-          // The JSON-encoded lists use an extended prefix to distinguish them from
-          // lists that using listEncoder.
-          if (stringValue.startsWith(JSON_LIST_PREFIX)) {
-            StringListResult(stringValue, StringListLookupResultType.JSON_ENCODED)
-          } else if (stringValue.startsWith(LIST_PREFIX)) {
-            StringListResult(null, StringListLookupResultType.PLATFORM_ENCODED)
-          } else {
-            StringListResult(null, StringListLookupResultType.UNEXPECTED_STRING)
-          }
-        }
+  ): StringListResult? {
+    val stringValue = getString(key, options)
+    stringValue?.let {
+      // The JSON-encoded lists use an extended prefix to distinguish them from
+      // lists that using listEncoder.
+      return if (stringValue.startsWith(JSON_LIST_PREFIX)) {
+        StringListResult(stringValue, StringListLookupResultType.JSON_ENCODED)
+      } else if (stringValue.startsWith(LIST_PREFIX)) {
+        StringListResult(null, StringListLookupResultType.PLATFORM_ENCODED)
+      } else {
+        StringListResult(null, StringListLookupResultType.UNEXPECTED_STRING)
       }
+    }
+    return null
+  }
 
   /** Gets StringList at [key] from data store. */
-  override suspend fun getPlatformEncodedStringList(
+  override fun getPlatformEncodedStringList(
       key: String,
       options: SharedPreferencesPigeonOptions
-  ): List<String>? =
-      withContext(backgroundDispatcher) {
-        val stringValue = getString(key, options)
-        stringValue?.let {
-          // The JSON-encoded lists use an extended prefix to distinguish them from
-          // lists that using listEncoder.
-          if (!stringValue.startsWith(JSON_LIST_PREFIX) && stringValue.startsWith(LIST_PREFIX)) {
-            val value: List<*>? = transformPref(stringValue, listEncoder) as List<*>?
-            return@withContext value?.filterIsInstance<String>()
-          }
-        }
-        null
+  ): List<String>? {
+    val stringValue = getString(key, options)
+    stringValue?.let {
+      // The JSON-encoded lists use an extended prefix to distinguish them from
+      // lists that using listEncoder.
+      if (!stringValue.startsWith(JSON_LIST_PREFIX) && stringValue.startsWith(LIST_PREFIX)) {
+        val value: List<*>? = transformPref(stringValue, listEncoder) as List<*>?
+        return value?.filterIsInstance<String>()
       }
+    }
+    return null
+  }
 
   /** Gets all properties from data store. */
-  override suspend fun getKeys(
+  override fun getKeys(
       allowList: List<String>?,
       options: SharedPreferencesPigeonOptions
-  ): List<String> = withContext(backgroundDispatcher) { getPrefs(allowList).keys.toList() }
+  ): List<String> {
+    val prefs = runBlocking { getPrefs(allowList) }
+    return prefs.keys.toList()
+  }
 
   private suspend fun getPrefs(allowList: List<String>?): Map<String, Any> {
     val allowSet = allowList?.toSet()
@@ -282,21 +277,21 @@ class SharedPreferencesPlugin() : FlutterPlugin, SharedPreferencesAsyncApi {
 }
 
 class SharedPreferencesBackend(
+    private var messenger: BinaryMessenger,
     private var context: Context,
     private var listEncoder: SharedPreferencesListEncoder = ListEncoder()
 ) : SharedPreferencesAsyncApi {
-  private val backgroundDispatcher = Dispatchers.IO.limitedParallelism(1)
 
   init {
     try {
-      SharedPreferencesAsyncApiRegistrar().register(this, "shared_preferences")
+      SharedPreferencesAsyncApi.setUp(messenger, this, "shared_preferences")
     } catch (ex: Exception) {
       Log.e(TAG, "Received exception while setting up SharedPreferencesBackend", ex)
     }
   }
 
   fun tearDown() {
-    SharedPreferencesAsyncApiRegistrar().register(null, "shared_preferences")
+    SharedPreferencesAsyncApi.setUp(messenger, null, "shared_preferences")
   }
 
   private fun createSharedPreferences(options: SharedPreferencesPigeonOptions): SharedPreferences {
@@ -308,198 +303,169 @@ class SharedPreferencesBackend(
   }
 
   /** Adds property to data store of type bool. */
-  override suspend fun setBool(
-      key: String,
-      value: Boolean,
-      options: SharedPreferencesPigeonOptions
-  ) =
-      withContext(backgroundDispatcher) {
-        createSharedPreferences(options).edit().putBoolean(key, value).apply()
-      }
+  override fun setBool(key: String, value: Boolean, options: SharedPreferencesPigeonOptions) {
+    return createSharedPreferences(options).edit().putBoolean(key, value).apply()
+  }
 
   /** Adds property to data store of type String. */
-  override suspend fun setString(
-      key: String,
-      value: String,
-      options: SharedPreferencesPigeonOptions
-  ) =
-      withContext(backgroundDispatcher) {
-        createSharedPreferences(options).edit().putString(key, value).apply()
-      }
+  override fun setString(key: String, value: String, options: SharedPreferencesPigeonOptions) {
+    return createSharedPreferences(options).edit().putString(key, value).apply()
+  }
 
   /** Adds property to data store of type int. Converted to Long by pigeon, and saved as such. */
-  override suspend fun setInt(key: String, value: Long, options: SharedPreferencesPigeonOptions) =
-      withContext(backgroundDispatcher) {
-        createSharedPreferences(options).edit().putLong(key, value).apply()
-      }
+  override fun setInt(key: String, value: Long, options: SharedPreferencesPigeonOptions) {
+    return createSharedPreferences(options).edit().putLong(key, value).apply()
+  }
 
   /** Adds property to data store of type double. */
-  override suspend fun setDouble(
-      key: String,
-      value: Double,
-      options: SharedPreferencesPigeonOptions
-  ) =
-      withContext(backgroundDispatcher) {
-        createSharedPreferences(options).edit().putString(key, DOUBLE_PREFIX + value).apply()
-      }
+  override fun setDouble(key: String, value: Double, options: SharedPreferencesPigeonOptions) {
+    return createSharedPreferences(options).edit().putString(key, DOUBLE_PREFIX + value).apply()
+  }
 
   /** Adds property to data store of type List<String>. */
-  override suspend fun setEncodedStringList(
+  override fun setEncodedStringList(
       key: String,
       value: String,
       options: SharedPreferencesPigeonOptions
-  ) =
-      withContext(backgroundDispatcher) {
-        createSharedPreferences(options).edit().putString(key, value).apply()
-      }
+  ) {
+    return createSharedPreferences(options).edit().putString(key, value).apply()
+  }
 
   /** Adds property to data store of type List<String>. */
   @Deprecated("This is just for testing, use `setEncodedStringList`")
-  override suspend fun setDeprecatedStringList(
+  override fun setDeprecatedStringList(
       key: String,
       value: List<String>,
       options: SharedPreferencesPigeonOptions
-  ) =
-      withContext(backgroundDispatcher) {
-        val valueString = LIST_PREFIX + listEncoder.encode(value)
-        createSharedPreferences(options).edit().putString(key, valueString).apply()
-      }
+  ) {
+    val valueString = LIST_PREFIX + listEncoder.encode(value)
+    return createSharedPreferences(options).edit().putString(key, valueString).apply()
+  }
 
   /** Removes all properties from data store. */
-  override suspend fun clear(allowList: List<String>?, options: SharedPreferencesPigeonOptions) =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        val clearEditor: SharedPreferences.Editor = preferences.edit()
-        val allPrefs: Map<String, *> = preferences.all
-        val filteredPrefs = ArrayList<String>()
-        for (key in allPrefs.keys) {
-          if (preferencesFilter(key, allPrefs[key], allowList = allowList?.toSet())) {
-            filteredPrefs.add(key)
-          }
-        }
-        for (key in filteredPrefs) {
-          clearEditor.remove(key)
-        }
-        clearEditor.apply()
+  override fun clear(allowList: List<String>?, options: SharedPreferencesPigeonOptions) {
+    val preferences = createSharedPreferences(options)
+    val clearEditor: SharedPreferences.Editor = preferences.edit()
+    val allPrefs: Map<String, *> = preferences.all
+    val filteredPrefs = ArrayList<String>()
+    for (key in allPrefs.keys) {
+      if (preferencesFilter(key, allPrefs[key], allowList = allowList?.toSet())) {
+        filteredPrefs.add(key)
       }
+    }
+    for (key in filteredPrefs) {
+      clearEditor.remove(key)
+    }
+    return clearEditor.apply()
+  }
 
   /** Gets all properties from data store. */
-  override suspend fun getAll(
+  override fun getAll(
       allowList: List<String>?,
       options: SharedPreferencesPigeonOptions
-  ): Map<String, Any> =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        val allPrefs: Map<String, *> = preferences.all
-        val filteredPrefs = HashMap<String, Any>()
-        for (entry in allPrefs.entries) {
-          if (preferencesFilter(entry.key, entry.value, allowList = allowList?.toSet())) {
-            entry.value?.let { filteredPrefs.put(entry.key, transformPref(it, listEncoder) as Any) }
-          }
-        }
-        filteredPrefs
+  ): Map<String, Any> {
+    val preferences = createSharedPreferences(options)
+    val allPrefs: Map<String, *> = preferences.all
+    val filteredPrefs = HashMap<String, Any>()
+    for (entry in allPrefs.entries) {
+      if (preferencesFilter(entry.key, entry.value, allowList = allowList?.toSet())) {
+        entry.value?.let { filteredPrefs.put(entry.key, transformPref(it, listEncoder) as Any) }
       }
+    }
+    return filteredPrefs
+  }
 
   /** Gets int (as long) at [key] from data store. */
-  override suspend fun getInt(key: String, options: SharedPreferencesPigeonOptions): Long? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          try {
-            preferences.getLong(key, 0)
-          } catch (e: ClassCastException) {
-            // Retry with getInt in case the preference was written by native code directly.
-            preferences.getInt(key, 0).toLong()
-          }
-        } else {
-          null
-        }
+  override fun getInt(key: String, options: SharedPreferencesPigeonOptions): Long? {
+    val preferences = createSharedPreferences(options)
+    return if (preferences.contains(key)) {
+      try {
+        preferences.getLong(key, 0)
+      } catch (e: ClassCastException) {
+        // Retry with getInt in case the preference was written by native code directly.
+        preferences.getInt(key, 0).toLong()
       }
+    } else {
+      null
+    }
+  }
 
   /** Gets bool at [key] from data store. */
-  override suspend fun getBool(key: String, options: SharedPreferencesPigeonOptions): Boolean? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          preferences.getBoolean(key, true)
-        } else {
-          null
-        }
-      }
+  override fun getBool(key: String, options: SharedPreferencesPigeonOptions): Boolean? {
+    val preferences = createSharedPreferences(options)
+    return if (preferences.contains(key)) {
+      preferences.getBoolean(key, true)
+    } else {
+      null
+    }
+  }
 
   /** Gets double at [key] from data store. */
-  override suspend fun getDouble(key: String, options: SharedPreferencesPigeonOptions): Double? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          transformPref(preferences.getString(key, ""), listEncoder) as Double
-        } else {
-          null
-        }
-      }
-
+  override fun getDouble(key: String, options: SharedPreferencesPigeonOptions): Double? {
+    val preferences = createSharedPreferences(options)
+    return if (preferences.contains(key)) {
+      transformPref(preferences.getString(key, ""), listEncoder) as Double
+    } else {
+      null
+    }
+  }
   /** Gets String at [key] from data store. */
-  override suspend fun getString(key: String, options: SharedPreferencesPigeonOptions): String? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          preferences.getString(key, "")
-        } else {
-          null
-        }
-      }
+  override fun getString(key: String, options: SharedPreferencesPigeonOptions): String? {
+    val preferences = createSharedPreferences(options)
+    return if (preferences.contains(key)) {
+      preferences.getString(key, "")
+    } else {
+      null
+    }
+  }
 
   /** Gets StringList at [key] from data store. */
-  override suspend fun getStringList(
+  override fun getStringList(
       key: String,
       options: SharedPreferencesPigeonOptions
-  ): StringListResult? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          val value = preferences.getString(key, "")
-          // The JSON-encoded lists use an extended prefix to distinguish them from
-          // lists that using listEncoder.
-          if (value!!.startsWith(JSON_LIST_PREFIX)) {
-            StringListResult(value, StringListLookupResultType.JSON_ENCODED)
-          } else if (value.startsWith(LIST_PREFIX)) {
-            StringListResult(null, StringListLookupResultType.PLATFORM_ENCODED)
-          } else {
-            StringListResult(null, StringListLookupResultType.UNEXPECTED_STRING)
-          }
-        } else {
-          null
-        }
+  ): StringListResult? {
+    val preferences = createSharedPreferences(options)
+    if (preferences.contains(key)) {
+      val value = preferences.getString(key, "")
+      // The JSON-encoded lists use an extended prefix to distinguish them from
+      // lists that using listEncoder.
+      return if (value!!.startsWith(JSON_LIST_PREFIX)) {
+        StringListResult(value, StringListLookupResultType.JSON_ENCODED)
+      } else if (value.startsWith(LIST_PREFIX)) {
+        StringListResult(null, StringListLookupResultType.PLATFORM_ENCODED)
+      } else {
+        StringListResult(null, StringListLookupResultType.UNEXPECTED_STRING)
       }
+    }
+    return null
+  }
 
-  override suspend fun getPlatformEncodedStringList(
+  override fun getPlatformEncodedStringList(
       key: String,
       options: SharedPreferencesPigeonOptions
-  ): List<String>? =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        if (preferences.contains(key)) {
-          val value = preferences.getString(key, "")
-          if (value!!.startsWith(LIST_PREFIX) && !value.startsWith(JSON_LIST_PREFIX)) {
-            val transformed = transformPref(preferences.getString(key, ""), listEncoder)
-            return@withContext (transformed as List<*>?)?.filterIsInstance<String>()
-          }
-        }
-        null
+  ): List<String>? {
+    val preferences = createSharedPreferences(options)
+    if (preferences.contains(key)) {
+      val value = preferences.getString(key, "")
+      if (value!!.startsWith(LIST_PREFIX) && !value!!.startsWith(JSON_LIST_PREFIX)) {
+        val transformed = transformPref(preferences.getString(key, ""), listEncoder)
+        return (transformed as List<*>?)?.filterIsInstance<String>()
       }
+    }
+    return null
+  }
 
   /** Gets all properties from data store. */
-  override suspend fun getKeys(
+  override fun getKeys(
       allowList: List<String>?,
       options: SharedPreferencesPigeonOptions
-  ): List<String> =
-      withContext(backgroundDispatcher) {
-        val preferences = createSharedPreferences(options)
-        preferences.all
-            .filter { preferencesFilter(it.key, it.value, allowList?.toSet()) }
-            .keys
-            .toList()
-      }
+  ): List<String> {
+    val preferences = createSharedPreferences(options)
+    return preferences.all
+        .filter { preferencesFilter(it.key, it.value, allowList?.toSet()) }
+        .keys
+        .toList()
+  }
 }
 
 /**
