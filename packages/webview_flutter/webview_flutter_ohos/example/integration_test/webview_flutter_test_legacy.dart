@@ -108,7 +108,8 @@ Future<void> main() async {
   testWidgets(
     'withWeakRefenceTo allows encapsulating class to be garbage collected',
     (WidgetTester tester) async {
-      // OHOS 使用自定义 InstanceManager，通过 OhosObject.globalInstanceManager 访问
+      // OHOS uses a custom InstanceManager, accessed through
+      // OhosObject.globalInstanceManager.
       final gcCompleter = Completer<int>();
       final instanceManager = InstanceManager(
         onWeakReferenceRemoved: gcCompleter.complete,
@@ -120,37 +121,40 @@ Future<void> main() async {
       instanceManager.addHostCreatedInstance(instance.callbackClass, 0);
       instance = null;
 
-      // OHOS 替代方案：通过多次 pumpAndSettle 和延迟来触发垃圾回收
-      // watchPerformance 在 Flutter issue #159500 中存在问题，使用替代方案
+      // OHOS workaround: trigger garbage collection with repeated
+      // pumpAndSettle calls and delays. watchPerformance has issues; see
+      // Flutter issue #159500.
       for (int i = 0; i < 10; i++) {
         await tester.pumpAndSettle(const Duration(milliseconds: 100));
         if (gcCompleter.isCompleted) break;
       }
 
-      // 如果GC未触发，给予额外时间
+      // If GC has not been triggered, allow extra time.
       if (!gcCompleter.isCompleted) {
         await Future.delayed(const Duration(seconds: 2));
       }
 
-      // OHOS 平台 GC 触发时机可能不同，不强制要求完成
+      // OHOS may trigger GC at a different time, so completion is not
+      // strictly required.
       if (gcCompleter.isCompleted) {
         final int gcIdentifier = await gcCompleter.future;
         expect(gcIdentifier, 0);
       }
-      // 测试通过表明弱引用机制可用，即使GC未及时触发
+      // A passing test shows the weak reference mechanism works, even if GC
+      // did not trigger in time.
     },
     timeout: const Timeout(Duration(seconds: 15)),
   );
 
   // TODO(bparrishMines): This test is skipped because of
   // https://github.com/flutter/flutter/issues/123327
-  // OHOS: 已修改使用替代 GC 方案
+  // OHOS: modified to use an alternative GC approach.
   testWidgets('WebView is released by garbage collection', (
     WidgetTester tester,
   ) async {
     final webViewGCCompleter = Completer<void>();
 
-    // OHOS 使用 InstanceManager 和 OhosObject 进行实例管理
+    // OHOS manages instances with InstanceManager and OhosObject.
     late final InstanceManager instanceManager;
     instanceManager = InstanceManager(
       onWeakReferenceRemoved: (int identifier) {
@@ -162,7 +166,7 @@ Future<void> main() async {
       },
     );
 
-    // OHOS: 使用有限循环替代无限循环，避免测试卡住
+    // OHOS: use a bounded loop instead of an infinite one to avoid hangs.
     int attemptCount = 0;
     const maxAttempts = 5;
 
@@ -192,12 +196,13 @@ Future<void> main() async {
       await tester.pumpWidget(Container());
       await tester.pumpAndSettle();
 
-      // OHOS: 添加额外等待时间触发 GC
+      // OHOS: add extra wait time to trigger GC.
       await Future.delayed(const Duration(milliseconds: 500));
     }
 
-    // OHOS 平台 GC 触发时机可能不同，不强制要求完成
-    // 测试验证 WebView 实例管理机制可用
+    // OHOS may trigger GC at a different time, so completion is not
+    // strictly required. The test verifies the WebView instance management
+    // mechanism is available.
   });
 
   testWidgets('evaluateJavascript', (WidgetTester tester) async {
@@ -380,7 +385,7 @@ Future<void> main() async {
     );
     await tester.pumpAndSettle();
 
-    // OHOS: 重建后直接获取 userAgent，不等待 onPageFinished
+    // OHOS: get userAgent directly after rebuild, do not wait for onPageFinished
     final String customUserAgent2 = await _getUserAgent(controller1);
     expect(customUserAgent2, 'Custom_User_Agent2');
   });
@@ -475,8 +480,9 @@ Future<void> main() async {
               return video.paused;
             }
             function isFullScreen() {
-              // OHOS: 使用标准 Fullscreen API 检测全屏状态
-              // webkitDisplayingFullscreen 是 iOS 特有属性，OHOS 不支持
+              // OHOS: Use the standard Fullscreen API to detect the
+              // fullscreen state. webkitDisplayingFullscreen is an
+              // iOS-specific property that OHOS does not support.
               return !!document.fullscreenElement;
             }
           </script>
@@ -651,28 +657,30 @@ Future<void> main() async {
       // Pump once to trigger the video play.
       await tester.pump();
 
-      // OHOS: 添加超时处理，视频可能不会自动播放
+      // OHOS: Add timeout handling; the video may not auto-play.
       bool videoAutoPlayed = false;
       try {
         await videoPlaying.future.timeout(const Duration(seconds: 5));
         videoAutoPlayed = true;
       } catch (_) {
-        // OHOS: 视频可能不会自动播放，继续验证
+        // OHOS: The video may not auto-play; continue verification.
       }
 
-      // OHOS: 使用标准 Fullscreen API (document.fullscreenElement) 检测全屏状态
-      // isFullScreen() 返回 !!document.fullscreenElement，结果为 true 或 false
+      // OHOS: Use the standard Fullscreen API (document.fullscreenElement)
+      // to detect the fullscreen state. isFullScreen() returns
+      // !!document.fullscreenElement, which is either true or false.
       final String fullScreen = await controller.runJavascriptReturningResult(
         'isFullScreen();',
       );
 
-      // OHOS: allowsInlineMediaPlayback 在鸿蒙侧未实现，视频播放行为由
-      // AutoMediaPlaybackPolicy (mediaPlayGestureAccess) 控制。
-      // 验证：视频未进入全屏模式（inline 播放）
+      // OHOS: allowsInlineMediaPlayback is not implemented on the OHOS side;
+      // video playback behavior is controlled by AutoMediaPlaybackPolicy
+      // (mediaPlayGestureAccess). Verify the video does not enter fullscreen
+      // mode (inline playback).
       expect(fullScreen, _webviewBool(false));
 
-      // OHOS: 额外验证视频播放状态
-      // 若视频自动播放成功，isPaused 应为 false
+      // OHOS: Additionally verify the video playback state.
+      // If the video auto-played successfully, isPaused should be false.
       final String isPaused = await controller.runJavascriptReturningResult(
         'isPaused();',
       );
@@ -959,7 +967,7 @@ Future<void> main() async {
       expect(scrollPosX, isNot(Y_SCROLL));
 
       await controller.scrollTo(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
@@ -968,18 +976,19 @@ Future<void> main() async {
 
       // Check scrollBy() (on top of scrollTo())
       await controller.scrollBy(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
-      // OHOS: scrollBy 可能不累加，而是设置绝对位置
-      // 如果 scrollBy 没有累加，则验证 scrollTo 和 scrollBy 方法可用
+      // OHOS: scrollBy may not accumulate and instead set an absolute
+      // position. If scrollBy does not accumulate, just verify that the
+      // scrollTo and scrollBy methods work.
       if (scrollPosX == X_SCROLL * 2) {
         expect(scrollPosX, X_SCROLL * 2);
         expect(scrollPosY, Y_SCROLL * 2);
       } else {
-        // OHOS: scrollBy 可能实现了不同的滚动行为
-        // 验证滚动功能可用，不强制验证累加效果
+        // OHOS: scrollBy may implement different scrolling behavior. Verify
+        // that scrolling works without enforcing accumulation.
         expect(scrollPosX, greaterThanOrEqualTo(X_SCROLL));
         expect(scrollPosY, greaterThanOrEqualTo(Y_SCROLL));
       }
@@ -1050,7 +1059,7 @@ Future<void> main() async {
       const Y_SCROLL = 321;
 
       await controller.scrollTo(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       int scrollPosX = await controller.getScrollX();
       int scrollPosY = await controller.getScrollY();
@@ -1059,16 +1068,17 @@ Future<void> main() async {
 
       // Check scrollBy() (on top of scrollTo())
       await controller.scrollBy(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
-      // OHOS: scrollBy 可能不累加，而是设置绝对位置
+      // OHOS: scrollBy may not accumulate and instead set an absolute
+      // position.
       if (scrollPosX == X_SCROLL * 2) {
         expect(X_SCROLL * 2, scrollPosX);
         expect(Y_SCROLL * 2, scrollPosY);
       } else {
-        // OHOS: 验证滚动功能可用，不强制验证累加效果
+        // OHOS: verify scrolling works without enforcing accumulation.
         expect(scrollPosX, greaterThanOrEqualTo(X_SCROLL));
         expect(scrollPosY, greaterThanOrEqualTo(Y_SCROLL));
       }
@@ -1122,9 +1132,11 @@ Future<void> main() async {
                   controllerCompleter.complete(controller);
                 },
                 onPageFinished: (String url) {
-                  // ArkWeb 可能为初始空白页与真实页面各回调一次
-                  // onPageFinished，Completer 只允许 complete 一次，
-                  // 只取第一个事件（轮询等待真实页面期间第二次回调会到达）。
+                  // ArkWeb may call onPageFinished once for the initial
+                  // blank page and once for the real page. A Completer can
+                  // only be completed once, so keep the first event (the
+                  // second callback arrives while polling for the real
+                  // page).
                   if (!pageLoaded.isCompleted) {
                     pageLoaded.complete(null);
                   }
@@ -1140,9 +1152,10 @@ Future<void> main() async {
 
       final WebViewController controller = await controllerCompleter.future;
       await pageLoaded.future;
-      // OHOS: ArkWeb 注入的全局 viewport 对象会遮蔽元素命名访问
-      // （window.viewport 不指向 <div id='viewport'>），必须用
-      // document.getElementById 获取元素。
+      // OHOS: the global viewport object injected by ArkWeb shadows named
+      // element access (window.viewport does not point to
+      // <div id='viewport'>); the element must be fetched with
+      // document.getElementById.
       final String viewportRectJSON = await _runJavaScriptReturningResult(
         controller,
         // ignore: avoid_escaping_inner_quotes
@@ -1182,7 +1195,7 @@ Future<void> main() async {
         // ignore: avoid_escaping_inner_quotes
         'document.getElementById(\'inputEl\').focus()',
       );
-      // OHOS: 等待 focus 触发的 scroll-into-view 完成
+      // OHOS: wait for the focus-triggered scroll-into-view to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
 
       // Check that focusing the input brought it into view.
@@ -1522,8 +1535,9 @@ Future<void> main() async {
     await pageLoads.stream.firstWhere((String url) => url == secondaryUrl);
 
     final String? currentUrl = await controller.currentUrl();
-    // OHOS 平台不支持通过 window.open 创建后退历史记录
-    // 只验证当前 URL，不验证 canGoBack 和 goBack 功能
+    // OHOS does not create a back-history entry for window.open
+    // navigations, so only verify the current URL; do not verify canGoBack
+    // and goBack.
     expect(currentUrl, secondaryUrl);
     await pageLoads.close();
   });
@@ -1663,11 +1677,13 @@ Future<String> _runJavaScriptReturningResult(
   WebViewController controller,
   String js,
 ) async {
-  // OHOS: ArkWeb 的 runJavaScript 在脚本执行失败或页面 JS 上下文尚未就绪时
-  // 不抛异常，而是返回 'null'（见 @ohos.web.webview 文档）。首个
-  // onPageFinished 可能早于目标页面 DOM 可用，这里轮询重试直到脚本真正执行。
-  // 本文件中该辅助函数只执行不可能合法返回 null 的脚本
-  // （navigator.userAgent / JSON.stringify(...)）。
+  // OHOS: ArkWeb's runJavaScript does not throw when script execution
+  // fails or the page's JS context is not ready; it returns 'null' instead
+  // (see the @ohos.web.webview documentation). The first onPageFinished may
+  // fire before the target page's DOM is available, so poll and retry until
+  // the script actually runs. This helper is only used in this file with
+  // scripts that can never legitimately return null
+  // (navigator.userAgent / JSON.stringify(...)).
   var result = '';
   for (var attempt = 0; attempt < 20; attempt++) {
     result = await controller.runJavascriptReturningResult(js);
@@ -1676,9 +1692,10 @@ Future<String> _runJavaScriptReturningResult(
     }
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
-  // 重试耗尽仍未拿到有效结果时，抛出携带脚本内容的明确超时异常，
-  // 避免 jsonDecode('null')/jsonDecode('') 落到与根因无关的
-  // TypeError/FormatException。
+  // If the retries are exhausted without a valid result, throw an explicit
+  // timeout exception carrying the script content, so jsonDecode('null') or
+  // jsonDecode('') does not fail with an unrelated TypeError or
+  // FormatException.
   if (result.isEmpty || result == 'null') {
     throw TimeoutException(
       'JavaScript did not return a valid result after 20 retries '
@@ -1764,8 +1781,9 @@ class ResizableWebViewState extends State<ResizableWebView> {
   }
 }
 
-// OHOS 使用 OhosObject 基类代替 PigeonInternalProxyApiBaseClass
-// 使用 copy() 方法代替 pigeon_copy()
+// OHOS uses the OhosObject base class instead of
+// PigeonInternalProxyApiBaseClass and the copy() method instead of
+// pigeon_copy().
 class CopyableObjectWithCallback extends ohos_webview.OhosObject {
   CopyableObjectWithCallback(
     this.callback, {

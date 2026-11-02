@@ -169,7 +169,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     const webView: WebViewPlatformView = this.requireWebViewInstance(instanceId);
     await webView.waitControllerAttached();
     try {
-      // 当baseUrl为空时，其值默认为resource://rawfile/。这样设置是为了解决<a href="">标签锚点无效问题。
+      // When baseUrl is empty, default to "resource://rawfile/" to fix the <a href=""> anchor issue.
       webView.getController().loadData(data, mimeType, encoding, baseUrl == null || baseUrl.trim().length === 0 ? "resource://rawfile/" : baseUrl , historyUrl == null ? " " : historyUrl);
     } catch (err) {
       Log.e(TAG, "loadDataWithBaseUrl err = " + err);
@@ -186,7 +186,7 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     try {
       if (url.startsWith("resources/rawfile/")) {
         try {
-          // 设置允许可以跨域访问的路径列表
+          // Set the list of paths allowed for cross-origin access
           webView.getController().setPathAllowingUniversalAccess([
             getContext().resourceDir
           ])
@@ -1258,7 +1258,7 @@ class WebSettingsImpl implements WebSettings {
   }
 
   setBackgroundColor(color: number) {
-    // number 无法实现透明度，所以转成 string
+    // Number type cannot represent transparency, so convert to string
     let colorStr = `#${color.toString(16).padStart(8, '0')}`;
     this.backgroundColor = colorStr;
   }
@@ -1369,7 +1369,7 @@ class WebSettingsImpl implements WebSettings {
     }
 
     if (this.defaultUserAgent) {
-      //  整个app只需要一次initializeWebEngine。
+      // The entire app only needs to call initializeWebEngine once.
       return this.defaultUserAgent;
     }
 

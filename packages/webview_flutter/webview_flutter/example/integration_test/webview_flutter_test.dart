@@ -680,10 +680,12 @@ Future<void> main() async {
 
       final delegate = NavigationDelegate(
         onHttpError: (HttpResponseError error) {
-          // API 17 的 ArkWeb 会在主文档加载后自动抓取页面 favicon(子资源)。
-          // 本用例主 URL 恰为 /favicon.ico(404),favicon 抓取再次 404,
-          // 因此 onHttpError 会被合法地回调多次。Completer 只能 complete 一次,
-          // 只取第一个事件,后续事件忽略。
+          // ArkWeb on API 17 automatically fetches the page favicon (a
+          // subresource) after the main document loads. The main URL of this
+          // test is /favicon.ico (404), and the favicon fetch 404s again, so
+          // onHttpError can legitimately fire multiple times. A Completer can
+          // only be completed once, so keep the first event and ignore the
+          // rest.
           if (!errorCompleter.isCompleted) {
             errorCompleter.complete(error);
           }
@@ -721,8 +723,9 @@ Future<void> main() async {
       final delegate = NavigationDelegate(
         onPageFinished: pageFinishCompleter.complete,
         onHttpError: (HttpResponseError error) {
-          // 双保险:该用例预期不触发 onHttpError,守卫防止内核重复回调时
-          // Completer 二次 complete 抛 StateError。
+          // Safety guard: this test expects onHttpError not to fire. The
+          // guard prevents a StateError from completing the Completer a
+          // second time if the callback is invoked more than once.
           if (!errorCompleter.isCompleted) {
             errorCompleter.complete(error);
           }
@@ -865,8 +868,9 @@ Future<void> main() async {
     });
   });
 
-  // OHOS: skip, OHOS 的 onCreateWindow 实现会打开新的 CustomDialog 窗口，
-  // 而不是在当前 WebView 中加载 URL，无法验证 currentUrl 等于 primaryUrl。
+  // OHOS: skip. The OHOS onCreateWindow implementation opens a new
+  // CustomDialog window instead of loading the URL in the current WebView,
+  // so currentUrl cannot be verified to equal primaryUrl.
   testWidgets('target _blank opens in same window', (
     WidgetTester tester,
   ) async {
@@ -886,8 +890,10 @@ Future<void> main() async {
     expect(currentUrl, primaryUrl);
   }, skip: true);
 
-  // OHOS: skip, 同上，window.open 在 OHOS 上会打开新窗口而非在当前 WebView 中导航，
-  // 新窗口的 URL 不在当前 WebView 的导航栈中，goBack 无法回到 primaryUrl。
+  // OHOS: skip. Same as above: window.open opens a new window on OHOS
+  // instead of navigating in the current WebView, and the new window's URL
+  // is not in the current WebView's navigation stack, so goBack cannot
+  // return to primaryUrl.
   testWidgets('can open new window and go back', (WidgetTester tester) async {
     var pageLoaded = Completer<void>();
 

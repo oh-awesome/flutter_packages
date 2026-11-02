@@ -82,8 +82,9 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
       binaryMessenger,
       {
         clear: () => {
-          if(this.instanceManager)
+          if(this.instanceManager){
             this.instanceManager.clear();
+          }
         }
       }
     );

@@ -887,7 +887,7 @@ class WebViewClient extends OhosObject {
     super.instanceManager,
   }) : super.detached();
 
-  /// @ohos.web.netErrorList (ArkWeb网络协议栈错误列表)
+  /// @ohos.web.netErrorList (ArkWeb network stack error list)
   /// https://developer.huawei.com/consumer/cn/doc/harmonyos-references-V5/js-apis-neterrorlist-V5
 
   /// User authentication failed on server.

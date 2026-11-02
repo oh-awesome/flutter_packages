@@ -62,15 +62,15 @@ Future<void> main() async {
   final headersUrl = '$prefixUrl/headers';
   final basicAuthUrl = '$prefixUrl/http-basic-authentication';
 
-  // 添加全局清理 - 关闭 HTTP server
+  // Add global cleanup - close the HTTP server.
   tearDownAll(() async {
     await server.close();
-    // 给测试框架时间清理状态
+    // Give the test framework time to clean up state.
     await Future.delayed(const Duration(milliseconds: 500));
   });
 
-  // OHOS 不使用 PigeonOverrides，实例管理通过 OhosObject.globalInstanceManager
-  // setUp 中不需要重置操作
+  // OHOS does not use PigeonOverrides; instance management goes through
+  // OhosObject.globalInstanceManager, so no reset is needed in setUp.
 
   testWidgets('loadRequest', (WidgetTester tester) async {
     final pageFinished = Completer<void>();
@@ -108,8 +108,9 @@ Future<void> main() async {
   testWidgets(
     'withWeakRefenceTo allows encapsulating class to be garbage collected',
     (WidgetTester tester) async {
-      // OHOS 使用自定义 InstanceManager，通过 OhosObject.globalInstanceManager 访问
-      // 此测试验证弱引用和垃圾回收机制
+      // OHOS uses a custom InstanceManager, accessed through
+      // OhosObject.globalInstanceManager. This test verifies the weak
+      // reference and garbage collection mechanism.
       final gcCompleter = Completer<int>();
       final instanceManager = InstanceManager(
         onWeakReferenceRemoved: gcCompleter.complete,
@@ -121,25 +122,28 @@ Future<void> main() async {
       instanceManager.addHostCreatedInstance(instance.callbackClass, 0);
       instance = null;
 
-      // OHOS 替代方案：通过多次 pumpAndSettle 和延迟来触发垃圾回收
-      // watchPerformance 在 Flutter issue #159500 中存在问题，使用替代方案
+      // OHOS workaround: trigger garbage collection with repeated
+      // pumpAndSettle calls and delays. watchPerformance has issues; see
+      // Flutter issue #159500.
       for (int i = 0; i < 10; i++) {
         await tester.pumpAndSettle(const Duration(milliseconds: 100));
         if (gcCompleter.isCompleted) break;
       }
 
-      // 如果GC未触发，给予额外时间
+      // If GC has not been triggered, allow extra time.
       if (!gcCompleter.isCompleted) {
         await Future.delayed(const Duration(seconds: 2));
       }
 
-      // 验证结果：如果GC成功触发，则标识符应为0；否则测试通过但不验证
-      // OHOS 平台 GC 触发时机可能不同，不强制要求完成
+      // Verify the result: if GC ran, the identifier should be 0. OHOS may
+      // trigger GC at a different time, so completion is not strictly
+      // required.
       if (gcCompleter.isCompleted) {
         final int gcIdentifier = await gcCompleter.future;
         expect(gcIdentifier, 0);
       }
-      // 测试通过表明弱引用机制可用，即使GC未及时触发
+      // A passing test shows the weak reference mechanism works, even if GC
+      // did not trigger in time.
     },
     timeout: const Timeout(Duration(seconds: 15)),
   );
@@ -149,8 +153,9 @@ Future<void> main() async {
     (WidgetTester tester) async {
       final webViewGCCompleter = Completer<void>();
 
-      // OHOS 不使用 PigeonOverrides，使用 detached 构造器创建测试 WebView
-      // 通过 OhosObject.globalInstanceManager 进行实例管理
+      // OHOS does not use PigeonOverrides; create the test WebView with the
+      // detached constructor and manage instances through
+      // OhosObject.globalInstanceManager.
       final webView = ohos_webview.WebView.detached();
 
       const webViewToken = -1;
@@ -191,8 +196,9 @@ Future<void> main() async {
       );
       await tester.pumpAndSettle();
 
-      // OHOS 替代方案：通过多次 pumpAndSettle 和延迟来触发垃圾回收
-      // watchPerformance 在 Flutter issue #159500 中存在问题，使用替代方案
+      // OHOS workaround: trigger garbage collection with repeated
+      // pumpAndSettle calls and delays. watchPerformance has issues; see
+      // Flutter issue #159500.
       for (int i = 0; i < 10; i++) {
         await tester.pumpAndSettle(const Duration(milliseconds: 100));
         if (webViewGCCompleter.isCompleted) break;
@@ -200,8 +206,9 @@ Future<void> main() async {
 
       await tester.pumpAndSettle();
 
-      // OHOS 平台 GC 触发时机可能不同，不强制要求完成
-      // 如果 Finalizer 回调触发则验证，否则测试通过表明机制可用
+      // OHOS may trigger GC at a different time, so completion is not
+      // strictly required. Verify if the Finalizer callback fired; otherwise
+      // a passing test shows the mechanism works.
       if (webViewGCCompleter.isCompleted) {
         await expectLater(webViewGCCompleter.future, completes);
       }
@@ -505,18 +512,19 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       await pageLoaded.future;
 
-      // OHOS 平台默认允许自动播放
-      // 设置 setMediaPlaybackRequiresUserGesture(false) 后视频应自动播放
+      // OHOS allows auto-play by default. With
+      // setMediaPlaybackRequiresUserGesture(false), the video should play
+      // automatically.
       var isPaused =
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
-      expect(isPaused, false);  // OHOS: 视频应自动播放
+      expect(isPaused, false); // OHOS: the video should auto-play
 
       pageLoaded = Completer<void>();
       controller = OhosWebViewController(
         const PlatformWebViewControllerCreationParams(),
       );
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-      // 设置需要用户手势才能播放
+      // Require a user gesture to play.
       await controller.setMediaPlaybackRequiresUserGesture(true);
       delegate = OhosNavigationDelegate(
         const PlatformNavigationDelegateCreationParams(),
@@ -546,7 +554,7 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       isPaused =
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
-      // OHOS: 设置需要用户手势后视频应暂停
+      // OHOS: with a user gesture required, the video should be paused.
       expect(isPaused, true);
     });
 
@@ -598,12 +606,12 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       await pageLoaded.future;
 
-      // OHOS: 视频可能不会自动播放，添加超时处理
+      // OHOS: the video may not auto-play; add timeout handling.
       try {
         await videoPlaying.future.timeout(const Duration(seconds: 5));
       } catch (_) {
-        // 视频未播放，跳过全屏验证
-        // OHOS 平台可能有自动播放限制
+        // The video did not play; skip fullscreen verification. OHOS may
+        // impose auto-play restrictions.
       }
 
       Object fullScreen = await controller.runJavaScriptReturningResult(
@@ -614,7 +622,7 @@ testWidgets('resize webview', (WidgetTester tester) async {
         fullScreen = fullScreen == 'true';
       }
 
-      // OHOS: 如果视频未播放，fullScreen 应为 false
+      // OHOS: if the video is not playing, fullScreen should be false.
       expect(fullScreen, false);
     });
 
@@ -681,14 +689,14 @@ testWidgets('resize webview', (WidgetTester tester) async {
       // The offset of 20 x 20 is chosen at random.
       await tester.tapAt(const Offset(20, 20));
 
-      // OHOS: 添加超时处理，全屏回调可能不会触发
+      // OHOS: add timeout handling; the fullscreen callback may not fire.
       try {
         await fullscreenEntered.future.timeout(const Duration(seconds: 5));
         await expectLater(fullscreenExited.future, completes);
       } catch (_) {
-        // OHOS 平台可能不支持视频全屏自定义回调
-        // 或者视频未播放导致全屏请求未发起
-        // 测试验证 setCustomWidgetCallbacks 方法可用
+        // OHOS may not support custom video fullscreen callbacks, or the
+        // video did not play so the fullscreen request was never made. The
+        // test verifies the setCustomWidgetCallbacks method is available.
       }
     });
   });
@@ -761,18 +769,19 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       await pageLoaded.future;
 
-      // OHOS 平台默认允许自动播放
-      // 设置 setMediaPlaybackRequiresUserGesture(false) 后音频应自动播放
+      // OHOS allows auto-play by default. With
+      // setMediaPlaybackRequiresUserGesture(false), the audio should play
+      // automatically.
       var isPaused =
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
-      expect(isPaused, false);  // OHOS: 音频应自动播放
+      expect(isPaused, false); // OHOS: the audio should auto-play
 
       pageLoaded = Completer<void>();
       controller = OhosWebViewController(
         const PlatformWebViewControllerCreationParams(),
       );
       await controller.setJavaScriptMode(JavaScriptMode.unrestricted);
-      // 设置需要用户手势才能播放
+      // Require a user gesture to play.
       await controller.setMediaPlaybackRequiresUserGesture(true);
       delegate = OhosNavigationDelegate(
         const PlatformNavigationDelegateCreationParams(),
@@ -801,7 +810,7 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       isPaused =
           await controller.runJavaScriptReturningResult('isPaused();') as bool;
-      // OHOS: 设置需要用户手势后音频应暂停
+      // OHOS: with a user gesture required, the audio should be paused.
       expect(isPaused, true);
     });
   });
@@ -941,7 +950,7 @@ testWidgets('resize webview', (WidgetTester tester) async {
       expect(recordedPosition, null);
 
       await controller.scrollTo(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPos = await controller.getScrollPosition();
       expect(scrollPos.dx, X_SCROLL);
@@ -951,21 +960,22 @@ testWidgets('resize webview', (WidgetTester tester) async {
 
       // Check scrollBy() (on top of scrollTo())
       await controller.scrollBy(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPos = await controller.getScrollPosition();
-      // OHOS: scrollBy 可能不累加，而是设置绝对位置
-      // 如果 scrollBy 没有累加，则验证 scrollTo 和 scrollBy 方法可用
-      // 原始期望：scrollPos.dx = 246 (X_SCROLL * 2)
-      // OHOS 实际：scrollPos.dx 可能仍为 123
+      // OHOS: scrollBy may not accumulate and instead set an absolute
+      // position. If scrollBy does not accumulate, just verify that the
+      // scrollTo and scrollBy methods work. The original expectation is
+      // scrollPos.dx = 246 (X_SCROLL * 2); on OHOS, scrollPos.dx may remain
+      // 123.
       if (scrollPos.dx == X_SCROLL * 2) {
         expect(scrollPos.dx, X_SCROLL * 2);
         expect(scrollPos.dy, Y_SCROLL * 2);
         expect(recordedPosition?.x, X_SCROLL * 2);
         expect(recordedPosition?.y, Y_SCROLL * 2);
       } else {
-        // OHOS: scrollBy 可能实现了不同的滚动行为
-        // 验证滚动功能可用，不强制验证累加效果
+        // OHOS: scrollBy may implement different scrolling behavior. Verify
+        // that scrolling works without enforcing accumulation.
         expect(scrollPos.dx, greaterThanOrEqualTo(X_SCROLL));
         expect(scrollPos.dy, greaterThanOrEqualTo(Y_SCROLL));
       }
@@ -1109,10 +1119,12 @@ testWidgets('resize webview', (WidgetTester tester) async {
         const PlatformNavigationDelegateCreationParams(),
       );
       await delegate.setOnHttpError((HttpResponseError error) {
-        // API 17 的 ArkWeb 会在主文档加载后自动抓取页面 favicon(子资源)。
-        // 本用例主 URL 恰为 /favicon.ico(404),favicon 抓取再次 404,
-        // 因此 onHttpError 会被合法地回调多次。Completer 只能 complete 一次,
-        // 只取第一个事件,后续事件忽略(日志已打印,不丢信息)。
+        // ArkWeb on API 17 automatically fetches the page favicon (a
+        // subresource) after the main document loads. The main URL of this
+        // test is /favicon.ico (404), and the favicon fetch 404s again, so
+        // onHttpError can legitimately fire multiple times. A Completer can
+        // only be completed once, so keep the first event and ignore the
+        // rest (later events are still logged, so nothing is lost).
         if (!errorCompleter.isCompleted) {
           errorCompleter.complete(error);
         }
@@ -1160,8 +1172,9 @@ testWidgets('resize webview', (WidgetTester tester) async {
         const PlatformNavigationDelegateCreationParams(),
       );
       await delegate.setOnHttpError((HttpResponseError error) {
-        // 双保险:该用例预期不触发 onHttpError,守卫防止内核重复回调时
-        // Completer 二次 complete 抛 StateError。
+        // Safety guard: this test expects onHttpError not to fire. The
+        // guard prevents a StateError from completing the Completer a
+        // second time if the callback is invoked more than once.
         if (!errorCompleter.isCompleted) {
           errorCompleter.complete(error);
         }
@@ -1457,7 +1470,8 @@ testWidgets('resize webview', (WidgetTester tester) async {
     await delegate.setOnPageFinished((_) => pageLoaded.complete());
     await controller.setPlatformNavigationDelegate(delegate);
 
-    // OHOS: 先加载一个空白页面，确保 WebView 有有效上下文
+    // OHOS: load a blank page first to ensure the WebView has a valid
+    // context.
     await controller.loadRequest(
       LoadRequestParams(uri: Uri.parse('about:blank')),
     );
@@ -1472,10 +1486,10 @@ testWidgets('resize webview', (WidgetTester tester) async {
       ),
     );
 
-    // 等待空白页面加载完成
+    // Wait for the blank page to finish loading.
     await pageLoaded.future;
 
-    // OHOS: 添加超时保护
+    // OHOS: add timeout protection.
     final pageLoaded2 = Completer<void>();
     await delegate.setOnPageFinished((_) => pageLoaded2.complete());
 
@@ -1486,8 +1500,8 @@ testWidgets('resize webview', (WidgetTester tester) async {
       final String? currentUrl = await controller.currentUrl();
       expect(currentUrl, primaryUrl);
     } catch (_) {
-      // OHOS: window.open 可能不支持在 same window 打开
-      // 测试验证方法可用，但不强制验证结果
+      // OHOS: window.open may not support opening in the same window. The
+      // test verifies the method is available without enforcing the result.
     }
   });
 
@@ -1524,8 +1538,9 @@ testWidgets('resize webview', (WidgetTester tester) async {
     await pageLoaded2.future;
 
     final String? currentUrl = await controller.currentUrl();
-    // OHOS 平台不支持通过 window.open 创建后退历史记录
-    // 只验证当前 URL，不验证 canGoBack 和 goBack 功能
+    // OHOS does not create a back-history entry for window.open
+    // navigations, so only verify the current URL; do not verify canGoBack
+    // and goBack.
     expect(currentUrl, secondaryUrl);
   });
 
@@ -1796,8 +1811,10 @@ testWidgets('resize webview', (WidgetTester tester) async {
     final Object promptResponse = await controller.runJavaScriptReturningResult(
       'prompt("input message", "default text")',
     );
-    // OHOS: prompt 对话框由 Flutter 端的 onJavaScriptTextInputDialog 回调处理，
-    // 回调返回 'return message'，evaluateJavascript 返回 JSON 字符串 '"return message"'
+    // OHOS: the prompt dialog is handled by the Flutter-side
+    // onJavaScriptTextInputDialog callback. The callback returns
+    // 'return message', and evaluateJavascript returns the JSON string
+    // '"return message"'.
     expect(promptResponse, '"return message"');
   });
 
@@ -1937,8 +1954,9 @@ class ResizableWebViewState extends State<ResizableWebView> {
   }
 }
 
-// OHOS 使用 OhosObject 基类代替 PigeonInternalProxyApiBaseClass
-// 使用 copy() 方法代替 pigeon_copy()
+// OHOS uses the OhosObject base class instead of
+// PigeonInternalProxyApiBaseClass and the copy() method instead of
+// pigeon_copy().
 class CopyableObjectWithCallback extends ohos_webview.OhosObject {
   CopyableObjectWithCallback(
     this.callback, {

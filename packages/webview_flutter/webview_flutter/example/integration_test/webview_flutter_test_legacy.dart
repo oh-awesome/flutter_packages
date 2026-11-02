@@ -270,7 +270,7 @@ Future<void> main() async {
     );
     await tester.pumpAndSettle();
 
-    // OHOS: 重建后直接获取 userAgent，不等待 onPageFinished
+    // OHOS: get userAgent directly after rebuild, do not wait for onPageFinished
     final String customUserAgent2 = await _getUserAgent(controller1);
     expect(customUserAgent2, 'Custom_User_Agent2');
   });
@@ -503,28 +503,30 @@ Future<void> main() async {
       // Pump once to trigger the video play.
       await tester.pump();
 
-      // OHOS: 添加超时处理，视频可能不会自动播放
+      // OHOS: Add timeout handling; the video may not auto-play.
       bool videoAutoPlayed = false;
       try {
         await videoPlaying.future.timeout(const Duration(seconds: 5));
         videoAutoPlayed = true;
       } catch (_) {
-        // OHOS: 视频可能不会自动播放，继续验证
+        // OHOS: The video may not auto-play; continue verification.
       }
 
-      // OHOS: 使用标准 Fullscreen API (document.fullscreenElement) 检测全屏状态
-      // isFullScreen() 返回 !!document.fullscreenElement，结果为 true 或 false
+      // OHOS: Use the standard Fullscreen API (document.fullscreenElement)
+      // to detect the fullscreen state. isFullScreen() returns
+      // !!document.fullscreenElement, which is either true or false.
       final String fullScreen = await controller.runJavascriptReturningResult(
         'isFullScreen();',
       );
 
-      // OHOS: allowsInlineMediaPlayback 在鸿蒙侧未实现，视频播放行为由
-      // AutoMediaPlaybackPolicy (mediaPlayGestureAccess) 控制。
-      // 验证：视频未进入全屏模式（inline 播放）
+      // OHOS: allowsInlineMediaPlayback is not implemented on the OHOS side;
+      // video playback behavior is controlled by AutoMediaPlaybackPolicy
+      // (mediaPlayGestureAccess). Verify the video does not enter fullscreen
+      // mode (inline playback).
       expect(fullScreen, _webviewBool(false));
 
-      // OHOS: 额外验证视频播放状态
-      // 若视频自动播放成功，isPaused 应为 false
+      // OHOS: Additionally verify the video playback state.
+      // If the video auto-played successfully, isPaused should be false.
       final String isPaused = await controller.runJavascriptReturningResult(
         'isPaused();',
       );
@@ -803,7 +805,7 @@ Future<void> main() async {
       expect(scrollPosX, isNot(Y_SCROLL));
 
       await controller.scrollTo(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
@@ -812,18 +814,19 @@ Future<void> main() async {
 
       // Check scrollBy() (on top of scrollTo())
       await controller.scrollBy(X_SCROLL, Y_SCROLL);
-      // OHOS: 等待滚动操作完成
+      // OHOS: Wait for the scroll operation to complete.
       await tester.pumpAndSettle(const Duration(milliseconds: 500));
       scrollPosX = await controller.getScrollX();
       scrollPosY = await controller.getScrollY();
-      // OHOS: scrollBy 可能不累加，而是设置绝对位置
-      // 如果 scrollBy 没有累加，则验证 scrollTo 和 scrollBy 方法可用
+      // OHOS: scrollBy may not accumulate and instead set an absolute
+      // position. If scrollBy does not accumulate, just verify that the
+      // scrollTo and scrollBy methods work.
       if (scrollPosX == X_SCROLL * 2) {
         expect(scrollPosX, X_SCROLL * 2);
         expect(scrollPosY, Y_SCROLL * 2);
       } else {
-        // OHOS: scrollBy 可能实现了不同的滚动行为
-        // 验证滚动功能可用，不强制验证累加效果
+        // OHOS: scrollBy may implement different scrolling behavior. Verify
+        // that scrolling works without enforcing accumulation.
         expect(scrollPosX, greaterThanOrEqualTo(X_SCROLL));
         expect(scrollPosY, greaterThanOrEqualTo(Y_SCROLL));
       }
@@ -1152,11 +1155,12 @@ Future<void> main() async {
     await pageLoads.stream.firstWhere((String url) => url == secondaryUrl);
     await pageLoads.close();
 
-    // 验证 window.open 成功导航到 secondaryUrl
+    // Verify that window.open successfully navigated to secondaryUrl.
     final String? currentUrl = await controller.currentUrl();
     expect(currentUrl, secondaryUrl);
 
-    // OHOS: window.open 在同一窗口中导航，验证 canGoBack 和 goBack 功能
+    // OHOS: window.open navigates in the same window; verify the canGoBack
+    // and goBack functionality.
     final bool canGoBack = await controller.canGoBack();
     if (canGoBack) {
       await controller.goBack();
@@ -1346,8 +1350,9 @@ Future<String> getTestVideoBase64() async {
               return video.paused;
             }
             function isFullScreen() {
-              // OHOS: 使用标准 Fullscreen API 检测全屏状态
-              // webkitDisplayingFullscreen 是 iOS 特有属性，OHOS 不支持
+              // OHOS: Use the standard Fullscreen API to detect the
+              // fullscreen state. webkitDisplayingFullscreen is an
+              // iOS-specific property that OHOS does not support.
               return !!document.fullscreenElement;
             }
           </script>

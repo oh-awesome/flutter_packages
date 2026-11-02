@@ -279,11 +279,6 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
       );
     }
 
-/*    return webView.loadUrl(
-      'file:///ohos_asset/$assetFilePath',
-      <String, String>{},
-    );*/
-
     webView.settings.setAllowFileAccess(true);
     final String  url = "resources/rawfile/" + assetFilePath;
     return webView.loadUrl(url, <String, String>{});
@@ -451,7 +446,7 @@ class WebViewOhosPlatformController extends WebViewPlatformController {
 
     final Color? backgroundColor = creationParams.backgroundColor;
     if (backgroundColor != null) {
-      //webView.setBackgroundColor(backgroundColor);
+      // OHOS: ArkWeb Web component does not support setting background color via this API
     }
 
     addJavascriptChannels(creationParams.javascriptChannelNames);

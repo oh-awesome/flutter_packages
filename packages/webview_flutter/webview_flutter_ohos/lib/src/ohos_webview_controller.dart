@@ -1583,7 +1583,7 @@ class OhosNavigationDelegate extends PlatformNavigationDelegate {
     final LoadRequestCallback? onLoadRequest = _onLoadRequest;
     final NavigationRequestCallback? onNavigationRequest = _onNavigationRequest;
 
-    //与 Android 保持一致：只拦截主框架导航，因为 loadUrl 无法加载子框架
+    // Consistent with Android: only intercept main-frame navigation because loadUrl cannot load sub-frames.
     if (!isForMainFrame ||
         onNavigationRequest == null ||
         onLoadRequest == null) {
