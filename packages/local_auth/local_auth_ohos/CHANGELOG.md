@@ -1,3 +1,9 @@
+## local_auth-v3.0.2-ohos-1.0.1 - 2026.11
+
+### Added
+
+* 3.47 adaptation. ([1792](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1792)).
+
 ## local_auth-v3.0.2-ohos-1.0.0
 
 ### Added
