@@ -153,7 +153,7 @@ export default function abilityTest() {
     it('plugin_setUpAndTeardownMethodChannel_shouldNotThrow', 0, () => {
       const plugin: InAppPurchasePlugin = new InAppPurchasePlugin();
       const messenger: BinaryMessenger = new MockMessenger();
-      plugin.setUpMethodChannel(messenger, nullContext());
+      plugin.setUpMethodChannel(messenger);
       plugin.teardownMethodChannel();
       expect(true).assertTrue();
     })

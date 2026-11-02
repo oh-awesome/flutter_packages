@@ -1,3 +1,9 @@
+## in_app_purchase-v3.3.1-ohos-1.0.0 - 2026.11
+ 
+### Added
+ 
+* 3.47 adaptation. ([1798](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1798)).
+
 ## in_app_purchase-v3.0.0-ohos-1.0.0 - 2026.8
 
 ### Added
