@@ -13,14 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// 依赖真实 ApplicationContext / data_preferences 的设备测试:
-// 覆盖插件初始化、legacy 同步 API 读写、异步 API 通道往返、类型不匹配、
-// getStringList 三种结果、分批 clear、allowList、多存储名缓存与释放。
+// Device tests that need a real ApplicationContext / data_preferences:
+// cover plugin initialization, legacy sync API reads/writes, async API
+// channel round trips, type mismatches, the three getStringList results,
+// batched clear, allowList, and multi-storage-name caching and release.
 
 import { describe, it, expect, beforeAll, afterAll } from '@ohos/hypium';
 import abilityDelegatorRegistry from '@ohos.app.ability.abilityDelegatorRegistry';
 import UIAbility from '@ohos.app.ability.UIAbility';
 import common from '@ohos.app.ability.common';
+import data_preferences from '@ohos.data.preferences';
 import SharedPreferencesOhosPlugin from '../../../main/ets/shared_preferences/SharedPreferencesOhosPlugin';
 import {
   SharedPreferencesPigeonOptions,
@@ -32,12 +34,13 @@ import { asPluginBinding, ChannelCaller, RecordingMessenger, TestPluginBinding }
 const SYNC_PREFIX = 'dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.';
 const ASYNC_PREFIX = 'dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesAsyncApi.';
 const LIST_ID = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu';
+const BIG_INT_ID = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy';
 const JSON_LIST_PREFIX = LIST_ID + '!';
 const RUN_ID: string = Date.now().toString();
 
-/** data_store 后端选项 */
+/** Options for the data_store backend. */
 const DATA_STORE_OPTS: SharedPreferencesPigeonOptions = new SharedPreferencesPigeonOptions(undefined, true);
-/** shared_preferences 后端选项 */
+/** Options for the shared_preferences backend. */
 const SHARED_PREFS_OPTS: SharedPreferencesPigeonOptions = new SharedPreferencesPigeonOptions(undefined, false);
 
 export default function sharedPreferencesDeviceTest(): void {
@@ -46,13 +49,16 @@ export default function sharedPreferencesDeviceTest(): void {
     let messenger: RecordingMessenger = new RecordingMessenger();
     let caller: ChannelCaller = new ChannelCaller(messenger);
     let binding: TestPluginBinding = new TestPluginBinding(null, messenger);
+    let abilityContext: common.Context | null = null;
 
     beforeAll(async () => {
-      // delegator.getAppContext() 返回的 ApplicationContext 会被 data_preferences
-      // 以 401 (Parameter error. The context is invalid.) 拒绝,改用 TestAbility 的 UIAbilityContext
+      // The ApplicationContext returned by delegator.getAppContext() is rejected
+      // by data_preferences with 401 (Parameter error. The context is invalid.),
+      // so use the TestAbility's UIAbilityContext instead.
       const delegator = abilityDelegatorRegistry.getAbilityDelegator();
       const ability: UIAbility = await delegator.getCurrentTopAbility();
       const context: common.Context = ability.context;
+      abilityContext = context;
       plugin = new SharedPreferencesOhosPlugin();
       messenger = new RecordingMessenger();
       caller = new ChannelCaller(messenger);
@@ -104,13 +110,13 @@ export default function sharedPreferencesDeviceTest(): void {
       expect(await plugin.setString(`${prefix}b`, '2')).assertTrue();
       expect(await plugin.setString(`ut.${RUN_ID}.keep.`, 'x')).assertTrue();
 
-      // allowList 只清 a,保留 b
+      // allowList clears only a and keeps b.
       expect(await plugin.clear(prefix, [`${prefix}a`] as string[])).assertTrue();
       const afterAllowList: Map<string, Object> = await plugin.getAll(prefix, null);
       expect(afterAllowList.has(`${prefix}a`)).assertFalse();
       expect(afterAllowList.has(`${prefix}b`)).assertTrue();
 
-      // 前缀全清
+      // Null allowList clears everything under the prefix.
       expect(await plugin.clear(prefix, null)).assertTrue();
       const afterClear: Map<string, Object> = await plugin.getAll(prefix, null);
       expect(afterClear.size).assertEqual(0);
@@ -224,7 +230,8 @@ export default function sharedPreferencesDeviceTest(): void {
     });
 
     it('asyncGetStringTypeMismatchOnNonStringValue', 0, async () => {
-      // 存 int 后 getString:非 string 值触发 getString 的类型不匹配拒绝
+      // Store an int then getString: a non-string value triggers getString's
+      // type-mismatch rejection.
       const key: string = `ut.${RUN_ID}.tm.strint`;
       await caller.call(ASYNC_PREFIX + 'setInt.data_store',
         [key, BigInt(11), DATA_STORE_OPTS] as Object[]);
@@ -236,7 +243,8 @@ export default function sharedPreferencesDeviceTest(): void {
     });
 
     it('asyncGetDoubleTypeMismatchOnStringValue', 0, async () => {
-      // 存 string 后 getDouble:非 number/bigint 值触发 getDouble 的类型不匹配拒绝
+      // Store a string then getDouble: a non-number/bigint value triggers
+      // getDouble's type-mismatch rejection.
       const key: string = `ut.${RUN_ID}.tm.doublestr`;
       await caller.call(ASYNC_PREFIX + 'setString.data_store',
         [key, 'text', DATA_STORE_OPTS] as Object[]);
@@ -248,7 +256,8 @@ export default function sharedPreferencesDeviceTest(): void {
     });
 
     it('asyncMissingKeyTypedGettersReturnNull', 0, async () => {
-      // 缺失键时 getBool/getDouble/getInt 走 value === null 分支返回 null
+      // With a missing key, getBool/getDouble/getInt take the value === null
+      // branch and return null.
       const getters: string[] = ['getBool', 'getDouble', 'getInt'];
       for (let i = 0; i < getters.length; i++) {
         const reply: Object[] = await caller.call(ASYNC_PREFIX + getters[i] + '.data_store',
@@ -259,8 +268,10 @@ export default function sharedPreferencesDeviceTest(): void {
     });
 
     it('asyncStorageNameWithPathSeparatorDegradesGracefully', 0, async () => {
-      // 含路径分隔符的存储名:当前设备 data_preferences 会创建子目录并成功打开,
-      // 此用例固化该行为并验证所有 getter 不挂死:合法回复只能是 [null] 或 3 元错误
+      // Storage name with a path separator: the device data_preferences
+      // creates a subdirectory and opens successfully. This case pins that
+      // behavior and verifies no getter hangs: a valid reply can only be a
+      // plain success or a 3-element error.
       const oddOpts: SharedPreferencesPigeonOptions =
         new SharedPreferencesPigeonOptions(`ut_bad/${RUN_ID}`, false);
       const getters: string[] = ['getString', 'getBool', 'getDouble', 'getInt',
@@ -268,20 +279,46 @@ export default function sharedPreferencesDeviceTest(): void {
       for (let i = 0; i < getters.length; i++) {
         const reply: Object[] = await caller.call(ASYNC_PREFIX + getters[i] + '.data_store',
           [`ut.${RUN_ID}.odd`, oddOpts] as Object[]) as Object[];
-        // 合法形态:clear 成功为空数组(0),标量 getter 缺键为 [null],
-        // getAll/getKeys 为 [空Map/空数组],创建失败为 3 元错误
+        // Valid shapes: clear success is an empty array (0), scalar getters
+        // reply [null] on a missing key, getAll/getKeys reply [empty map/array],
+        // and creation failure is a 3-element error.
         expect(reply.length === 0 || reply.length === 1 || reply.length === 3).assertTrue();
       }
     });
 
     it('transformPrefInvalidLegacyListReturnsRawValue', 0, async () => {
-      // 存入 LIST_IDENTIFIER 前缀 + 非法 JSON 的原始字符串,transformPref 内
-      // listEncoder.decode 吞错返回空列表(803 catch 因 decode 不抛错而不可达,此用例固化该行为)
+      // Store a LIST_IDENTIFIER-prefixed string with invalid JSON; the
+      // listEncoder.decode inside transformPref swallows the error and returns
+      // an empty list (the surrounding catch is unreachable because decode
+      // never throws). This case pins that behavior.
       const key: string = `ut.${RUN_ID}.legacy.badjson`;
       expect(await plugin.setEncodedStringList(key, LIST_ID + 'not-json')).assertTrue();
       const all: Map<string, Object> = await plugin.getAll(`ut.${RUN_ID}.legacy.`, null);
       const decoded: string[] = all.get(key) as string[];
       expect(decoded.length).assertEqual(0);
+    });
+
+    it('legacyGetAllDecodesBigIntegerPrefix', 0, async () => {
+      // Write legacy BIG_INTEGER_PREFIX entries the way the 2017-era plugin
+      // did (base-36 strings) via raw data_preferences; legacy getAll must
+      // decode them back to BigInts, matching Android's legacy transformPref.
+      const prefix: string = `ut.${RUN_ID}.bigint.`;
+      const intKey: string = `${prefix}inRange`;
+      const hugeKey: string = `${prefix}huge`;
+      // getPreferencesSync matches the plugin's own instance creation for the
+      // same (context, name), so both sides share one cached instance.
+      const raw: data_preferences.Preferences = data_preferences.getPreferencesSync(
+        abilityContext as common.Context, { name: 'FlutterSharedPreferences' });
+      raw.putSync(intKey, BIG_INT_ID + '8rc4kbdvss1s'); // 2^60
+      raw.putSync(hugeKey, BIG_INT_ID + '6x5kxtvuwilukg'); // 2^70, beyond int64
+      raw.flushSync();
+
+      const all: Map<string, Object> = await plugin.getAll(prefix, null);
+      expect((all.get(intKey) as bigint) === BigInt('1152921504606846976')).assertTrue();
+      expect((all.get(hugeKey) as bigint) === BigInt('1180591620717411303424')).assertTrue();
+
+      plugin.remove(intKey);
+      plugin.remove(hugeKey);
     });
 
     it('asyncGetStringListCoversAllResultTypes', 0, async () => {
@@ -392,6 +429,69 @@ export default function sharedPreferencesDeviceTest(): void {
       expect((keysReply[0] as string[]).length).assertEqual(0);
     });
 
+    it('asyncGetAllClearGetKeysSkipNonScalarValuesWithoutAllowList', 0, async () => {
+      // Mirrors Android preferencesFilter: with a null allowList only values of
+      // plugin-writable scalar types are managed; entries written natively
+      // (arrays/Uint8Array) into the same file are left untouched. With a
+      // non-null allowList only key membership matters, as on Android.
+      const storageName: string = `ut_filter_${RUN_ID}`;
+      const filterOpts: SharedPreferencesPigeonOptions =
+        new SharedPreferencesPigeonOptions(storageName, false);
+      const prefix: string = `ut.${RUN_ID}.filter.`;
+      const scalarKey: string = `${prefix}scalar`;
+      const arrayKey: string = `${prefix}array`;
+      const bytesKey: string = `${prefix}bytes`;
+
+      await caller.call(ASYNC_PREFIX + 'setString.data_store',
+        [scalarKey, 'sv', filterOpts] as Object[]);
+
+      // Write non-scalar entries through raw data_preferences, the way native
+      // code sharing the storage file would.
+      // getPreferencesSync matches the plugin's own instance creation for the
+      // same (context, name), so both sides share one cached instance.
+      const raw: data_preferences.Preferences =
+        data_preferences.getPreferencesSync(abilityContext as common.Context, { name: storageName });
+      const nativeArray: number[] = [1, 2, 3];
+      raw.putSync(arrayKey, nativeArray);
+      raw.putSync(bytesKey, new Uint8Array([1, 2]));
+      raw.flushSync();
+
+      const allReply: Object[] = await caller.call(ASYNC_PREFIX + 'getAll.data_store',
+        [null, filterOpts] as Object[]) as Object[];
+      const allMap: Map<string, Object> = allReply[0] as Map<string, Object>;
+      expect(allMap.has(scalarKey)).assertTrue();
+      expect(allMap.has(arrayKey)).assertFalse();
+      expect(allMap.has(bytesKey)).assertFalse();
+
+      const keysReply: Object[] = await caller.call(ASYNC_PREFIX + 'getKeys.data_store',
+        [null, filterOpts] as Object[]) as Object[];
+      const keys: string[] = keysReply[0] as string[];
+      expect(keys.includes(scalarKey)).assertTrue();
+      expect(keys.includes(arrayKey)).assertFalse();
+      expect(keys.includes(bytesKey)).assertFalse();
+
+      const clearReply: Object[] = await caller.call(ASYNC_PREFIX + 'clear.data_store',
+        [null, filterOpts] as Object[]) as Object[];
+      expect(clearReply.length).assertEqual(0);
+
+      // The scalar entry is gone, while the native entries survive; naming
+      // them in an allowList still returns them (membership-only path).
+      const afterAllReply: Object[] = await caller.call(ASYNC_PREFIX + 'getAll.data_store',
+        [null, filterOpts] as Object[]) as Object[];
+      expect((afterAllReply[0] as Map<string, Object>).size).assertEqual(0);
+
+      const memberReply: Object[] = await caller.call(ASYNC_PREFIX + 'getAll.data_store',
+        [[arrayKey, bytesKey] as string[], filterOpts] as Object[]) as Object[];
+      const memberMap: Map<string, Object> = memberReply[0] as Map<string, Object>;
+      expect(memberMap.size).assertEqual(2);
+      expect(memberMap.has(arrayKey)).assertTrue();
+      expect(memberMap.has(bytesKey)).assertTrue();
+
+      const cleanupReply: Object[] = await caller.call(ASYNC_PREFIX + 'clear.data_store',
+        [[arrayKey, bytesKey] as string[], filterOpts] as Object[]) as Object[];
+      expect(cleanupReply.length).assertEqual(0);
+    });
+
     it('asyncSharedPrefsBackendWorksToo', 0, async () => {
       const key: string = `ut.${RUN_ID}.sp.str`;
       await caller.call(ASYNC_PREFIX + 'setString.shared_preferences',
@@ -411,8 +511,9 @@ export default function sharedPreferencesDeviceTest(): void {
     });
 
     it('manyStorageNamesAllRemainCachedAndUsable', 0, async () => {
-      // 缓存按存储名保留全部实例(与 Android ContextImpl 行为对齐,不设上限):
-      // 打开 12 个不同存储名后,首个名字仍应命中同一缓存实例
+      // The cache keeps one instance per storage name (aligned with Android
+      // ContextImpl behavior, no cap): after opening 12 distinct names, the
+      // first name must still hit the same cached instance.
       const firstOpts: SharedPreferencesPigeonOptions =
         new SharedPreferencesPigeonOptions(`ut_multi_${RUN_ID}_0`, false);
       const firstOpen: ESObject = await plugin.getPreferencesForOptions(firstOpts);

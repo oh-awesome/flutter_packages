@@ -1,9 +1,18 @@
-// Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE_ODID file.
-// Based on Messages.java originally written by
-// Copyright 2013 The Flutter Authors.
-
+/*
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ *
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
 
@@ -29,9 +38,11 @@ export function wrapError(exception: Error): Array<Object> {
     errorList.push(error.message);
     errorList.push(error.details);
   } else {
-    // BusinessError（data_preferences 等 @ohos API 抛出的错误）通常是仅含
-    // code/message 的对象字面量，没有 name/toString 语义，兜底避免错误编码为 null
-    // 导致 Dart 侧 pigeon 消息 `replyList[0]!` 空检查崩溃。
+    // BusinessError (thrown by @ohos APIs such as data_preferences) is usually
+    // a plain object literal with only code/message and no name/toString
+    // semantics. This fallback keeps the error from being encoded as null,
+    // which would crash the Dart pigeon reply on its `replyList[0]!` null
+    // check.
     const errName: string = exception.name ?? 'Error';
     const errString: string = exception.toString();
     errorList.push(errName);

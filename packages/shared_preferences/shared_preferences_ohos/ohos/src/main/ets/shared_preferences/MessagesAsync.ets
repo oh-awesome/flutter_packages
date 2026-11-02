@@ -1,10 +1,11 @@
 /*
- * Copyright (c) 2025 Hunan OpenValley Digital Industry Development Co., Ltd.
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
+ *
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *  http://www.apache.org/licenses/LICENSE-2.0
+ *     http://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -95,12 +96,12 @@ class PigeonCodec extends StandardMessageCodec {
       // Element 0: the JSON-encoded string value
       this.writeValue(stream, slr.jsonEncodedValue ?? null);
       // Element 1: the enum ordinal, encoded as:
-      //   byte 129  — custom enum type tag (Dart readValueOfType(129))
-      //   byte 4    — _valueInt64 type marker (Flutter StandardMessageCodec)
-      //   8 bytes   — int64 value little-endian
+      //   byte 129  - custom enum type tag (Dart readValueOfType(129))
+      //   byte 4    - _valueInt64 type marker (Flutter StandardMessageCodec)
+      //   8 bytes   - int64 value little-endian
       // Matches Android Kotlin: writeValue(stream, value.raw.toLong())
       // Dart readValueOfType(129) calls readValue() which reads type byte 4
-      // (_valueInt64) → buffer.getInt64() → int, then indexes into
+      // (_valueInt64) -> buffer.getInt64() -> int, then indexes into
       // StringListLookupResultType.values[ordinal].
       stream.writeUint8(129);
       stream.writeUint8(4); // _valueInt64 type marker (matches Android Kotlin)
@@ -116,15 +117,15 @@ class PigeonCodec extends StandardMessageCodec {
   readValueOfType(type: number, buffer: ESObject): Object | null {
     switch (type) {
       case 129:
-        // 处理 StringListLookupResultType 枚举
+        // Handle the StringListLookupResultType enum.
         const enumValue = this.readValue(buffer) as number | null;
         return enumValue;
       case 130:
-        // 处理 SharedPreferencesPigeonOptions
+        // Handle SharedPreferencesPigeonOptions.
         const optionsData = this.readValue(buffer) as Array<Object>;
         return SharedPreferencesPigeonOptions.decode(optionsData);
       case 131:
-        // 处理 StringListResult
+        // Handle StringListResult.
         const resultData = this.readValue(buffer) as Array<Object>;
         return StringListResult.decode(resultData);
       default:

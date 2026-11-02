@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// 单元测试辅助:记录型 BinaryMessenger、回复记录器、与 MessagesAsync.ets 中
-// PigeonCodec 线格式一致的测试编解码器,以及同步/异步两套 API 的 Fake 实现。
+// Unit test helpers: a recording BinaryMessenger, a reply recorder, a test
+// codec sharing the wire format of the PigeonCodec in MessagesAsync.ets, and
+// fakes for both the sync and async APIs.
 
 import {
   BinaryMessenger,
@@ -35,7 +36,7 @@ import {
 } from '../../../main/ets/shared_preferences/MessagesAsync';
 import common from '@ohos.app.ability.common';
 
-/** 记录所有通过 setMessageHandler 注册的通道处理器,供测试直接以编码字节调用。 */
+/** Records every channel handler registered via setMessageHandler so tests can call them with encoded bytes. */
 export class RecordingMessenger implements BinaryMessenger {
   public handlers: Map<string, BinaryMessageHandler> = new Map<string, BinaryMessageHandler>();
 
@@ -44,7 +45,7 @@ export class RecordingMessenger implements BinaryMessenger {
   }
 
   send(channel: String, message: ArrayBuffer | null, callback?: BinaryReply | null): void {
-    // 测试不关心发往 Flutter 侧的消息,记录通道名即可
+    // Tests do not care about messages sent towards Flutter; the channel name is enough.
   }
 
   setMessageHandler(channel: String, handler: BinaryMessageHandler | SendableBinaryMessageHandler | null,
@@ -58,7 +59,7 @@ export class RecordingMessenger implements BinaryMessenger {
   }
 }
 
-/** 记录 handler 提交的原始回复字节。 */
+/** Records the raw reply bytes submitted by a handler. */
 export class RecordingReply implements BinaryReply {
   public replied: ArrayBuffer | null = null;
   public reply: (reply: ArrayBuffer | null) => void = (data: ArrayBuffer | null): void => {
@@ -67,9 +68,10 @@ export class RecordingReply implements BinaryReply {
 }
 
 /**
- * 与 MessagesAsync.ets 内部 PigeonCodec 相同线格式(129/130/131 自定义类型标签)
- * 的编解码器。测试用它编码发给被注册 handler 的参数、解码 handler 的回复,
- * 从而让生产 PigeonCodec 的 readValueOfType/writeValue 全程参与编解码。
+ * A codec with the same wire format (custom type tags 129/130/131) as the
+ * internal PigeonCodec in MessagesAsync.ets. Tests use it to encode arguments
+ * sent to a registered handler and to decode its replies, so the production
+ * PigeonCodec's readValueOfType/writeValue participate end to end.
  */
 export class TestPigeonCodec extends StandardMessageCodec {
   writeValue(stream: ESObject, value: ESObject): ESObject {
@@ -120,7 +122,7 @@ export class TestPigeonCodec extends StandardMessageCodec {
   }
 }
 
-/** 等待异步 handler 的 .then/.catch 微任务队列排空。 */
+/** Waits for the microtask queues of async handlers' .then/.catch to drain. */
 export async function sleep(ms: number): Promise<void> {
   await new Promise<void>((resolve: () => void) => {
     setTimeout(resolve, ms);
@@ -129,7 +131,7 @@ export async function sleep(ms: number): Promise<void> {
 
 const CALL_SETTLE_MS = 30;
 
-/** 以编码字节方式调用注册在 RecordingMessenger 上的通道,返回解码后的回复。 */
+/** Calls a channel registered on the RecordingMessenger with encoded bytes and returns the decoded reply. */
 export class ChannelCaller {
   public messenger: RecordingMessenger;
   private codec: TestPigeonCodec = new TestPigeonCodec();
@@ -162,7 +164,7 @@ export class ChannelCaller {
   }
 }
 
-/** SharedPreferencesApi(同步)的可控行为替身。 */
+/** Controllable test double for SharedPreferencesApi (sync). */
 export class FakeSyncApi implements SharedPreferencesApi {
   public removeResult: boolean = true;
   public removeShouldThrow: boolean = false;
@@ -247,11 +249,11 @@ export class FakeSyncApi implements SharedPreferencesApi {
   }
 
   setup(messenger: BinaryMessenger, api: SharedPreferencesApi): void {
-    // 测试中不需要真实的 setup 行为
+    // No real setup behavior is needed in tests.
   }
 }
 
-/** SharedPreferencesAsyncApi 的可控行为替身。 */
+/** Controllable test double for SharedPreferencesAsyncApi. */
 export class FakeAsyncApi implements SharedPreferencesAsyncApi {
   public fail: boolean = false;
   public nullResult: boolean = false;
@@ -395,7 +397,7 @@ export class FakeAsyncApi implements SharedPreferencesAsyncApi {
   }
 }
 
-/** FlutterPluginBinding 的替身:只提供插件实际使用的两个方法。 */
+/** Test double for FlutterPluginBinding: provides only the two methods the plugin actually uses. */
 export class TestPluginBinding {
   public context: common.Context | null = null;
   public messenger: BinaryMessenger;
@@ -414,7 +416,7 @@ export class TestPluginBinding {
   }
 }
 
-/** 通过 ESObject 中转,把替身安全地当作 FlutterPluginBinding 传入插件。 */
+/** Passes the double into the plugin safely as a FlutterPluginBinding via an ESObject round trip. */
 export function asPluginBinding(binding: TestPluginBinding): ESObject {
   return binding as ESObject;
 }

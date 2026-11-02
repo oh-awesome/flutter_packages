@@ -1,9 +1,18 @@
-// Copyright (c) 2023 Hunan OpenValley Digital Industry Development Co., Ltd.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE_ODID file.
-// Based on SharedPreferencesPlugin.java originally written by
-// Copyright 2013 The Flutter Authors.
-
+/*
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ *
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import {
   FlutterPlugin,
   FlutterPluginBinding
@@ -78,6 +87,17 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       `Expected ${expectedType} for key "${key}", but found ${actualType}.`,
       `key=${key}, expectedType=${expectedType}, actualType=${actualType}`
     );
+  }
+
+  // Mirrors Android preferencesFilter: when no allowList is provided, only
+  // entries with value types this plugin can write (boolean/number/string/
+  // bigint) are managed. Values of other types (e.g. Array/Uint8Array/object
+  // written natively via data_preferences into the shared default file) are
+  // left untouched. Must test the raw stored value: transformPref decodes
+  // platform-encoded string lists into arrays, which would be misjudged here.
+  private isPluginScalarValue(value: ExtendedPreferenceValue): boolean {
+    return typeof value === 'boolean' || typeof value === 'number' ||
+        typeof value === 'string' || typeof value === 'bigint';
   }
 
   async getString(key: string, options: SharedPreferencesPigeonOptions): Promise<string | null> {
@@ -233,20 +253,23 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       let keysToDelete: string[] = [];
       if (allowList == null) {
         const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
-        keysToDelete = Object.keys(allData);
+        keysToDelete = Object.keys(allData).filter((key: string) => this.isPluginScalarValue(allData[key]));
       } else {
         keysToDelete = Array.from(new Set<string>(allowList));
       }
   
-      // 分批删除，每批10个key
+      // Delete in batches so unbounded concurrent delete callbacks are avoided.
       const batchSize = 10;
       for (let i = 0; i < keysToDelete.length; i += batchSize) {
         const batch = keysToDelete.slice(i, i + batchSize);
         const deletePromises = batch.map(key => 
           new Promise<void>((resolve, reject) => {
             preferences.delete(key, (err: ESObject) => {
-              if (err) reject(err);
-              else resolve();
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
             });
           })
         );
@@ -269,7 +292,8 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       const result = new Map<string, Object>();
       Object.keys(allData).forEach((key: string) => {
         const value = allData[key];
-        if (allowList == null || allowList.indexOf(key) != -1) {
+        const allowed = allowList === null ? this.isPluginScalarValue(value) : allowList.indexOf(key) !== -1;
+        if (allowed) {
           result.set(key, this.plugin.transformPref(value));
         }
       });
@@ -288,7 +312,8 @@ class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
       }
       const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const allKeys = Object.keys(allData);
-      return allKeys.filter((key: string) => allowList == null || allowList.indexOf(key) != -1);
+      return allKeys.filter((key: string) =>
+        allowList === null ? this.isPluginScalarValue(allData[key]) : allowList.indexOf(key) !== -1);
     } catch (err) {
       Log.w(TAG, "Failed to getKeys: " + JSON.stringify(err));
       return Promise.reject(err);
@@ -551,7 +576,8 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
     this.context = binding.getApplicationContext() as common.ApplicationContext;
-    // detach 时断开了 asyncApiImpl 循环引用，若同一实例再次 attach 则重建
+    // Detach breaks the asyncApiImpl circular reference; rebuild it in case
+    // the same instance attaches to an engine again.
     if (this.asyncApiImpl == null) {
       this.asyncApiImpl = new SharedPreferencesAsyncApiImpl(this);
     }
@@ -580,7 +606,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.shared_preferences');
     } catch(err) {
       Log.w(TAG, "Failed to get preferences."+ JSON.stringify(err));
-      // 缓存null值表示初始化失败
+      // Cache null to indicate that initialization failed.
       this.asyncPreferencesCache.set(PREFERENCES_NAME, null);
       // Even if preferences initialization fails, we should still register the async API 
       // so that it can properly return errors instead of hanging 
@@ -590,13 +616,15 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
   }
 
   onDetachedFromEngine(binding: FlutterPluginBinding): void {
-    // 1. 取消所有 API handler
+    // 1. Unregister all API handlers.
     setup(binding.getBinaryMessenger(), null);
     setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.data_store');
     setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.shared_preferences');
 
-    // 2. 释放所有 Preferences 实例：先从系统缓存中移除，再清空 Map 与引用
-    //（OHOS 无 close()，官方释放方式为 removePreferencesFromCacheSync + 置 null，由系统回收）
+    // 2. Release all Preferences instances: remove each from the system cache
+    // first, then clear the map and references. (OHOS has no close(); the
+    // official release path is removePreferencesFromCacheSync plus nulling the
+    // reference, leaving the system to reclaim the instance.)
     const appContext = this.context;
     if (appContext != null) {
       this.asyncPreferencesCache.forEach((pref: data_preferences.Preferences | null, storageName: string) => {
@@ -613,10 +641,10 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     this.asyncPreferencesCache.clear();
     this.preferences = null;
 
-    // 3. 断开 asyncApiImpl 循环引用
+    // 3. Break the asyncApiImpl circular reference.
     this.asyncApiImpl = null;
 
-    // 4. 释放 context 引用
+    // 4. Release the context reference.
     this.context = null;
   }
 
@@ -645,7 +673,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       return preferences;
     } catch (err) {
       Log.e(TAG, `Failed to get preferences for ${storageName}: ${JSON.stringify(err)}`);
-      // 缓存null值表示创建失败
+      // Cache null to indicate that creation failed.
       this.asyncPreferencesCache.set(storageName, null);
       return Promise.reject(err);
     }
@@ -756,8 +784,9 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
       if (this.preferences == null) {
         return Promise.reject(new Error("Preferences not initialized"));
       }
-      // 捕获局部变量，避免 await 期间 onDetachedFromEngine 将 this.preferences 置 null 后
-      // optional chaining 跳过 delete 回调导致 Promise 永不 resolve
+      // Capture the reference locally: if onDetachedFromEngine nulls
+      // this.preferences while awaiting, optional chaining would otherwise
+      // skip the delete callbacks and the Promises would never resolve.
       const preferences = this.preferences;
       const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
       const allKeys = Object.keys(allData);
@@ -784,7 +813,40 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     }
   }
 
-  transformPref(value: ExtendedPreferenceValue): ESObject {
+  // Decodes a base-36 digit string into a BigInt without losing precision
+  // (parseInt(x, 36) goes through double and breaks above 2^53). Accepts an
+  // optional leading '-' and both letter cases, mirroring Java's
+  // BigInteger(String, Character.MAX_RADIX). Returns null for invalid input.
+  private decodeBase36BigInt(encoded: string): bigint | null {
+    let digits = encoded;
+    let negative = false;
+    if (digits.startsWith('-')) {
+      negative = true;
+      digits = digits.substring(1);
+    }
+    if (digits.length === 0) {
+      return null;
+    }
+    let result = BigInt(0);
+    for (let i = 0; i < digits.length; i++) {
+      const code = digits.charCodeAt(i);
+      let digit = -1;
+      if (code >= 48 && code <= 57) {
+        digit = code - 48;
+      } else if (code >= 97 && code <= 122) {
+        digit = code - 97 + 10;
+      } else if (code >= 65 && code <= 90) {
+        digit = code - 65 + 10;
+      }
+      if (digit < 0) {
+        return null;
+      }
+      result = result * BigInt(36) + BigInt(digit);
+    }
+    return negative ? -result : result;
+  }
+
+  transformPref(value: ExtendedPreferenceValue, decodeLegacyBigInteger: boolean = false): ESObject {
     if (typeof value === 'string') {
       if (value.startsWith(JSON_LIST_PREFIX)) {
         return value;
@@ -811,6 +873,17 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
         if (!Number.isNaN(decoded)) {
           return decoded;
         }
+      } else if (decodeLegacyBigInteger && value.startsWith(BIG_INTEGER_PREFIX)) {
+        // Legacy-only, mirroring Android: only the legacy plugin decodes
+        // BigIntegers (base-36, Character.MAX_RADIX); its async transformPref
+        // deliberately does not. The async channel codec writes every BigInt
+        // as an int64 with no range check, and the values that use this
+        // prefix by design exceed int64, so decoding them on the async path
+        // would silently wrap them modulo 2^64.
+        const decodedBigInt = this.decodeBase36BigInt(value.substring(BIG_INTEGER_PREFIX.length));
+        if (decodedBigInt !== null) {
+          return decodedBigInt;
+        }
       }
     }
     if (typeof value === 'bigint') {
@@ -827,7 +900,7 @@ export default class SharedPreferencesOhosPlugin implements FlutterPlugin, Share
     const key = value[0];
     const val = value[1];
     if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
-      result.set(key, this.transformPref(val));
+      result.set(key, this.transformPref(val, true));
     }
     return result;
   }

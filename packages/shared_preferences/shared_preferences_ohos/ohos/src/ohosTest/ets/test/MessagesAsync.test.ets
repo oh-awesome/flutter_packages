@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// MessagesAsync.ets 单元测试:数据类型 encode/decode、PigeonCodec 线格式,
-// 以及 setupSharedPreferencesAsyncApi 注册的全部 15 条通道的成功/失败路径。
+// Unit tests for MessagesAsync.ets: data type encode/decode, PigeonCodec wire
+// format, and the success/failure paths of all 15 channels registered by
+// setupSharedPreferencesAsyncApi.
 
 import { describe, it, expect, beforeAll } from '@ohos/hypium';
 import {
@@ -83,8 +84,9 @@ export default function messagesAsyncTest(): void {
   });
 
   describe('PigeonCodecWireFormatTest', () => {
-    // 通过与生产 PigeonCodec 相同线格式的 TestPigeonCodec 做 encode/decode 往返,
-    // 覆盖 bigint/number/自定义类型 130/131 及透传给 StandardCodec 的基础类型。
+    // Round-trip encode/decode through TestPigeonCodec, which shares the wire
+    // format of the production PigeonCodec: covers bigint/number, custom types
+    // 130/131, and primitive types delegated to StandardMessageCodec.
     const codec: TestPigeonCodec = new TestPigeonCodec();
 
     it('roundTripsPrimitiveValues', 0, () => {
@@ -96,8 +98,8 @@ export default function messagesAsyncTest(): void {
 
     it('roundTripsBigIntAsInt64', 0, () => {
       const decoded: ESObject = codec.decodeMessage(codec.encodeMessage(BigInt(1234567890123) as ESObject));
-      // flutter_ohos StandardMessageCodec 会把安全范围内的 int64 解码为 number,
-      // 只断言数值经 type 4 int64 线格式往返后无损
+      // flutter_ohos StandardMessageCodec decodes an in-range int64 as number;
+      // only assert the value survives the type 4 int64 wire round trip.
       expect(Number(decoded)).assertEqual(1234567890123);
     });
 
@@ -287,7 +289,8 @@ export default function messagesAsyncTest(): void {
     });
 
     it('everyChannelFailureRepliesWrappedError', 0, async () => {
-      // 逐条通道触发 .catch 分支,覆盖 setup 中全部 15 个 handler 的错误回复路径
+      // Trigger the .catch branch on every channel to cover the error reply
+      // path of all 15 handlers in setup.
       api.fail = true;
       const setterNames: string[] = ['setBool', 'setString', 'setInt', 'setDouble', 'setEncodedStringList',
         'setDeprecatedStringList'];
@@ -318,7 +321,8 @@ export default function messagesAsyncTest(): void {
     });
 
     it('getAllReplyMapEncodesPigeonOptionsWithProductionCodec', 0, async () => {
-      // 回复中的 Map 携带 PigeonOptions,生产 PigeonCodec.writeValue 需走 130 类型分支编码
+      // The reply map carries PigeonOptions; the production PigeonCodec.writeValue
+      // must take the type 130 branch to encode it.
       api.allResult.set('opt', OPTS as Object);
       const reply: Object[] =
         await caller.call(ASYNC_PREFIX + 'getAll.data_store', [null, OPTS] as Object[]) as Object[];
@@ -328,7 +332,8 @@ export default function messagesAsyncTest(): void {
     });
 
     it('stringListResultArgDecodedByProductionCodec', 0, async () => {
-      // 参数中携带 StringListResult(131),生产 PigeonCodec.readValueOfType 需走 131/129 分支解码
+      // The argument carries a StringListResult (131); the production
+      // PigeonCodec.readValueOfType must take the 131/129 branches to decode it.
       const arg: StringListResult =
         new StringListResult('["z"]', StringListLookupResultType.platformEncoded);
       const reply: Object[] =

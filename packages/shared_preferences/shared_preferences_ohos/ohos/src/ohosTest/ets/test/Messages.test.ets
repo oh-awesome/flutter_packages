@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// Messages.ets 单元测试:FlutterError 与 wrapError 的全部分支。
+// Unit tests for Messages.ets: all branches of FlutterError and wrapError.
 
 import { describe, it, expect } from '@ohos/hypium';
 import { FlutterError, wrapError } from '../../../main/ets/shared_preferences/Messages';
 
-/** 模拟 data_preferences 等 @ohos API 抛出的 BusinessError 形状(仅 code/message)。 */
+/** Mimics the BusinessError shape (code/message only) thrown by @ohos APIs such as data_preferences. */
 interface BizErrorShape {
   code: number;
   message: string;
@@ -55,7 +55,7 @@ export default function messagesTest(): void {
     it('wrapErrorTypedErrorKeepsSubclassAsName', 0, () => {
       const fe: FlutterError = new FlutterError('E3', 'msg', 'd');
       const wrapped: Object[] = wrapError(fe as ESObject as Error);
-      // FlutterError 分支不应走通用兜底
+      // The FlutterError branch must not go through the generic fallback.
       expect(wrapped[0]).assertEqual('E3');
       expect(wrapped[2]).assertEqual('d');
     });
@@ -64,9 +64,9 @@ export default function messagesTest(): void {
       const biz: BizErrorShape = { code: 401, message: 'param invalid' };
       const wrapped: Object[] = wrapError(biz as ESObject as Error);
       expect(wrapped.length).assertEqual(3);
-      // 对象字面量没有 name 字段,兜底为 Error
+      // Object literal has no name field; the fallback uses 'Error'.
       expect(wrapped[0]).assertEqual('Error');
-      // toString 为 [object Object],兜底取 message
+      // toString is '[object Object]'; the fallback takes message instead.
       expect(wrapped[1]).assertEqual('param invalid');
       expect(wrapped[2]).assertContain('Cause: param invalid');
     });

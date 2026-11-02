@@ -13,9 +13,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-// SharedPreferencesOhosPlugin.ets 纯逻辑单元测试:不依赖真实 Preferences 存储,
-// 覆盖 ListEncoder、transformPref、filterData、前缀拦截、未初始化分支、
-// 同步 API setup 通道与引擎生命周期(context 为 null 的路径)。
+// Pure-logic unit tests for SharedPreferencesOhosPlugin.ets: no real
+// Preferences storage required. Covers ListEncoder, transformPref,
+// filterData, prefix interception, uninitialized branches, sync API setup
+// channels, and engine lifecycle (the null-context paths).
 
 import { describe, it, expect, beforeAll, beforeEach } from '@ohos/hypium';
 import SharedPreferencesOhosPlugin, { setup } from '../../../main/ets/shared_preferences/SharedPreferencesOhosPlugin';
@@ -35,7 +36,7 @@ const LIST_ID = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu';
 const BIG_INT_ID = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy';
 const DOUBLE_ID = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu';
 
-/** 等待被测 Promise 并捕获 rejection,返回是否被拒绝。 */
+/** Awaits the promise under test, captures rejection, and returns whether it was rejected. */
 async function isRejected(promise: Promise<ESObject>): Promise<boolean> {
   try {
     await promise;
@@ -96,6 +97,42 @@ export default function sharedPreferencesOhosPluginTest(): void {
       const decoded: ESObject = plugin.transformPref(BigInt(9));
       expect(typeof decoded === 'bigint').assertTrue();
       expect(Number(decoded)).assertEqual(9);
+    });
+
+    it('transformPrefDecodesBigIntegerPrefixBase36ForLegacy', 0, () => {
+      // Base-36 digits, matching Android BigInteger(encoded, MAX_RADIX).
+      // The second argument opts in to the legacy-only BigInteger decode.
+      const low: ESObject = plugin.transformPref(BIG_INT_ID + 'z', true);
+      expect(typeof low === 'bigint').assertTrue();
+      expect(Number(low)).assertEqual(35);
+      const carried: ESObject = plugin.transformPref(BIG_INT_ID + '10', true);
+      expect(Number(carried)).assertEqual(36);
+      const negative: ESObject = plugin.transformPref(BIG_INT_ID + '-z', true);
+      expect(Number(negative)).assertEqual(-35);
+      // A 2^60 magnitude: above 2^53, so precision-safe parsing is required.
+      const large: ESObject = plugin.transformPref(BIG_INT_ID + '8rc4kbdvss1s', true);
+      expect((large as bigint) === BigInt('1152921504606846976')).assertTrue();
+      // 2^70 exceeds int64; the value that uses this prefix by design does,
+      // so the decode must preserve the full magnitude.
+      const huge: ESObject = plugin.transformPref(BIG_INT_ID + '6x5kxtvuwilukg', true);
+      expect((huge as bigint) === BigInt('1180591620717411303424')).assertTrue();
+    });
+
+    it('transformPrefKeepsBigIntegerPrefixWithoutLegacyFlag', 0, () => {
+      // Mirrors Android's async transformPref, which does not decode the
+      // prefix: the async channel encodes every BigInt as int64 and would
+      // silently wrap out-of-range values.
+      const raw: string = BIG_INT_ID + 'z';
+      expect(plugin.transformPref(raw)).assertEqual(raw);
+    });
+
+    it('transformPrefInvalidBigIntegerPrefixKeepsRawString', 0, () => {
+      const raw: string = BIG_INT_ID + '1!'; // '!' is not a base-36 digit
+      expect(plugin.transformPref(raw, true)).assertEqual(raw);
+      const empty: string = BIG_INT_ID;
+      expect(plugin.transformPref(empty, true)).assertEqual(empty);
+      const signOnly: string = BIG_INT_ID + '-';
+      expect(plugin.transformPref(signOnly, true)).assertEqual(signOnly);
     });
 
     it('transformPrefKeepsObjectReference', 0, () => {
@@ -189,7 +226,8 @@ export default function sharedPreferencesOhosPluginTest(): void {
     });
 
     it('setStringListWritesEncodedPrefix', 0, async () => {
-      // 未初始化时 put 会拒绝,此处仅验证编码值正确写入待存内容
+      // put rejects when uninitialized; this only verifies the encoded value
+      // is what would be persisted.
       expect(await isRejected(plugin.setStringList('k', ['a'] as string[]))).assertTrue();
       expect(await isRejected(plugin.setStringListWithOptions('k', ['a'] as string[],
         new SharedPreferencesPigeonOptions('nofile', false)))).assertTrue();
@@ -305,8 +343,9 @@ export default function sharedPreferencesOhosPluginTest(): void {
     });
 
     it('remainingSetterChannelsFailureReplyWrappedError', 0, async () => {
-      // 逐条触发 setString/setInt/setDouble/setEncodedStringList/setDeprecatedStringList
-      // 的 .catch 分支,覆盖 setup 中对应 handler 的错误回复路径
+      // Trigger the .catch branch of setString/setInt/setDouble/
+      // setEncodedStringList/setDeprecatedStringList one by one to cover the
+      // error reply path of the corresponding handlers in setup.
       api.settersFail = true;
       const names: string[] = ['setString', 'setInt', 'setDouble', 'setEncodedStringList',
         'setDeprecatedStringList'];
@@ -340,7 +379,8 @@ export default function sharedPreferencesOhosPluginTest(): void {
       const caller: ChannelCaller = new ChannelCaller(messenger);
       plugin.setup(messenger, plugin);
       expect(caller.count()).assertEqual(9);
-      // 插件实例方法参数不可空,null 注销路径经 ESObject 中转验证
+      // The plugin's instance method has a non-nullable parameter; the null
+      // unregister path is verified via an ESObject round trip.
       const nullApi: ESObject = null;
       plugin.setup(messenger, nullApi);
       expect(caller.count()).assertEqual(0);
@@ -361,7 +401,7 @@ export default function sharedPreferencesOhosPluginTest(): void {
     it('attachWithoutContextRegistersChannelsAndCachesNull', 0, () => {
       const binding: TestPluginBinding = new TestPluginBinding(null, messenger);
       plugin.onAttachedToEngine(asPluginBinding(binding));
-      // 9 条同步 + 15*2 条异步通道
+      // 9 sync channels plus 15*2 async channels.
       expect(caller.count()).assertEqual(39);
       expect(plugin.preferences).assertNull();
     });
@@ -384,8 +424,9 @@ export default function sharedPreferencesOhosPluginTest(): void {
       const binding: TestPluginBinding = new TestPluginBinding(null, messenger);
       plugin.onAttachedToEngine(asPluginBinding(binding));
 
-      // 遍历全部 9 个异步 getter:context 为 null → preferences 为 null,
-      // 每个 getter 都应走 "Preferences not initialized" 拒绝分支
+      // Iterate all 9 async getters: null context means null preferences, and
+      // every getter must take the "Preferences not initialized" rejection
+      // branch.
       const opts: SharedPreferencesPigeonOptions = new SharedPreferencesPigeonOptions(undefined, true);
       const getters: string[] = ['getString', 'getBool', 'getDouble', 'getInt',
         'getPlatformEncodedStringList', 'getStringList', 'clear', 'getAll', 'getKeys'];
