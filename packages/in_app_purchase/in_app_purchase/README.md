@@ -6,6 +6,20 @@ A storefront-independent API for purchases in Flutter apps.
 This plugin supports in-app purchases (_IAP_) through an _underlying store_,
 which can be the App Store (on iOS and macOS) or Google Play (on Android).
 
+#### ohos adaptation notes
+
+APIs currently adapted for the ohos platform:
+
+* purchaseStream
+* isAvailable
+* queryProductDetails
+* buyNonConsumable
+* buyConsumable
+* completePurchase
+* restorePurchases
+
+Only the purchase flow triggered from within the app has been verified on real devices; other scenarios have not been fully tested.
+
 |             | Android | iOS   | macOS  |
 |-------------|---------|-------|--------|
 | **Support** | SDK 24+ | 13.0+ | 10.15+ |
