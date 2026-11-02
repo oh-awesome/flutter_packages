@@ -18,7 +18,7 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/local_auth/local_auth
-      ref: local_auth-v3.0.2-ohos-1.0.0
+      ref: local_auth-v3.0.2-ohos-1.0.1
 ```
 
 执行命令
@@ -30,7 +30,8 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | --- | --- | --- |
-| 3.44 | local_auth-v3.0.2-ohos-1.0.0 | oh-3.44.9 |
+| 3.44 | local_auth-v3.0.2-ohos-1.0.1 | oh-3.47.7 |
+| 3.47 | local_auth-v3.0.2-ohos-1.0.1 | oh-3.47.7 |
 
 ## 约束与限制
 
@@ -38,7 +39,8 @@ flutter pub get
 
 在以下版本中已验证通过：
 
-1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 6.1.0(23); IDE: DevEco Studio 26.0.0 Beta2; ROM: 6.23.0.100 SP6;
+1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
+2. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
 
 ### 权限要求
 

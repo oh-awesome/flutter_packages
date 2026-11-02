@@ -33,7 +33,7 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/local_auth/local_auth_ohos"
-      ref: "oh-3.44.9-dev"
+      ref: "oh-3.47.7-dev"
 
 dev_dependencies:
   flutter_test:
