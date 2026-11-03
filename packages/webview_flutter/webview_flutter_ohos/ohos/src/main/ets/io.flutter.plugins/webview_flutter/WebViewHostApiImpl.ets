@@ -668,12 +668,21 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onRefreshAccessedHistory = (event: ESObject) => {
+    // Use-after-dispose guard: see onDownloadStart.
+    if (this.isDisposed) {
+      return;
+    }
     if (this.webViewClient) {
       this.webViewClient.doUpdateVisitedHistory(this, event.url, event.isRefreshed);
     }
   }
 
   onHttpAuthRequest = (event: ESObject): boolean => {
+    // Use-after-dispose guard: a released client can no longer handle auth;
+    // report the event unhandled so ArkWeb applies its default (cancel).
+    if (this.isDisposed) {
+      return false;
+    }
     Log.i(TAG, "onHttpAuthRequest host=" + event.host + " realm=" + event.realm);
     if (this.webViewClient) {
       const wrappedHandler = new OhosHttpAuthHandler(event.handler);
@@ -805,6 +814,11 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onConsoleMessage = (event: ESObject) => {
+    // Use-after-dispose guard: mark the message handled and stop forwarding
+    // console output to the released client. See onDownloadStart.
+    if (this.isDisposed) {
+      return true;
+    }
     let message:ConsoleMessage = event.message;
     if (this.webChromeClient) {
         this.webChromeClient.onConsoleMessage(event.message);
@@ -815,6 +829,11 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onWindowNew = (event: ESObject) => {
+    // Use-after-dispose guard: never hand a new-window handler for a released
+    // view to the client. See onDownloadStart.
+    if (this.isDisposed) {
+      return;
+    }
     if (this.webChromeClient) {
       this.webChromeClient.onCreateWindow(this, event.isAlert, event.isUserTrigger, event.handler)
     }
@@ -871,6 +890,11 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onJsAlert = (event: ESObject): boolean => {
+    // Use-after-dispose guard: swallow the dialog as handled instead of
+    // letting ArkWeb show a system dialog for a released view.
+    if (this.isDisposed) {
+      return true;
+    }
     if (this.webChromeClient && event) {
       return this.webChromeClient.onJsAlert(this, event.url, event.message, event.result);
     }
@@ -878,6 +902,10 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onJsConfirm = (event: ESObject): boolean => {
+    // Use-after-dispose guard: see onJsAlert.
+    if (this.isDisposed) {
+      return true;
+    }
     if (this.webChromeClient && event) {
       return this.webChromeClient.onJsConfirm(this, event.url, event.message, event.result);
     }
@@ -885,6 +913,10 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onJsPrompt = (event: ESObject): boolean => {
+    // Use-after-dispose guard: see onJsAlert.
+    if (this.isDisposed) {
+      return true;
+    }
     if (this.webChromeClient && event) {
       return this.webChromeClient.onJsPrompt(this, event.url, event.message, event.value, event.result);
     }
@@ -892,6 +924,11 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onFullScreenEnter = (event: ESObject) => {
+    // Use-after-dispose guard: never mutate window state (system bars,
+    // orientation) on behalf of a view that release() already tore down.
+    if (this.isDisposed) {
+      return;
+    }
     try {
       let context = getContext(this) as common.UIAbilityContext;
       let windowClass = context.windowStage.getMainWindowSync();
@@ -908,6 +945,11 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onFullScreenExit = () => {
+    // Use-after-dispose guard: skip restoring window state for a released
+    // view; the app window is owned by the host, not the disposed WebView.
+    if (this.isDisposed) {
+      return;
+    }
     try {
       let context = getContext(this) as common.UIAbilityContext;
       let windowClass = context.windowStage.getMainWindowSync();
