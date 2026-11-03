@@ -41,7 +41,7 @@ Tested and passed in the following versions:
 
 1. Flutter: 3.41.9+ohos-1.0.2; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
 2. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
-3. Flutter: 3.47.7+ohos-1.0.0; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
+3. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
 
 ### Permission Requirements
 
