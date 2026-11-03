@@ -8,10 +8,6 @@ import UIKit
 
 @testable import image_picker_ios
 
-#if canImport(image_picker_ios_objc)
-  @testable import image_picker_ios_objc
-#endif
-
 @Suite
 struct MetaDataUtilTests {
   @Test func getImageMIMETypeFromImageData() {

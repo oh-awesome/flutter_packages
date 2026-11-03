@@ -9,7 +9,7 @@ import PackageDescription
 let package = Package(
   name: "image_picker_ios",
   platforms: [
-    .iOS("15.0")
+    .iOS("13.0")
   ],
   products: [
     .library(name: "image-picker-ios", targets: ["image_picker_ios"])
@@ -18,20 +18,14 @@ let package = Package(
   targets: [
     .target(
       name: "image_picker_ios",
-      dependencies: [
-        "image_picker_ios_objc"
-      ],
+      dependencies: [],
+      exclude: ["include/image_picker_ios-umbrella.h", "include/ImagePickerPlugin.modulemap"],
       resources: [
         .process("Resources")
-      ]
-    ),
-    .target(
-      name: "image_picker_ios_objc",
-      dependencies: [],
-      exclude: ["include/image_picker_ios.h", "include/ImagePickerPlugin.modulemap"],
+      ],
       cSettings: [
         .headerSearchPath("include/image_picker_ios")
       ]
-    ),
+    )
   ]
 )
