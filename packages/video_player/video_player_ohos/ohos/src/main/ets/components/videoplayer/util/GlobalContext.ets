@@ -17,7 +17,8 @@ export class GlobalContext {
   }
 
   /**
-   * 移除单个缓存对象（如单播放器 dispose 后不再需要的 windowClass 引用）。
+   * Remove a single cached object (e.g. the windowClass reference no longer needed
+   * after a single player's dispose).
    */
   removeObject(key: string): void {
     this._objects.delete(key);
@@ -28,8 +29,9 @@ export class GlobalContext {
   }
 
   /**
-   * 清理全部缓存对象，避免静态单例长期持有 window/videoList 等引用导致泄漏。
-   * 在播放器批量释放（initialize/detach）时调用。
+   * Clear all cached objects to prevent the static singleton from holding references
+   * like window/videoList long-term and leaking.
+   * Called during batch player release (initialize/detach).
    */
   clear(): void {
     this._objects.clear();

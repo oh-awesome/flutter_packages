@@ -18,10 +18,12 @@ class VideoPlayerOhosChannel {
     return fileFd;
   }
 
-  /// 关闭由 [getFileFdByPath] 打开、但未被播放器消费的文件描述符。
+  /// Close a file descriptor opened by [getFileFdByPath] but not consumed by the
+  /// player.
   ///
-  /// create 失败或未走到 fd 消费路径时，原生侧不会关闭该 fd，需要显式回收，
-  /// 否则高频创建场景下会耗尽系统 fd（Too many open files）。
+  /// When create fails or the fd-consumption path is not reached, the native side
+  /// will not close this fd, so it must be reclaimed explicitly; otherwise frequent
+  /// creation would exhaust the system fds (Too many open files).
   static Future<void> closeFileFd(int fd) async {
     if (fd < 0) {
       return;
@@ -31,12 +33,14 @@ class VideoPlayerOhosChannel {
         'fd': fd,
       });
     } catch (_) {
-      // fd 可能已被播放器释放，关闭失败无需上抛。
+      // The fd may already have been released by the player; a close failure does
+      // not need to be rethrown.
     }
   }
 
-  /// 透传 preventsDisplaySleepDuringVideoPlayback 到原生，
-  /// 驱动播放期屏幕常亮按平台标志控制（false 时允许播放中休眠）。
+  /// Pass preventsDisplaySleepDuringVideoPlayback through to the native side,
+  /// driving the keep-screen-on-during-playback behavior per the platform flag
+  /// (false allows sleeping while playing).
   static Future<void> setKeepScreenOn(int playerId, bool keepScreenOn) async {
     if (playerId < 0) {
       return;
@@ -47,7 +51,8 @@ class VideoPlayerOhosChannel {
         'keepScreenOn': keepScreenOn,
       });
     } catch (_) {
-      // 原生旧版本无该分支时 notImplemented/异常均可安全忽略，保持 no-op 兼容。
+      // On older native versions that lack this branch, both notImplemented and
+      // other exceptions can be safely ignored to stay no-op compatible.
     }
   }
 }

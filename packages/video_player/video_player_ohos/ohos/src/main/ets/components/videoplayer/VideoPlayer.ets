@@ -47,7 +47,7 @@ function normalizeDurationMs(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
     return 0;
   }
-  // AVMetadata.duration 的单位是毫秒，按原值取整，不按大小猜单位。
+  // AVMetadata.duration is in milliseconds; round the raw value instead of guessing the unit from magnitude.
   return Math.round(value);
 }
 
@@ -55,7 +55,7 @@ type NativeAudioTrackValue = string | number | boolean | null;
 type AudioTrackNativeMap = Map<string, NativeAudioTrackValue>;
 type TrackDescriptionValue = string | number | boolean | null | undefined;
 type TrackDescriptionRecord = Record<string, TrackDescriptionValue>;
-// 轨道元数据键：可为鸿蒙 MediaDescriptionKey 枚举值（number）或字符串键。
+// Track metadata keys: either OHOS MediaDescriptionKey enum values (number) or string keys.
 type TrackDescriptionKeys = Array<string | number>;
 interface AVPlayerWithPlaybackInfo {
   getPlaybackInfo(): Promise<Record<string, Object>>;
@@ -68,7 +68,7 @@ export class VideoPlayer {
   private loop: boolean = false;
   private index: number = 0;
   private rawFile?: resourceManager.RawFileDescriptor | null = {} as resourceManager.RawFileDescriptor;
-  // getRawFd 的路径。release 时用它调用 closeRawFd；没有打开过则为 null。
+  // Path for getRawFd. Used to call closeRawFd on release; null if never opened.
   private rawFilePath: string | null = null;
   private assetResourceManager: resourceManager.ResourceManager | null = null;
   private url: string | null = null;
@@ -78,7 +78,8 @@ export class VideoPlayer {
   private positionY: number = PlayConstants.POSITION_Y;
   private textureEntry: SurfaceTextureEntry | null = null;
   private pendingPrepare: boolean = false;
-  // AVPlayer 默认就是 1 倍速。重复 setSpeed(1x) 会重建解码器，HDR 开播时会停在第一帧。
+  // AVPlayer defaults to 1x speed. Repeated setSpeed(1x) rebuilds
+  // The decoder and freezes on the first frame when starting HDR.
   private appliedPlaybackSpeed: number = media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
   private initializedSent: boolean = false;
   private probedDurationMs: number = 0;
@@ -88,24 +89,23 @@ export class VideoPlayer {
   private eventSink: QueuingEventSink | null = null;
   private interruptMode: audio.InterruptMode = audio.InterruptMode.INDEPENDENT_MODE;
   private fd: number | null = null;
-  // 由插件侧（getFileFdByPath）打开、通过 fd://<n> 传入的外部 fd
-  // AVPlayer 不会接管其关闭，需在本播放器 release 时统一关闭，避免 fd 泄漏
+  // External fd opened by the plugin side (getFileFdByPath) and passed in via fd://<n>.
+  // AVPlayer does not take over closing it; this player must close it on release to avoid fd leaks.
   private externalFd: number | null = null;
   private headers: Record<string, string> | null;
   private playTime: number = 0;
   private bufferTimeTemp: number = 0;
   private selectedAudioTrackIndex: number = -1;
   private isWindowKeepScreenOn: boolean = false;
-  // Dart 层 preventsDisplaySleepDuringVideoPlayback 透传标志，默认与主包一致为 true。
+  // Flag passed through from Dart preventsDisplaySleepDuringVideoPlayback;
+  // defaults to true, consistent with the main package.
   private keepScreenOnDuringPlayback: boolean = true;
-  private cachedAudioTracks: Array<AudioTrackNativeMap> | null = null;
-  private tracksCacheValid: boolean = false;
-  private selectedVideoTrackIndex: number = -1;
   private cachedVideoTracks: Array<AudioTrackNativeMap> | null = null;
   private videoTracksCacheValid: boolean = false;
   private isPrepared: boolean = false;
-  // 第一次进入 prepared 之后才把播放器错误上报给 Dart。在此之前的 5400102 只表示
-  // Surface 未到，reset 会清掉排队并让已经发出的 initialized 无法再补。
+  private cachedAudioTracks: Array<AudioTrackNativeMap> | null = null;
+  private tracksCacheValid: boolean = false;
+  private selectedVideoTrackIndex: number = -1;
   private hasPreparedOnce: boolean = false;
   private preparedCompleter: (() => void) | null = null;
   private preparedPromise: Promise<void> | null = null;
@@ -123,9 +123,9 @@ export class VideoPlayer {
   private isPollingPlaybackInfo: boolean = false;
   private cachedRotationCorrection: number = 0;
   private actionEndTimer: number = -1;
-  // 幂等保护：dispose 与引擎 detach 可能并发触发 release，避免二次释放。
+  // Idempotency guard: dispose and engine detach may trigger release concurrently, avoiding double release.
   private released: boolean = false;
-  // 事件订阅追踪标志：记录 AVPlayer 事件回调是否已绑定，保证 on/off 对称。
+  // Event subscription tracking flag: records whether AVPlayer event callbacks are bound, keeping on/off symmetric.
   private eventsBound: boolean = false;
 
   constructor(
@@ -180,12 +180,13 @@ export class VideoPlayer {
 
       await this.bindState();
 
-      // 探测放在设数据源之前：探测器与 AVPlayer 先后读，不会争同一个文件偏移。
+      // Probe before setting the data source: the extractor and AVPlayer read
+      // sequentially, so they do not contend for the same file offset.
       if (!this.usesExternalTexture()) {
         this.cachedRotationCorrection = await this.getRotationCorrection();
       }
 
-      /// 同时使用avPlayer.url和avPlayer.setMediaSource会导致直播视频无法正确播放
+      /// Using both avPlayer.url and avPlayer.setMediaSource causes live video to play incorrectly.
       if (!(this.url && this.url.startsWith('http'))) {
         if (this.url) {
           const playable = this.getUri();
@@ -198,16 +199,17 @@ export class VideoPlayer {
         }
       } else {
         let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
-        /// 网络直播视频必须设置之后才能正常缓存
+        /// Network live video must be set this way for caching to work properly.
         let playbackStrategy: media.PlaybackStrategy = { preferredWidth: 1920, preferredHeight: 1080 };
         if (deviceInfo.sdkApiVersion >= 17) {
           playbackStrategy.showFirstFrameOnPrepare = true;
         }
-        // 设置媒体来源和播放策略
+        // Set the media source and playback strategy.
         await this.avPlayer.setMediaSource(mediaSource, playbackStrategy);
       }
-      // 创建时 stateChange 不会上报 idle，platformView 的第一次 initialized 在这里发：
-      // 洞要等 initialized 才进树，prepare 又要等洞。事件先进 QueuingEventSink。
+      // StateChange does not report idle at creation; the platformView's first initialized is sent here:
+      // The texture waits for initialized before entering the tree,
+      // And prepare waits for the texture. Events go into QueuingEventSink first.
       if (!this.usesExternalTexture()) {
         this.sendInitialized();
       }
@@ -223,7 +225,7 @@ export class VideoPlayer {
       Log.e(TAG, 'bindState, avPlayer is null');
       return;
     }
-    // 事件订阅幂等保护：避免 reset 后重复 bind 造成重复订阅。
+    // Event subscription idempotency guard: avoid duplicate subscriptions from re-binding after reset.
     if (this.eventsBound) {
       Log.w(TAG, 'bindState, events already bound, skip');
       return;
@@ -255,12 +257,12 @@ export class VideoPlayer {
           } catch (e) {
             Log.w(TAG, 'getRotationCorrection failed: ' + JSON.stringify(e));
           }
-          // reset 后 AVPlayer 回到 1 倍速。
+          // After reset, AVPlayer returns to 1x speed.
           this.appliedPlaybackSpeed = media.PlaybackSpeed.SPEED_FORWARD_1_00_X;
           if (this.url) {
             if (this.url.startsWith('http')) {
-              // 与 createAVPlayer 保持一致：http 网络源走 setMediaSource
-              // 保留 httpHeaders；reset 后重设 avPlayer.url 会丢弃这些配置
+              // Consistent with createAVPlayer: http network sources use setMediaSource
+              // to preserve httpHeaders; re-setting avPlayer.url after reset would drop them.
               let mediaSource: media.MediaSource = media.createMediaSourceWithUrl(this.url, this.headers);
               let playbackStrategy: media.PlaybackStrategy = { preferredWidth: 1920, preferredHeight: 1080 };
               if (deviceInfo.sdkApiVersion >= 17) {
@@ -372,6 +374,10 @@ export class VideoPlayer {
           if (!this.loop) {
             let curIndex = this.index + PlayConstants.PLAYER_NEXT;
             let globalVideoList = GlobalContext.getContext().getObject('globalVideoList') as VideoItem[];
+            if (!Array.isArray(globalVideoList) || globalVideoList.length === 0) {
+              Log.w(TAG, 'COMPLETED: globalVideoList is empty or missing');
+              break;
+            }
             this.index = (curIndex === globalVideoList.length) ? PlayConstants.PLAYER_FIRST : curIndex;
             if (this.url) {
               this.url = globalVideoList[this.index].iSrc;
@@ -435,8 +441,9 @@ export class VideoPlayer {
 
     this.avPlayer.on(Events.ERROR, (err: BusinessError) => {
       if (err.code == OPERATE_ERROR) {
-        // 直播落后播放窗口场景：与 Android ERROR_CODE_BEHIND_LIVE_WINDOW 一致，
-        // 静默回到默认位置继续播放，不上报错误
+        // Live playback falling behind the live window: same as Android
+        // ERROR_CODE_BEHIND_LIVE_WINDOW, silently return to the default position
+        // and keep playing without reporting an error.
         Log.e(TAG, 'AvPlayer Avoid Error Reporting: ' + JSON.stringify(err));
         try {
           this.avPlayer?.seekToDefaultPosition?.();
@@ -450,7 +457,8 @@ export class VideoPlayer {
         return;
       }
       Log.e(TAG, 'avPlayer Events.ERROR: ' + JSON.stringify(err));
-      // 出错后播放器将被 reset，及时停止缓冲轮询，避免无效轮询直至 release
+      // After an error the player will be reset; stop buffering polling promptly
+      // to avoid useless polling until release.
       this.stopBufferingInfoTimer();
       this.resetBufferingState();
       this.avPlayer?.reset().catch((e: Error) => {
@@ -461,38 +469,36 @@ export class VideoPlayer {
   }
 
   /**
-   * 设置音频焦点/混音模式（对应 platform 接口 setMixWithOthers）。
+   * Sets the audio focus / mixing mode (corresponds to the platform API setMixWithOthers).
    *
-   * Android 参考实现：创建 ExoPlayer 时通过 AudioAttributes 设置
-   * handleAudioFocus = !mixWithOthers 控制是否申请系统级音频焦点
-   * （true 不申请焦点，可与其他应用音频混播；false 申请独占焦点）。
+   * Android reference implementation: when creating the ExoPlayer, AudioAttributes sets
+   * handleAudioFocus = !mixWithOthers to control whether system-level audio focus is requested
+   * (true does not request focus, allowing mixed playback with other apps; false requests exclusive focus).
    *
-   * OHOS 差异说明：AVPlayer 未暴露系统级 AudioFocusManager 接口，
-   * 而是通过 player 的 audioInterruptMode 实现等价语义。
-   *   - SHARE_MODE（共享模式）：等价 Android mixWithOthers=true，
-   *     与其他音频会话共享，不中断其他应用播放。
-   *   - INDEPENDENT_MODE（独立模式）：等价 Android mixWithOthers=false，
-   *     当前播放器独占音频焦点，其他音频被暂停/弱化。
-   * 注意：系统级焦点 API（audio.requestAudioFocus）需 MANAGE_SYSTEM_AUDIO_EFFECTS
-   * 权限且主要面向 audio.AudioRenderer 场景，AVPlayer 场景下官方推荐的
-   * 混音控制方式即为 audioInterruptMode，故此处保持 player 级实现。
-   *
-   * @param mixWithOthers 是否与其他音频混合播放
-   *                      true: 共享模式，与其他音频混合
-   *                      false: 独占模式，暂停其他音频
+   * OHOS difference: AVPlayer does not expose a system-level AudioFocusManager interface,
+   * but achieves equivalent semantics via the player's audioInterruptMode.
+   *   - SHARE_MODE (shared mode): equivalent to Android mixWithOthers=true,
+   *     shares with other audio sessions without interrupting other apps' playback.
+   *   - INDEPENDENT_MODE (independent mode): equivalent to Android mixWithOthers=false,
+   *     the current player holds exclusive audio focus and other audio is paused/attenuated.
+   * Note: the system-level focus API (audio.requestAudioFocus) requires the
+   * MANAGE_SYSTEM_AUDIO_EFFECTS permission and mainly targets audio.AudioRenderer scenarios; for AVPlayer
+   * the officially recommended mixing control is audioInterruptMode, so a player-level implementation is kept here.
+
+   * @param mixWithOthers Whether to mix with other audio playback
+   *                      true: shared mode, mix with other audio
+   *                      false: exclusive mode, pause other audio
    */
   setAudioFocus(mixWithOthers: boolean): void {
     if (this.avPlayer == null) {
       Log.w(TAG, 'setAudioFocus: avPlayer is null, cannot set audio focus');
       return;
     }
-
-    // 根据 mixWithOthers 参数设置中断模式
+    // Set the interrupt mode based on the mixWithOthers parameter.
     this.interruptMode = mixWithOthers ?
-      audio.InterruptMode.SHARE_MODE :
-      audio.InterruptMode.INDEPENDENT_MODE;
-
-    // 更新播放器的音频中断模式
+          audio.InterruptMode.SHARE_MODE :
+          audio.InterruptMode.INDEPENDENT_MODE;
+    // Update the player's audio interrupt mode.
     this.avPlayer.audioInterruptMode = this.interruptMode;
 
     Log.i(TAG, `setAudioFocus: mixWithOthers=${mixWithOthers}, interruptMode=${this.interruptMode}`);
@@ -503,8 +509,8 @@ export class VideoPlayer {
   }
 
   /**
-   * PlatformView 的 XComponent 就绪后把 NativeWindow 交给这台 AVPlayer。
-   * 纹理路径在构造时就有 surfaceId，不会走到 pendingPrepare。
+   * Hands the NativeWindow to this AVPlayer once the PlatformView's XComponent is ready.
+   * The texture path already has a surfaceId at construction and never reaches pendingPrepare.
    */
   setSurfaceId(surfaceId: string): void {
     if (surfaceId.length === 0) {
@@ -540,12 +546,13 @@ export class VideoPlayer {
     }
     this.stopBufferingInfoTimer();
     this.resetBufferingState();
-    // 释放时恢复窗口常亮原始状态，避免直接释放（未经过 PAUSED/COMPLETED）时亮屏残留
+    // On release, restore the window's original always-on state to avoid
+    // leftover screen-on when released directly (without PAUSED/COMPLETED)
     this.status = CommonConstants.STATUS_STOP;
     this.watchStatus();
     try {
       if (this.avPlayer !== null) {
-        // 显式取消事件订阅，避免 release 后回调仍被触发
+        // Explicitly cancel event subscriptions so callbacks are not triggered after release.
         try {
           if (this.eventsBound) {
             this.avPlayer.off(Events.STATE_CHANGE);
@@ -565,8 +572,9 @@ export class VideoPlayer {
       this.avPlayer = null;
       this.finishPreparedWait();
       this.detachEventChannelIfIdle();
-      // fd 由本插件打开并负责关闭（AVPlayer 不会接管），必须保证在 release
-      // 的任何异常路径下都能关闭，避免 fd 泄漏（Too many open files）。
+      // The plugin opened this fd and is responsible for closing it
+      // (AVPlayer does not take ownership). Must close on any exception
+      // path in release to avoid fd leaks (Too many open files).
       if (this.fd != null) {
         try {
           fs.closeSync(this.fd!);
@@ -597,7 +605,6 @@ export class VideoPlayer {
       }
     }
   }
-
   play() {
     if (this.avPlayer == null) {
       return;
@@ -646,7 +653,7 @@ export class VideoPlayer {
   seekTo(position: number) {
     if (this.avPlayer !== null) {
       if (!this.isPrepared) {
-        // 0 表示播放头已在起点，同时清掉更早排队的 seek。
+        // 0 means the playhead is already at the start; also clear any earlier queued seek.
         this.pendingSeekPosition = position === 0 ? null : position;
         return;
       }
@@ -675,7 +682,7 @@ export class VideoPlayer {
       return this.seekPosition;
     }
     if (this.avPlayer !== null) {
-      // Dart 侧以 int（毫秒）接收，取整规避 currentTime 为小数时的强转风险
+      // Dart receives an int (milliseconds); truncating avoids cast issues when currentTime is fractional.
       return Math.trunc(Math.max(0, this.avPlayer.currentTime));
     } else {
       return 0;
@@ -808,8 +815,9 @@ export class VideoPlayer {
           continue;
         }
         const trackType = this.getTrackTypeFromDescription(desc);
-        // 仅收集明确为视频轨的 track；类型不明时结合是否带分辨率判断，
-        // 避免把音频/字幕等重复变体统计成画轨。
+        // Collect only tracks explicitly typed as video; when the type is unknown,
+        // combine with whether a resolution is present to decide, to avoid
+        // counting audio/subtitle duplicate variants as video tracks.
         const rec = desc as Object as TrackDescriptionRecord;
         const typeWidth = this.getIntFromRecord(rec,
           [media.MediaDescriptionKey.MD_KEY_WIDTH, 'width', 'video_width']);
@@ -825,7 +833,8 @@ export class VideoPlayer {
           continue;
         }
         const nativeTrack = new Map<string, NativeAudioTrackValue>();
-        // 优先用鸿蒙标准 MediaDescriptionKey 枚举键提取，否则取不到宽高/码率等值。
+        // Prefer the OHOS standard MediaDescriptionKey enum keys; otherwise
+        // width/height/bitrate values cannot be retrieved.
         const codec = this.getStringFromRecord(rec,
           [media.MediaDescriptionKey.MD_KEY_CODEC_MIME, 'codec_mime', 'codec', 'codecName', 'codecMimeType']);
         const bitrate = this.getIntFromRecord(rec,
@@ -834,22 +843,25 @@ export class VideoPlayer {
           [media.MediaDescriptionKey.MD_KEY_WIDTH, 'width', 'video_width']);
         const heightRaw = this.getIntFromRecord(rec,
           [media.MediaDescriptionKey.MD_KEY_HEIGHT, 'height', 'video_height']);
-        // 对齐 Android Format.NO_VALUE：宽高为 0/负值视为无值，避免显示 '0x0'。
+        // Align with Android Format.NO_VALUE: width/height of 0/negative are
+        // treated as no value, avoiding '0x0' display.
         const width = widthRaw != null && widthRaw > 0 ? widthRaw : null;
         const height = heightRaw != null && heightRaw > 0 ? heightRaw : null;
-        // 过滤 codec 含 'unknown' 的无效占位轨（如 track_index=16 的 0x0 轨）。
+        // Filter out invalid placeholder tracks whose codec
+        // contains 'unknown' (e.g. the 0x0 track with track_index=16).
         if (codec != null && codec.toLowerCase().includes('unknown')) {
           continue;
         }
         const rawFrameRate = this.getNumberFromRecord(rec,
           [media.MediaDescriptionKey.MD_KEY_FRAME_RATE, 'frame_rate', 'frameRate', 'framerate']);
-        // OHOS 的 MD_KEY_FRAME_RATE 单位是"每100秒的帧数"（6000=60fps），
-        // 除以 100 归一化；为 0 时视为无值。
+        // OHOS MD_KEY_FRAME_RATE is in "frames per 100 seconds" (6000=60fps);
+        // divide by 100 to normalize, and treat 0 as no value.
         const frameRate = rawFrameRate != null && rawFrameRate > 0
           ? rawFrameRate / 100
           : null;
-        // 画轨 label 优先用分辨率生成（'1080p'），无意义标题过滤，
-        // 均缺失时置 null 交给 Dart 层显示 'Track x_y'。
+        // The video track label prefers a resolution-based value ('1080p'); meaningless
+        // titles are filtered out, and when both are missing it is null so the Dart
+        // layer shows 'Track x_y'.
         const resLabel =
           width != null && height != null ? `${height}p` : null;
         const descLabel = this.pickTrackLabelFromRecord(rec);
@@ -858,7 +870,6 @@ export class VideoPlayer {
             ? null
             : descLabel;
         const label = resLabel ?? meaningfulDescLabel;
-
         if (this.selectedVideoTrackIndex < 0) {
           this.selectedVideoTrackIndex = trackIndex;
         }
@@ -872,7 +883,6 @@ export class VideoPlayer {
         nativeTrack.set('frameRate', frameRate);
         nativeTrack.set('codec', codec);
         tracks.push(nativeTrack);
-
         if (ENABLE_AUDIO_TRACK_DEBUG) {
           Log.i(TAG, `videoTrack id=${trackIndex}
         selected=${this.selectedVideoTrackIndex == trackIndex}
@@ -909,11 +919,11 @@ export class VideoPlayer {
           track.set('isSelected', track.get('id') === `0_${trackIndex}`);
         }
       }
-      // 切换视频轨道后分辨率可能变化，重设 surfaceId 强制渲染器刷新。
+      // After switching video tracks the resolution may change; reset surfaceId to force a renderer refresh.
       if (this.avPlayer.surfaceId) {
         this.avPlayer.surfaceId = this.surfaceId;
       }
-      // 通知 Dart 侧轨道已切换，完成选中等待并刷新 UI。
+      // Notify Dart that the track has switched, completing the selection wait and refreshing the UI.
       this.sendVideoTrackChanged();
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -929,11 +939,12 @@ export class VideoPlayer {
    * selectVideoTrack(groupIndex, trackIndex) to lock the quality. This
    * method reverts to the player default (adaptive streaming).
    *
-   * OHOS 差异说明：Android 实现通过 TrackSelector 调用
-   * clearOverridesOfType(C.TRACK_TYPE_VIDEO) 清除视频轨道 override 以
-   * 直接恢复自适应码流。OHOS AVPlayer 未提供等价的"清除单条视频轨道
-   * 选择"接口（deselectTrack 仅支持音频/字幕轨道），因此本实现采用
-   * 重新 selectTrack 初始默认轨道索引的方式恢复自适应行为，语义等价。
+   * OHOS difference: the Android implementation uses TrackSelector to call
+   * clearOverridesOfType(C.TRACK_TYPE_VIDEO) to clear the video track override and
+   * directly restore adaptive bitrate. OHOS AVPlayer has no equivalent API to
+   * "clear a single video track selection" (deselectTrack only supports audio/subtitle
+   * tracks), so this restores adaptive behavior by re-selecting the initial default
+   * track index, which is semantically equivalent.
    */
   async enableAutoVideoQuality(): Promise<void> {
     if (!this.usesExternalTexture()) {
@@ -955,7 +966,6 @@ export class VideoPlayer {
           track.set('isSelected', false);
         }
       }
-      // 恢复自适应后同样通知 Dart 侧刷新 UI（selectedTrackId 为空）。
       this.sendVideoTrackChanged();
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -1055,7 +1065,8 @@ export class VideoPlayer {
   }
 
   setLooping(isLooping: boolean) {
-    // loop 只能在 prepared 之后设置；platformView 在 prepare 前就发了 initialized，这里先记下，PREPARED 再应用。
+    // loop can only be set after prepared; platformView sends initialized before prepare,
+    // So record it here and apply at PREPARED.
     if (this.avPlayer != null && !this.isPrepared) {
       this.loop = isLooping;
       return;
@@ -1095,7 +1106,7 @@ export class VideoPlayer {
       return;
     }
     if (!this.isPrepared) {
-      // platformView 在 prepare 前就发了 initialized，这里先记下，PREPARED 再应用。
+      // platformView sent initialized before prepare; record it here and apply it at PREPARED.
       this.pendingSpeed = playSpeed;
       return;
     }
@@ -1114,7 +1125,7 @@ export class VideoPlayer {
    * Previous video.
    */
   previousVideo() {
-    if (this.avPlayer == null || this.playerModel == null || this.playerModel == null) {
+    if (this.avPlayer == null || this.playerModel == null) {
       return;
     }
     if (CommonConstants.OPERATE_STATE.indexOf(this.avPlayer.state) === -1) {
@@ -1383,7 +1394,7 @@ export class VideoPlayer {
     try {
       let windowClass = GlobalContext.getContext().getObject('windowClass') as window.Window;
       if (this.status === CommonConstants.STATUS_START) {
-        windowClass.setWindowKeepScreenOn(this.keepScreenOnDuringPlayback); // 由平台标志驱动
+        windowClass.setWindowKeepScreenOn(this.keepScreenOnDuringPlayback); // driven by the platform flag
       } else {
         windowClass.setWindowKeepScreenOn(this.isWindowKeepScreenOn);
       }
@@ -1394,7 +1405,8 @@ export class VideoPlayer {
 
   setKeepScreenOnDuringPlayback(keepScreenOn: boolean): void {
     this.keepScreenOnDuringPlayback = keepScreenOn;
-    // 标志变化时立即按新值刷新常亮状态，无需等待下一次状态切换。
+    // When the flag changes,
+    // Immediately refresh the always-on state with the new value without waiting for the next state change.
     this.watchStatus();
   }
 
@@ -1467,14 +1479,15 @@ export class VideoPlayer {
    * Sends a video track selection changed event to Dart with the selected
    * track id in '{groupIndex}_{trackIndex}' format.
    *
-   * OHOS AVPlayer 无 onTracksChanged 回调，故在 selectVideoTrack /
-   * enableAutoVideoQuality 成功后主动发送，供 Dart 层完成选中等待与 UI 刷新。
+   * OHOS AVPlayer has no onTracksChanged callback, so this is sent proactively after
+   * a successful selectVideoTrack / enableAutoVideoQuality for the Dart layer to
+   * complete the selection wait and refresh the UI.
    */
   sendVideoTrackChanged(): void {
     let event: HashMap<string, Object> = new HashMap<string, Object>();
     event.set('event', 'videoTrackChanged');
     if (this.selectedVideoTrackIndex < 0) {
-      // 恢复自适应模式：无确定选中轨道，置空仅驱动 UI 刷新。
+      // Restore adaptive mode: no specific track is selected, leaving it empty only drives a UI refresh.
       event.set('selectedTrackId', '');
     } else {
       event.set('selectedTrackId', `0_${this.selectedVideoTrackIndex}`);
@@ -1489,11 +1502,12 @@ export class VideoPlayer {
     try {
       extractor = await media.createAVMetadataExtractor();
       if (this.url?.startsWith('file://')) {
-        // 文档 URI 不能经 /proc/self/fd 复制。这里单独 open 一次，和播放用的 fd 不是同一支。
+        // Document URIs cannot be duplicated via /proc/self/fd.
+        // Open once separately here; not the same fd as the one used for playback.
         probeRawFd = this.openFileUri(this.url);
         extractor.fdSrc = this.descriptorForWholeFile(probeRawFd);
       } else if (this.url?.startsWith('fd://')) {
-        // 提取器不能和 AVPlayer 共用同一个打开的文件，经 /proc/self/fd 另开一份。
+        // The extractor cannot share the same open file with AVPlayer; open another copy via /proc/self/fd.
         fd = fs.openSync('/proc/self/fd/' + this.url.substring(5), fs.OpenMode.READ_ONLY);
         extractor.fdSrc = { fd: fd.fd, offset: 0, length: 0 };
       } else if (this.url) {
@@ -1544,14 +1558,14 @@ export class VideoPlayer {
     }
   }
 
-  /** 整文件描述符。size 为 0 时不写 length，避免被当成空文件。 */
+  /** Whole-file descriptor. When size is 0, length is omitted to avoid treating it as an empty file. */
   private descriptorForWholeFile(fdNumber: number): media.AVFileDescriptor {
     let length = 0;
     try {
       const size = fs.statSync(fdNumber).size;
       if (size > 0) {
         length = size;
-      } 
+      }
     } catch (e) {
       Log.w(TAG, 'stat probe fd failed: ' + JSON.stringify(e));
     }
@@ -1776,7 +1790,7 @@ export class VideoPlayer {
     const ohosFilePrefix = 'file://';
     const fdPrefix = 'fd://';
     if (iUrl != null && iUrl.startsWith(fdPrefix)) {
-      // 外部传入的 fd（插件侧 getFileFdByPath 打开），记录以便 release 时关闭
+      // Externally passed fd (opened by the plugin's getFileFdByPath); record it to close on release.
       const parsedFd = Number.parseInt(iUrl.substring(fdPrefix.length));
       if (!Number.isNaN(parsedFd) && parsedFd >= 0) {
         this.externalFd = parsedFd;
@@ -1815,7 +1829,8 @@ class StreamHandlerImpl implements StreamHandler {
 
   onCancel(args: Object): void {
     this.eventSink?.setDelegate(null);
-    // Dart 先 cancel 再 dispose。release 里提前拆 handler 会让 cancel 找不到实现。
+    // Dart cancels before dispose. Detaching the handler early in release
+    // Would make cancel unable to find the implementation.
     this.eventChannel?.setStreamHandler(null);
     this.eventChannel = null;
   }

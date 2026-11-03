@@ -23,13 +23,15 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   final OhosVideoPlayerApi _api;
 
-  /// playerId → 出画方式。两条路径的 playerId 都由引擎全局计数器分配。
-  /// 纹理路径会 registerTexture；PlatformView 只取号，不注册纹理。
+  /// playerId → presentation path. Both paths get their playerId from the engine
+  /// global counter. The texture path calls registerTexture; PlatformView only
+  /// takes an id and does not register a texture.
   final Map<int, VideoPlayerViewState> _viewStates =
       <int, VideoPlayerViewState>{};
 
-  // 用于在显式选择视频轨道时等待轨道切换完成，由原生侧成功切换后
-  // 发送的 videoTrackChanged 事件驱动此 completer 完成。
+  // Used to wait for the switch to finish when a video track is explicitly
+  // selected; completed by the videoTrackChanged event sent by the native side
+  // after a successful switch.
   Completer<void>? _videoTrackSelectionCompleter;
   String? _expectedVideoTrackId;
 
@@ -53,8 +55,9 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
 
   @override
   Future<int?> createWithOptions(VideoCreationOptions options) async {
-    // 透传 backBufferDurationMs（2.12.0 引入）：OHOS 侧暂不使用该字段，
-    // 仅读取以确保与新版 VideoCreationOptions 序列化保持一致。
+    // Pass backBufferDurationMs through (introduced in 2.12.0): the OHOS side
+    // does not use this field yet; it is only read to stay serialization-compatible
+    // with the newer VideoCreationOptions.
     final int? backBufferDurationMs =
         options.videoPlayerOptions?.backBufferDurationMs;
     return _create(
@@ -95,11 +98,13 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
         break;
       case DataSourceType.file:
         final String? fileUri = dataSource.uri;
-        // file:// 是否原样传递取决于 viewType。
-        // Platform view 要按原串再开一支做探测。先收成 fd:// 再经 /proc/self/fd
-        // 复制会丢掉选择器授权，宽高变成 0。
-        // 纹理不走这次探测，file:// 仍由 getFileFdByPath 收成 fd。
-        // fd:// 两种视图都原样传递。沙箱裸路径两种视图都走 getFileFdByPath。
+        // Whether file:// is passed through as-is depends on viewType.
+        // The PlatformView must open another duplicate from the original string for
+        // probing. Converting to fd:// first and copying via /proc/self/fd would lose
+        // the picker grant and make width/height 0.
+        // The texture path skips this probing; file:// is still converted to an fd by
+        // getFileFdByPath. fd:// is passed through as-is for both views. Bare sandbox
+        // paths go through getFileFdByPath for both views.
         if (fileUri != null &&
             (fileUri.startsWith('fd://') ||
                 (viewType == VideoViewType.platformView &&
@@ -138,8 +143,9 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
               : VideoPlayerTextureViewState(textureId: playerId);
       return playerId;
     } catch (e) {
-      // create 失败时播放器还没接管这个 fd（hcpp_unavailable 甚至还没构造播放器）。
-      // 成功路径仍由 VideoPlayer.release() 关闭 externalFd。
+      // When create fails the player has not taken over this fd yet (hcpp_unavailable
+      // may not even have constructed a player). On success the fd is still closed by
+      // VideoPlayer.release() via externalFd.
       if (openedFd != null && openedFd >= 0) {
         await VideoPlayerOhosChannel.closeFileFd(openedFd);
       }
@@ -229,8 +235,9 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
             isPlaying: map['isPlaying'] as bool,
           );
         case 'videoTrackChanged':
-          // 显式选择时等待轨道切换完成。仅当存在待完成事件且上报的
-          // trackId 与等待中的一致时才完成，避免早期/无关的事件误触发。
+          // Wait for the track switch when explicitly selecting. Complete only when
+          // there is a pending completer and the reported trackId matches the awaited
+          // one, to avoid early/unrelated events completing it by mistake.
           if (_videoTrackSelectionCompleter != null &&
               !_videoTrackSelectionCompleter!.isCompleted) {
             final String? selectedTrackId = map['selectedTrackId'] as String?;
@@ -342,14 +349,15 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
       return;
     }
     if (track == null) {
-      // 恢复自适应/自动质量。原生侧会发送 videoTrackChanged 事件，
-      // 但无确定的"选中轨道"，因此不等待具体轨道，直接返回，UI 刷新由事件驱动。
+      // Restore adaptive/auto quality. The native side sends a videoTrackChanged
+      // event, but there is no definite "selected track", so we do not wait for a
+      // specific track and return directly; the UI refresh is driven by the event.
       await _api.enableAutoVideoQuality(playerId);
       return;
     }
 
-    // 显式选择：等待原生侧上报对应 trackId 的 videoTrackChanged 事件，
-    // 确保 UI 上的 isSelected 与实际切换一致。
+    // Explicit selection: wait for the native side to report the videoTrackChanged
+    // event for the matching trackId so the UI's isSelected matches the actual switch.
     final (int groupIndex, int trackIndex) = _parseTrackId(track.id);
     final Completer<void> completer = Completer<void>();
     final String expectedId = track.id;
@@ -460,7 +468,8 @@ class OhosVideoPlayer extends VideoPlayerPlatform {
     final int? height = _toInt(track['height']);
     final double? frameRate = _toDouble(track['frameRate']);
     final bool isSelected = track['isSelected'] == true;
-    // 与 Android 实现对齐：label 缺失时根据分辨率生成（如 "1080p"）。
+    // Aligned with the Android implementation: generate the label from the
+    // resolution when missing (e.g. "1080p").
     final String? label =
         track['label']?.toString() ??
         (width != null && height != null ? '${height}p' : null);

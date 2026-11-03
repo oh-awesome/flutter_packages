@@ -33,14 +33,14 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 |---|---|---|
-| 3.44 | video_player-v2.14.0-ohos-1.0.1 | oh-3.44.9-dev |
+| 3.47 | video_player-v2.14.1-ohos-1.0.0 | oh-3.47.7-dev |
 
 > TAG 命名规则：`原库版本-ohos-版本号`。
 
-**版本升级与迁移（v2.11.1 → v2.14.0，Flutter 3.35 → 3.44）**
+**版本升级与迁移（v2.14.0 → v2.14.1，Flutter 3.44 → 3.47）**
 
-1. 更新 Flutter SDK 到 3.44.9-ohos-1.0.0（含配套 DevEco Studio 6.1.1.268、SDK 5.0.0(12)）。
-2. 将 `pubspec.yaml` 中 `video_player_ohos` 的 `ref` 从 `video_player-v2.11.1-ohos-1.0.0` 改为 `video_player-v2.14.0-ohos-1.0.1`，`video_player` 主包同步升到 `^2.14.0`。
+1. 更新 Flutter SDK 到 3.47.7+ohos-0.0.1-canary1（含配套 DevEco Studio 6.1.1.268、SDK 5.0.5(17)）。
+2. 将 `pubspec.yaml` 中 `video_player_ohos` 的 `ref` 从 `video_player-v2.14.0-ohos-1.0.1` 改为 `video_player-v2.14.1-ohos-1.0.0`，`video_player` 主包同步升到 `^2.14.1`。 
 3. 执行 `flutter pub get` 后重新构建 HAP。主包 2.12.0 起 `VideoPlayerController` 构造新增 `VideoPlayerOptions.backBufferDurationMs`，OHOS 侧当前忽略该参数，升级无需改业务代码。
 4. 若旧工程使用 `br_video_player-v2.11.1_ohos` 分支，请切换到 `oh-3.44.9-dev` 分支后重新拉取。
 
@@ -48,7 +48,7 @@ flutter pub get
 
 ### 兼容性
 
-1. Flutter: 3.44.9-ohos-1.0.0, DevEco Studio: 6.1.1.268, SDK: 5.0.5(17), ROM: 6.1 Developer Beta;
+1. Flutter: 3.47.7+ohos-0.0.1-canary1, DevEco Studio: 6.1.1.268, SDK: 5.0.5(17), ROM: 6.1 Developer Beta; 
 
 ### 权限要求
 

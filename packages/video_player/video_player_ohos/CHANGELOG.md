@@ -1,5 +1,15 @@
 # CHANGELOG for OpenHarmony
 
+## video_player-v2.14.1-ohos-1.0.0-2026.11
+
+**Changed**
+
+* Only `playerId` is passed to the HCPP PlatformView factory through `creationParams`; the unused source, `objectFit`, looping and speed fields are no longer parsed on the ArkTS side or sent from Dart. ([1803](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1803))
+
+**Fixed**
+
+* Null-check `globalVideoList` in the `COMPLETED` branch when looping is disabled, so a player without a configured playlist no longer throws a `TypeError` when playback finishes. This matches the guard already used by `previousVideo` and `nextVideo`. ([1803](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1803))
+
 ## video_player-v2.14.0-ohos-1.0.1-2026.9
 
 **Added**

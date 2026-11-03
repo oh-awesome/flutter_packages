@@ -37,7 +37,7 @@ function openSandboxFile(filePath: string): fs.File {
   }
 }
 
-// 将 FlutterState 类移到顶部定义
+// Move the FlutterState class definition to the top.
 export class FlutterState {
   private binaryMessenger: BinaryMessenger;
   private textureRegistry: TextureRegistry;
@@ -61,9 +61,9 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
   private videoPlayerApiImpl: VideoPlayerApiImpl | null = null;
   private flutterState: FlutterState | null = null;
   private channel: MethodChannel | null = null;
-  // ability 先于 engine attach 到达时记录，engine attach 后补偿创建 API 通道。
+  // Recorded when ability arrives before engine attach; after engine attach, create the API channel as compensation.
   private pendingAbilityBinding: AbilityPluginBinding | null = null;
-  // ability 先于 engine attach 到达时记录，engine attach 后补偿创建 method channel。
+  // Recorded when ability arrives before engine attach; after engine attach, rebuild the method channel.
   private pendingChannel: boolean = false;
 
   getUniqueClassName(): string {
@@ -82,7 +82,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
         result.success(-1);
       }
     } else if (call.method == "closeFileFd") {
-      // Dart 侧 create 失败时回收未被播放器消费的 fd，避免泄漏。
+      // When create fails on the Dart side, reclaim the fd not consumed by the player to avoid a leak.
       try {
         let fd = call.argument("fd") as number;
         fs.closeSync(fd);
@@ -92,7 +92,8 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
         result.success(false);
       }
     } else if (call.method == "setKeepScreenOn") {
-      // Dart 层 preventsDisplaySleepDuringVideoPlayback 透传，驱动原生按标志控制屏幕常亮。
+      // Dart passes through preventsDisplaySleepDuringVideoPlayback;
+      // drives the native side to control screen keep-on by this flag.
       try {
         let playerId = call.argument("playerId") as number;
         let keepScreenOn = call.argument("keepScreenOn") as boolean;
@@ -105,7 +106,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
         result.success(false);
       }
     } else {
-      // 未识别的方法必须回复，否则 Flutter 侧 Future 将永久挂起。
+      // Unrecognized methods must be replied to, otherwise the Flutter-side Future hangs forever.
       result.notImplemented();
     }
   }
@@ -120,7 +121,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
         return this.videoPlayerApiImpl?.getPlayer(playerId) ?? null;
       })
     );
-    // ability 先于 engine attach 到达时的补偿：补充创建 VideoPlayerApiImpl 通道。
+    // Compensation for ability arriving before engine attach: additionally create the VideoPlayerApiImpl channel.
     if (this.pendingAbilityBinding != null && this.videoPlayerApiImpl == null) {
       Log.i(TAG, "VideoPlayer compensate VideoPlayerApiImpl setup after engine attach");
       const abilityBinding = this.pendingAbilityBinding;
@@ -128,7 +129,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
       this.videoPlayerApiImpl.setup(this.pluginBinding.getBinaryMessenger());
       this.pendingAbilityBinding = null;
     }
-    // ability 先于 engine attach 到达时的补偿：补建 method channel。
+    // Compensation for ability arriving before engine attach: additionally create the method channel.
     if (this.pendingChannel && this.channel == null) {
       Log.i(TAG, "VideoPlayer compensate channel setup after engine attach");
       this.channel = new MethodChannel(this.pluginBinding.getBinaryMessenger(), "plugins.flutter.io/video_player_ohos");
@@ -152,7 +153,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
       this.videoPlayerApiImpl = new VideoPlayerApiImpl(this.flutterState, binding);
       this.videoPlayerApiImpl.setup(this.pluginBinding.getBinaryMessenger());
     } else if (this.videoPlayerApiImpl == null) {
-      // engine 尚未 attach，记录待补偿。
+      // Engine not attached yet; record it for later compensation.
       Log.w(TAG, "VideoPlayer onAttachedToAbility before engine attach, defer setup");
       this.pendingAbilityBinding = binding;
     }
@@ -160,7 +161,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
       this.channel = new MethodChannel(this.pluginBinding.getBinaryMessenger(), "plugins.flutter.io/video_player_ohos");
       this.channel.setMethodCallHandler(this);
     } else {
-      // 记录待补偿，engine attach 后在 onAttachedToEngine 中补建通道。
+      // Record for compensation; rebuild the channel in onAttachedToEngine after engine attach.
       this.pendingChannel = true;
     }
   }
@@ -170,7 +171,7 @@ export class VideoPlayerPlugin implements FlutterPlugin, AbilityAware, MethodCal
     this.disposeAll();
   }
 
-  // 添加资源释放的通用方法
+  // Generic method for releasing resources
   private disposeAll(): void {
     if (this.videoPlayerApiImpl != null) {
       if (this.pluginBinding != null) {

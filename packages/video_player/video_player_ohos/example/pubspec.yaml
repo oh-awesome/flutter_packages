@@ -30,7 +30,7 @@ dependency_overrides:
     path: ../
   path_provider:
     git:
-      url: https://gitcode.com/openharmony-sig/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/path_provider/path_provider
       ref: "br_path_provider-v2.1.5_ohos"
   # Local 6.9.0 APIs (videoPlayerOptions / setPreventsDisplaySleepDuringVideoPlayback)

@@ -11,7 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:video_player_ohos/src/messages.g.dart';
-// import 'package:video_player_ohos/src/platform_view_player.dart';
+import 'package:video_player_ohos/src/platform_view_player.dart';
+import 'package:video_player_ohos/src/video_player_ohos_channel.dart';
 import 'package:video_player_ohos/video_player_ohos.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
@@ -456,11 +457,11 @@ void main() {
     //     isA<PlatformViewPlayer>(),
     //   );
     // });
-    // OHOS 不支持以下两个 backBufferDurationMs 用例：
-    // 原因：OHOS 的 OhosVideoPlayerApi 没有 createForTextureView /
-    // createForPlatformView 方法（只有单一的 create(CreateMessage)），
-    // 也不存在 CreationOptions / TexturePlayerIds 类。
-    // 此外 setUpMockPlayer 返回二元组，而非 Android 的三元组。
+    // OHOS does not support the following two backBufferDurationMs cases:
+    // Reason: the OHOS OhosVideoPlayerApi has no createForTextureView /
+    // createForPlatformView methods (only a single create(CreateMessage)),
+    // and there are no CreationOptions / TexturePlayerIds classes.
+    // In addition, setUpMockPlayer returns a pair, not Android's triple.
     //
     // test('createWithOptions passes backBufferDurationMs for texture view', () async {
     //   final (OhosVideoPlayer player, MockOhosVideoPlayerApi api, _) = setUpMockPlayer(
@@ -1079,15 +1080,18 @@ void main() {
     });
 
     group('video tracks', () {
-      // ---- OHOS 已实现、经简单替换后即可运行的用例 ----
+      // ---- Cases already implemented on OHOS, runnable after a simple swap ----
 
-      // 桥接 OHOS EventChannel 与测试可控的事件流。
-      // OHOS 的 selectVideoTrack 依赖外部订阅 videoEventsFor(textureId) 来
-      // 接收 videoTrackChanged 事件并完成等待；这里用 StreamController 桥接，
-      // 测试可在任意时机 add 事件，从而精确控制 completer 的完成时机（避免 5s 超时）。
+      // Bridges the OHOS EventChannel to a test-controlled event stream.
+      // The OHOS selectVideoTrack relies on an external subscription to
+      // videoEventsFor(textureId) to receive videoTrackChanged events and
+      // finish waiting; a StreamController bridges this, letting the test add
+      // events at any time and precisely control when the completer finishes
+      // (avoiding the 5s timeout).
       //
-      // 返回 controller：测试需先调用 controller.stream 以激活订阅，
-      // 再在需要的时机向 controller.add(eventMap) 下发事件。
+      // Returns the controller: the test must first call controller.stream to
+      // activate the subscription, then push events via controller.add(eventMap)
+      // when needed.
       StreamController<Object?> mockVideoTrackStream() {
         final StreamController<Object?> controller = StreamController<Object?>();
         final EventChannel eventChannel = EventChannel(
@@ -1130,8 +1134,8 @@ void main() {
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
-        // OHOS 通过 List<Object?>（弱类型 Map）传递视频轨道数据，
-        // 字段与 Android 的 ExoPlayerVideoTrackData 一一对应。
+        // OHOS passes video track data as List<Object?> (weakly typed Map),
+        // whose fields map one-to-one to Android's ExoPlayerVideoTrackData.
         when(api.getVideoTracks(1)).thenAnswer(
           (_) async => <Object?>[
             <String, Object?>{
@@ -1205,14 +1209,14 @@ void main() {
           playerId: 1,
         );
         when(api.selectVideoTrack(1, 0, 2)).thenAnswer((_) async {});
-        // 激活事件流并下发所选轨道的切换事件，使 selectVideoTrack 的
-        // Completer 提前完成（避免 5s 超时）。
+        // Activate the event stream and push the selected track's change event,
+        // so selectVideoTrack's Completer finishes early (avoiding the 5s timeout).
         final StreamController<Object?> streamController = mockVideoTrackStream();
         player.videoEventsFor(1).listen((_) {});
 
         const track = VideoTrack(id: '0_2', isSelected: false);
         final Future<void> selectionFuture = player.selectVideoTrack(1, track);
-        // 等原生调用完成（微任务）后下发事件，再等待 completer 完成。
+        // Wait for the native call (microtask) to finish, then push the event and await the completer.
         await Future<void>.delayed(Duration.zero);
         streamController.add(<String, Object?>{
           'event': 'videoTrackChanged',
@@ -1244,13 +1248,13 @@ void main() {
         expect(() => player.selectVideoTrack(1, track), throwsA(isA<ArgumentError>()));
       });
 
-      // ---- OHOS 无法实现的用例（依赖 Android 特有语义，注释保留） ----
+      // ---- Cases not implementable on OHOS (Android-specific semantics, comments kept) ----
 
       test('getVideoTracks generates label from resolution if not provided', () async {
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
-        // OHOS 与 Android 行为一致：label 缺失时根据分辨率生成（"1080p"）。
+        // OHOS matches Android: when label is missing, generate it from the resolution ("1080p").
         when(api.getVideoTracks(1)).thenAnswer(
           (_) async => <Object?>[
             <String, Object?>{
@@ -1268,7 +1272,7 @@ void main() {
         expect(tracks[0].label, '1080p');
       });
 
-      // ---- OHOS 已实现对应机制、可运行的用例（与 Android 对齐） ----
+      // ---- Cases runnable on OHOS with the mechanism implemented (aligned with Android) ----
 
       testWidgets('selectVideoTrack logs when track change event times out', (
         WidgetTester tester,
@@ -1276,8 +1280,9 @@ void main() {
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
-        // 原生 selectVideoTrack 立即返回，但不触发任何 videoTrackChanged
-        // 事件，因此 completer 会等到 5s 超时并打印 debugPrint 日志。
+        // The native selectVideoTrack returns immediately but triggers no
+        // videoTrackChanged event, so the completer waits for the 5s timeout and
+        // logs via debugPrint.
         when(api.selectVideoTrack(1, 0, 2)).thenAnswer((_) async {});
 
         const track = VideoTrack(id: '0_2', isSelected: false);
@@ -1301,7 +1306,7 @@ void main() {
           await tester.pump();
           expect(logMessages, isEmpty);
 
-          // 推进虚拟时间跨过 5s 超时阈值。
+          // Advance the virtual time past the 5s timeout threshold.
           await tester.pump(const Duration(seconds: 5));
           await tester.pump();
 
@@ -1319,13 +1324,13 @@ void main() {
       });
 
       test('concurrent selectVideoTrack calls do not clobber each other', () async {
-        // 语义对齐：验证并发调用时，较早调用失败后其 finally 不会清空
-        // 较晚调用仍在等待的 completer/expected-id（OHOS 用 identical 判断
-        // 字段归属，与 Android 一致）。
+        // Semantic alignment: verify that for concurrent calls, an earlier call's
+        // finally does not clear the completer/expected-id that a later call is
+        // still waiting on (OHOS uses identical to check field ownership, matching Android).
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
-        // 让 call 1 快速失败，从而在 call 2 仍在等待时执行其 finally。
+        // Make call 1 fail fast so its finally runs while call 2 is still waiting.
         when(api.selectVideoTrack(1, 0, 1))
             .thenAnswer((_) async => throw StateError('boom'));
         when(api.selectVideoTrack(1, 0, 2)).thenAnswer((_) async {});
@@ -1336,8 +1341,8 @@ void main() {
         final StreamController<Object?> streamController = mockVideoTrackStream();
         player.videoEventsFor(1).listen((_) {});
 
-        // 同时启动两个调用，并把错误匹配器先绑定到 call 1，避免其
-        // StateError 被当作未处理的异步错误上报。
+        // Start both calls at once and bind the error matcher to call 1 first,
+        // so its StateError is not reported as an unhandled async error.
         final Future<void> firstFuture = player.selectVideoTrack(1, trackA);
         final Future<void> firstAssertion = expectLater(
           firstFuture,
@@ -1345,16 +1350,16 @@ void main() {
         );
         final Future<void> secondFuture = player.selectVideoTrack(1, trackB);
 
-        // 让微任务（被 await 的原生调用）settle，使 call 1 的 finally 先执行。
+        // Let the microtask (the awaited native call) settle so call 1's finally runs first.
         await Future<void>.delayed(Duration.zero);
 
-        // 为 call 2 下发匹配事件。
+        // Push the matching event for call 2.
         streamController.add(<String, Object?>{
           'event': 'videoTrackChanged',
           'selectedTrackId': '0_2',
         });
 
-        // call 2 应在匹配事件到达时立即完成。
+        // call 2 should complete immediately when the matching event arrives.
         await secondFuture;
         await firstAssertion;
 
@@ -1363,8 +1368,9 @@ void main() {
       });
 
       test('selectVideoTrack(null) resolves without waiting for a track event', () async {
-        // 语义对齐：验证 auto/自适应选择自行完成（清除 override），
-        // 不依赖任何 videoTrackChanged 事件；若依赖事件，此处会挂起至超时。
+        // Semantic alignment: verify that the auto/adaptive selection completes on
+        // its own (clearing the override) without relying on any videoTrackChanged
+        // event; if it relied on an event, it would hang until timeout.
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
@@ -1382,9 +1388,10 @@ void main() {
       });
 
       test('consecutive selectVideoTrack calls both complete', () async {
-        // 语义对齐：验证两次连续调用都正确路由到原生并完成。
-        // OHOS 的 selectVideoTrack 会等待 videoTrackChanged 事件，
-        // 每次调用前需激活事件流并下发对应轨道的切换事件，避免 5s 超时。
+        // Semantic alignment: verify that two consecutive calls both route to the
+        // native side and complete. The OHOS selectVideoTrack waits for
+        // videoTrackChanged events, so each call must activate the event stream and
+        // push the corresponding track's change event to avoid the 5s timeout.
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
@@ -1419,8 +1426,9 @@ void main() {
 
       test("selectVideoTrack(null) is not completed by a prior selection's event",
           () async {
-        // 语义对齐：验证先前显式选择的切换事件不会误匹配后续 auto 选择，
-        // 且 auto 选择自身不等待任何事件（立即完成）。
+        // Semantic alignment: verify that a prior explicit selection's change event
+        // does not wrongly match a later auto selection, and that the auto selection
+        // itself waits for no event (completes immediately).
         final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) = setUpMockPlayer(
           playerId: 1,
         );
@@ -1432,19 +1440,19 @@ void main() {
         final StreamController<Object?> streamController = mockVideoTrackStream();
         player.videoEventsFor(1).listen((_) {});
 
-        // 启动一个尚未完成（事件未到达）的显式选择。
+        // Start an explicit selection that has not yet completed (event not arrived).
         var explicitCompleted = false;
         final Future<void> explicitFuture = player.selectVideoTrack(1, trackA).then((_) {
           explicitCompleted = true;
         });
         await Future<void>.delayed(Duration.zero);
 
-        // 切换到 auto：应自行完成，不等待任何事件。
+        // Switch to auto: it should complete on its own and wait for no event.
         await player.selectVideoTrack(1, null);
         verify(api.enableAutoVideoQuality(1));
 
-        // 下发较早的显式选择（'0_1'）的切换事件，它只应完成该显式 future，
-        // 不会误触发已完成的 auto 调用。
+        // Push the earlier explicit selection's ('0_1') change event; it should only
+        // complete that explicit future and not wrongly trigger the completed auto call.
         streamController.add(<String, Object?>{
           'event': 'videoTrackChanged',
           'selectedTrackId': '0_1',
@@ -1454,6 +1462,79 @@ void main() {
         expect(explicitCompleted, isTrue);
         verify(api.selectVideoTrack(1, 0, 1));
       });
+    });
+  });
+
+  group('OhosVideoPlayer view building', () {
+    test('buildView returns a Texture widget for a texture-view player', () async {
+      final (OhosVideoPlayer player, MockOhosVideoPlayerApi api) =
+          setUpMockPlayer(playerId: 1);
+      when(api.create(any)).thenAnswer((_) async => 7);
+
+      final int? playerId = await player.create(
+        DataSource(
+          sourceType: DataSourceType.network,
+          uri: 'https://example.com/a.mp4',
+        ),
+      );
+
+      expect(player.buildView(playerId!), isA<Texture>());
+    });
+
+    testWidgets(
+      'setPreventsDisplaySleepDuringVideoPlayback forwards the keep-screen-on flag',
+      (WidgetTester tester) async {
+        final (OhosVideoPlayer player, _) = setUpMockPlayer(playerId: 1);
+        final List<MethodCall> calls = <MethodCall>[];
+        tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+          VideoPlayerOhosChannel.channel,
+          (MethodCall call) async {
+            calls.add(call);
+            return null;
+          },
+        );
+        addTearDown(() {
+          tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+            VideoPlayerOhosChannel.channel,
+            null,
+          );
+        });
+
+        await player.setPreventsDisplaySleepDuringVideoPlayback(4, true);
+
+        expect(calls.single.method, 'setKeepScreenOn');
+        expect(calls.single.arguments, <String, Object>{
+          'playerId': 4,
+          'keepScreenOn': true,
+        });
+      },
+    );
+  });
+
+  group('PlatformViewPlayer', () {
+    testWidgets('build wraps a PlatformViewLink in an IgnorePointer', (
+      WidgetTester tester,
+    ) async {
+      late BuildContext context;
+      await tester.pumpWidget(
+        Builder(
+          builder: (BuildContext ctx) {
+            context = ctx;
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+
+      final Widget view = const PlatformViewPlayer(
+        playerId: 7,
+        source: 'https://example.com/video.mp4',
+      ).build(context);
+
+      expect(view, isA<IgnorePointer>());
+      final PlatformViewLink link =
+          (view as IgnorePointer).child! as PlatformViewLink;
+      expect(link.viewType, kVideoPlayerOhosViewType);
+      expect(link.key, const ValueKey<int>(7));
     });
   });
 }

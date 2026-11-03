@@ -71,8 +71,9 @@ function illegalStateException(message: string): Error {
 }
 
 /**
- * 校验 Pigeon 通道消息参数：msg 必须为数组且包含至少 expectedCount 个非空元素，
- * 避免 `as number` 等强转产生 undefined 继而污染下游调用链。
+ * Validate Pigeon channel message arguments: msg must be an array with at least
+ * expectedCount non-null elements, avoiding undefined from casts like `as number`
+ * polluting the downstream call chain.
  */
 function requireChannelArgs(msg: Object, methodName: string, expectedCount: number): Array<Object> {
   if (!Array.isArray(msg)) {
@@ -96,7 +97,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   private binding: AbilityPluginBinding | null = null;
   private audioFocus: boolean = false;
   private pixelMaps: HashMap<string, image.PixelMap> = new HashMap();
-  // playerId -> openIndependentRawFd 打开的 fd，播放器释放后关闭。
+  // playerId -> fd opened by openIndependentRawFd, closed after the player is released.
   private ownedAssetFds: HashMap<number, number> = new HashMap();
   private rawFdQueue: Promise<void> = Promise.resolve();
 
@@ -170,10 +171,13 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   }
 
   /**
-   * getRawFd 对同一路径返回同一个 HAP fd，媒体服务按它的共享文件偏移顺序读。
-   * 同一 asset 被两个读者同时读会互相改写偏移，解析失败后提前 EOS。
-   * 经 /proc/self/fd 重开得到独立偏移；失败返回 null，调用方沿用共享 fd。
-   * getRawFd/closeRawFd 按路径生效，所以串行执行。
+   * getRawFd returns the same HAP fd for the same path, and the media service reads
+   * sequentially at its shared file offset.
+   * The same asset read by two readers at once overwrites each other's offset,
+   * causing parsing failure and early EOS.
+   * Reopening via /proc/self/fd yields an independent offset; on failure it returns
+   * null and the caller falls back to the shared fd.
+   * getRawFd/closeRawFd act per path, so run them serially.
    */
   private openIndependentRawFd(rawPath: string): Promise<resourceManager.RawFileDescriptor | null> {
     const task = this.rawFdQueue.then(async (): Promise<resourceManager.RawFileDescriptor | null> => {
@@ -234,12 +238,12 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     let playerModel = new PlayerModel();
     let uri: string = arg.getUri();
     let asset: string = arg.getAsset();
-     // packaged asset 的实际资源路径为 packages/<packageName>/<asset>，与 Android 对齐。
+     // The actual resource path of a packaged asset is packages/<packageName>/<asset>, aligned with Android.
     const packageName: string | null = arg.getPackageName()?.toString() || null;
     const assetKey: string = asset != null && packageName != null
       ? `packages/${packageName}/${asset}`
       : asset;
-    // backBufferDurationMs：OHOS 暂不支持，忽略即可。
+    // backBufferDurationMs: not supported on OHOS yet, just ignore it.
     const backBufferDurationMs = arg.getBackBufferDurationMs();
     if (backBufferDurationMs != null) {
       Log.i(TAG, 'create with backBufferDurationMs=' + backBufferDurationMs + ' (not supported on OHOS)');
@@ -271,7 +275,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       let windowProperties = windowClass.getWindowProperties();
       const width = windowProperties.windowRect.width;
       const height = windowProperties.windowRect.height;
-      // 背景帧 PixelMap 同样纳入 pixelMaps 追踪，保证失败/替换路径均可显式释放。
+      // The background-frame PixelMap is also tracked in pixelMaps so that both the
+      // failure and replacement paths can release it explicitly.
       const blackPixelMap = await this.createBlackPixelMap(width, height);
       this.pixelMaps.set(textureId.toString(), blackPixelMap);
       flutterRenderer.setTextureBackGroundPixelMap(textureId, blackPixelMap);
@@ -300,7 +305,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
               width: -1,
               height: -1
             });
-            // 显式释放被首帧替换的黑色背景 PixelMap，避免覆盖路径泄漏原生位图。
+            // Explicitly release the black background PixelMap replaced by the first
+            // frame, avoiding a native bitmap leak on the overwrite path.
             this.releaseSupersededPixelMap(textureId);
             this.pixelMaps.set(textureId.toString(), pixelMap);
             flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
@@ -339,7 +345,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
               width: -1,
               height: -1
             });
-            // 显式释放被首帧替换的黑色背景 PixelMap，避免覆盖路径泄漏原生位图。
+            // Explicitly release the black background PixelMap replaced by the first
+            // frame, avoiding a native bitmap leak on the overwrite path.
             this.releaseSupersededPixelMap(textureId);
             this.pixelMaps.set(textureId.toString(), pixelMap);
             flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
@@ -377,7 +384,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       Log.i(TAG, `The player was created successfully,ID: ${playerId}`);
       return playerId;
     } catch (e) {
-      // 创建失败时清理已分配资源（纹理、PixelMap、AVPlayer），避免泄漏。
+      // On creation failure, clean up allocated resources (texture, PixelMap, AVPlayer) to avoid leaks.
       Log.e(TAG, 'create failed, clean up resources. error=' + e);
       try {
         flutterRenderer.unregisterTexture(playerId);
@@ -403,8 +410,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   }
 
   /**
-   * PlatformView / HCPP: 同一台 VideoPlayer，不申请 Texture。
-   * 画布在 XComponent onLoad 之后由 setSurfaceId 补上。
+   * PlatformView / HCPP: the same VideoPlayer, no Texture is requested.
+   * The canvas is supplied by setSurfaceId after XComponent onLoad.
    */
   private async createPlatformViewPlayer(
     uri: string,
@@ -423,7 +430,8 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     } catch (e) {
       Log.w(TAG, 'getLastWindow skipped for platform view: ' + e);
     }
-    // 与纹理共用引擎计数器。这里只取号，不 registerTexture，dispose 不会 unregister。
+    // Shares the engine counter with textures.
+    // Here we only take an id without registerTexture, so dispose will not unregister.
     const playerId = this.flutterState.getTextureRegistry().getTextureId();
     Log.i(TAG, 'create platform view player, playerId=' + playerId);
     const eventChannel: EventChannel = new EventChannel(
@@ -503,7 +511,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   }
 
   /**
-   * 释放指定播放器对应的 PixelMap（以 textureId/playerId 为 key）。
+   * Release the PixelMap for the specified player (keyed by textureId/playerId).
    */
   pixelMapReleaseById(playerId: number) {
     const key = playerId.toString();
@@ -515,8 +523,9 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   }
 
   /**
-   * 释放即将被新 PixelMap 替换的旧背景帧（如黑色背景被视频首帧覆盖）。
-   * 仅 release 不删 entry，随后调用方会以新帧覆盖同 key。
+   * Releases the old background frame about to be replaced by a new PixelMap
+   * (e.g. the black background overwritten by the first video frame).
+   * Only releases without removing the entry; the caller then overwrites the same key with the new frame.
    */
   releaseSupersededPixelMap(textureId: number) {
     const key = textureId.toString();
@@ -530,17 +539,19 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     const videoPlayer = this.videoPlayers.get(playerId);
     if (videoPlayer) {
       try {
-        // 等待 release 完成后再释放纹理，避免异步释放未完成时的竞态。
+        // Wait for release to finish before releasing the texture, avoiding a race
+        // when the asynchronous release is incomplete.
         await videoPlayer.release();
       } finally {
         if (videoPlayer.usesExternalTexture() && this.flutterState) {
           this.flutterState.getTextureRegistry().unregisterTexture(playerId);
         }
         this.closeOwnedAssetFd(playerId);
-        // 释放并删除该播放器对应的 PixelMap，避免内存泄漏。
+        // Release and remove the PixelMap for this player to avoid a memory leak.
         this.pixelMapReleaseById(playerId);
         this.videoPlayers.remove(playerId);
-        // 所有播放器释放后不再持有窗口引用，避免静态单例长期持有 window.Window。
+        // Once all players are released, stop holding the window reference
+        // so the static singleton does not hold window.Window long-term.
         if (this.videoPlayers.length === 0) {
           GlobalContext.getContext().removeObject('windowClass');
         }
@@ -704,9 +715,9 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
   }
 
   setup(binaryMessenger: BinaryMessenger): void {
-    Log.i(TAG, '设置消息通道处理程序');
+    Log.i(TAG, 'Setting up message channel handlers');
     
-    // 为每个方法设置消息通道
+    // Set up a message channel for each method.
     this.setupInitializeChannel(binaryMessenger);
     this.setupCreateChannel(binaryMessenger);
     this.setupDisposeChannel(binaryMessenger);
@@ -745,19 +756,19 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     new BasicMessageChannel<Object>(binaryMessenger, 'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.enableAutoVideoQuality', codec).setMessageHandler(null);
   }
 
-  // 初始化通道设置
+  // Initialize channel setup
   private setupInitializeChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
       'dev.flutter.pigeon.video_player_ohos.OhosVideoPlayerApi.initialize', 
-      OhosVideoPlayerApi.getCodec() // 使用抽象类的编解码器
+      OhosVideoPlayerApi.getCodec() // use the abstract class's codec
     );
     
     channel.setMessageHandler({
       onMessage: (msg: Object, reply: Reply<Object>): void => {
         try {
           this.initialize();
-          // 返回空数组表示成功，无返回值
+          // Reply with an empty array to indicate success (no return value).
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -766,7 +777,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 创建通道设置
+  // Create channel setup
   private setupCreateChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -780,7 +791,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const args = requireChannelArgs(msg, 'create', 1);
           const createMsg = args[0] as CreateMessage;
           this.create(createMsg).then((playerId: number) => {
-            // 返回包含playerId的数组
+            // Reply with an array containing the playerId
             reply.reply([playerId]);
           }).catch((err:Error) => {
             reply.reply(wrapError(err));
@@ -792,7 +803,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 释放通道设置
+  // Dispose channel setup
   private setupDisposeChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -807,7 +818,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const playerId = args[0] as number;
 
           this.dispose(playerId).then(() => {
-            // 返回空数组表示成功
+            // Reply with an empty array to indicate success
             reply.reply([]);
           }).catch((err: Error) => {
             reply.reply(wrapError(err));
@@ -819,7 +830,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 设置循环播放通道
+  // Set looping channel
   private setupSetLoopingChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -835,7 +846,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const looping = args[1] as boolean;
 
           this.setLooping(playerId, looping);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -844,7 +855,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 设置音量通道
+  // Set volume channel
   private setupSetVolumeChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -860,7 +871,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const volume = args[1] as number;
 
           this.setVolume(playerId, volume);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -869,7 +880,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 设置播放速度通道
+  // Set playback speed channel
   private setupSetPlaybackSpeedChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -885,7 +896,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const speed = args[1] as number;
 
           this.setPlaybackSpeed(playerId, speed);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -894,7 +905,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 播放通道
+  // Play channel
   private setupPlayChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -909,7 +920,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const playerId = args[0] as number;
 
           this.play(playerId);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -918,7 +929,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 获取位置通道
+  // Get position channel
   private setupPositionChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -933,7 +944,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const playerId = args[0] as number;
 
           const position = this.position(playerId);
-          // 返回包含位置的数组
+          // Reply with an array containing the position
           reply.reply([position]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -942,7 +953,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 跳转通道
+  // Seek channel
   private setupSeekToChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -958,7 +969,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const position = args[1] as number;
 
           this.seekTo(playerId, position);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -967,7 +978,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 暂停通道
+  // Pause channel
   private setupPauseChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -982,7 +993,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const playerId = args[0] as number;
 
           this.pause(playerId);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -991,7 +1002,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
   
-  // 设置音频混合通道
+  // Set audio mixing channel
   private setupSetMixWithOthersChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger, 
@@ -1006,7 +1017,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           const mixWithOthers = args[0] as boolean;
 
           this.setMixWithOthers(mixWithOthers);
-          // 返回空数组表示成功
+          // Reply with an empty array to indicate success
           reply.reply([]);
         } catch (err) {
           reply.reply(wrapError(err));
@@ -1015,7 +1026,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 获取音轨通道
+  // Get audio tracks channel
   private setupGetAudioTracksChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger,
@@ -1042,7 +1053,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 选择音轨通道
+  // Select audio track channel
   private setupSelectAudioTrackChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger,
@@ -1071,7 +1082,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 获取视频音轨
+  // Get video tracks channel
   private setupGetVideoTracksChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger,
@@ -1098,7 +1109,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 选择视频音轨
+  // Select video track channel
   private setupSelectVideoTrackChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger,
@@ -1127,7 +1138,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     });
   }
 
-  // 恢复自动视频质量（自适应）通道
+  // Restore automatic video quality (adaptive) channel
   private setupEnableAutoVideoQualityChannel(binaryMessenger: BinaryMessenger): void {
     const channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       binaryMessenger,
