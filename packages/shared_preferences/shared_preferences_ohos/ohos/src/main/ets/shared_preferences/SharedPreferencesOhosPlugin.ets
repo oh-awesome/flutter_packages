@@ -1,0 +1,931 @@
+/*
+ * Copyright (C) 2026 Huawei Device Co., Ltd.
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ *
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+import {
+  FlutterPlugin,
+  FlutterPluginBinding
+} from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
+import MessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/MessageCodec';
+import StandardMessageCodec from '@ohos/flutter_ohos/src/main/ets/plugin/common/StandardMessageCodec';
+import { FlutterError, SharedPreferencesApi, wrapError } from './Messages';
+import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
+import data_preferences from '@ohos.data.preferences';
+import BasicMessageChannel, { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
+import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import { BusinessError } from '@kit.BasicServicesKit';
+import common from '@ohos.app.ability.common';
+import { bundleManager } from '@kit.AbilityKit';
+import { 
+  SharedPreferencesAsyncApi,
+  setupSharedPreferencesAsyncApi,
+  SharedPreferencesPigeonOptions,
+  StringListResult,
+  StringListLookupResultType
+} from './MessagesAsync';
+
+const TAG = "SharedPreferencesOhosPlugin";
+const PREFERENCES_NAME = "FlutterSharedPreferences";
+const DATA_STORE_BACKEND_NAME = "FlutterSharedPreferencesDataStore";
+const PREFERENCES_NOT_INITIALIZED_ERROR = "Preferences not initialized";
+const LIST_IDENTIFIER = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu";
+const JSON_LIST_PREFIX = LIST_IDENTIFIER + "!";
+const BIG_INTEGER_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBCaWdJbnRlZ2Vy";
+const DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBEb3VibGUu";
+// Legacy prefix used by old plugin versions which encoded doubles on the
+// Dart side ("This is the prefix for a double."). Fixes #1689.
+const LEGACY_DOUBLE_PREFIX = "VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGRvdWJsZS4";
+// ListEncoder implementation
+interface ListEncoder {
+  encode(list: string[]): string;
+  decode(encoded: string): string[];
+}
+
+class ListEncoderImpl implements ListEncoder {
+  encode(list: string[]): string {
+    return JSON.stringify(list);
+  }
+
+  decode(encoded: string): string[] {
+    try {
+      return JSON.parse(encoded) as string[];
+    } catch (e) {
+      Log.e(TAG, "Failed to decode list: " + e);
+      return [];
+    }
+  }
+}
+
+// Extended type definition to handle all OHOS ValueType values
+type PreferenceScalarValue = string | number | boolean | bigint;
+type ExtendedPreferenceValue = PreferenceScalarValue | object | null;
+type PreferenceWriteValue = PreferenceScalarValue | string[];
+
+// Async API implementation class
+class SharedPreferencesAsyncApiImpl implements SharedPreferencesAsyncApi {
+  private plugin: SharedPreferencesOhosPlugin;
+
+  constructor(plugin: SharedPreferencesOhosPlugin) {
+    this.plugin = plugin;
+  }
+
+  private typeMismatch(key: string, expectedType: string, actualValue: ExtendedPreferenceValue): FlutterError {
+    const actualType = actualValue === null ? 'null' : typeof actualValue;
+    return new FlutterError(
+      'ClassCastException',
+      `Expected ${expectedType} for key "${key}", but found ${actualType}.`,
+      `key=${key}, expectedType=${expectedType}, actualType=${actualType}`
+    );
+  }
+
+  // Mirrors Android preferencesFilter: when no allowList is provided, only
+  // entries with value types this plugin can write (boolean/number/string/
+  // bigint) are managed. Values of other types (e.g. Array/Uint8Array/object
+  // written natively via data_preferences into the shared default file) are
+  // left untouched. Must test the raw stored value: transformPref decodes
+  // platform-encoded string lists into arrays, which would be misjudged here.
+  private isPluginScalarValue(value: ExtendedPreferenceValue): boolean {
+    return typeof value === 'boolean' || typeof value === 'number' ||
+        typeof value === 'string' || typeof value === 'bigint';
+  }
+
+  async getString(key: string, options: SharedPreferencesPigeonOptions): Promise<string | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value === null) {
+        return null;
+      }
+      if (typeof value === 'string') {
+        if (!value.startsWith(LIST_IDENTIFIER) &&
+            !value.startsWith(DOUBLE_PREFIX) &&
+            !value.startsWith(LEGACY_DOUBLE_PREFIX)) {
+          return value;
+        }
+        return Promise.reject(this.typeMismatch(key, 'string', value));
+      }
+      return Promise.reject(this.typeMismatch(key, 'string', value));
+    } catch (err) {
+      Log.w(TAG, "Failed to getString: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getBool(key: string, options: SharedPreferencesPigeonOptions): Promise<boolean | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value === null) {
+        return null;
+      }
+      if (typeof value === 'boolean') {
+        return value;
+      }
+      return Promise.reject(this.typeMismatch(key, 'boolean', value));
+    } catch (err) {
+      Log.w(TAG, "Failed to getBool: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getDouble(key: string, options: SharedPreferencesPigeonOptions): Promise<number | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value === null) {
+        return null;
+      }
+      if (typeof value === 'number') {
+        return value;
+      } else if (typeof value === 'bigint') {
+        return Number(value);
+      } else if (typeof value === 'string' && value.startsWith(DOUBLE_PREFIX)) {
+        // Decode doubles written by quality-hardened v2.3.x builds, whose
+        // setDouble stores DOUBLE_PREFIX + value as a string. Fall through
+        // to the type mismatch error when the remainder is not a valid
+        // number. Fixes #1689.
+        const decoded = parseFloat(value.substring(DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      } else if (typeof value === 'string' && value.startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side
+        // encoding). Fixes #1689. Same NaN guard as above.
+        const decoded = parseFloat(value.substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      }
+      return Promise.reject(this.typeMismatch(key, 'number', value));
+    } catch (err) {
+      Log.w(TAG, "Failed to getDouble: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getInt(key: string, options: SharedPreferencesPigeonOptions): Promise<bigint | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (value === null) {
+        return null;
+      }
+      if (typeof value ==='bigint' || typeof value === 'number'){
+        return BigInt(value);
+      }
+      return Promise.reject(this.typeMismatch(key, 'int', value));
+    } catch (err) {
+      Log.w(TAG, "Failed to getInt: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getPlatformEncodedStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<Array<string> | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'string' && value.startsWith(LIST_IDENTIFIER)) {
+        const decoded: string[] = this.plugin.listEncoder.decode(value.substring(LIST_IDENTIFIER.length));
+        return decoded;
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getPlatformEncodedStringList: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getStringList(key: string, options: SharedPreferencesPigeonOptions): Promise<StringListResult | null> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const value = await preferences.get(key, null) as ExtendedPreferenceValue;
+      if (typeof value === 'string') {
+        if (value.startsWith(JSON_LIST_PREFIX)) {
+          return new StringListResult(value, StringListLookupResultType.jsonEncoded);
+        } else if (value.startsWith(LIST_IDENTIFIER)) {
+          return new StringListResult(undefined, StringListLookupResultType.platformEncoded);
+        } else {
+          return new StringListResult(undefined, StringListLookupResultType.unexpectedString);
+        }
+      }
+      return null;
+    } catch (err) {
+      Log.w(TAG, "Failed to getStringList: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async clear(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<void> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      let keysToDelete: string[] = [];
+      if (allowList == null) {
+        const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+        keysToDelete = Object.keys(allData).filter((key: string) => this.isPluginScalarValue(allData[key]));
+      } else {
+        keysToDelete = Array.from(new Set<string>(allowList));
+      }
+  
+      // Delete in batches so unbounded concurrent delete callbacks are avoided.
+      const batchSize = 10;
+      for (let i = 0; i < keysToDelete.length; i += batchSize) {
+        const batch = keysToDelete.slice(i, i + batchSize);
+        const deletePromises = batch.map(key => 
+          new Promise<void>((resolve, reject) => {
+            preferences.delete(key, (err: ESObject) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          })
+        );
+        await Promise.all(deletePromises);
+      }
+      await preferences.flush();
+    } catch (err) {
+      Log.w(TAG, "Failed to clear: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getAll(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<Map<string, Object>> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const result = new Map<string, Object>();
+      Object.keys(allData).forEach((key: string) => {
+        const value = allData[key];
+        const allowed = allowList === null ? this.isPluginScalarValue(value) : allowList.indexOf(key) !== -1;
+        if (allowed) {
+          result.set(key, this.plugin.transformPref(value));
+        }
+      });
+      return result;
+    } catch (err) {
+      Log.w(TAG, "Failed to getAll: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  async getKeys(allowList: Array<string> | null, options: SharedPreferencesPigeonOptions): Promise<Array<string>> {
+    try {
+      const preferences = await this.plugin.getPreferencesForOptions(options);
+      if (preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const allKeys = Object.keys(allData);
+      return allKeys.filter((key: string) =>
+        allowList === null ? this.isPluginScalarValue(allData[key]) : allowList.indexOf(key) !== -1);
+    } catch (err) {
+      Log.w(TAG, "Failed to getKeys: " + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  // Async setter methods
+  async setBool(key: string, value: boolean, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.putWithOptions(key, value, options);
+  }
+
+  async setString(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.putWithOptions(key, value, options);
+  }
+
+  async setInt(key: string, value: bigint, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.putWithOptions(key, value, options);
+  }
+
+  async setDouble(key: string, value: number, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.putWithOptions(key, value, options);
+  }
+
+  async setEncodedStringList(key: string, value: string, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.putWithOptions(key, value, options);
+  }
+
+  async setDeprecatedStringList(key: string, value: Array<string>, options: SharedPreferencesPigeonOptions): Promise<void> {
+    return this.plugin.setStringListWithOptions(key, value, options);
+  }
+}
+
+// Setup function implementation
+export function setup(binaryMessenger: BinaryMessenger, api: SharedPreferencesApi | null): void {
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.remove", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          let wrapped: Array<Object>;
+          try {
+            const result = api.remove(keyArg);
+            wrapped = [result];
+          } catch (exception) {
+            wrapped = wrapError(exception as Error);
+          }
+          reply.reply(wrapped);
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // setBool
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setBool", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as boolean;
+          api.setBool(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // setString
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setString", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as string;
+          api.setString(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // setInt
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setInt", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = BigInt(args[1] as bigint);
+          api.setInt(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // setDouble
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setDouble", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as number;
+          api.setDouble(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // setEncodedStringList
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setEncodedStringList", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as string;
+          api.setEncodedStringList(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+
+  // setDeprecatedStringList
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.setDeprecatedStringList", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const keyArg = args[0] as string;
+          const valueArg = args[1] as Array<string>;
+          api.setDeprecatedStringList(keyArg, valueArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // clear
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.clear", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const prefixArg = args[0] as string;
+          const allowListArg = args[1] as Array<string> | null;
+          api.clear(prefixArg, allowListArg).then((result: boolean) => {
+            const wrapped: Array<Object> = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+  
+  // getAll
+  {
+    const channel = new BasicMessageChannel<Object>(binaryMessenger, "dev.flutter.pigeon.shared_preferences_ohos.SharedPreferencesApi.getAll", api?.getCodec() ?? new StandardMessageCodec());
+    if (api != null) {
+      channel.setMessageHandler({
+        onMessage(message: Object, reply: Reply<Object>): void {
+          const args = message as Array<Object>;
+          const prefixArg = args[0] as string;
+          const allowListArg = args[1] as Array<string> | null;
+          let wrapped: Array<Object>;
+
+          api.getAll(prefixArg, allowListArg).then((result: Map<string, Object>) => {
+            wrapped = [result];
+            reply.reply(wrapped);
+          }).catch((err: Error) => {
+            const errs = wrapError(err);
+            reply.reply(errs);
+          });
+        }
+      });
+    } else {
+      channel.setMessageHandler(null);
+    }
+  }
+}
+
+// Main plugin class
+export default class SharedPreferencesOhosPlugin implements FlutterPlugin, SharedPreferencesApi {
+  private context: common.ApplicationContext | null = null;
+  preferences: data_preferences.Preferences | null = null;
+  listEncoder: ListEncoderImpl = new ListEncoderImpl();
+  private asyncApiImpl: SharedPreferencesAsyncApiImpl | null = null;
+  private asyncPreferencesCache: Map<string, data_preferences.Preferences | null> = new Map<string, data_preferences.Preferences | null>();
+  private defaultSharedPreferencesName: string = `${PREFERENCES_NAME}_default`;
+
+  constructor() {
+    this.asyncApiImpl = new SharedPreferencesAsyncApiImpl(this);
+  }
+
+  getUniqueClassName(): string {
+    return "SharedPreferencesOhosPlugin";
+  }
+
+  onAttachedToEngine(binding: FlutterPluginBinding): void {
+    this.context = binding.getApplicationContext() as common.ApplicationContext;
+    // Detach breaks the asyncApiImpl circular reference; rebuild it in case
+    // the same instance attaches to an engine again.
+    if (this.asyncApiImpl == null) {
+      this.asyncApiImpl = new SharedPreferencesAsyncApiImpl(this);
+    }
+    try {
+      const flag: bundleManager.BundleFlag = bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_APPLICATION;
+      const bundleInfo: bundleManager.BundleInfo = bundleManager.getBundleInfoForSelfSync(flag);
+      const bundleName = bundleInfo.name;
+      if (bundleName != undefined && bundleName.length > 0) {
+        this.defaultSharedPreferencesName = `${bundleName}_preferences`;
+      }
+    } catch (err) {
+      let message = (err as BusinessError).message;
+      Log.w(TAG, "getBundleInfoForSelfSync failed: " + message);
+    }
+
+    // Register sync API first (doesn't depend on preferences initialization)
+    setup(binding.getBinaryMessenger(), this);
+    
+    // Initialize preferences and register async API after initialization
+    try {
+      this.preferences = data_preferences.getPreferencesSync(this.context, { name: PREFERENCES_NAME });
+      Log.i(TAG, "Succeeded in getting preferences.");
+      this.asyncPreferencesCache.set(PREFERENCES_NAME, this.preferences);
+      // Register async API only after preferences are initialized	 
+      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.data_store');
+      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.shared_preferences');
+    } catch(err) {
+      Log.w(TAG, "Failed to get preferences."+ JSON.stringify(err));
+      // Cache null to indicate that initialization failed.
+      this.asyncPreferencesCache.set(PREFERENCES_NAME, null);
+      // Even if preferences initialization fails, we should still register the async API 
+      // so that it can properly return errors instead of hanging 
+      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.data_store');
+      setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), this.asyncApiImpl, '.shared_preferences');
+    }
+  }
+
+  onDetachedFromEngine(binding: FlutterPluginBinding): void {
+    // 1. Unregister all API handlers.
+    setup(binding.getBinaryMessenger(), null);
+    setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.data_store');
+    setupSharedPreferencesAsyncApi(binding.getBinaryMessenger(), null, '.shared_preferences');
+
+    // 2. Release all Preferences instances: remove each from the system cache
+    // first, then clear the map and references. (OHOS has no close(); the
+    // official release path is removePreferencesFromCacheSync plus nulling the
+    // reference, leaving the system to reclaim the instance.)
+    const appContext = this.context;
+    if (appContext != null) {
+      this.asyncPreferencesCache.forEach((pref: data_preferences.Preferences | null, storageName: string) => {
+        if (pref == null) {
+          return;
+        }
+        try {
+          data_preferences.removePreferencesFromCacheSync(appContext, storageName);
+        } catch (err) {
+          Log.w(TAG, `Failed to remove preferences from cache for ${storageName}: ${JSON.stringify(err)}`);
+        }
+      });
+    }
+    this.asyncPreferencesCache.clear();
+    this.preferences = null;
+
+    // 3. Break the asyncApiImpl circular reference.
+    this.asyncApiImpl = null;
+
+    // 4. Release the context reference.
+    this.context = null;
+  }
+
+  private resolveStorageNameForBackend(options: SharedPreferencesPigeonOptions): string {
+    if (options.useDataStore) {
+      return DATA_STORE_BACKEND_NAME;
+    }
+    if (options.fileName != undefined && options.fileName.length > 0) {
+      return options.fileName;
+    }
+    return this.defaultSharedPreferencesName;
+  }
+
+  async getPreferencesForOptions(options: SharedPreferencesPigeonOptions): Promise<data_preferences.Preferences | null> {
+    if (this.context == null) {
+      return null;
+    }
+    const storageName = this.resolveStorageNameForBackend(options);
+    const cachedPreferences = this.asyncPreferencesCache.get(storageName);
+    if (cachedPreferences != undefined) {
+      return cachedPreferences;
+    }
+    try {
+      const preferences = await data_preferences.getPreferences(this.context, { name: storageName });
+      this.asyncPreferencesCache.set(storageName, preferences);
+      return preferences;
+    } catch (err) {
+      Log.e(TAG, `Failed to get preferences for ${storageName}: ${JSON.stringify(err)}`);
+      // Cache null to indicate that creation failed.
+      this.asyncPreferencesCache.set(storageName, null);
+      return Promise.reject(err);
+    }
+  }
+
+  // Implement setup method required by SharedPreferencesApi interface
+  setup(messenger: BinaryMessenger, api: SharedPreferencesApi): void {
+    setup(messenger, api);
+  }
+
+  // SharedPreferencesApi sync methods implementation
+  remove(key: string): boolean {
+    try {
+      if (this.preferences == null) {
+        return false;
+      }
+      this.preferences.deleteSync(key);
+      this.preferences.flushSync();
+      return true;
+    } catch (err) {
+      Log.e(TAG, "Failed to delete. " + JSON.stringify(err));
+      return false;
+    }
+  }
+
+  async setString(key: string, value: string): Promise<boolean> {
+    if (
+      value.startsWith(LIST_IDENTIFIER) ||
+      value.startsWith(BIG_INTEGER_PREFIX) ||
+      value.startsWith(DOUBLE_PREFIX) ||
+      value.startsWith(LEGACY_DOUBLE_PREFIX)
+    ) {
+      return Promise.reject(
+        new Error(
+          'StorageError: This string cannot be stored as it clashes with special identifier prefixes'
+        )
+      );
+    }
+    await this.put(key, value);
+    return true;
+  }
+
+  async setInt(key: string, value: bigint): Promise<boolean> {
+    await this.put(key, value);
+    return true;
+  }
+
+  private async persistValue(
+    preferences: data_preferences.Preferences | null,
+    key: string,
+    value: PreferenceWriteValue,
+    failureMessage: string
+  ): Promise<void> {
+    if (preferences == null) {
+      return Promise.reject(new Error(PREFERENCES_NOT_INITIALIZED_ERROR));
+    }
+    try {
+      // putSync updates the in-memory cache synchronously in method-call
+      // arrival order, so concurrent writes are deterministic (last write
+      // wins, matching Android). flush() still persists asynchronously.
+      preferences.putSync(key, value);
+      await preferences.flush();
+    } catch (err) {
+      Log.w(TAG, `${failureMessage}${JSON.stringify(err)}`);
+      return Promise.reject(err);
+    }
+  }
+
+  async put(key: string, value: PreferenceWriteValue): Promise<void> {
+    return this.persistValue(this.preferences, key, value, "Failed to put value. ");
+  }
+
+  async putWithOptions(key: string, value: PreferenceWriteValue, options: SharedPreferencesPigeonOptions): Promise<void> {
+    const preferences = await this.getPreferencesForOptions(options);
+    return this.persistValue(preferences, key, value, "Failed to put value with options. ");
+  }
+
+  async setDouble(key: string, value: number): Promise<boolean> {
+    await this.put(key, value);
+    return true;
+  }
+
+  async setBool(key: string, value: boolean): Promise<boolean> {
+    await this.put(key, value);
+    return true;
+  }
+
+  async setEncodedStringList(key: string, value: string): Promise<boolean> {
+    await this.put(key, value);
+    return true;
+  }
+
+  async setDeprecatedStringList(key: string, value: string[]): Promise<boolean> {
+    await this.setStringList(key, value);
+    return true;
+  }
+
+  async setStringList(key: string, value: string[]): Promise<void> {
+    await this.put(key, LIST_IDENTIFIER + this.listEncoder.encode(value));
+  }
+
+  async setStringListWithOptions(key: string, value: string[], options: SharedPreferencesPigeonOptions): Promise<void> {
+    await this.putWithOptions(key, LIST_IDENTIFIER + this.listEncoder.encode(value), options);
+  }
+
+  async clear(prefix: string, allowList: string[] | null): Promise<boolean> {
+    try {
+      if (this.preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      // Capture the reference locally: if onDetachedFromEngine nulls
+      // this.preferences while awaiting, optional chaining would otherwise
+      // skip the delete callbacks and the Promises would never resolve.
+      const preferences = this.preferences;
+      const allData = await preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const allKeys = Object.keys(allData);
+      const deletePromises: Promise<void>[] = [];
+      for (let key of allKeys) {
+        if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
+          deletePromises.push(new Promise<void>((resolve, reject) => {
+            preferences.delete(key, (err: ESObject) => {
+              if (err) {
+                reject(err);
+              } else {
+                resolve();
+              }
+            });
+          }));
+        }
+      }
+      await Promise.all(deletePromises);
+      await preferences.flush();
+      return true;
+    } catch (err) {
+      Log.w(TAG, "Failed to clear." + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  // Decodes a base-36 digit string into a BigInt without losing precision
+  // (parseInt(x, 36) goes through double and breaks above 2^53). Accepts an
+  // optional leading '-' and both letter cases, mirroring Java's
+  // BigInteger(String, Character.MAX_RADIX). Returns null for invalid input.
+  private decodeBase36BigInt(encoded: string): bigint | null {
+    let digits = encoded;
+    let negative = false;
+    if (digits.startsWith('-')) {
+      negative = true;
+      digits = digits.substring(1);
+    }
+    if (digits.length === 0) {
+      return null;
+    }
+    let result = BigInt(0);
+    for (let i = 0; i < digits.length; i++) {
+      const code = digits.charCodeAt(i);
+      let digit = -1;
+      if (code >= 48 && code <= 57) {
+        digit = code - 48;
+      } else if (code >= 97 && code <= 122) {
+        digit = code - 97 + 10;
+      } else if (code >= 65 && code <= 90) {
+        digit = code - 65 + 10;
+      }
+      if (digit < 0) {
+        return null;
+      }
+      result = result * BigInt(36) + BigInt(digit);
+    }
+    return negative ? -result : result;
+  }
+
+  transformPref(value: ExtendedPreferenceValue, decodeLegacyBigInteger: boolean = false): ESObject {
+    if (typeof value === 'string') {
+      if (value.startsWith(JSON_LIST_PREFIX)) {
+        return value;
+      } else if (value.startsWith(LIST_IDENTIFIER)) {
+        try {
+          return this.listEncoder.decode(value.substring(LIST_IDENTIFIER.length));
+        } catch (err) {
+          Log.w(TAG, "Failed to decode legacy list: " + JSON.stringify(err));
+          return value;
+        }
+      } else if (value.startsWith(DOUBLE_PREFIX)) {
+        // Decode doubles written by quality-hardened v2.3.x builds, whose
+        // setDouble stores DOUBLE_PREFIX + value as a string. Fall through
+        // to the raw string when the remainder is not a valid number, so no
+        // NaN is produced and no data is lost. Fixes #1689.
+        const decoded = parseFloat(value.substring(DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      } else if (value.startsWith(LEGACY_DOUBLE_PREFIX)) {
+        // Decode doubles written by legacy plugin versions (Dart-side
+        // encoding). Fixes #1689. Same NaN guard as above.
+        const decoded = parseFloat(value.substring(LEGACY_DOUBLE_PREFIX.length));
+        if (!Number.isNaN(decoded)) {
+          return decoded;
+        }
+      } else if (decodeLegacyBigInteger && value.startsWith(BIG_INTEGER_PREFIX)) {
+        // Legacy-only, mirroring Android: only the legacy plugin decodes
+        // BigIntegers (base-36, Character.MAX_RADIX); its async transformPref
+        // deliberately does not. The async channel codec writes every BigInt
+        // as an int64 with no range check, and the values that use this
+        // prefix by design exceed int64, so decoding them on the async path
+        // would silently wrap them modulo 2^64.
+        const decodedBigInt = this.decodeBase36BigInt(value.substring(BIG_INTEGER_PREFIX.length));
+        if (decodedBigInt !== null) {
+          return decodedBigInt;
+        }
+      }
+    }
+    if (typeof value === 'bigint') {
+      return BigInt(value);
+    }
+    if (typeof value === 'object' && value !== null) {
+      return value;
+    }
+    return value;
+  }
+
+  filterData(value: [string, ExtendedPreferenceValue], prefix: string, allowList: string[] | null): Map<string, Object> {
+    const result = new Map<string, Object>();
+    const key = value[0];
+    const val = value[1];
+    if (key.startsWith(prefix) && (allowList == null || allowList.indexOf(key) != -1)) {
+      result.set(key, this.transformPref(val, true));
+    }
+    return result;
+  }
+
+  async getAll(prefix: string, allowList: string[] | null): Promise<Map<string, Object>> {
+    try {
+      if (this.preferences == null) {
+        return Promise.reject(new Error("Preferences not initialized"));
+      }
+      const allData = await this.preferences.getAll() as Record<string, ExtendedPreferenceValue>;
+      const result = new Map<string, Object>();
+      Object.entries(allData).forEach((entry: [string, ExtendedPreferenceValue]) => {
+        const filteredData = this.filterData(entry, prefix, allowList);
+        filteredData.forEach((value, key) => {
+          result.set(key, value);
+        });
+      });
+      return result;
+    } catch (err) {
+      Log.w(TAG, "Failed to getAll." + JSON.stringify(err));
+      return Promise.reject(err);
+    }
+  }
+
+  getCodec(): MessageCodec<Object> {
+    return new StandardMessageCodec();
+  }
+}
