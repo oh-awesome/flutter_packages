@@ -7,11 +7,17 @@
 import 'dart:convert';
 
 import 'package:flutter/src/services/binary_messenger.dart';
+import 'package:flutter/src/services/message_codec.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences_ohos/src/shared_preferences_async_ohos.dart';
 import 'package:shared_preferences_ohos/src/messages_async.g.dart';
 import 'package:shared_preferences_ohos/src/strings.dart';
+import 'package:shared_preferences_platform_interface/shared_preferences_async_platform_interface.dart';
 import 'package:shared_preferences_platform_interface/types.dart';
+
+// The reserved prefix that marks an encoded list payload; setString rejects
+// raw values starting with it so list entries cannot be spoofed.
+const String _reservedListPrefix = 'VGhpcyBpcyB0aGUgcHJlZml4IGZvciBhIGxpc3Qu';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -244,6 +250,213 @@ void main() {
 
   runTests(true);
   runTests(false);
+
+  test('registerWith', () {
+    SharedPreferencesAsyncOhos.registerWith();
+    expect(
+      SharedPreferencesAsyncPlatform.instance,
+      isA<SharedPreferencesAsyncOhos>(),
+    );
+  });
+
+  test('convertOptionsToPigeonOptions', () {
+    final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+    final SharedPreferencesPigeonOptions dataStoreOptions = preferences
+        .convertOptionsToPigeonOptions(
+          const SharedPreferencesAsyncOhosOptions(),
+        );
+    expect(dataStoreOptions.useDataStore, isTrue);
+    expect(dataStoreOptions.fileName, isNull);
+
+    final SharedPreferencesPigeonOptions sharedPreferencesOptions = preferences
+        .convertOptionsToPigeonOptions(
+          const SharedPreferencesAsyncOhosOptions(
+            backend: SharedPreferencesOhosBackendLibrary.SharedPreferences,
+            originalSharedPreferencesOptions: OhosSharedPreferencesStoreOptions(
+              fileName: 'the_name_of_a_file',
+            ),
+          ),
+        );
+    expect(sharedPreferencesOptions.useDataStore, isFalse);
+    expect(sharedPreferencesOptions.fileName, 'the_name_of_a_file');
+
+    final SharedPreferencesPigeonOptions defaultOptions = preferences
+        .convertOptionsToPigeonOptions(const SharedPreferencesOptions());
+    expect(defaultOptions.useDataStore, isTrue);
+    expect(defaultOptions.fileName, isNull);
+  });
+
+  test('getApiForBackend', () {
+    final dataStoreApi = _FakeSharedPreferencesApi();
+    final sharedPreferencesApi = _FakeSharedPreferencesApi();
+    final SharedPreferencesAsyncOhos preferences = SharedPreferencesAsyncOhos(
+      dataStoreApi: dataStoreApi,
+      sharedPreferencesApi: sharedPreferencesApi,
+    );
+
+    expect(
+      preferences.getApiForBackend(SharedPreferencesPigeonOptions()),
+      same(dataStoreApi),
+    );
+    expect(
+      preferences.getApiForBackend(
+        SharedPreferencesPigeonOptions(useDataStore: false),
+      ),
+      same(sharedPreferencesApi),
+    );
+  });
+
+  test(
+    'setString rejects values starting with the reserved list prefix',
+    () async {
+      final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+      await expectLater(
+        preferences.setString(
+          stringKey,
+          _reservedListPrefix,
+          const SharedPreferencesOptions(),
+        ),
+        throwsArgumentError,
+      );
+    },
+  );
+
+  test(
+    'getInt throws TypeError when the platform reports a ClassCastException',
+    () async {
+      final api = _ClassCastFakeSharedPreferencesApi();
+      final SharedPreferencesAsyncOhos preferences = SharedPreferencesAsyncOhos(
+        dataStoreApi: api,
+        sharedPreferencesApi: api,
+      );
+
+      await expectLater(
+        preferences.getInt(intKey, const SharedPreferencesOptions()),
+        throwsA(isA<TypeError>()),
+      );
+    },
+  );
+
+  test(
+    'getStringList throws TypeError when the stored payload cannot be decoded',
+    () async {
+      final api = _FakeSharedPreferencesApi();
+      final SharedPreferencesAsyncOhos preferences = SharedPreferencesAsyncOhos(
+        dataStoreApi: api,
+        sharedPreferencesApi: api,
+      );
+      await preferences.setStringList(
+        listKey,
+        testList,
+        const SharedPreferencesOptions(),
+      );
+      // Simulate a corrupted list payload written by an unknown writer.
+      api.items[listKey] = '$jsonListPrefix:not-a-json-list';
+      await expectLater(
+        preferences.getStringList(listKey, const SharedPreferencesOptions()),
+        throwsA(isA<TypeError>()),
+      );
+    },
+  );
+
+  test('set and get int64 boundary values', () async {
+    final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+    const minInt64 = -9223372036854775808;
+    const maxInt64 = 9223372036854775807;
+    await preferences.setInt(
+      'min_int64',
+      minInt64,
+      const SharedPreferencesOptions(),
+    );
+    await preferences.setInt(
+      'max_int64',
+      maxInt64,
+      const SharedPreferencesOptions(),
+    );
+    expect(
+      await preferences.getInt('min_int64', const SharedPreferencesOptions()),
+      minInt64,
+    );
+    expect(
+      await preferences.getInt('max_int64', const SharedPreferencesOptions()),
+      maxInt64,
+    );
+  });
+
+  test('set and get double boundary values', () async {
+    final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+    const maxDouble = 1.7976931348623157e+308;
+    const minDouble = 5e-324;
+    await preferences.setDouble(
+      'max_double',
+      maxDouble,
+      const SharedPreferencesOptions(),
+    );
+    await preferences.setDouble(
+      'min_double',
+      minDouble,
+      const SharedPreferencesOptions(),
+    );
+    expect(
+      await preferences.getDouble(
+        'max_double',
+        const SharedPreferencesOptions(),
+      ),
+      maxDouble,
+    );
+    expect(
+      await preferences.getDouble(
+        'min_double',
+        const SharedPreferencesOptions(),
+      ),
+      minDouble,
+    );
+  });
+
+  test('set and get an empty key and an empty String value', () async {
+    final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+    await preferences.setString(
+      stringKey,
+      '',
+      const SharedPreferencesOptions(),
+    );
+    expect(
+      await preferences.getString(stringKey, const SharedPreferencesOptions()),
+      '',
+    );
+
+    await preferences.setString(
+      '',
+      'value stored under an empty key',
+      const SharedPreferencesOptions(),
+    );
+    expect(
+      await preferences.getString('', const SharedPreferencesOptions()),
+      'value stored under an empty key',
+    );
+  });
+
+  test('set and get an empty StringList', () async {
+    final SharedPreferencesAsyncOhos preferences = getPreferences(true);
+
+    await preferences.setStringList(
+      listKey,
+      const <String>[],
+      const SharedPreferencesOptions(),
+    );
+    expect(
+      await preferences.getStringList(
+        listKey,
+        const SharedPreferencesOptions(),
+      ),
+      isEmpty,
+    );
+  });
 }
 
 class _FakeSharedPreferencesApi implements SharedPreferencesAsyncApi {
@@ -405,5 +618,17 @@ class _FakeSharedPreferencesApi implements SharedPreferencesAsyncApi {
   ) async {
     items[key] = value;
     return true;
+  }
+}
+
+// Reports the ohos ClassCastException for int reads, to verify the public
+// API converts it to a TypeError as the platform interface contract expects.
+class _ClassCastFakeSharedPreferencesApi extends _FakeSharedPreferencesApi {
+  @override
+  Future<int?> getInt(
+    String key,
+    SharedPreferencesPigeonOptions options,
+  ) async {
+    throw PlatformException(code: 'ClassCastException');
   }
 }

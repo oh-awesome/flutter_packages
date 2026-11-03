@@ -2,7 +2,7 @@
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-This project is developed as the OpenHarmony platform implementation based on [shared_preferences@2.5.4](https://pub.dev/packages/shared_preferences/versions/2.5.4).
+This project is developed as the OpenHarmony platform implementation based on [shared_preferences@2.5.6](https://pub.dev/packages/shared_preferences/versions/2.5.6).
 
 ## Introduction
 
@@ -24,9 +24,9 @@ Go to your project directory and add the following dependency in `pubspec.yaml`:
 dependencies:
   shared_preferences:
     git:
-      url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences"
-      ref: "br_shared_preferences-v2.5.4_ohos"
+      ref: "shared_preferences-v2.5.6-ohos-1.0.0"
 ```
 
 Execute Command
@@ -35,14 +35,23 @@ Execute Command
 flutter pub get
 ```
 
+> TAG naming rule: `upstream-version-ohos-build-number`. See `CHANGELOG.md` for the changes between TAGs.
+
+| Flutter version | TAG | Branch |
+| --------------- | --- | ------ |
+| 3.41            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
+| 3.44            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
+| 3.47            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
+
 ## Constraints
 
 ### Compatibility
 
 Tested with the following versions:
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+2. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+3. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP36;
 
 ### Permission Requirements
 
@@ -192,10 +201,10 @@ shared_preferences_ohos/
 
 ## Contributing
 
-If you encounter any issues during use, you can submit an [Issue](https://gitcode.com/openharmony-tpc/flutter_packages/issues). You are also very welcome to contribute through [PR](https://gitcode.com/openharmony-tpc/flutter_packages/pulls).
+If you encounter any issues during use, you can submit an [Issue](https://gitcode.com/CPF-Flutter/flutter_packages/issues). You are also very welcome to contribute through [PR](https://gitcode.com/CPF-Flutter/flutter_packages/pulls).
 
 ## License
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/br_shared_preferences-v2.5.4_ohos/packages/shared_preferences/shared_preferences/LICENSE)
+This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.47.7-dev/packages/shared_preferences/shared_preferences_ohos/LICENSE)
 
 > Template version:  v0.0.1.
