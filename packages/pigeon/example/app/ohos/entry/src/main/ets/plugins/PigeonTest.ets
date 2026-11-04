@@ -13,21 +13,25 @@ import { ByteBuffer } from '@ohos/flutter_ohos/src/main/ets/util/ByteBuffer';
 /** Error class for passing custom error details to Flutter via a thrown PlatformException. */
 export class FlutterError implements Error {
 
+  /** The error name (required by the ArkTS `Error` interface). */
+  public name: string;
+
   /** The error code. */
   public code: string;
 
-  /** The error name. */
-  public name: string;
-
   /** The error message. */
   public message: string;
+
+  /** The error details. Must be a datatype supported by the api codec. */
+  public details: Object | null;
   /** The error stack. */
   public stack?: string;
 
-  constructor(code: string, name: string, message: string, stack?: string) {
+  constructor(code: string, message: string, details: Object | null, stack?: string) {
+    this.name = 'FlutterError';
     this.code = code;
-    this.name = name;
     this.message = message;
+    this.details = details;
     this.stack = stack;
   }
 }
@@ -37,11 +41,11 @@ function wrapError(error: Error): Array<Object | null> {
   if (error instanceof FlutterError) {
     let err: FlutterError = error as FlutterError;
     errorList[0] = err.code;
-    errorList[1] = err.name;
-    errorList[2] = err.message;
+    errorList[1] = err.message;
+    errorList[2] = err.details;
   } else {
-    errorList[0] = error.toString();
-    errorList[1] = error.name;
+    errorList[0] = error.name;
+    errorList[1] = error.message;
     errorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
   }
   return errorList;
@@ -413,7 +417,7 @@ export class IdentityEnum {
 }
 
 /*
-*  ProxyApi 真机验证用枚举（与 HostApi 的 [Identity] 区分）。
+*  ProxyApi device-test enum (distinct from HostApi [Identity]).
 * 
 *  Generated enum from Pigeon that represents data sent in messages.
 */
@@ -423,7 +427,7 @@ export enum ProxyRole {
 }
 
 /*
-*  ProxyApi 真机验证用枚举（与 HostApi 的 [Identity] 区分）。
+*  ProxyApi device-test enum (distinct from HostApi [Identity]).
 * 
 *  Generated enum Companion class from Pigeon that represents data sent 
    in messages.Do not delete otherwise enum type data transfer will be failed
@@ -439,7 +443,7 @@ export class ProxyRoleEnum {
 export class Person {
   private name: string;
 
-  public setName(name:string):void {
+  public setName(name: string): void {
     this.name = name;
   }
 
@@ -449,7 +453,7 @@ export class Person {
 
   private age: number;
 
-  public setAge(age:number):void {
+  public setAge(age: number): void {
     this.age = age;
   }
 
@@ -459,7 +463,7 @@ export class Person {
 
   private identity: Identity;
 
-  public setIdentity(identity:Identity):void {
+  public setIdentity(identity: Identity): void {
     this.identity = identity;
   }
 
@@ -509,7 +513,7 @@ export class Person {
 export class Student {
   private name: string;
 
-  public setName(name:string):void {
+  public setName(name: string): void {
     this.name = name;
   }
 
@@ -519,7 +523,7 @@ export class Student {
 
   private age: number;
 
-  public setAge(age:number):void {
+  public setAge(age: number): void {
     this.age = age;
   }
 
@@ -658,7 +662,7 @@ export class PigeonProxyApiBaseCodec extends PigeonCodec {
 /* Generated abstract class from Pigeon that represents a handler of messages from Flutter.*/
 export abstract class DemoHostApi {
 
-  abstract sendNull(data: Object ): Object;
+  abstract sendNull(data: Object | undefined ): Object | undefined;
 
   abstract sendTrue(data: boolean ): boolean;
 
@@ -691,9 +695,9 @@ export abstract class DemoHostApi {
   abstract sendNullableEnum(data: Identity | undefined ): Identity | undefined;
 
   abstract sendAsyncEnum(data: Identity , result: Result<Identity>): void;
-
+  /* Platform invokes Flutter [platformEchoEnum] (enum in/out over FlutterApi).*/
   abstract triggerPlatformEchoEnum(data: Identity , result: Result<Identity>): void;
-
+  /* Platform invokes Flutter [platformEchoNullableEnum] (nullable enum both ways).*/
   abstract triggerPlatformEchoNullableEnum(data: Identity | undefined , result: Result<Identity | undefined>): void;
 
   abstract flutterInvokeSync(): string;
@@ -703,13 +707,13 @@ export abstract class DemoHostApi {
   abstract errorHandling(result: Result<string>): void;
 
   abstract taskQueueTest(): string;
-
+  /* Platform calls Flutter [DemoFlutterApi.platformInvokeSync].*/
   abstract triggerPlatformInvokeSync(result: Result<string>): void;
-
+  /* Platform calls Flutter [DemoFlutterApi.platformInvokeAsync].*/
   abstract triggerPlatformInvokeAsync(result: Result<string>): void;
   /*
-  *  在宿主侧创建 [HostEnumCounter] 并做枚举 echo（验证 host→Dart pigeon_newInstance、
-  *  宿主 echoRole、以及宿主→Flutter flutterEchoNullableRole）
+  *  Host creates [HostEnumCounter] and runs enum echo (pigeon_newInstance, echoRole,
+  *  flutterEchoNullableRole).
   */
   abstract proxyApiHostCreateAndEcho(result: Result<string>): void;
   /** The codec used by DemoHostApi. */
@@ -737,7 +741,7 @@ export abstract class DemoHostApi {
               }
               let res: Array<Object | null> = [];
               try {
-                let output: Object = api!.sendNull(args[0] as Object);
+                let output: Object | undefined = api!.sendNull(args[0] as Object | undefined);
                 res.push(output);
               }
  catch (error) {
@@ -1547,7 +1551,7 @@ export abstract class DemoHostApi {
   }
 }
 /*
-*  宿主创建专用 ProxyApi：无必填 Flutter 回调，Dart 会生成 `pigeon_newInstance` 处理器。
+*  Host-created ProxyApi: no required Flutter callback; Dart registers pigeon_newInstance.
 * 
 *  Generated host-side adapter for ProxyApi `HostEnumCounter`.
 *  Subclass and override the abstract members to provide your
@@ -1563,7 +1567,7 @@ export abstract class PigeonApiHostEnumCounter {
 
   abstract pigeon_defaultConstructor(storedRole: ProxyRole, initial: number, role: ProxyRole): ESObject;
 
-  /* Unattached 枚举字段：宿主 `pigeon_newInstance` 时由宿主 abstract getter 提供。*/
+  /* Unattached enum field supplied by host getter during pigeon_newInstance.*/
   abstract storedRole(pigeon_instance: ESObject): ProxyRole;
 
   abstract increment(pigeon_instance: ESObject, by: number): number;
@@ -1764,8 +1768,16 @@ export abstract class PigeonApiHostEnumCounter {
     });
   }
 
-  /* 可选 Flutter 回调：宿主反向调用可空枚举路径（见 proxyApiHostCreate / main 全局 handler）。*/
+  /* Optional Flutter callback for nullable enum host→Dart path.*/
   flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `HostEnumCounter.flutterEchoNullableRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.HostEnumCounter.flutterEchoNullableRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
@@ -1789,7 +1801,7 @@ export abstract class PigeonApiHostEnumCounter {
 }
 
 /*
-*  最小 ProxyApi：构造参数含枚举、unattached 枚举字段、宿主方法枚举回显、Flutter 枚举回调。
+*  Minimal ProxyApi: enum ctor args, unattached enum field, host echo, Flutter callbacks.
 * 
 *  Generated host-side adapter for ProxyApi `EnumCounter`.
 *  Subclass and override the abstract members to provide your
@@ -1809,7 +1821,6 @@ export abstract class PigeonApiEnumCounter {
 
   abstract current(pigeon_instance: ESObject): number;
 
-  /* 宿主方法：枚举入参/返回（#18 编解码路径）。*/
   abstract echoRole(pigeon_instance: ESObject, value: ProxyRole): ProxyRole;
 
   abstract echoNullableRole(pigeon_instance: ESObject, value: ProxyRole | undefined): ProxyRole | undefined;
@@ -1985,8 +1996,15 @@ export abstract class PigeonApiEnumCounter {
     callback.reply(new FlutterError('new-instance-error', 'Attempting to create a new Dart instance of EnumCounter, but the class has a nonnull callback method.', '') as ESObject);
   }
 
-  /* Flutter 回调：宿主反向调用，验证 ProxyApi 的 FlutterApi 枚举路径（非空返回须非 optional 字段）。*/
   flutterEchoRole(pigeon_instance: ESObject, valueArg: ProxyRole, callback: Reply<ProxyRole>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `EnumCounter.flutterEchoRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.EnumCounter.flutterEchoRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());
@@ -2012,6 +2030,14 @@ export abstract class PigeonApiEnumCounter {
   }
 
   flutterEchoNullableRole(pigeon_instance: ESObject, valueArg: ProxyRole | undefined, callback: Reply<ProxyRole | undefined>): void {
+    if (this.pigeonRegistrar.ignoreCallsToDart) {
+      callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+      return;
+    }
+    if (!this.pigeonRegistrar.instanceManager.containsInstance(pigeon_instance)) {
+      callback.reply(new FlutterError('missing-instance-error', 'Callback to `EnumCounter.flutterEchoNullableRole` failed because native instance was not in the instance manager.', '') as ESObject);
+      return;
+    }
     const channelName: string = 'dev.flutter.pigeon.pigeon_example_app.EnumCounter.flutterEchoNullableRole';
     let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
       this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());

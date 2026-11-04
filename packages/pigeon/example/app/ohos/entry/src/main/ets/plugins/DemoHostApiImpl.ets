@@ -14,8 +14,8 @@
  */
 
 /*
- * 样板实现：DemoHostApi 的每个方法都原样 echo 回入参，
- * 用于验证 pigeon 自动生成的 ArkTS 桥接代码各类型数据是否都能正确往返。
+ * Sample DemoHostApi implementation: each method echoes its inputs to verify
+ * generated ArkTS bridge encoding for all supported types.
  */
 
 import {
@@ -47,7 +47,7 @@ export class DemoHostApiImpl extends DemoHostApi {
     this.proxyRegistrar = proxyRegistrar;
   }
 
-  // ===== 基本类型 echo =====
+  // ===== Primitive echo =====
   sendNull(data: Object): Object {
     return data;
   }
@@ -72,7 +72,7 @@ export class DemoHostApiImpl extends DemoHostApi {
     return data;
   }
 
-  // ===== typed list echo =====
+  // ===== Typed list echo =====
   sendUint8List(data: number[]): number[] {
     return data;
   }
@@ -89,7 +89,7 @@ export class DemoHostApiImpl extends DemoHostApi {
     return data;
   }
 
-  // ===== 容器 echo =====
+  // ===== Container echo =====
   sendList(data: Array<string>): Array<string> {
     return data;
   }
@@ -98,7 +98,7 @@ export class DemoHostApiImpl extends DemoHostApi {
     return data;
   }
 
-  // ===== 自定义类型 echo =====
+  // ===== Custom types echo =====
   sendCustomClass(data: Student): Student {
     return data;
   }
@@ -111,50 +111,48 @@ export class DemoHostApiImpl extends DemoHostApi {
     return data;
   }
 
-  // 同步可空枚举 echo
   sendNullableEnum(data: Identity | undefined): Identity | undefined {
     return data;
   }
 
-  // 异步枚举 echo（验证 HostApi 异步枚举返回的伴侣包装）
   sendAsyncEnum(data: Identity, result: Result<Identity>): void {
     setTimeout(() => {
       result.success(data);
     }, 100);
   }
 
-  // ===== Flutter -> Platform 同步调用 =====
+  // ===== Flutter -> Platform sync =====
   flutterInvokeSync(): string {
-    console.log('Platform flutterInvokeSync方法被调用');
-    return 'Received message: This is flutterInvokeSync() from Platform.同步方法被调用';
+    console.log('Platform flutterInvokeSync invoked');
+    return 'Received message: flutterInvokeSync() from Platform (sync).';
   }
 
-  // ===== Flutter -> Platform 异步调用 =====
+  // ===== Flutter -> Platform async =====
   flutterInvokeAsync(result: Result<string>): void {
     setTimeout(() => {
-      console.log('Platform flutterInvokeAsync方法被调用');
-      result.success('Received message: This is flutterInvokeAsync() from Platform.异步方法被调用');
+      console.log('Platform flutterInvokeAsync invoked');
+      result.success('Received message: flutterInvokeAsync() from Platform (async).');
     }, 100);
   }
 
-  // ===== 错误处理 =====
+  // ===== Error handling =====
   errorHandling(result: Result<string>): void {
-    console.log('Platform errorHandling被调用');
+    console.log('Platform errorHandling invoked');
     result.error(
       new FlutterError(
         'Platform',
-        'errorHandling被调用',
-        '返回PlatformException',
+        'errorHandling invoked',
+        'Returning PlatformException',
       ),
     );
   }
 
-  // ===== TaskQueue（serialBackgroundThread） =====
+  // ===== TaskQueue (serialBackgroundThread) =====
   taskQueueTest(): string {
     return 'taskQueueTest from ArkTS';
   }
 
-  // ===== 反向调用 Flutter：DemoFlutterApi.platformInvokeSync =====
+  // ===== FlutterApi.platformInvokeSync (Platform -> Flutter) =====
   triggerPlatformInvokeSync(result: Result<string>): void {
     this.flutterApi.platformInvokeSync({
       reply: (reply: ESObject): void => {
@@ -162,13 +160,13 @@ export class DemoHostApiImpl extends DemoHostApi {
           result.error(reply as FlutterError);
           return;
         }
-        console.log('platformInvokeSync成功调用:Flutter侧收到平台侧platformInvokeSync方法调用');
+        console.log('platformInvokeSync: Flutter received platform call');
         result.success(`platform got from Flutter (sync): ${reply as string}`);
       },
     });
   }
 
-  // ===== 反向调用 Flutter：DemoFlutterApi.platformInvokeAsync =====
+  // ===== FlutterApi.platformInvokeAsync (Platform -> Flutter) =====
   triggerPlatformInvokeAsync(result: Result<string>): void {
     this.flutterApi.platformInvokeAsync({
       reply: (reply: ESObject): void => {
@@ -176,13 +174,13 @@ export class DemoHostApiImpl extends DemoHostApi {
           result.error(reply as FlutterError);
           return;
         }
-        console.log('platformInvokeAsync成功调用:Flutter侧收到平台侧platformInvokeAsync方法调用');
+        console.log('platformInvokeAsync: Flutter received platform call');
         result.success(`platform got from Flutter (async): ${reply as string}`);
       },
     });
   }
 
-  // ===== 反向调用 Flutter：回显枚举（验证 FlutterApi 枚举入参 + 返回）=====
+  // ===== FlutterApi.platformEchoEnum =====
   triggerPlatformEchoEnum(data: Identity, result: Result<Identity>): void {
     this.flutterApi.platformEchoEnum(data, {
       reply: (reply: ESObject): void => {
@@ -190,13 +188,13 @@ export class DemoHostApiImpl extends DemoHostApi {
           result.error(reply as FlutterError);
           return;
         }
-        console.log('platformEchoEnum 回显:' + reply);
+        console.log('platformEchoEnum echo: ' + reply);
         result.success(reply as Identity);
       },
     });
   }
 
-  // ===== 反向调用 Flutter：回显可空枚举 =====
+  // ===== FlutterApi.platformEchoNullableEnum =====
   triggerPlatformEchoNullableEnum(
     data: Identity | undefined,
     result: Result<Identity | undefined>,
@@ -207,7 +205,7 @@ export class DemoHostApiImpl extends DemoHostApi {
           result.error(reply as FlutterError);
           return;
         }
-        console.log('platformEchoNullableEnum 回显:' + reply);
+        console.log('platformEchoNullableEnum echo: ' + reply);
         result.success(reply as Identity | undefined);
       },
     });

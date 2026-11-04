@@ -94,7 +94,7 @@ class ArkTSOptions {
   /// Overrides any non-null parameters from [options] into this to make a new
   /// [ArkTSOptions].
   ArkTSOptions merge(ArkTSOptions options) {
-    return ArkTSOptions.fromMap(mergeMaps(toMap(), options.toMap()));
+    return ArkTSOptions.fromMap(mergePigeonMaps(toMap(), options.toMap()));
   }
 }
 
@@ -255,7 +255,7 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     indent.write('export class ${klass.name} ');
     indent.addScoped('{', '}', () {
       for (final NamedType field in getFieldsInSerializationOrder(klass)) {
-        //for里面这里不一样，可能需要改造
+        // Field emission order differs from other generators; keep serialization order.
         _writeClassField(generatorOptions, indent, field);
         indent.newln();
       }
@@ -369,7 +369,7 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     );
   }
 
-  // 构造函数
+  /// Emits the data-class constructor.
   void _writeClassBuilder(
     InternalArkTSOptions generatorOptions,
     Root root,
@@ -1051,24 +1051,28 @@ let $resultName: Result<$returnType> = new ResultImp();
     indent.write('export class FlutterError implements Error ');
     indent.addScoped('{', '}', () {
       indent.newln();
+      indent.writeln('/** The error name (required by the ArkTS `Error` interface). */');
+      indent.writeln('public name: string;');
+      indent.newln();
       indent.writeln('/** The error code. */');
       indent.writeln('public code: string;');
       indent.newln();
-      indent.writeln('/** The error name. */');
-      indent.writeln('public name: string;');
-      indent.newln();
       indent.writeln('/** The error message. */');
       indent.writeln('public message: string;');
+      indent.newln();
+      indent.writeln('/** The error details. Must be a datatype supported by the api codec. */');
+      indent.writeln('public details: Object | null;');
       indent.writeln('/** The error stack. */');
       indent.writeln('public stack?: string;');
       indent.newln();
       indent.writeln(
-        'constructor(code: string, name: string, message: string, stack?: string) {',
+        'constructor(code: string, message: string, details: Object | null, stack?: string) {',
       );
       indent.addScoped(null, '}', () {
+        indent.writeln("this.name = 'FlutterError';");
         indent.writeln('this.code = code;');
-        indent.writeln('this.name = name;');
         indent.writeln('this.message = message;');
+        indent.writeln('this.details = details;');
         indent.writeln('this.stack = stack;');
       });
     });
@@ -1081,18 +1085,18 @@ function wrapError(error: Error): Array<Object | null> {
 \tif (error instanceof FlutterError) {
 \t\tlet err: FlutterError = error as FlutterError;
 \t\terrorList[0] = err.code;
-\t\terrorList[1] = err.name;
-\t\terrorList[2] = err.message;
+\t\terrorList[1] = err.message;
+\t\terrorList[2] = err.details;
 \t} else {
-\t\terrorList[0] = error.toString();
-\t\terrorList[1] = error.name;
+\t\terrorList[0] = error.name;
+\t\terrorList[1] = error.message;
 \t\terrorList[2] = "Cause: " + error.message + ", Stacktrace: " + error.stack;
 \t}
 \treturn errorList;
 }''');
   }
 
-  void _writeGetByteMethoe(Indent indent) {
+  void _writeGetByteMethod(Indent indent) {
     indent.format('''
 getByte(n: number): number {
 \tlet byteArray = new Uint8Array(1);
@@ -1139,7 +1143,7 @@ getByte(n: number): number {
     return (argument == 'arguments') ? 'argumentsArg' : argument;
   }
 
-  // get函数
+  /// Emits helpers for reading individual bytes from a buffer.
   String _makeGetter(NamedType field) {
     final String uppercased =
         field.name.substring(0, 1).toUpperCase() + field.name.substring(1);
@@ -1369,7 +1373,7 @@ getByte(n: number): number {
         'static readonly INSTANCE: $_codecName  = new $_codecName();',
       );
       indent.newln();
-      _writeGetByteMethoe(indent);
+      _writeGetByteMethod(indent);
 
       // When ProxyApi is present, PigeonProxyApiBaseCodec subclasses $_codecName
       // and must call super(); ArkTS forbids extending a class whose sole
@@ -2659,6 +2663,14 @@ callback.reply(new FlutterError('new-instance-error', 'Attempting to create a ne
     indent.write('${method.name}(${sigParts.join(', ')}): void ');
     indent.addScoped('{', '}', () {
       indent.format('''
+if (this.pigeonRegistrar.ignoreCallsToDart) {
+  callback.reply(new FlutterError('ignore-calls-error', 'Calls to Dart are being ignored.', '') as ESObject);
+  return;
+}
+if (!this.pigeonRegistrar.instanceManager.containsInstance(${classMemberNamePrefix}instance)) {
+  callback.reply(new FlutterError('missing-instance-error', 'Callback to `${api.name}.${method.name}` failed because native instance was not in the instance manager.', '') as ESObject);
+  return;
+}
 const channelName: string = '$channelName';
 let channel: BasicMessageChannel<Object> = new BasicMessageChannel<Object>(
   this.pigeonRegistrar.binaryMessenger, channelName, this.pigeonRegistrar.getCodec());

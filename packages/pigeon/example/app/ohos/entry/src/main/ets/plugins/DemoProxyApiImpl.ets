@@ -14,7 +14,7 @@
  */
 
 /*
- * ProxyApi 宿主实现：EnumCounter（Dart 创建）与 HostEnumCounter（宿主创建）。
+ * ProxyApi host implementations: EnumCounter (Dart-created) and HostEnumCounter (host-created).
  */
 
 import {
@@ -28,7 +28,7 @@ import {
 import { BinaryMessenger } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 import { Reply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BasicMessageChannel';
 
-/** 宿主侧计数器实例（EnumCounter / HostEnumCounter 共用）。 */
+/** Shared host-side counter backing EnumCounter and HostEnumCounter. */
 export class NativeEnumCounter {
   value: number;
   role: ProxyRole;
@@ -188,7 +188,7 @@ class PigeonNewInstanceVoidReply implements Reply<void> {
 }
 
 /**
- * 等待 Dart 侧完成 [HostEnumCounter] 注册（委托生成版 pigeon_newInstance 的错误处理）。
+ * Waits for Dart to register [HostEnumCounter] (generated pigeon_newInstance error handling).
  */
 function awaitHostEnumCounterOnDart(
   api: PigeonApiHostEnumCounterImpl,
@@ -214,8 +214,8 @@ function awaitHostEnumCounterOnDart(
 }
 
 /**
- * 供 [DemoHostApiImpl.proxyApiHostCreateAndEcho] 使用：宿主创建 [HostEnumCounter]，
- * 验证 pigeon_newInstance、宿主枚举 echo、以及宿主→Flutter 可空枚举回调。
+ * Used by [DemoHostApiImpl.proxyApiHostCreateAndEcho]: host-creates [HostEnumCounter],
+ * verifies pigeon_newInstance, host enum echo, and host→Flutter nullable enum callback.
  */
 export function runProxyApiHostEnumSmokeTest(
   registrar: DemoProxyApiRegistrarImpl,

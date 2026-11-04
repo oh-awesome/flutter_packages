@@ -231,6 +231,7 @@
                 <filteritem type="filepath" name="packages/pigeon/example/app/macos/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/pigeon/example/app/pigeons/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/pigeon/example/app/test_driver/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
+                <filteritem type="filepath" name="packages/pigeon/example/app/ohos/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_android/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
                 <filteritem type="filepath" name="packages/shared_preferences/shared_preferences_foundation/*" desc="开源库代码（或原库代码文件）,不做侵入式修改"/>
