@@ -2,7 +2,7 @@ name: shared_preferences_ohos
 description: Ohos implementation of the shared_preferences plugin
 repository: https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/shared_preferences/shared_preferences_ohos
 issue_tracker: https://gitcode.com/CPF-Flutter/flutter_packages/issues
-version: 2.5.5
+version: 2.5.6
 
 environment:
   sdk: ^3.9.0
@@ -26,6 +26,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  coverage: ^1.11.0
   path: ^1.9.0
   pigeon: ^9.2.3
 

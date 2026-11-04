@@ -2,7 +2,7 @@
   <h1 align="center"> <code>shared_preferences</code> </h1>
 </p>
 
-本项目基于 [shared_preferences@2.5.5](https://pub.dev/packages/shared_preferences/versions/2.5.5) 的 OpenHarmony 平台实现开发。
+本项目基于 [shared_preferences@2.5.6](https://pub.dev/packages/shared_preferences/versions/2.5.6) 的 OpenHarmony 平台实现开发。
 
 ## 简介
 
@@ -26,7 +26,7 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences"
-      ref: "shared_preferences-v2.5.5-ohos-1.0.0"
+      ref: "shared_preferences-v2.5.6-ohos-1.0.0"
 ```
 
 执行命令
@@ -39,9 +39,9 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | ----------------| ----------------------- | ---- |
-| 3.35            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
-| 3.41            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
-| 3.44            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
+| 3.41            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
+| 3.44            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
+| 3.47            | shared_preferences-v2.5.6-ohos-1.0.0 | oh-3.47.7-dev |
 
 ## 约束与限制
 
@@ -49,9 +49,9 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
-3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+2. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+3. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP36;
 
 ### 升级与迁移
 
@@ -357,6 +357,6 @@ shared_preferences_ohos/
 
 ## 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_shared_preferences-v2.5.4_ohos/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.47.7-dev/packages/shared_preferences/shared_preferences_ohos/LICENSE)，请自由地享受和参与开源。
 
 > 模板版本: v0.0.1

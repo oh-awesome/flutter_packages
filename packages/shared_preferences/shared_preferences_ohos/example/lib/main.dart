@@ -13,6 +13,11 @@ import 'modification_test_page.dart';
 import 'spec_test_page.dart';
 
 void main() {
+  // Register the ohos implementations explicitly; the plugin system also
+  // auto-registers them, and the explicit calls exercise both registration
+  // entry points of the demo.
+  SharedPreferencesOhos.registerWith();
+  SharedPreferencesAsyncOhos.registerWith();
   runApp(const MyApp());
 }
 
