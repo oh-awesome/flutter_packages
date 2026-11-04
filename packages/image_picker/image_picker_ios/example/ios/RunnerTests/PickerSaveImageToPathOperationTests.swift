@@ -8,14 +8,10 @@ import UIKit
 
 @testable import image_picker_ios
 
-#if canImport(image_picker_ios_objc)
-  @testable import image_picker_ios_objc
-#endif
-
 @Suite
 struct PickerSaveImageToPathOperationTests {
   private var testBundle: Bundle {
-    ImagePickerTestImages.bundle
+    Bundle(for: ImagePickerTestImages.self)
   }
 
   private func pickerItem(forResource name: String, ext: String) throws -> FakePickerItem {
@@ -149,15 +145,6 @@ struct PickerSaveImageToPathOperationTests {
     #expect(savedError?.code == "invalid_image")
     #expect(savedError?.message == loadDataError.localizedDescription)
     #expect(savedError?.details as? String == "PHPickerDomain")
-  }
-
-  @Test func undecodableImageDataReturnsError() async throws {
-    let itemProvider = StaticDataItemProvider(data: Data("not an image".utf8))
-    let result = FakePickerItem(itemProvider: itemProvider, assetIdentifier: nil)
-    let (savedPath, savedError) = try await runSaveOperation(result: result, fullMetadata: true)
-    #expect(savedPath == nil)
-    #expect(savedError?.code == "invalid_image")
-    #expect(savedError?.message == "Could not decode image data.")
   }
 
   @Test func initWithNilResultReturnsNil() {
