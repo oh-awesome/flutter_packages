@@ -25,7 +25,7 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/webview_flutter/webview_flutter
-      ref: webview_flutter-v4.14.1-ohos-1.0.0
+      ref: TAG # 根据下方表格选择不同框架适配的TAG版本
 ```
 
 如果需要直接调试 OHOS 平台实现，或需要调用平台扩展 API，也可以直接依赖当前包：
@@ -36,7 +36,7 @@ dependencies:
     git:
       url: https://gitcode.com/openharmony-tpc/flutter_packages.git
       path: packages/webview_flutter/webview_flutter_ohos
-      ref: webview_flutter-v4.14.1-ohos-1.0.0
+      ref: TAG # 根据下方表格选择不同框架适配的TAG版本
 ```
 
 ```bash
@@ -48,7 +48,7 @@ flutter pub get
  
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | ----------------| ----------------------- | ---- |
-| 3.44            | webview_flutter-v4.14.1-ohos-1.0.0 | oh-3.44.9 |
+| 3.47            | webview_flutter-v4.14.1-ohos-1.0.1 | oh-3.47.7 |
 
 ## 约束与限制
 
@@ -56,7 +56,7 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
 
 
 ### 权限要求
@@ -156,6 +156,77 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
     );
   }
 }
+```
+
+以下扩展示例均基于上方示例中的 `controller`，可在初始化阶段（如 `initState` 或异步初始化方法内）调用，用于覆盖 SSL 证书错误处理、地理位置授权与全屏自定义视图等 OHOS 扩展场景。
+
+### 扩展示例：SSL 证书错误处理
+
+ArkWeb 遇到可恢复的证书错误时会触发 `onSSlAuthError` 回调，每个错误必须调用 `proceed()`（继续通信）或 `cancel()`（终止通信）之一；未注册回调时插件默认执行 cancel，不会静默放行证书错误：
+
+```dart
+final PlatformWebViewController platformController = controller.platform;
+// 同一份 Dart 代码可能运行在其余平台，因此转换前必须先判断平台类型。
+if (platformController is OhosWebViewController) {
+  final OhosNavigationDelegate ohosDelegate =
+      OhosNavigationDelegate(PlatformNavigationDelegateCreationParams());
+  await ohosDelegate.setOnSSlAuthError((PlatformSslAuthError error) async {
+    // 仅对明确可信的站点调用 proceed()，其余一律 cancel() 终止通信。
+    if (error is OhosSslAuthError &&
+        error.url.startsWith('https://trusted.example.com')) {
+      await error.proceed();
+    } else {
+      await error.cancel();
+    }
+  });
+  await platformController.setPlatformNavigationDelegate(ohosDelegate);
+}
+```
+
+### 扩展示例：地理位置授权
+
+网页调用 Geolocation API 且无既有权限状态时触发 `onShowPrompt` 回调，应用以 `GeolocationPermissionsResponse` 返回授权结果（仅安全源（如 https）会触发；非安全源自动拒绝）：
+
+```dart
+final PlatformWebViewController platformController = controller.platform;
+// 同一份 Dart 代码可能运行在其余平台，因此转换前必须先判断平台类型。
+if (platformController is OhosWebViewController) {
+  await platformController.setGeolocationPermissionsPromptCallbacks(
+    onShowPrompt: (GeolocationPermissionsRequestParams request) async {
+      // allow：本次是否授权；retain：是否跨页面保留该授权。
+      return GeolocationPermissionsResponse(allow: true, retain: false);
+    },
+    // 页面取消地理位置请求时回调，可在此关闭自定义授权弹窗。
+    onHidePrompt: () {},
+  );
+}
+```
+
+### 扩展示例：全屏视频（自定义视图）
+
+网页（如视频）进入/退出全屏时分别触发 `onShowCustomWidget`/`onHideCustomWidget` 回调；回调给出的 `widget` 即 `OhosCustomViewWidget`，不能手动实例化，只能在该回调中使用：
+
+```dart
+// 在 State 中声明字段，用于保存进入全屏时的自定义视图：
+// Widget? fullscreenWidget;
+
+final PlatformWebViewController platformController = controller.platform;
+// 同一份 Dart 代码可能运行在其余平台，因此转换前必须先判断平台类型。
+if (platformController is OhosWebViewController) {
+  await platformController.setCustomWidgetCallbacks(
+    // 网页进入全屏时回调，保存并展示自定义视图。
+    onShowCustomWidget: (Widget widget, void Function() onCustomWidgetHidden) {
+      setState(() => fullscreenWidget = widget);
+    },
+    // 网页退出全屏时回调，移除自定义视图、恢复 WebViewWidget 展示。
+    onHideCustomWidget: () {
+      setState(() => fullscreenWidget = null);
+    },
+  );
+}
+
+// build 中按需切换全屏视图与普通 WebView：
+// body: fullscreenWidget ?? WebViewWidget(controller: controller),
 ```
 
 ## 使用说明
@@ -365,7 +436,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 
 `PlatformWebViewController` 的基类创建参数。该类不声明任何跨平台字段：
 它是为平台实现通过子类提供平台专属参数而保留的扩展点。OpenHarmony 实现扩展了
-`OhosWebViewControllerCreationParams.allowFullScreenRotate`（见
+`OhosWebViewControllerCreationParams.isAllowFullScreenRotate`（见
 [OpenHarmony 扩展 API](#openharmony-扩展-api)）。应用通常构造当前平台的
 子类并传给 `WebViewController.fromPlatformCreationParams`。
 
@@ -374,6 +445,22 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 `PlatformNavigationDelegate` 的基类创建参数。与
 `PlatformWebViewControllerCreationParams` 一样不声明跨平台字段；OpenHarmony 实现直接
 接受默认实例。将该实例传给 `NavigationDelegate.fromPlatformCreationParams` 即可。
+
+### OpenHarmony 扩展 API
+
+以下扩展 API 通过 `controller.platform`（`OhosWebViewController`）或平台导航代理（`OhosNavigationDelegate`）调用，仅存在于 OpenHarmony 平台实现中；基础能力仍通过跨平台的 `WebViewController`/`NavigationDelegate` 使用。
+
+| Name | return | Description | Type |
+| ---- | ------ | ----------- | ---- |
+| OhosWebViewController.enableDebugging(bool enabled) | void | 开启/关闭 ArkWeb 调试日志 | static function |
+| OhosWebViewController.setOnShowFileSelector(Future<List<String>> Function([FileSelectorParams](#FileSelectorParams) params)? onShowFileSelector) | Future<void> | 注册网页文件选择回调，回调返回值回传给网页所选文件的 URI 列表 | function |
+| OhosWebViewController.setGeolocationPermissionsPromptCallbacks({onShowPrompt, onHidePrompt}) | Future<void> | 注册地理位置权限弹窗回调（见 [GeolocationPermissionsRequestParams](#GeolocationPermissionsRequestParams)） | function |
+| OhosWebViewController.setCustomWidgetCallbacks({onShowCustomWidget, onHideCustomWidget}) | Future<void> | 注册全屏自定义视图（如视频全屏）回调，回调参数中的 Widget 为 [OhosCustomViewWidget](#OhosCustomViewWidget) | function |
+| OhosWebViewController.isWebViewFeatureSupported([WebViewFeatureType](#WebViewFeatureType) featureType) | Future<bool> | 查询设备是否支持指定 WebView 特性 | function |
+| OhosWebViewController.setPaymentRequestEnabled(bool enabled) | Future<void> | 设置是否启用 Payment Request API；ArkWeb 暂无真实后端，调用前应先经 `isWebViewFeatureSupported` 确认 | function |
+| OhosWebViewController.setMixedContentMode(MixedContentMode mode) | Future<void> | 设置混合内容（HTTP/HTTPS）处理策略 | function |
+| OhosWebViewController.setTextZoom(int textZoom) | Future<void> | 设置页面文本缩放百分比 | function |
+| OhosNavigationDelegate.setOnSSlAuthError(SslAuthErrorCallback onSslAuthError) | Future<void> | 注册可恢复 SSL 证书错误回调，错误对象为 OhosSslAuthError | function |
 
 ### WebViewPlatform
 
@@ -512,7 +599,7 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 
 附加到 [SslAuthError] 的证书数据。
 
-| Name | Description                                  | Type       | ohos Support持 |
+| Name | Description                                  | Type       | ohos Support |
 | ---- | ------------------------------------- | ---------- | ------------ |
 | data | DER 编码的证书字节；ArkWeb 不提供证书链字节，OHOS 上为 `null` | Uint8List? | partially |
 
@@ -522,6 +609,82 @@ class _SimpleWebViewPageState extends State<SimpleWebViewPage> {
 | -------- | ----------- | ------ | ------------ |
 | user     | 用户名      | String | yes          |
 | password | 密码        | String | yes          |
+
+#### GeolocationPermissionsRequestParams
+
+`OhosWebViewController.setGeolocationPermissionsPromptCallbacks` 的 `onShowPrompt` 回调接收的请求参数。
+
+| Name   | Description                                                      | Type   | ohos Support |
+| ------ | ---------------------------------------------------------------- | ------ | ------------ |
+| origin | 发起地理位置权限请求的页面源（origin）；仅安全源（如 https）会触发该回调 | String | yes          |
+
+#### GeolocationPermissionsResponse
+
+`onShowPrompt` 回调需要返回的应答，用于告知 WebView 本次地理位置请求的处理结果。
+
+| Name                                                            | return | Description                                                | Type     | ohos Support |
+| --------------------------------------------------------------- | ------ | ---------------------------------------------------------- | -------- | ------------ |
+| GeolocationPermissionsResponse({required allow, required retain}) | GeolocationPermissionsResponse | 构造应答：`allow` 本次是否授权，`retain` 是否跨页面保留权限 | function | yes          |
+| allow                                                            |        | 是否允许该源使用 Geolocation API                           | bool     | yes          |
+| retain                                                           |        | 权限是否保留到当前页面生命周期之后                         | bool     | yes          |
+
+#### FileSelectorMode
+
+文件选择器的选择模式，见 `OhosWebViewController.setOnShowFileSelector`。
+
+| Name         | Description                            | Type | ohos Support |
+| ------------ | -------------------------------------- | ---- | ------------ |
+| open         | 选择单个已存在的文件                   | enum | yes          |
+| openMultiple | 与 `open` 类似，但允许同时选择多个文件 | enum | yes          |
+| save         | 允许选择一个尚不存在的文件并保存       | enum | yes          |
+
+#### FileSelectorParams
+
+`OhosWebViewController.setOnShowFileSelector` 回调接收的文件选择参数。
+
+| Name             | Description                                | Type             | ohos Support |
+| ---------------- | ------------------------------------------ | ---------------- | ------------ |
+| isCaptureEnabled | 是否优先使用摄像头/麦克风等直接采集媒体   | bool             | yes          |
+| acceptTypes      | 可接受的 MIME 类型列表                     | List<String>     | yes          |
+| filenameHint     | 默认文件名提示（如页面指定，否则为 null） | String?          | yes          |
+| mode             | 文件选择模式                               | FileSelectorMode | yes          |
+
+#### WebViewFeatureType
+
+`OhosWebViewController.isWebViewFeatureSupported` 查询的 WebView 特性类型。
+
+| Name            | Description                                                                                              | Type | ohos Support |
+| --------------- | -------------------------------------------------------------------------------------------------------- | ---- | ------------ |
+| paymentRequest | Payment Request API 特性；当前 OHOS 实现固定返回不支持（ArkWeb 暂未提供公开的 Payment Request 能力接口） | enum | yes          |
+
+#### OhosWebViewWidgetCreationParams
+
+`OhosWebViewWidget`（OHOS 平台 `PlatformWebViewWidget` 实现）的创建参数；基类字段（key、controller、layoutDirection、gestureRecognizers）见 [PlatformWebViewWidgetCreationParams](#PlatformWebViewWidgetCreationParams)。
+
+| Name                                                       | return | Description                                  | Type                       | ohos Support |
+| ---------------------------------------------------------- | ------ | -------------------------------------------- | -------------------------- | ------------ |
+| displayWithHybridComposition                               |        | 是否以混合合成模式渲染 WebView，默认 `false` | bool                       | yes          |
+| platformViewsServiceProxy                                  |        | 平台视图服务代理（仅测试用途）               | PlatformViewsServiceProxy | yes          |
+| fromPlatformWebViewWidgetCreationParams(params)            | OhosWebViewWidgetCreationParams | 由平台基类创建参数构造 OHOS 创建参数         | function                   | yes          |
+
+#### OhosCustomViewWidget
+
+网页进入全屏（如视频全屏）时承载原生视图的 Widget。该类型不能手动实例化，仅由 `OhosWebViewController.setCustomWidgetCallbacks` 的 `onShowCustomWidget` 回调提供给应用，外部只应将其作为普通 `Widget` 使用。
+
+| Name                      | return | Description                                  | Type                      | ohos Support |
+| ------------------------- | ------ | -------------------------------------------- | ------------------------- | ------------ |
+| customView                |        | 全屏展示的原生视图                           | ohos_webview.View         | yes          |
+| controller                |        | 控制原生 WebView 的平台控制器                | PlatformWebViewController | yes          |
+| platformViewsServiceProxy |        | 平台视图服务代理（仅测试用途）               | PlatformViewsServiceProxy | yes          |
+| build(context)            | Widget | 构建承载原生视图的平台视图                   | function                  | yes          |
+
+#### OhosWebViewCookieManagerCreationParams
+
+`OhosWebViewCookieManager`（OHOS 平台 Cookie 管理器实现）的创建参数。
+
+| Name                                                       | return | Description                                                  | Type     | ohos Support |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------ | -------- | ------------ |
+| fromPlatformWebViewCookieManagerCreationParams(params)      | OhosWebViewCookieManagerCreationParams | 由平台基类 `PlatformWebViewCookieManagerCreationParams` 构造 OHOS 创建参数 | function | yes          |
 
 #### WebViewPermissionResourceType
 
@@ -615,7 +778,6 @@ webview_flutter_ohos/
 |     |           |---- module.json5   # HAR 模块配置
 |---- AUTHORS                          # 作者列表
 |---- CHANGELOG.md                     # 版本变更记录
-|---- CHANGELOG_README.md              # README 变更记录
 |---- LICENSE                          # 开源协议
 |---- pubspec.yaml                     # 包配置文件
 |---- README.CN.md                     # 中文说明文档
@@ -629,5 +791,5 @@ webview_flutter_ohos/
 
 ##  开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.47.7/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
 

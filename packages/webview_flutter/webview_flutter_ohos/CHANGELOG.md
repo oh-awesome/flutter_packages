@@ -1,3 +1,10 @@
+## webview_flutter-v4.14.1-ohos-1.0.1 - 2026.11
+ 
+### Added
+
+* 3.47 adaptation.
+ 
+
 ## webview_flutter-v4.14.1-ohos-1.0.0 - 2026.8
 
 * Adds OpenHarmony support for `webview_flutter` 4.14.1, including SSL error handling, ArkWeb navigation/JavaScript/cookie/permission/file-selection/geolocation/fullscreen/HTTP-auth callbacks.
