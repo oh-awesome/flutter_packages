@@ -21,6 +21,7 @@ import {
   FlutterPlugin,
   FlutterPluginBinding
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
+import Log from '@ohos/flutter_ohos/src/main/ets/util/Log';
 import { FileSelectorApiImpl } from './FileSelectorApiImpl'
 
 const TAG = "FileSelectorOhosPlugin"
@@ -49,7 +50,7 @@ export default class FileSelectorOhosPlugin implements FlutterPlugin, AbilityAwa
   }
 
   onAttachedToEngine(binding: FlutterPluginBinding): void {
-    console.debug(TAG, 'onAttachedToEngine file selector  ')
+    Log.d(TAG, 'onAttachedToEngine');
     this.pluginBinding = binding;
   }
 

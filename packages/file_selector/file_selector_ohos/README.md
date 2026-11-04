@@ -20,9 +20,9 @@ Go to your project root directory and add the following dependency in `pubspec.y
 dependencies:
   file_selector:	 
     git: 	 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git	 
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/file_selector/file_selector
-      ref: br_file_selector-v1.1.0_ohos
+      ref: file_selector-v1.1.0-ohos-1.0.2
 ```
 
 Run:
@@ -30,6 +30,14 @@ Run:
 ```bash
 flutter pub get
 ```
+
+### TAG / branch mapping
+
+| Flutter framework | TAG | Branch |
+| --- | --- | --- |
+| 3.35 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+| 3.41 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+| 3.44 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
 
 ## Constraints and Limitations
 
@@ -39,46 +47,7 @@ Tested and passed on the following versions:
 
 1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
 2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
-
-### 2.2 Permission Requirements
-
-Some permissions used below require the `system_basic` privilege level. New run with the default `normal` privilege level, so installation may fail with an error if `system_basic` permissions are not properly configured.
-
-#### Add permissions in `module.json5` under the `entry` directory
-
-Open `entry/src/main/module.json5` and add:
-
-```yaml
-...
-"requestPermissions": [
-  {
-    "name": "ohos.permission.INTERNET",
-    "reason": "$string:network_reason",
-    "usedScene": {
-      "abilities": [
-        "EntryAbility"
-      ],
-      "when":"inuse"
-    }
-  },
-]
-```
-
-#### Add the reason string for the above permission under the `entry` directory
-
-Open `entry/src/main/resources/base/element/string.json` and add:
-
-```
-...
-{
-  "string": [
-    {
-      "name": "network_reason",
-      "value": "Use network"
-    },
-  ]
-}
-```
+3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio 26.0.0 Beta2; ROM: 7.0.0.102 SP8;
 
 ## Usage Example
 
@@ -160,4 +129,4 @@ If you find any issues during usage, feel free to submit an [Issue](https://gitc
 
 ## License
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/openharmony-tpc/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE). Feel free to use it and contribute to open source.
+This project is licensed under [Apache-2.0](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE). Feel free to use it and contribute to open source.

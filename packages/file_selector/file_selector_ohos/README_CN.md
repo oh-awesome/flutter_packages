@@ -39,8 +39,7 @@ flutter pub get
 
 1. 按上表将 `ref` 切换到目标 Flutter 框架对应的分支或 TAG。
 2. 执行 `flutter clean` 与 `flutter pub get`。
-3. 核对 `module.json5` 权限配置是否与当前文档一致。
-4. 若从仅 Android/iOS 项目迁到 OpenHarmony，需增加 `ohos` 平台工程并重新编译 HAP。
+3. 若从仅 Android/iOS 项目迁到 OpenHarmony，需增加 `ohos` 平台工程并重新编译 HAP。
 
 ## 约束与限制
 
@@ -60,44 +59,6 @@ flutter pub get
 4. 在工程中执行依赖安装：`flutter pub get`。
 5. 编译示例或业务工程：`flutter build hap`。
 6. 通过 DevEco Studio 或 `hdc` 将 HAP 安装到设备/模拟器并运行。
-
-### 权限要求
-
-以下权限中有 `system_basic` 权限，而默认的应用权限是 `normal`，只能使用 `normal` 等级的权限，所以可能会在安装 hap 包时报错 **9568289**。请按 OpenHarmony 应用权限等级规范修改应用等级为 `system_basic`。
-
-#### 在 entry 目录下的 module.json5 中添加权限
-
-打开 `entry/src/main/module.json5`，添加：
-
-```json
-"requestPermissions": [
-  {
-    "name": "ohos.permission.INTERNET",
-    "reason": "$string:network_reason",
-    "usedScene": {
-      "abilities": [
-        "EntryAbility"
-      ],
-      "when": "inuse"
-    }
-  }
-]
-```
-
-#### 在 entry 目录下添加申请以上权限的原因
-
-打开 `entry/src/main/resources/base/element/string.json`，添加：
-
-```json
-{
-  "string": [
-    {
-      "name": "network_reason",
-      "value": "使用网络"
-    }
-  ]
-}
-```
 
 ## 使用示例
 
@@ -185,4 +146,4 @@ file_selector_ohos/
 
 ## 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [Apache-2.0](https://gitcode.com/CPF-Flutter/flutter_packages/blob/master/packages/file_selector/file_selector_ohos/LICENSE) ，请自由地享受和参与开源。

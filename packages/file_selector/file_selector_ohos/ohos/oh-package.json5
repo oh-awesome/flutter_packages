@@ -16,7 +16,7 @@
 {
   "name": "file_selector_ohos",
   "version": "1.0.0",
-  "description": "Please describe the basic information.",
+  "description": "OpenHarmony implementation of the file_selector package.",
   "main": "index.ets",
   "author": "",
   "license": "Apache-2.0",
