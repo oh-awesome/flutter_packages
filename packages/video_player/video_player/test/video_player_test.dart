@@ -323,6 +323,28 @@ void main() {
     expect((key.currentContext! as Element).dirty, isTrue);
   });
 
+  testWidgets('VideoProgressIndicator uses custom padding', (WidgetTester tester) async {
+    final controller = FakeController();
+    addTearDown(controller.dispose);
+    controller.value = controller.value.copyWith(
+      duration: const Duration(milliseconds: 100),
+      position: const Duration(milliseconds: 50),
+      isInitialized: true,
+    );
+
+    const EdgeInsets customPadding = EdgeInsets.fromLTRB(10, 20, 30, 40);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: VideoProgressIndicator(controller, allowScrubbing: false, padding: customPadding),
+      ),
+    );
+
+    final VideoProgressIndicator indicator = tester.widget<VideoProgressIndicator>(
+      find.byType(VideoProgressIndicator),
+    );
+    expect(indicator.padding, equals(customPadding));
+  });
+
   testWidgets('VideoPlayer does not crash after loading 0-duration videos', (
     WidgetTester tester,
   ) async {
@@ -569,6 +591,23 @@ void main() {
           expect(controller.value.hasError, equals(false));
         },
       );
+
+      test(
+          'error stream events that are not PlatformException do not crash the error listener',
+          () async {
+        final VideoPlayerController controller =
+            VideoPlayerController.networkUrl(_localhostUri);
+        await controller.initialize();
+
+        // A non-PlatformException stream error, e.g. a TypeError thrown while
+        // parsing a native event, must not crash the error listener.
+        fakeVideoPlayerPlatform.streams[controller.playerId]!
+            .addError(TypeError(), StackTrace.current);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.value.hasError, isTrue);
+        expect(controller.value.errorDescription, contains('$TypeError'));
+      });
     });
 
     test('contentUri', () async {
