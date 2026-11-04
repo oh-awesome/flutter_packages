@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// TestAbility 的承载页面（loadContent 目标），测试逻辑在 TestAbility.onCreate 中执行。
+// The host page of TestAbility (the loadContent target); test logic runs in TestAbility.onCreate.
 
 import hilog from '@ohos.hilog';
 

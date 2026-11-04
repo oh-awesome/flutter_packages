@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// FileUtils.ets 测试：空 context/无效 URI 错误路径 + 真实 context 下临时文件拷贝与清理。
+// FileUtils.ets tests: empty-context/invalid-URI error paths + temp file copy and cleanup under a real context.
 
 import { describe, it, expect } from '@ohos/hypium';
 import FileUtils from '../../../main/ets/image_picker/FileUtils';
@@ -60,7 +60,7 @@ export default function fileUtilsTest() {
       expect(outPath != null).assertTrue();
       if (outPath != null) {
         expect(fileExists(outPath)).assertTrue();
-        // 输出文件名含原文件前缀 + 时间戳 + 扩展名
+        // The output file name contains the original file prefix + timestamp + extension
         expect(outPath.indexOf('/ip_test_src')).assertEqual(outPath.lastIndexOf('/'));
       }
       try {
@@ -102,14 +102,16 @@ export default function fileUtilsTest() {
     });
 
     it('cleanupTempFiles_removes_legacy_uuid_dirs_under_cache_dir', 0, () => {
-      // 老版本路径：3.44 质量加固前 getPathFromUri 直接建在 cacheDir/<32位hex>/ 下，
-      // 升级后须由 cleanupTempFiles 一并清掉旧残留
+      // Legacy path: before the 3.44 quality hardening, getPathFromUri created files directly under
+      // cacheDir/<32-char-hex>/, and after upgrading cleanupTempFiles must also clean up those old leftovers
       const ctx: common.Context = realContext();
-      // util.generateRandomUUID() 产出 8-4-4-4-12 带连字符格式，cleanupLegacyTempFiles 的正则
-      // 只匹配该格式；无连字符的 32 位 hex 不会被清理（历史上误写成无连字符导致该用例 Error）。
+      // util.generateRandomUUID() produces the 8-4-4-4-12 hyphenated format; the cleanupLegacyTempFiles regex
+      // only matches that format; hyphen-free 32-char hex is not cleaned
+      // (historically written without hyphens, which made this case Error).
       const legacyUuid: string = 'a1b2c3d4-e5f6-0718-293a-4b5c6d7e8f90';
       const legacyDir: string = ctx.cacheDir + '/' + legacyUuid;
-      // 幂等准备：先清一次，避免上次失败运行的残留目录导致 mkdirSync 抛错
+      // Idempotent preparation: clean once first so leftover directories from a previously failed run
+      // do not make mkdirSync throw
       FileUtils.cleanupTempFiles(ctx);
       fs.mkdirSync(legacyDir);
       const legacyFile: string = legacyDir + '/legacy_copy.jpg';
@@ -121,7 +123,7 @@ export default function fileUtilsTest() {
     });
 
     it('cleanupTempFiles_preserves_non_uuid_subdirs_under_cache_dir', 0, () => {
-      // 非 UUID 命名的 cacheDir 子目录不应被老路径清理误删
+      // cacheDir subdirectories not named as UUIDs must not be mistakenly deleted by the legacy-path cleanup
       const ctx: common.Context = realContext();
       const keepDir: string = ctx.cacheDir + '/ip_keep_dir';
       const keepFile: string = keepDir + '/keep.jpg';
@@ -132,7 +134,7 @@ export default function fileUtilsTest() {
       writeFile(keepFile, 8);
       FileUtils.cleanupTempFiles(ctx);
       expect(fileExists(keepFile)).assertTrue();
-      // 清理本用例自建目录，避免污染后续测试
+      // Clean up the directory this case created to avoid polluting later tests
       try {
         fs.unlinkSync(keepFile);
         fs.rmdirSync(keepDir);
@@ -178,7 +180,7 @@ export default function fileUtilsTest() {
         writeFile(srcPath, 16);
         created = true;
       } catch (e) {
-        // 部分文件系统不允许以点结尾的文件名，跳过（不影响其他断言）
+        // Some file systems do not allow file names ending with a dot; skip (other assertions unaffected)
       }
       if (created) {
         const uri: string = fileUri.getUriFromPath(srcPath);
@@ -199,9 +201,11 @@ export default function fileUtilsTest() {
     });
 
     it('getPathFromUri_directory_uri_hits_empty_name_and_copy_failure', 0, () => {
-      // 目录 URI（带尾斜杠）：openSync 只读打开目录可能成功 → inputFilePath 为空字符串 →
-      // outputFileName 兜底 'image_picker'；随后 copyFileSync 读目录 fd 失败 → 进入
-      // mkdirSync 后的清理分支。无论 openSync 成功或抛错都不应崩溃（抛错时走既有 null 返回路径）。
+      // Directory URI (with trailing slash): openSync may succeed opening a directory read-only →
+      // inputFilePath becomes an empty string →
+      // outputFileName falls back to 'image_picker'; copyFileSync then fails reading the directory fd → enters the
+      // cleanup branch after mkdirSync. It must not crash whether openSync succeeds or throws
+      // (on throw it follows the existing null-return path).
       const ctx: common.Context = realContext();
       const dirPath: string = ctx.cacheDir + '/ip_dir_uri_test';
       try {
@@ -210,7 +214,8 @@ export default function fileUtilsTest() {
       }
       const uri: string = fileUri.getUriFromPath(dirPath) + '/';
       const outPath: string | null = FileUtils.getPathFromUri(ctx, uri);
-      // 结果不关心：覆盖空文件名兜底与 copy 失败清理分支即可；清理目录与临时目录避免残留
+      // The result is irrelevant: covering the empty-file-name fallback and the copy-failure cleanup branch is enough;
+      // clean the dir and temp dir to avoid leftovers
       FileUtils.cleanupTempFiles(ctx);
       try {
         fs.rmdirSync(dirPath);

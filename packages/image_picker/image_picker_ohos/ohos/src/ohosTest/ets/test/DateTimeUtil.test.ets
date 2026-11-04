@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// DateTimeUtil 日期/时间格式化工具测试。
+// DateTimeUtil date/time formatting utility tests.
 
 import { describe, it, expect } from '@ohos/hypium';
 import DateTimeUtil from '../../../main/ets/image_picker/DateTimeUtil';

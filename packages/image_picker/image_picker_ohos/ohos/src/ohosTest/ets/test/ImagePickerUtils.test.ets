@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ImagePickerUtils.ets 错误路径测试：非法 context 下 requestCameraPermission 应捕获异常并返回 false。
+// ImagePickerUtils.ets error-path tests: requestCameraPermission must catch the exception
+// and return false with an invalid context.
 
 import { describe, it, expect } from '@ohos/hypium';
 import ImagePickerUtils from '../../../main/ets/image_picker/ImagePickerUtils';

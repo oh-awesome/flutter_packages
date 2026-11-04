@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ExifDataCopier.ets 测试：无效路径下 copyExif 应拒绝而非挂起，资源在 finally 中释放；
-// 真实 PNG 上执行 copyExif 覆盖 getImageProperty 属性遍历循环（若任一属性可解析则覆盖 .then 闭包）。
+// ExifDataCopier.ets tests: copyExif must reject rather than hang on invalid paths, with resources released in finally;
+// running copyExif on real PNGs covers the getImageProperty property iteration loop
+// (if any property resolves, the .then closure is covered).
 
 import { describe, it, expect } from '@ohos/hypium';
 import ExifDataCopier from '../../../main/ets/image_picker/ExifDataCopier';
@@ -20,7 +21,7 @@ function unlinkQuiet(path: string): void {
   }
 }
 
-// 将内嵌 base64 的真实 EXIF JPEG 解码写入 cacheDir，返回文件路径
+// Decode the embedded base64 real EXIF JPEG into cacheDir and return the file path
 function writeExifJpeg(ctx: common.Context, name: string): string {
   const helper: util.Base64Helper = new util.Base64Helper();
   const encoder: util.TextEncoder = new util.TextEncoder();
@@ -84,8 +85,9 @@ export default function exifDataCopierTest() {
     });
 
     it('copyExif_real_jpegs_runs_property_loop', 0, async () => {
-      // JPEG 容器含可解析的 EXIF 属性段时 getImageProperty 可能 resolve（PNG 全部属性均 reject），
-      // 该用例尝试触达 copyExif 循环内 .then 闭包；无论 resolve/reject 均不抛异常
+      // When the JPEG container holds a parseable EXIF property segment, getImageProperty may resolve
+      // (all PNG properties reject), so this case tries to reach the .then closure inside the copyExif loop;
+      // no exception is thrown whether it resolves or rejects
       const ctx: common.Context = realContext();
       const src: string = await createImage(ctx, 'exif_src.jpg', 'image/jpeg');
       const dest: string = await createImage(ctx, 'exif_dest.jpg', 'image/jpeg');
@@ -100,9 +102,10 @@ export default function exifDataCopierTest() {
     });
 
     it('copyExif_real_exif_jpeg_resolves_property_loop', 0, async () => {
-      // 内嵌真实带 EXIF 元数据的 JPEG（jpgImageTall.jpg，含 APP1 Exif 段）：
-      // getImageProperty 对真实存在的属性会 resolve，从而覆盖 copyExif 循环内
-      // `.then((data) => {...})` 闭包（packer 生成的无 EXIF 图片全属性 reject，触达不到）。
+      // Embeds a real JPEG with EXIF metadata (jpgImageTall.jpg, containing an APP1 Exif segment):
+      // getImageProperty resolves for genuinely existing properties, covering the
+      // `.then((data) => {...})` closure inside the copyExif loop
+      // (packer-generated images without EXIF reject all properties and never reach it).
       const ctx: common.Context = realContext();
       const src: string = writeExifJpeg(ctx, 'exif_real_src.jpg');
       const dest: string = writeExifJpeg(ctx, 'exif_real_dest.jpg');

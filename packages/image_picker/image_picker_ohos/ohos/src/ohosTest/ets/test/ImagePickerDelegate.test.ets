@@ -1,12 +1,13 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ImagePickerDelegate.ets 纯逻辑测试：构造器读 ability.context（无 null 容错），空上下文用例
-// 通过 {context:null} fake ability 让 this.context 保持 null，
-// 覆盖 handleResultType 全部分发、finishWith* 回包分支、setPendingOptionsAndResult 状态机、
-// 视频扩展名识别与 CameraDevice 枚举。真实上下文用例通过 fake ability（{context: 真实 appContext}）
-// 注入真实上下文，配合真实临时文件覆盖选择结果处理与 retrieveLostImage 全链路。
-// 不触碰 chooseMedia/takeXxxWithCamera 的系统选择器（会拉起真实 UI）。
+// ImagePickerDelegate.ets pure-logic tests: the constructor reads ability.context (no null
+// tolerance); empty-context cases keep this.context null via a {context:null} fake ability,
+// covering all handleResultType dispatch, finishWith* reply branches, the setPendingOptionsAndResult
+// state machine, video extension detection, and the CameraDevice enum. Real-context cases inject
+// the real appContext via a fake ability ({context: real appContext}) and, with real temp files,
+// cover selection result handling and the full retrieveLostImage pipeline; they never touch the
+// system pickers behind chooseMedia/takeXxxWithCamera (which would launch real UI).
 
 import { describe, it, expect } from '@ohos/hypium';
 import ArrayList from '@ohos.util.ArrayList';
@@ -63,8 +64,8 @@ class FakeResult implements Result<ArrayList<string>> {
   }
 }
 
-// fake PhotoViewPicker：经 setPhotoPickerForTest 注入 delegate，覆盖 chooseMedia 的
-// select().then/.catch 闭包而不拉起真实系统选择器 UI
+// Fake PhotoViewPicker: injected into the delegate via setPhotoPickerForTest, covering the
+// select().then/.catch closures of chooseMedia without launching the real system picker UI
 class FakePhotoViewPicker {
   resolveUris: Array<string> | null = null;
   rejectWith: Error | null = null;
@@ -77,9 +78,11 @@ class FakePhotoViewPicker {
   }
 }
 
-// fake 权限检查/申请：经 setPermissionNeedCheckerForTest/setPermissionRequesterForTest 注入，
-// 覆盖 checkAndRequestCameraPermission 的 .then/.catch 闭包（测试 app manifest 未声明 CAMERA 权限，
-// 且真实 requestCameraPermission 内部 try/catch 恒 resolve，两条分支在生产/真实测试环境均不可达）
+// Fake permission check/request: injected via
+// setPermissionNeedCheckerForTest/setPermissionRequesterForTest, covering the .then/.catch
+// closures of checkAndRequestCameraPermission (the test app manifest does not declare the CAMERA
+// permission, and the real requestCameraPermission always resolves inside its own try/catch, so
+// both branches are unreachable in production/real test environments)
 function fakeNeedPermissionTrue(): (cb: AsyncCallback<boolean>) => void {
   return (cb: AsyncCallback<boolean>): void => {
     cb(null, true);
@@ -94,12 +97,14 @@ function fakeRequestReject(): (ctx: common.Context) => Promise<boolean> {
   return (_ctx: common.Context): Promise<boolean> => Promise.reject(new Error('permission request failed'));
 }
 
-// ---- 测试注入辅助 ----
-// cameraPicker.pick 来自 @kit.CameraKit（namespace），ArkTS 禁止以对象方式覆写其成员
-// （arkts-no-ns-as-obj），launch*WithCameraWant 的 .then/.catch 闭包在不动 main 源码的前提下
-// 无法注入覆盖；相关用例已收敛为 null-context 入口冒烟测试（见各用例注释）。
-// ImagePickerUtils 为 class，可经 ESObject 替换其 public static 方法、用毕恢复原值，
-// 覆盖 checkAndRequestCameraPermission 的 granted/denied 两条权限分支。
+// ---- Test injection helpers ----
+// cameraPicker.pick comes from @kit.CameraKit (a namespace); ArkTS forbids overriding its members
+// as an object (arkts-no-ns-as-obj), so the .then/.catch closures of launch*WithCameraWant cannot
+// be injected without touching the main source; the related cases have been reduced to
+// null-context entry smoke tests (see each case's comments).
+// ImagePickerUtils is a class, so its public static methods can be replaced via ESObject and
+// restored afterwards, covering both granted/denied permission branches of
+// checkAndRequestCameraPermission.
 const ORIGINAL_NEED_PERMISSION: ESObject = (ImagePickerUtils as ESObject).needRequestCameraPermission;
 const ORIGINAL_REQUEST_PERMISSION: ESObject = (ImagePickerUtils as ESObject).requestCameraPermission;
 
@@ -115,12 +120,12 @@ function restorePermission(): void {
 }
 
 function makeCache(): ImagePickerCache {
-  // 见 CacheShim：getPreferences(null/任意 context) 在 ohosTest 同步抛，无法经 namespace 打补丁，
-  // 故用 Object.create 绕过构造器 + 注入空分支字段
+  // See CacheShim: getPreferences(null/any context) throws synchronously in ohosTest and cannot be
+  // patched via the namespace, so Object.create bypasses the constructor + injects empty-branch fields
   return createTestCache();
 }
 
-// 内存 fake Preferences：见 CacheShim，解锁 retrieveLostImage/getCacheMap 全链路
+// In-memory fake Preferences: see CacheShim, unlocks the full retrieveLostImage/getCacheMap pipeline
 function makeFakeCache(): ImagePickerCache {
   return createFakeCache();
 }
@@ -133,16 +138,20 @@ function makeRealResizer(): ImageResizer {
   return new ImageResizer(realContext(), new ExifDataCopier());
 }
 
-// 空 ability：构造器读 ability.context（无 null 容错），传 literal null 会在构造器抛 TypeError，
-// 用 {context:null} fake ability 既让 this.context 保持 null（保留空上下文分支语义）又不抛
-function buildDelegate(result: Result<ArrayList<string>> | null, imageOptions: ImageSelectionOptions | null): ImagePickerDelegate {
+// Empty ability: the constructor reads ability.context (no null tolerance); passing literal null
+// would throw TypeError in the constructor, so a {context:null} fake ability keeps this.context
+// null (preserving the empty-context branch semantics) without throwing
+function buildDelegate(result: Result<ArrayList<string>> | null,
+  imageOptions: ImageSelectionOptions | null): ImagePickerDelegate {
   return new ImagePickerDelegate({ context: null } as ESObject as UIAbility, makeResizer(), makeCache(),
     null as ESObject as common.UIAbilityContext, imageOptions as ESObject as ImageSelectionOptions,
     null as ESObject as VideoSelectionOptions, result as ESObject as Result<ArrayList<string>>);
 }
 
-// 注入真实上下文：fake ability 的 context 属性指向真实 appContext（构造器取 ability.context）
-function buildDelegateWithRealContext(result: Result<ArrayList<string>> | null, imageOptions: ImageSelectionOptions | null): ImagePickerDelegate {
+// Inject the real context: the fake ability's context property points to the real appContext
+// (the constructor reads ability.context)
+function buildDelegateWithRealContext(result: Result<ArrayList<string>> | null,
+  imageOptions: ImageSelectionOptions | null): ImagePickerDelegate {
   const fakeAbility: ESObject = { context: realContext() };
   return new ImagePickerDelegate(fakeAbility as ESObject as UIAbility, makeRealResizer(), makeCache(),
     null as ESObject as common.UIAbilityContext, imageOptions as ESObject as ImageSelectionOptions,
@@ -175,7 +184,7 @@ function stringPaths(values: string[]): ArrayList<string> {
   return list;
 }
 
-// 在设备上生成一张真实 PNG（200x100 RGBA），供缩放链路解码使用
+// Generate a real PNG on the device (200x100 RGBA) for the resize pipeline to decode
 async function createTestPng(ctx: common.Context): Promise<string> {
   const width: number = 200;
   const height: number = 100;
@@ -414,8 +423,9 @@ export default function imagePickerDelegateTest() {
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       const pending: FakeResult = new FakeResult();
       delegate.setPendingOptionsAndResult(imageOptions(), null, pending);
-      // MediaSelectionOptions.fromList([null]) 会触发 setImageSelectionOptions(null) 的 null guard 抛错，
-      // 必须用 public 构造器得到 imageSelectionOptions=null 的实例（与 Pigeon 编解码 null-guard 语义一致）
+      // MediaSelectionOptions.fromList([null]) triggers the setImageSelectionOptions(null) null guard
+      // and throws, so the public constructor must be used to get an imageSelectionOptions=null
+      // instance (matching the Pigeon codec null-guard semantics)
       const media: MediaSelectionOptions = new MediaSelectionOptions();
       const general: GeneralOptions = GeneralOptions.fromList(listOf([false, false, 1]));
       delegate.chooseMediaFromGallery(media, general, result);
@@ -477,9 +487,10 @@ export default function imagePickerDelegateTest() {
 
     it('takeImageWithCamera_no_manifest_perm_hits_permission_error', 0, async () => {
       const result: FakeResult = new FakeResult();
-      // 从无 pending 状态发起：takeImageWithCamera 内部 setPendingOptionsAndResult 成功后，
-      // 异步权限检查（测试包未声明 CAMERA → 回调 false → 进入 launch 分支）在 null context 下
-      // launchTakeImageWithCameraWant 抛错，经 .catch 回包 camera_permission_error
+      // Start from a no-pending state: after setPendingOptionsAndResult succeeds inside
+      // takeImageWithCamera, the async permission check (test package declares no CAMERA → callback
+      // false → enters the launch branch) makes launchTakeImageWithCameraWant throw under null
+      // context, and the .catch replies with camera_permission_error
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       delegate.takeImageWithCamera(imageOptions(), result);
       await sleep(600);
@@ -503,10 +514,12 @@ export default function imagePickerDelegateTest() {
     it('takeVideoWithCamera_no_manifest_perm_hits_permission_error', 0, async () => {
       const result: FakeResult = new FakeResult();
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
-      // launchTakeVideoWithCameraWant 是 async：null context 下 (this.context as Context).cacheDir
-      // 抛错会变成被拒 Promise，而 takeVideoWithCamera 的 .then 未 return 该 Promise → 外层 .catch
-      // 收不到 → lastError 恒 null。与图片路径（同步 launch 同步抛 → 外层 .catch → camera_permission_error）
-      // 对齐，补丁该实例方法为同步抛，验证 null-context 下权限拒绝链路仍回包 camera_permission_error。
+      // launchTakeVideoWithCameraWant is async: under null context, the throw from
+      // (this.context as Context).cacheDir becomes a rejected Promise, but takeVideoWithCamera's
+      // .then does not return that Promise → the outer .catch never sees it → lastError stays null.
+      // To align with the image path (synchronous launch throws synchronously → outer .catch →
+      // camera_permission_error), this patches the instance method to throw synchronously,
+      // verifying that under null context a permission denial still replies with camera_permission_error.
       (delegate as ESObject).launchTakeVideoWithCameraWant = (duration: number): void => {
         throw new Error('camera launch failed');
       };
@@ -594,7 +607,8 @@ export default function imagePickerDelegateTest() {
     it('getResizedImagePath_with_real_file_returns_scaled_path', 0, async () => {
       const ctx: common.Context = realContext();
       const srcPath: string = await createTestPng(ctx);
-      const delegate: ImagePickerDelegate = new ImagePickerDelegate({ context: null } as ESObject as UIAbility, makeRealResizer(), makeCache(),
+      const delegate: ImagePickerDelegate = new ImagePickerDelegate({ context: null } as ESObject as UIAbility,
+        makeRealResizer(), makeCache(),
         null as ESObject as common.UIAbilityContext, null as ESObject as ImageSelectionOptions,
         null as ESObject as VideoSelectionOptions, null as ESObject as Result<ArrayList<string>>);
       const out: string = await delegate.getResizedImagePath(srcPath, imageOptions());
@@ -639,7 +653,8 @@ export default function imagePickerDelegateTest() {
       await sleep(100);
       const map = await cache.getCacheMap();
       expect(map.isEmpty()).assertFalse();
-      const pathList: ArrayList<ESObject> = map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
+      const pathList: ArrayList<ESObject> =
+        map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
       expect(pathList.length).assertEqual(1);
     });
 
@@ -687,7 +702,7 @@ export default function imagePickerDelegateTest() {
     });
 
     it('isVideoFile_detects_video_extensions_case_insensitive', 0, () => {
-      // isVideoFile 在 main 中为 private 实例方法（非 static），经实例 + ESObject 透传调用
+      // isVideoFile is a private instance method in main (not static); called via an instance + ESObject passthrough
       const del: ESObject = buildDelegate(null, null) as ESObject;
       const isVideoFile = (p: string): boolean => del.isVideoFile(p) as boolean;
       expect(isVideoFile('/data/tmp/a.mp4')).assertTrue();
@@ -761,11 +776,14 @@ export default function imagePickerDelegateTest() {
     });
 
     it('gallery_choose_paths_after_release_dispatch_to_choose_media', 0, () => {
-      // release → photoPicker=null → choose* 均走 chooseMedia 的 picker-null 分支（不拉起真实选择器 UI）
+      // release → photoPicker=null → all choose* calls take chooseMedia's picker-null branch
+      // (no real picker UI launched)
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       delegate.release();
-      delegate.chooseMediaFromGallery(new MediaSelectionOptions(), GeneralOptions.fromList(listOf([true, false, 5])), new FakeResult());
-      delegate.chooseMediaFromGallery(new MediaSelectionOptions(), GeneralOptions.fromList(listOf([false, false, 1])), new FakeResult());
+      delegate.chooseMediaFromGallery(new MediaSelectionOptions(),
+        GeneralOptions.fromList(listOf([true, false, 5])), new FakeResult());
+      delegate.chooseMediaFromGallery(new MediaSelectionOptions(),
+        GeneralOptions.fromList(listOf([false, false, 1])), new FakeResult());
       delegate.chooseImageFromGallery(imageOptions(), true, new FakeResult());
       delegate.chooseVideoFromGallery(VideoSelectionOptions.fromList(listOf([30])), true, new FakeResult());
       delegate.chooseMultiImagesFromGallery(imageOptions(), true, 3, new FakeResult());
@@ -778,7 +796,7 @@ export default function imagePickerDelegateTest() {
       const srcPath: string = await createTestPng(ctx);
       const uri: string = fileUri.getUriFromPath(srcPath);
       const result: FakeResult = new FakeResult();
-      // buildDelegateWithRealContext(result, null)：pendingCallState.imageOptions 为 null → else 分支
+      // buildDelegateWithRealContext(result, null): pendingCallState.imageOptions is null → else branch
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(result, null);
       await delegate.handleMediaResult([uri], 'no_valid_media_uri', 'Cannot find the selected media.');
       await sleep(300);
@@ -865,15 +883,16 @@ export default function imagePickerDelegateTest() {
     });
 
     it('choose_media_fake_picker_resolve_copies_file_and_succeeds', 0, async () => {
-      // 注入 fake picker（resolve）→ select().then 闭包 → handleResultType → 真实文件拷贝链路
+      // Inject a fake picker (resolve) → select().then closure → handleResultType → real file copy pipeline
       const ctx: common.Context = realContext();
       const srcPath: string = await createTestPng(ctx);
       const uri: string = fileUri.getUriFromPath(srcPath);
       const fakePicker: FakePhotoViewPicker = new FakePhotoViewPicker();
       fakePicker.resolveUris = [uri];
       const result: FakeResult = new FakeResult();
-      // 构造器传 null result（否则构造器已预置 pendingCallState，choose* 会走 already_active），
-      // result 仅通过 chooseMediaFromGallery 传入成为待回包目标
+      // Pass null result to the constructor (otherwise the constructor pre-populates
+      // pendingCallState and choose* would hit already_active); the result passed only through
+      // chooseMediaFromGallery becomes the pending reply target
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(null, null);
       (delegate as ESObject).photoPicker = fakePicker as ESObject as photoAccessHelper.PhotoViewPicker;
       const media: MediaSelectionOptions = new MediaSelectionOptions();
@@ -888,11 +907,12 @@ export default function imagePickerDelegateTest() {
     });
 
     it('choose_media_fake_picker_reject_runs_catch_handler', 0, async () => {
-      // 注入 fake picker（reject）→ select().catch 闭包 → handleResultType(-1) → 空列表回包
+      // Inject a fake picker (reject) → select().catch closure → handleResultType(-1) → empty-list reply
       const fakePicker: FakePhotoViewPicker = new FakePhotoViewPicker();
       fakePicker.rejectWith = new Error('picker select failed');
       const result: FakeResult = new FakeResult();
-      // 构造器传 null result（同 resolve 用例：避免构造器预置 pendingCallState 触发 already_active）
+      // Pass null result to the constructor (same as the resolve case: avoid the constructor
+      // pre-populating pendingCallState, which would trigger already_active)
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(null, null);
       (delegate as ESObject).photoPicker = fakePicker as ESObject as photoAccessHelper.PhotoViewPicker;
       const media: MediaSelectionOptions = new MediaSelectionOptions();
@@ -918,15 +938,17 @@ export default function imagePickerDelegateTest() {
     });
 
     it('launch_camera_photo_pick_resolve_covers_then_closure', 0, () => {
-      // main 未提供 cameraPicker.pick 注入缝（@kit.CameraKit 为 namespace，arkts-no-ns-as-obj 禁止
-      // 覆写），无法在不拉起真实相机的前提下覆盖 .then 闭包；此处验证真实 context 委托可安全构造。
+      // main provides no injection seam for cameraPicker.pick (@kit.CameraKit is a namespace and
+      // arkts-no-ns-as-obj forbids overriding), so the .then closure cannot be covered without
+      // launching the real camera; this only verifies a delegate with real context constructs safely.
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(null, null);
       expect(delegate != null).assertTrue();
     });
 
     it('launch_camera_photo_pick_reject_covers_catch_closure', 0, () => {
-      // 同上：无法注入 cameraPicker.pick。null context 下 launchTakeImageWithCameraWant 在解引用
-      // cacheDir 处同步抛错，验证该方法入口可被调用（真实取景依赖前置 context）。
+      // Same as above: cameraPicker.pick cannot be injected. Under null context
+      // launchTakeImageWithCameraWant throws synchronously at the cacheDir dereference, verifying
+      // the method entry is callable (real capture depends on a pre-existing context).
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       let threw: boolean = false;
       try {
@@ -938,14 +960,16 @@ export default function imagePickerDelegateTest() {
     });
 
     it('launch_camera_video_pick_resolve_covers_then_closure', 0, () => {
-      // 同 photo resolve：无法注入 cameraPicker.pick，仅验证真实 context 委托可安全构造。
+      // Same as the photo resolve case: cameraPicker.pick cannot be injected; only verifies a
+      // delegate with real context constructs safely.
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(null, null);
       expect(delegate != null).assertTrue();
     });
 
     it('launch_camera_video_pick_reject_covers_catch_closure', 0, async () => {
-      // 无法注入 cameraPicker.pick。null context 下 launchTakeVideoWithCameraWant 在解引用 cacheDir
-      // 处抛错（async 方法 → rejected Promise），验证该方法入口可被调用。
+      // cameraPicker.pick cannot be injected. Under null context launchTakeVideoWithCameraWant
+      // throws at the cacheDir dereference (async method → rejected Promise), verifying the
+      // method entry is callable.
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       let rejected: boolean = false;
       try {
@@ -957,9 +981,10 @@ export default function imagePickerDelegateTest() {
     });
 
     it('take_image_with_camera_permission_granted_reaches_launch', 0, async () => {
-      // need→true + request→resolve(true) → granted=true → 外层 .then 触发 launchTakeImageWithCameraWant；
-      // null context 下 launch 在 cacheDir 解引用处抛错，被 takeImageWithCamera 的外层 .catch 捕获回
-      // camera_permission_error —— 由此证明 granted 分支确实触达 launch 入口。
+      // need→true + request→resolve(true) → granted=true → the outer .then triggers
+      // launchTakeImageWithCameraWant; under null context the launch throws at the cacheDir
+      // dereference and is caught by takeImageWithCamera's outer .catch, replying with
+      // camera_permission_error — proving the granted branch does reach the launch entry.
       const result: FakeResult = new FakeResult();
       const delegate: ImagePickerDelegate = buildDelegate(null, null);
       installFakePermission(fakeNeedPermissionTrue(), fakeRequestResolve(true));
@@ -973,8 +998,8 @@ export default function imagePickerDelegateTest() {
     });
 
     it('take_image_with_camera_permission_request_rejects_covers_catch', 0, async () => {
-      // need→true + request→reject → requestCameraPermission().catch 闭包执行（resolve(false)）
-      // → 外层判定 camera_access_denied 回包，不拉起拍摄
+      // need→true + request→reject → the requestCameraPermission().catch closure runs (resolve(false))
+      // → the outer layer decides camera_access_denied and replies, without launching capture
       const result: FakeResult = new FakeResult();
       const delegate: ImagePickerDelegate = buildDelegateWithRealContext(null, null);
       installFakePermission(fakeNeedPermissionTrue(), fakeRequestReject());

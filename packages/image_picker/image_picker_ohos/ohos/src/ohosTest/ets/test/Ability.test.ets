@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// 测试套件聚合：每个 src/main/ets 源文件对应一个 test 文件。
+// Test suite aggregation: one test file per src/main/ets source file.
 
 import messagesTest from './Messages.test';
 import dateTimeUtilTest from './DateTimeUtil.test';

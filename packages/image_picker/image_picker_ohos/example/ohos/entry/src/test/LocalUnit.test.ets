@@ -22,7 +22,8 @@ export default function localUnitTest() {
       // This API supports only one parameter: clear action function.
     });
     it('assertContain', 0, function () {
-      // Defines a test case. This API supports three parameters: test case name, filter parameter, and test case function.
+      // Defines a test case. This API supports three parameters: test case name, filter parameter,
+      // and test case function.
       let a = 'abc';
       let b = 'b';
       // Defines a variety of assertion methods, which are used to declare expected boolean conditions.

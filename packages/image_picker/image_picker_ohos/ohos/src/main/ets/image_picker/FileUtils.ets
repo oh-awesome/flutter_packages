@@ -31,7 +31,8 @@ export default class FileUtils {
       return null;
     }
     {
-      // 临时文件统一收敛到 cacheDir/image_picker_tmp 子目录下，便于插件 detach 时整体清理，避免缓存无限累积
+      // Temp files are consolidated into the cacheDir/image_picker_tmp subdirectory so they can be
+      // cleaned up in one pass on plugin detach, preventing unbounded cache growth
       const targetDirectoryPath = FileUtils.getTempDirectory(context) + '/' + uuid;
       try {
         fs.mkdirSync(targetDirectoryPath);
@@ -72,12 +73,13 @@ export default class FileUtils {
       const outputFilePath = targetDirectoryPath + '/' + outputFileName + timeStamp + '.' + extension;
       let outputFile: fs.File | null = null;
       try {
-        // openSync 必须放入 try：若 openSync 抛异常，finally 仍能关闭 inputFile，避免 fd 泄漏
+        // openSync must be inside the try: if openSync throws, finally can still close inputFile, avoiding an fd leak
         outputFile = fs.openSync(outputFilePath, fs.OpenMode.CREATE);
         Log.i(TAG, 'copyFileSync inputFile fd:' + inputFile.fd + ' outputFile fd:' + outputFile.fd);
         fs.copyFileSync(inputFile.fd, outputFilePath);
       } catch (err) {
-        // 清理已创建的文件与目录；outputFile 由 finally 统一关闭，这里不重复 close，避免双重关闭
+        // Clean up the created file and directory; outputFile is closed in finally, so it is not
+        // closed again here, avoiding a double close
         Log.e(TAG, 'copyFileSync failed err:' + err);
          try {
             fs.unlinkSync(outputFilePath);
@@ -103,41 +105,44 @@ export default class FileUtils {
     }
   }
 
-  // 插件专用临时目录：幂等创建 cacheDir/image_picker_tmp
+  // Plugin-specific temp directory: idempotently creates cacheDir/image_picker_tmp
   static getTempDirectory(context: common.Context): string {
     const tempDir: string = context.cacheDir + '/image_picker_tmp';
     try {
       fs.mkdirSync(tempDir);
     } catch (e) {
-      // 目录已存在则忽略（mkdirSync 对已存在目录会抛错）
+      // Ignore if the directory already exists (mkdirSync throws on an existing directory)
     }
     return tempDir;
   }
 
-  // 插件 detach 时清理临时目录：删除 image_picker_tmp 下所有文件与子目录，防止缓存无限累积。
-  // 相机拍摄产物（IMG_/VID_ 直接位于 cacheDir，非本目录）不在此清理范围。
+  // Clean up the temp directory on plugin detach: delete all files and subdirectories under
+  // image_picker_tmp to prevent unbounded cache growth.
+  // Camera capture outputs (IMG_/VID_ files located directly in cacheDir, not this directory) are
+  // not covered by this cleanup.
   static cleanupTempFiles(context: common.Context | null): void {
     if (context == null) {
       return;
     }
     const tempDir: string = context.cacheDir + '/image_picker_tmp';
     FileUtils.deleteDirectoryRecursively(tempDir);
-    // 兼容升级：一并清理旧版本散落在 cacheDir 根目录的临时文件
+    // Upgrade compatibility: also clean up temp files scattered in the cacheDir root by older versions
     FileUtils.cleanupLegacyTempFiles(context);
   }
 
-  // 兼容升级清理：3.44 质量加固前，旧版本 getPathFromUri 将 URI 拷贝副本直接写入
-  // cacheDir/{uuid}，新版本统一收敛到 image_picker_tmp 后，这些老目录不会被上面的删除逻辑覆盖。
-  // 此处按 uuid 格式精确匹配兜底清理，避免误删宿主 App 自身的 cache 内容。
+  // Upgrade-compatibility cleanup: before the 3.44 quality hardening, the old getPathFromUri wrote URI copy
+  // directories directly to cacheDir/{uuid}; once the new version consolidated them into image_picker_tmp, those
+  // old directories were no longer covered by the deletion logic above. They are matched here by exact uuid
+  // format as a fallback cleanup, to avoid mistakenly deleting the host app's own cache contents.
   private static cleanupLegacyTempFiles(context: common.Context): void {
     let entries: string[] = [];
     try {
       entries = fs.listFileSync(context.cacheDir);
     } catch (e) {
-      // 目录不可读时静默返回
+      // Return silently if the directory cannot be read
       return;
     }
-    // 旧版本目录名即 util.generateRandomUUID()，格式为 8-4-4-4-12 的十六进制
+    // The old version's directory name is util.generateRandomUUID(), hexadecimal in 8-4-4-4-12 format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     for (let i = 0; i < entries.length; i++) {
       const name = entries[i];
@@ -150,10 +155,11 @@ export default class FileUtils {
   private static deleteDirectoryRecursively(dirPath: string): void {
     let fileNames: string[] = [];
     try {
-      // 当前 SDK 的 @ohos.file.fs 未提供 opendirSync/Dir（较新 API），改用 listFileSync 枚举目录项
+      // The current SDK's @ohos.file.fs does not provide opendirSync/Dir (newer APIs); use
+      // listFileSync to enumerate directory entries instead
       fileNames = fs.listFileSync(dirPath);
     } catch (e) {
-      // 目录不存在、已被清理或无权限时静默返回
+      // Return silently if the directory does not exist, has already been cleaned up, or access is denied
       return;
     }
     for (let i = 0; i < fileNames.length; i++) {
@@ -176,7 +182,7 @@ export default class FileUtils {
     try {
       fs.rmdirSync(dirPath);
     } catch (e) {
-      // 删除目录失败（可能已被清理）时静默返回
+      // Return silently if directory deletion fails (it may already have been cleaned up)
     }
   }
 }

@@ -1,7 +1,8 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ImageResizer.ets 缩放目标尺寸算法测试（calculateTargetSize 纯逻辑，public static 以便单测）。
+// ImageResizer.ets scaling target-size algorithm tests
+// (calculateTargetSize pure logic, public static for unit testing).
 
 import { describe, it, expect } from '@ohos/hypium';
 import ImageResizer from '../../../main/ets/image_picker/ImageResizer';
@@ -15,15 +16,16 @@ function realContext(): common.Context {
   return AbilityDelegatorRegistry.getAbilityDelegator().getAppContext() as common.Context;
 }
 
-// calculateTargetSize 在 main 中为 private 实例方法（非 static），测试经实例 + ESObject 透传调用，
-// 覆盖其纯缩放逻辑而不改 main 源码。
+// calculateTargetSize is a private instance method in main (not static); tests call it through an instance
+// via an ESObject passthrough,
+// covering its pure scaling logic without touching the main source.
 function targetSize(originalWidth: number, originalHeight: number, maxWidth: number | null,
   maxHeight: number | null): image.Size {
   const resizer: ImageResizer = new ImageResizer(null as ESObject as common.Context, new ExifDataCopier());
   return (resizer as ESObject).calculateTargetSize(originalWidth, originalHeight, maxWidth, maxHeight) as image.Size;
 }
 
-// 在设备上生成一张真实 PNG（200x100 RGBA），供缩放链路解码使用
+// Generates a real PNG (200x100 RGBA) on the device for the scaling pipeline to decode
 async function createTestPng(ctx: common.Context): Promise<string> {
   const width: number = 200;
   const height: number = 100;
@@ -49,8 +51,8 @@ export default function imageResizerTest() {
     });
 
     it('calculateTargetSize_both_constraints_stay_within_bounds', 0, () => {
-      // 与 Android calculateTargetSize 对齐：1000x2000 + max 600x800 应输出 400x800，
-      // 而不是宽度取 600 导致高度溢出 maxHeight 的 600x1200。
+      // Aligned with Android's calculateTargetSize: 1000x2000 with max 600x800 must output 400x800,
+      // not 600x1200, where taking width 600 makes the height overflow maxHeight.
       const size: image.Size = targetSize(1000, 2000, 600, 800);
       expect(size.width).assertEqual(400);
       expect(size.height).assertEqual(800);
@@ -105,7 +107,7 @@ export default function imageResizerTest() {
       const out: string = await resizer.resizeImageIfNeeded(srcPath, 100, null, 80);
       expect(out != null).assertTrue();
       expect(out.indexOf('scaled_')).assertEqual(out.lastIndexOf('/') + 1);
-      // 输出文件已生成
+      // The output file has been generated
       let exists: boolean = false;
       try {
         exists = fs.accessSync(out);
@@ -127,7 +129,7 @@ export default function imageResizerTest() {
       const ctx: common.Context = realContext();
       const srcPath: string = await createTestPng(ctx);
       const resizer: ImageResizer = new ImageResizer(ctx, new ExifDataCopier());
-      // 无尺寸约束但 quality<100 也应触发缩放重编码
+      // Even with no size constraints, quality<100 must still trigger a rescale re-encode
       const out: string = await resizer.resizeImageIfNeeded(srcPath, null, null, 60);
       expect(out != null).assertTrue();
       expect(out != srcPath).assertTrue();

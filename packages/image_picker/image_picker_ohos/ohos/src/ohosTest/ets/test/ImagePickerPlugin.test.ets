@@ -1,8 +1,9 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ImagePickerPlugin.ets 参数边界校验与无 Activity 回包测试：通过 public 的 pickImages/pickVideos/pickMedia
-// 与 FakeResult 捕获错误回包，覆盖 validate*Options 的 ArkTS 层二次防护逻辑。
+// ImagePickerPlugin.ets argument boundary validation and no-Activity error reply tests: through the public
+// pickImages/pickVideos/pickMedia with a FakeResult capturing error replies, covers the ArkTS-layer
+// secondary protection of validate*Options.
 
 import { describe, it, expect } from '@ohos/hypium';
 import ArrayList from '@ohos.util.ArrayList';
@@ -28,8 +29,10 @@ import common from '@ohos.app.ability.common';
 import { createTestCache } from './CacheShim';
 import AbilityDelegatorRegistry from '@ohos.app.ability.abilityDelegatorRegistry';
 import { FlutterPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
-import { AbilityPluginBinding } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
-import { BinaryMessenger, BinaryMessageHandler, BinaryReply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import { AbilityPluginBinding } from
+  '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/ability/AbilityPluginBinding';
+import { BinaryMessenger, BinaryMessageHandler,
+  BinaryReply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 
 function realContext(): common.Context {
   return AbilityDelegatorRegistry.getAbilityDelegator().getAppContext() as common.Context;
@@ -39,14 +42,14 @@ function fakeAbility(): UIAbility {
   return { context: realContext() } as ESObject as UIAbility;
 }
 
-// context 为 null 的 fake ability：用于构造"相机路径安全失败"的 delegate
-// （launchTake*WithCameraWant 在 context 为 null 时同步抛错 → camera_permission_error）
+// Fake ability whose context is null: used to build a delegate whose "camera path fails safely"
+// (launchTake*WithCameraWant throws synchronously when context is null → camera_permission_error)
 function fakeNullAbility(): UIAbility {
   return { context: null } as ESObject as UIAbility;
 }
 
-// 捕获/忽略所有 send/setMessageHandler 的 fake messenger：ImagePickerApi.setup 仅需
-// messenger 非 null 即可完成 4 条 BasicMessageChannel 的注册，无需真实引擎
+// Fake messenger that captures/ignores all send/setMessageHandler calls: ImagePickerApi.setup only needs
+// a non-null messenger to complete registration of the 4 BasicMessageChannels, no real engine required
 function fakeMessenger(): BinaryMessenger {
   return {
     send: (channel: String, message: ArrayBuffer | null, callback?: BinaryReply | null): void => {},
@@ -100,17 +103,20 @@ function generalOptions(allowMultiple: boolean, limit: number): GeneralOptions {
   return GeneralOptions.fromList(listOf(values));
 }
 
-// 构造器读 ability.context（无 null 容错），用 {context:null} fake ability 保持空上下文分支语义
+// The constructor reads ability.context (no null tolerance); use a {context:null} fake ability to
+// preserve the empty-context branch semantics
 function makeDelegate(): ImagePickerDelegate {
   const cache: ImagePickerCache = createTestCache();
   const resizer: ImageResizer = new ImageResizer(null as ESObject as common.Context, new ExifDataCopier());
   return new ImagePickerDelegate({ context: null } as ESObject as UIAbility, resizer, cache);
 }
 
-// 注入到 AbilityState.delegate 的"抛错委托"：setCameraDevice/chooseMediaFromGallery 同步抛错，
-// 用于覆盖 pickImages/pickVideos/pickMedia 的入口 catch 兜底闭包（真实 delegate 不抛同步异常）。
-// AbilityState 构造器会忽略传入 delegate 并用 constructorDelegate 重建，故测试侧先构造真实
-// plugin，再经 (state as ESObject).delegate 覆写为抛错实现。
+// A "throwing delegate" injected into AbilityState.delegate: setCameraDevice/chooseMediaFromGallery
+// throw synchronously, used to cover the entry catch fallback closures of pickImages/pickVideos/pickMedia
+// (a real delegate never throws synchronously).
+// The AbilityState constructor ignores the passed-in delegate and rebuilds one via
+// constructorDelegate, so the test side first builds a real
+// plugin, then overrides (state as ESObject).delegate with the throwing implementation.
 function throwingDelegate(): ImagePickerDelegate {
   return {
     setCameraDevice: (device: ESObject): void => {
@@ -136,13 +142,16 @@ function throwingDelegate(): ImagePickerDelegate {
   } as ESObject as ImagePickerDelegate;
 }
 
-// constructorDelegate 内部 new ImagePickerCache(setupAbility.context) 在 ohosTest 同步抛
-// （getAppContext 不可用于 getPreferences，见 CacheShim）；ImagePickerPlugin 为 class，静态方法
-// 可经 ESObject 覆写。镜像真实实现但 cache 走 createTestCache（空分支实例），解锁
-// constructorDelegate/onAttachedToAbility(with_real_bindings)/pickXxx_with_released_delegate 等用例。
-// 在模块顶层安装一次即可（本套件无需真实实现：真实实现在 ohosTest 恒抛）。
-// 注意：覆写前先保存真实静态函数引用——真实实现内 new ImagePickerCache(context) 在 ohosTest
-// 同步抛，但"进入即计数"：try/catch 调用一次即可覆盖该真实函数（constructorDelegate_real_impl_entered 用例）。
+// Inside constructorDelegate, new ImagePickerCache(setupAbility.context) throws synchronously in ohosTest
+// (getAppContext is unusable for getPreferences, see CacheShim); ImagePickerPlugin is a class, so static methods
+// can be overridden via ESObject. Mirrors the real implementation but backs the cache with
+// createTestCache (empty-branch instance), unlocking
+// test cases such as constructorDelegate/onAttachedToAbility(with_real_bindings)/pickXxx_with_released_delegate.
+// Installing once at module top level is enough (this suite needs no real implementation: the real
+// one always throws in ohosTest).
+// Note: save the real static function reference before overriding — the real implementation's
+// new ImagePickerCache(context) throws synchronously in ohosTest, but coverage counts on "entry":
+// a single try/catch call covers that real function (constructorDelegate_real_impl_entered test case).
 const realConstructorDelegate: (setupAbility: UIAbility) => ImagePickerDelegate =
   ImagePickerPlugin.constructorDelegate;
 (ImagePickerPlugin as ESObject).constructorDelegate =
@@ -327,10 +336,12 @@ export default function imagePickerPluginTest() {
     });
 
     it('constructorDelegate_real_impl_entered_throws_without_working_context', 0, () => {
-      // 真实静态 constructorDelegate 内部 new ImagePickerCache(setupAbility.context) 在 ohosTest
-      // 同步抛（getPreferences 无法解析 delegator context）→ 函数被进入但异常中断。
-      // 覆盖率工具按"进入"计数，try/catch 调用一次即覆盖真实实现（而非测试侧镜像）。
-      // 若个别版本 getPreferences 不抛，则返回真实 delegate 并正常 release。
+      // Inside the real static constructorDelegate, new ImagePickerCache(setupAbility.context) throws synchronously
+      // in ohosTest (getPreferences cannot resolve the delegator context) → the function is entered
+      // but interrupted by the exception.
+      // Coverage tools count on "entry", so one try/catch call covers the real implementation
+      // (rather than the test-side mirror).
+      // If getPreferences does not throw on some versions, the real delegate is returned and released normally.
       let delegate: ImagePickerDelegate | null = null;
       try {
         delegate = realConstructorDelegate(fakeAbility());
@@ -381,7 +392,7 @@ export default function imagePickerPluginTest() {
       plugin.onAttachedToEngine(binding);
       plugin.onAttachedToAbility(abilityBinding);
       expect(plugin.getAbilityState() != null).assertTrue();
-      // 第二次 attach：命中 setup 中"释放旧 AbilityState"分支（state.release + 重建）
+      // Second attach: hits the "release old AbilityState" branch in setup (state.release + rebuild)
       plugin.onAttachedToAbility(abilityBinding);
       expect(plugin.getAbilityState() != null).assertTrue();
       plugin.onDetachedFromAbility();
@@ -396,7 +407,7 @@ export default function imagePickerPluginTest() {
 
     it('pickImages_with_released_delegate_dispatches_all_source_branches', 0, async () => {
       const plugin: ImagePickerPlugin = new ImagePickerPlugin(makeDelegate(), fakeNullAbility());
-      // release 使 photoPicker=null：choose* → internal_error（不打开真实选择器 UI）
+      // release sets photoPicker to null: choose* → internal_error (does not open the real picker UI)
       const state = plugin.getAbilityState();
       if (state != null) {
         const del = state.getDelegate();
@@ -413,10 +424,11 @@ export default function imagePickerPluginTest() {
       const singleResult: FakeResult = new FakeResult();
       plugin.pickImages(source, options, generalOptions(false, 0), singleResult);
 
-      const cameraSource: SourceSpecification = SourceSpecification.fromList(listOf([SourceType.CAMERA, SourceCamera.REAR]));
+      const cameraSource: SourceSpecification =
+        SourceSpecification.fromList(listOf([SourceType.CAMERA, SourceCamera.REAR]));
       const cameraResult: FakeResult = new FakeResult();
       plugin.pickImages(cameraSource, options, generalOptions(false, 0), cameraResult);
-      // 等待相机权限异步流程（无 manifest 权限 → camera_permission_error）
+      // Wait for the async camera permission flow (no manifest permission → camera_permission_error)
       await sleep(700);
 
       const weirdSource: SourceSpecification = SourceSpecification.fromList(listOf([99, null]));
@@ -446,7 +458,8 @@ export default function imagePickerPluginTest() {
       const singleResult: FakeResult = new FakeResult();
       plugin.pickVideos(source, options, generalOptions(false, 0), singleResult);
 
-      const cameraSource: SourceSpecification = SourceSpecification.fromList(listOf([SourceType.CAMERA, SourceCamera.REAR]));
+      const cameraSource: SourceSpecification =
+        SourceSpecification.fromList(listOf([SourceType.CAMERA, SourceCamera.REAR]));
       const cameraResult: FakeResult = new FakeResult();
       plugin.pickVideos(cameraSource, options, generalOptions(false, 0), cameraResult);
       await sleep(700);
@@ -535,8 +548,9 @@ export default function imagePickerPluginTest() {
     });
 
     it('pickMedia_invalid_image_options_hits_validate_branch', 0, () => {
-      // imageOptions 非 null 且校验失败（quality=150 越界）→ 命中 pickMedia 内
-      // validateImageOptions 分支（此前仅覆盖 null imageOptions 与 generalOptions 校验）
+      // imageOptions is non-null and fails validation (quality=150 out of range) → hits the
+      // validateImageOptions branch inside pickMedia (previously only null imageOptions and
+      // generalOptions validation were covered)
       const plugin: ImagePickerPlugin = new ImagePickerPlugin();
       const result: FakeResult = new FakeResult();
       const inner: ArrayList<ESObject> = new ArrayList<ESObject>();

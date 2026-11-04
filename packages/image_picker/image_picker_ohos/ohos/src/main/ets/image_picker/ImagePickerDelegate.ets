@@ -36,18 +36,19 @@ export default class ImagePickerDelegate {
   private imageResizer: ImageResizer;
   private cache: ImagePickerCache;
   private pendingCameraMediaUri: string | null = null;
-  // 相机预创建文件路径：拍摄成功时该文件即真实照片/视频（保留），
-  // 取消/相机不可用/结果解析失败时删除，避免 cacheDir 残留空文件
+  // Path of the camera pre-created file: on a successful capture the file is the actual photo/video (kept);
+  // deleted on cancel / camera unavailable / result parsing failure, to avoid leaving empty files in cacheDir
   private pendingCameraFilePath: string | null = null;
   private pendingCallState: PendingCallState | null = null;
   private context: common.UIAbilityContext | null = null;
-  // photoPicker 可空：release() 时置 null 释放系统资源，避免 PhotoViewPicker 实例被长期持有
+  // photoPicker is nullable: set to null in release() to free system resources, so the PhotoViewPicker
+  // instance is not held long-term
   private photoPicker: photoAccessHelper.PhotoViewPicker | null = new photoAccessHelper.PhotoViewPicker();
   private cameraPosition: camera.CameraPosition = camera.CameraPosition.CAMERA_POSITION_BACK;
 
-  constructor(ability: UIAbility, imageResizer: ImageResizer, cache: ImagePickerCache, context?: common.UIAbilityContext,
-    pendingImageOptions?: ImageSelectionOptions, pendingVideoOptions?: VideoSelectionOptions,
-    result?: Result<ArrayList<string>>) {
+  constructor(ability: UIAbility, imageResizer: ImageResizer, cache: ImagePickerCache,
+    context?: common.UIAbilityContext, pendingImageOptions?: ImageSelectionOptions,
+    pendingVideoOptions?: VideoSelectionOptions, result?: Result<ArrayList<string>>) {
     this.imageResizer = imageResizer;
     if (result != null) {
       this.pendingCallState = new PendingCallState(pendingImageOptions as ESObject, pendingVideoOptions, result);
@@ -93,8 +94,9 @@ export default class ImagePickerDelegate {
     if (cacheMap.isEmpty()) {
       return null;
     }
-    // Dart 侧解码 CacheRetrievalResult 时对 type/paths 做非空断言（messages.g.dart result[0]!/result[2]!），
-    // 因此二者必须设置非空值，缺失时分别按 IMAGE 和空列表兜底，避免通道解码崩溃
+    // The Dart side asserts non-null on type/paths when decoding CacheRetrievalResult
+    // (messages.g.dart result[0]!/result[2]!), so both must be set to non-null values; when missing,
+    // fall back to IMAGE and an empty list respectively to avoid a channel decoding crash
     let result = new CacheRetrievalResult();
     let type: ESObject = cacheMap.get(ImagePickerCache.MAP_KEY_TYPE);
     result.setType(type != null ? type as CacheRetrievalType : CacheRetrievalType.IMAGE);
@@ -103,8 +105,9 @@ export default class ImagePickerDelegate {
       result.setError(error as CacheRetrievalError);
     }
 
-    // 类型安全转型：cacheMap.get 返回 ESObject，Preference 中数据类型可能因损坏/版本迁移而不匹配，
-    // 直接 as ArrayList 强转会在遍历时抛未捕获异常；先 instanceof 校验再转型
+    // Type-safe cast: cacheMap.get returns ESObject, and the data type stored in Preferences may not
+    // match due to corruption/version migration; a direct as ArrayList hard cast would throw an
+    // uncaught exception during iteration; check instanceof first, then cast
     let pathListRaw: ESObject = cacheMap.get(ImagePickerCache.MAP_KEY_PATH_LIST);
     let pathList: ArrayList<string> | null = null;
     if (pathListRaw != null && pathListRaw instanceof ArrayList) {
@@ -126,7 +129,7 @@ export default class ImagePickerDelegate {
       }
     }
     result.setPaths(newPathList);
-    // await 缓存清理完成后再返回（clear 内部已 await preferences.clear() + flush()）
+    // await cache cleanup completes before returning (clear already awaits preferences.clear() + flush() internally)
     await this.cache.clear();
     return result;
   }
@@ -134,7 +137,7 @@ export default class ImagePickerDelegate {
   chooseMedia(maxMultiple: number, handleType: string, type?: photoAccessHelper.PhotoViewMIMETypes) {
     const picker: photoAccessHelper.PhotoViewPicker | null = this.photoPicker;
     if (picker == null) {
-      // 防御：delegate 已 release（photoPicker 置 null）后不应再发起选择
+      // Defensive: no selection should be started after the delegate has been released (photoPicker set to null)
       Log.e(ImagePickerDelegate.TAG, 'chooseMedia: photoPicker is null, picker already released');
       this.finishWithError('internal_error', 'Image picker has been released');
       return;
@@ -144,8 +147,9 @@ export default class ImagePickerDelegate {
     photoSelectOptions.maxSelectNumber = maxMultiple;
 
     picker.select(photoSelectOptions).then((photoSelectResult: photoAccessHelper.PhotoSelectResult) => {
-      // 防御性检查：若选择期间 delegate 被释放（pendingCallState 已清空），不再处理结果，
-      // 避免闭包长期持有 this 引用形成延迟 GC（内存检视建议）
+      // Defensive check: if the delegate was released during selection (pendingCallState already
+      // cleared), do not process the result, avoiding the closure holding this long-term and
+      // delaying GC (memory inspection recommendation)
       if (this.pendingCallState == null) {
         return;
       }
@@ -154,12 +158,13 @@ export default class ImagePickerDelegate {
       if (this.pendingCallState == null) {
         return;
       }
-      // 异常处理器自身需 try-catch 包裹，避免 handleResultType 抛异常形成未处理拒绝（Promise 二次失败无法再被捕获）
+      // The error handler itself must be wrapped in try-catch, so an exception thrown by
+      // handleResultType does not become an unhandled rejection (a failed Promise cannot be caught again)
       try {
         this.handleResultType(handleType, -1, [])
       } catch (e) {
         Log.e(ImagePickerDelegate.TAG, 'Error handler threw: ' + (e as Error).message);
-        // 兜底回包，确保 Dart 侧 Future 一定收到结果
+        // Fallback reply, ensuring the Dart-side Future always receives a result
         this.finishWithListSuccess(new ArrayList<string>());
       }
       Log.e(ImagePickerDelegate.TAG, `PhotoViewPicker.select failed with err: ${err}`)
@@ -167,7 +172,8 @@ export default class ImagePickerDelegate {
   }
 
   handleResultType(handleType: string, code: number, uris: Array<string>) {
-    // 先持久化本次选择的类型和缩放参数，进程被杀后 retrieveLostImage 才能恢复出完整结果
+    // Persist the selection type and scaling parameters first, so retrieveLostImage can restore the
+    // full result after the process is killed
     this.saveStateBeforeResult();
     switch (handleType) {
       case 'handleChooseVideoResult':
@@ -188,7 +194,7 @@ export default class ImagePickerDelegate {
     }
   }
 
-  // 选择多个图片或者多个视频
+  // Select multiple images or multiple videos
   chooseMediaFromGallery(options: MediaSelectionOptions, generalOptions: GeneralOptions,
     result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(options.getImageSelectionOptions(), null, result)) {
@@ -199,9 +205,10 @@ export default class ImagePickerDelegate {
     if (generalOptions.getAllowMultiple()) {
       limit = generalOptions.getLimit();
     }
-    // pickMedia 为混合媒体（图片+视频）选择。PhotoViewMIMETypes 仅有 IMAGE_TYPE/VIDEO_TYPE 两个常量，
-    // 无混合类型常量，故不设置 MIMEType（PhotoSelectOptions.MIMEType 保持默认不限制类型，
-    // 图片和视频均可选），与 Android 的 PickVisualMedia.ImageAndVideo 行为一致
+    // pickMedia is mixed-media (image + video) selection. PhotoViewMIMETypes only has the two
+    // constants IMAGE_TYPE/VIDEO_TYPE, with no mixed-type constant, so MIMEType is not set
+    // (PhotoSelectOptions.MIMEType keeps its default of unrestricted type, allowing both images
+    // and videos to be selected), matching the behavior of Android's PickVisualMedia.ImageAndVideo
     this.chooseMedia(limit, 'handleChooseMediaResult')
   }
 
@@ -209,13 +216,14 @@ export default class ImagePickerDelegate {
     if (code == 0) {
       this.handleMediaResult(uris, 'no_valid_media_uri', 'Cannot find the selected media.');
     } else {
-      // 选择器系统错误：显式回包空列表（不能传 null，否则 finishWithListSuccess 无法回包导致 Future 挂起）
+      // Picker system error: explicitly reply with an empty list (null must not be passed, otherwise
+      // finishWithListSuccess cannot reply and the Future hangs)
       this.finishWithListSuccess(new ArrayList<string>());
     }
   }
 
-  // 多图片选择结果处理：与 Android handleChooseMultiImageResult 对齐，
-  // 失败时报 missing_valid_image_uri（区别于混合媒体的 no_valid_media_uri）
+  // Multiple-image selection result handling: aligned with Android handleChooseMultiImageResult,
+  // reporting missing_valid_image_uri on failure (as opposed to the mixed-media no_valid_media_uri)
   handleChooseMultiImageResult(code: number, uris: Array<string>): void {
     if (code == 0) {
       this.handleMediaResult(uris, 'missing_valid_image_uri', 'Cannot find at least one of the selected images.');
@@ -241,8 +249,8 @@ export default class ImagePickerDelegate {
           Log.i(ImagePickerDelegate.TAG, 'getPathFromUri : ' + realPath);
           if (realPath == null) {
             Log.e(ImagePickerDelegate.TAG, 'Failed to get path from URI: ' + path);
-            // 与 Android getPathsFromIntent 对齐：任一 URI 无法解析即整体报错，
-            // 而非跳过该 URI 返回部分成功
+            // Aligned with Android getPathsFromIntent: if any URI cannot be resolved, fail the whole call,
+            // instead of skipping that URI and returning partial success
             this.finishWithError(errorCode, errorMessage);
             return;
           }
@@ -253,27 +261,30 @@ export default class ImagePickerDelegate {
           let realPath = FileUtils.getPathFromUri(this.context, path);
           if (realPath == null) {
             Log.e(ImagePickerDelegate.TAG, 'Failed to get path from URI: ' + path);
-            // 与 Android getPathsFromIntent 对齐：任一 URI 无法解析即整体报错
+            // Aligned with Android getPathsFromIntent: if any URI cannot be resolved, fail the whole call
             this.finishWithError(errorCode, errorMessage);
             return;
           }
           pathList.add(realPath);
         }
       }
-      // uris 为空表示用户取消（选择器以 code=0 + 空列表回调取消），返回空列表而非错误；
-      // 任一 URI 解析失败已在循环内整体报错（与 Android getPathsFromIntent 任一失败即
-      // finishWithError 对齐），能走到这里说明所有路径均解析成功
+      // Empty uris means the user canceled (the picker reports cancel as code=0 with an empty list);
+      // return an empty list instead of an error; any URI resolution failure already failed the
+      // whole call inside the loop (aligned with Android getPathsFromIntent, where any failure
+      // calls finishWithError), so reaching here means all paths were resolved successfully
       this.finishWithListSuccess(pathList);
     } catch (e) {
-      // 兜底：异步异常必须通过 finishWithError 传播到 Flutter 层，
-      // 否则 Dart 侧收到空列表无法区分"用户取消"与"内部错误"（与 Android 异常传播对齐）
+      // Fallback: async exceptions must propagate to the Flutter layer via finishWithError,
+      // otherwise the Dart side receives an empty list and cannot distinguish "user cancel" from
+      // "internal error" (aligned with Android exception propagation)
       Log.e(ImagePickerDelegate.TAG, 'handleMediaResult failed: ' + (e as Error).message);
       this.finishWithError('internal_error', 'Failed to process media result: ' + (e as Error).message);
     }
   }
 
-  // 选择一个视频
-  chooseVideoFromGallery(options: VideoSelectionOptions, usePhotoPicker: boolean, result: Result<ArrayList<string>>): void {
+  // Select a single video
+  chooseVideoFromGallery(options: VideoSelectionOptions, usePhotoPicker: boolean,
+    result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(null, options, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
@@ -282,15 +293,16 @@ export default class ImagePickerDelegate {
     this.chooseMedia(1, 'handleChooseVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
   }
 
-  // 选择多个视频
-  chooseMultiVideoFromGallery(options: VideoSelectionOptions, usePhotoPicker: boolean, limit: number, result: Result<ArrayList<string>>): void {
+  // Select multiple videos
+  chooseMultiVideoFromGallery(options: VideoSelectionOptions, usePhotoPicker: boolean, limit: number,
+    result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(null, options, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
     }
 
-    // 多视频选择必须走 handleChooseMultiVideoResult 遍历所有 URI，
-    // handleChooseVideoResult 仅处理 uris[0]，否则多选视频只会返回第一个
+    // Multiple-video selection must go through handleChooseMultiVideoResult to iterate over all URIs;
+    // handleChooseVideoResult only handles uris[0], otherwise multi-select video would return only the first one
     this.chooseMedia(limit, 'handleChooseMultiVideoResult', photoAccessHelper.PhotoViewMIMETypes.VIDEO_TYPE);
   }
 
@@ -304,7 +316,8 @@ export default class ImagePickerDelegate {
       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
         if (realPath == null) {
             Log.e(ImagePickerDelegate.TAG, 'Failed to get path from URI: ' + uris[0]);
-            // 与 Android no_valid_video_uri 错误码对齐：URI 无效时返回具体错误而非空结果
+            // Aligned with Android's no_valid_video_uri error code: return a specific error for an
+            // invalid URI instead of an empty result
             this.finishWithError('no_valid_video_uri', 'Cannot find the selected video.');
             return;
           }
@@ -314,7 +327,8 @@ export default class ImagePickerDelegate {
     }
   }
 
-  // 多视频选择结果处理：遍历所有 URI 返回完整路径列表，与 Android handleChooseMultiVideoResult 对齐
+  // Multiple-video selection result handling: iterate all URIs and return the full path list,
+  // aligned with Android handleChooseMultiVideoResult
   handleChooseMultiVideoResult(code: number, uris: Array<string>): void {
     if (code == 0) {
       let pathList: ArrayList<string> = new ArrayList();
@@ -322,40 +336,42 @@ export default class ImagePickerDelegate {
         let realPath = FileUtils.getPathFromUri(this.context, uri);
         if (realPath == null) {
           Log.e(ImagePickerDelegate.TAG, 'Failed to get path from URI: ' + uri);
-          // 与 Android getPathsFromIntent 对齐（OH-040 同语义）：任一 URI 无法解析即整体报错，
-          // 而非跳过失败项返回部分成功
+          // Aligned with Android getPathsFromIntent (same semantics as OH-040): if any URI cannot
+          // be resolved, fail the whole call, instead of skipping failed items and returning
+          // partial success
           this.finishWithError('missing_valid_video_uri', 'Cannot find at least one of the selected videos.');
           return;
         }
         pathList.add(realPath);
       }
-      // uris 为空表示用户取消，返回空列表；能走到这里说明所有 URI 均解析成功
+      // Empty uris means the user canceled; return an empty list. Reaching here means all URIs were
+      // resolved successfully
       this.finishWithListSuccess(pathList);
     } else {
       this.finishWithListSuccess(new ArrayList<string>());
     }
   }
 
-  // 唤起相机录像
+  // Launch the camera to record a video
   takeVideoWithCamera(options: VideoSelectionOptions, result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(null, options, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
     }
 
-    // 新增：运行时权限检查
-    // 由于 ImagePickerUtils.needRequestCameraPermission 是异步回调方式
-    // 改为使用新增的异步权限请求方法
+    // Added: runtime permission check
+    // Since ImagePickerUtils.needRequestCameraPermission is callback-based async,
+    // use the newly added async permission request method instead
     this.checkAndRequestCameraPermission().then((hasCameraPermission) =>{
       if (!hasCameraPermission) {
-        this.pendingCallState = null;  // 清理状态
+        this.pendingCallState = null;  // clear state
         result.error(new FlutterError('camera_access_denied', 'The user did not allow camera access.', null));
         return;
       }
       Log.i(ImagePickerDelegate.TAG, 'launchTakeVideoWithCameraWant duration: ' + options.getMaxDurationSeconds());
       this.launchTakeVideoWithCameraWant(options.getMaxDurationSeconds());
     }).catch((err: BusinessError) => {
-         this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
+         this.pendingCallState = null;  // clear state so later calls do not receive already_active
          result.error(new FlutterError('camera_permission_error',err.message, null));
          return;
     });
@@ -371,19 +387,23 @@ export default class ImagePickerDelegate {
       saveUri: this.saveFileUri(filePath)
     }
 
-    cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.VIDEO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
-      // 修改：传入 resultUri
+    cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.VIDEO], pickerProfile)
+      .then((pickerResult: cameraPicker.PickerResult) => {
+      // Modified: pass in resultUri
       this.handleCaptureVideoResult(pickerResult.resultCode, pickerResult.resultUri);
     }).catch((err: BusinessError) => {
           Log.e(ImagePickerDelegate.TAG, 'cameraPicker.pick VIDEO failed: ' + err.message);
-          // 相机不可用时删除预创建空文件，并返回具体错误码（与 Android no_available_camera 行为对齐），而非静默空结果
+          // Delete the pre-created empty file when the camera is unavailable and return a specific
+          // error code (aligned with Android's no_available_camera behavior) instead of a silent
+          // empty result
           this.cleanupPreCreatedCameraFile();
           this.finishWithError('no_available_camera', 'No cameras available for taking videos.');
         });
   }
 
   private saveFileUri(filePath: string): string {
-    // RandomAccessFile 无 closeSync，改用 openSync 创建文件后立即 closeSync 关闭句柄，避免 fd 泄漏
+    // RandomAccessFile has no closeSync; use openSync to create the file and then closeSync the
+    // handle immediately to avoid an fd leak
     const file = fs.openSync(filePath, fs.OpenMode.CREATE);
     try {
       return fileUri.getUriFromPath(filePath);
@@ -403,7 +423,7 @@ export default class ImagePickerDelegate {
     }
   }
 
-  // 选择单个图片
+  // Select a single image
   chooseImageFromGallery(options: ImageSelectionOptions, usePhotoPicker: boolean, result: Result<ArrayList<string>>) {
     Log.i(ImagePickerDelegate.TAG, 'chooseImageFromGallery enter');
     if (!this.setPendingOptionsAndResult(options, null, result)) {
@@ -424,7 +444,8 @@ export default class ImagePickerDelegate {
       let realPath = FileUtils.getPathFromUri(this.context, uris[0]);
       if (realPath == null) {
             Log.e(ImagePickerDelegate.TAG, 'Failed to get path from URI: ' + uris[0]);
-            // 与 Android no_valid_image_uri 错误码对齐：URI 无效时返回具体错误而非空结果
+            // Aligned with Android's no_valid_image_uri error code: return a specific error for an
+            // invalid URI instead of an empty result
             this.finishWithError('no_valid_image_uri', 'Cannot find the selected image.');
             return;
           }
@@ -434,39 +455,41 @@ export default class ImagePickerDelegate {
     }
   }
 
-  // 选择多个图片
-  // 签名与 Android ImagePickerDelegate.chooseMultiImagesFromGallery(options, usePhotoPicker, limit, result)
-  // 对齐：usePhotoPicker 参数在 OHOS 实现中恒走原生 PhotoViewPicker，故仅保留签名不做分支（与
-  // chooseImageFromGallery/chooseVideoFromGallery/chooseMultiVideoFromGallery 兄弟方法一致）。
+  // Select multiple images
+  // Signature aligned with Android ImagePickerDelegate.chooseMultiImagesFromGallery(options,
+  // usePhotoPicker, limit, result): in the OHOS implementation the usePhotoPicker parameter always
+  // uses the native PhotoViewPicker, so only the signature is kept with no branching (same as the
+  // sibling methods chooseImageFromGallery/chooseVideoFromGallery/chooseMultiVideoFromGallery).
   chooseMultiImagesFromGallery(options: ImageSelectionOptions, usePhotoPicker: boolean, limit: number,
                                result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(options, null, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
     }
-    // 多图选择须走 handleChooseMultiImageResult：失败时报 missing_valid_image_uri（与 Android 对齐），
-    // 区别于混合媒体的 handleChooseMediaResult/no_valid_media_uri
+    // Multiple-image selection must go through handleChooseMultiImageResult: report
+    // missing_valid_image_uri on failure (aligned with Android), as opposed to the mixed-media
+    // handleChooseMediaResult/no_valid_media_uri
     this.chooseMedia(limit, 'handleChooseMultiImageResult', photoAccessHelper.PhotoViewMIMETypes.IMAGE_TYPE)
   }
 
-  // 唤起相机拍照
+  // Launch the camera to take a photo
   takeImageWithCamera(options: ImageSelectionOptions, result: Result<ArrayList<string>>): void {
     if (!this.setPendingOptionsAndResult(options, null, result)) {
       this.finishWithAlreadyActiveError(result);
       return;
     }
-      // 新增：运行时权限检查
-      // 由于 ImagePickerUtils.needRequestCameraPermission 是异步回调方式
-      // 改为使用新增的异步权限请求方法
+      // Added: runtime permission check
+      // Since ImagePickerUtils.needRequestCameraPermission is callback-based async,
+      // use the newly added async permission request method instead
      this.checkAndRequestCameraPermission().then((hasCameraPermission: boolean) =>{
        if (!hasCameraPermission) {
-         this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
+         this.pendingCallState = null;  // clear state so later calls do not receive already_active
          result.error(new FlutterError('camera_access_denied', 'The user did not allow camera access.', null));
          return;
        }
        this.launchTakeImageWithCameraWant();
       }).catch((err: BusinessError) => {
-                 this.pendingCallState = null;  // 清理状态，避免后续调用收到 already_active
+                 this.pendingCallState = null;  // clear state so later calls do not receive already_active
                  result.error(new FlutterError('camera_permission_error',err.message, null));
                  return;
             });
@@ -482,13 +505,16 @@ export default class ImagePickerDelegate {
       saveUri: this.saveFileUri(filePath)
     }
 
-    cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.PHOTO], pickerProfile).then((pickerResult: cameraPicker.PickerResult) => {
+    cameraPicker.pick(this.context, [cameraPicker.PickerMediaType.PHOTO], pickerProfile)
+      .then((pickerResult: cameraPicker.PickerResult) => {
       this.pendingCameraMediaUri = pickerResult.resultUri;
-      // 修改：传入 resultUri 而非预设的 filePath
+      // Modified: pass resultUri instead of the pre-set filePath
       this.handleCaptureImageResult(pickerResult.resultCode, pickerResult.resultUri);
     }).catch((err: BusinessError) => {
            Log.e(ImagePickerDelegate.TAG, 'cameraPicker.pick PHOTO failed: ' + err.message);
-           // 相机不可用时删除预创建空文件，并返回具体错误码（与 Android no_available_camera 行为对齐），而非静默空结果
+           // Delete the pre-created empty file when the camera is unavailable and return a specific
+           // error code (aligned with Android's no_available_camera behavior) instead of a silent
+           // empty result
            this.cleanupPreCreatedCameraFile();
            this.finishWithError('no_available_camera', 'No cameras available for taking pictures.');
          });
@@ -497,16 +523,17 @@ export default class ImagePickerDelegate {
   setPendingOptionsAndResult(imageOptions: ImageSelectionOptions | null, videoOptions: VideoSelectionOptions | null,
     result: Result<ArrayList<string>>): boolean {
     if (this.pendingCallState !== null && this.pendingCallState !== undefined) {
-      // 已有进行中的选择调用，返回 false 让调用方收到 already_active，
-      // 否则新调用方的 result 会被静默丢弃，Dart 侧 Future 永久挂起
+      // A selection call is already in progress; return false so the caller receives already_active,
+      // otherwise the new caller's result would be silently dropped and the Dart-side Future would hang forever
       Log.i(ImagePickerDelegate.TAG, 'There is already an open gallery, use it directly to select images');
       return false;
     }
     Log.i(ImagePickerDelegate.TAG, 'Prepare to awaken a new one');
     this.pendingCallState = new PendingCallState(imageOptions, videoOptions, result);
-    // 此方法为同步签名（返回 boolean 供 already_active 判断），无法 await；
-    // clear() 内部已 await clear + flush，本次选择结果回包（save*）发生在用户交互之后，
-    // 远超 clear 窗口，理论竞态风险可忽略
+    // This method has a synchronous signature (returns a boolean for the already_active check), so it cannot await;
+    // clear() already awaits clear + flush internally, and this selection's result reply (save*)
+    // happens after user interaction, far beyond the clear window, so the theoretical race risk is
+    // negligible
     this.cache.clear();
     return true;
   }
@@ -517,27 +544,28 @@ export default class ImagePickerDelegate {
 
   handleCaptureImageResult(code: number, path: string): void {
     if (code === 0) {
-      // 使用 resultUri 解析真实文件路径
+      // Resolve the real file path from resultUri
       let realPath: string | null = null;
       if (path) {
         realPath = FileUtils.getPathFromUri(this.context, path);
       }
-      // 如果解析失败，回退到 pendingCameraMediaUri
+      // If resolution fails, fall back to pendingCameraMediaUri
       if (!realPath && this.pendingCameraMediaUri) {
         realPath = FileUtils.getPathFromUri(this.context, this.pendingCameraMediaUri);
       }
       if (!realPath) {
-            // 结果解析失败：删除预创建的空文件后回包空结果
+            // Result parsing failed: delete the pre-created empty file, then reply with an empty result
             this.cleanupPreCreatedCameraFile();
             this.finishWithSuccess(null);
             Log.e(ImagePickerDelegate.TAG, 'Failed to get file path from URI');
             return;
           }
-      // 拍摄成功：预创建文件即为真实照片，保留文件并清除跟踪，避免后续取消误删
+      // Capture succeeded: the pre-created file is the actual photo; keep the file and clear
+      // tracking to avoid mistakenly deleting it on a later cancel
       this.pendingCameraFilePath = null;
-      this.handleImageResult(realPath || path, true); // filePath 作为兜底
+      this.handleImageResult(realPath || path, true); // filePath as fallback
     } else {
-      // 用户取消拍摄：删除预创建的空文件，避免 cacheDir 残留
+      // User canceled capture: delete the pre-created empty file to avoid leftovers in cacheDir
       this.cleanupPreCreatedCameraFile();
       this.finishWithSuccess(null);
     }
@@ -551,16 +579,16 @@ export default class ImagePickerDelegate {
       }
       if (!realPath) {
         Log.e(ImagePickerDelegate.TAG, 'Failed to get video path from camera capture URI');
-        // 结果解析失败：删除预创建的空文件后回包空结果
+        // Result parsing failed: delete the pre-created empty file, then reply with an empty result
         this.cleanupPreCreatedCameraFile();
         this.finishWithSuccess(null);
         return;
       }
-      // 拍摄成功：预创建文件即为真实视频，保留文件并清除跟踪
+      // Capture succeeded: the pre-created file is the actual video; keep the file and clear tracking
       this.pendingCameraFilePath = null;
       this.finishWithSuccess(realPath);
     } else {
-      // 用户取消拍摄：删除预创建的空文件，避免 cacheDir 残留
+      // User canceled capture: delete the pre-created empty file to avoid leftovers in cacheDir
       this.cleanupPreCreatedCameraFile();
       this.finishWithSuccess(null);
     }
@@ -581,7 +609,7 @@ export default class ImagePickerDelegate {
             fs.unlink(path);
           } catch (e) {
             Log.e(ImagePickerDelegate.TAG, 'Failed to delete original file: ' + e);
-            // 删除失败不影响最终结果，继续返回缩放后的图片路径
+            // Deletion failure does not affect the final result; continue returning the scaled image path
           }
         }
         this.finishWithSuccess(finalImagePath);
@@ -589,8 +617,9 @@ export default class ImagePickerDelegate {
         this.finishWithSuccess(path);
       }
     } catch (e) {
-      // 兜底：异步异常必须通过 finishWithError 传播到 Flutter 层，
-      // 否则 Dart 侧收到 null 无法区分"用户取消"与"内部错误"（与 Android 异常传播对齐）
+      // Fallback: async exceptions must propagate to the Flutter layer via finishWithError,
+      // otherwise the Dart side receives null and cannot distinguish "user cancel" from
+      // "internal error" (aligned with Android exception propagation)
       Log.e(ImagePickerDelegate.TAG, 'handleImageResult failed: ' + (e as Error).message);
       this.finishWithError('internal_error', 'Failed to process image result: ' + (e as Error).message);
     }
@@ -612,7 +641,7 @@ export default class ImagePickerDelegate {
       localResult = this.pendingCallState.result;
     }
     this.pendingCallState = null;
-    this.pendingCameraMediaUri = null; // 清理相机媒体URI
+    this.pendingCameraMediaUri = null; // clear camera media URI
 
     if (localResult === null) {
       if (!pathList.isEmpty()) {
@@ -629,17 +658,19 @@ export default class ImagePickerDelegate {
       localResult = this.pendingCallState.result;
     }
     this.pendingCallState = null;
-    this.pendingCameraMediaUri = null; // 清理相机媒体URI
+    this.pendingCameraMediaUri = null; // clear camera media URI
 
     if (localResult === null) {
-      // 与 finishWithSuccess 一致：仅在非空时写入缓存，避免空列表 + null error 触发
-      // Dart 侧 getLostData 的 assert(result.paths.isEmpty != (result.error == null)) 失败
+      // Same as finishWithSuccess: only write to the cache when non-empty, to avoid an empty list +
+      // null error triggering
+      // the Dart-side getLostData assert(result.paths.isEmpty != (result.error == null)) failure
       if (path != null && !path.isEmpty()) {
         this.cache.saveResult(path, null, null);
       }
     } else {
-      // path 为 null 时也必须回调 success(空列表)，否则 Dart 侧 Future 永久挂起
-      // （与 Android finishWithListSuccess 始终调用 result.success 的行为对齐）
+      // When path is null, success must still be called back (with an empty list), otherwise the
+      // Dart-side Future hangs forever
+      // (aligned with Android finishWithListSuccess, which always calls result.success)
       localResult.success(path ?? new ArrayList<string>());
     }
   }
@@ -650,21 +681,24 @@ export default class ImagePickerDelegate {
       localResult = this.pendingCallState.result;
     }
     this.pendingCallState = null;
-    this.pendingCameraMediaUri = null; // 清理相机媒体URI
+    this.pendingCameraMediaUri = null; // clear camera media URI
     if (localResult != null) {
       localResult.error(new FlutterError(code, message, null));
     }
   }
 
-  // 引擎/Ability 解绑时清理待回复回调，避免 result 引用悬挂导致 delegate 延迟 GC。
-  // 注意：此处不删除 pendingCameraFilePath，该文件可能是拍摄中/已完成的结果，需保留供 retrieveLostData 使用
+  // Clear the pending reply callback when the engine/Ability unbinds, to avoid a dangling result
+  // reference delaying delegate GC.
+  // Note: pendingCameraFilePath is not deleted here; the file may be an in-progress or completed
+  // capture result and must be kept for retrieveLostData
   clearPendingCallState(): void {
     this.pendingCallState = null;
     this.pendingCameraMediaUri = null;
     this.pendingCameraFilePath = null;
   }
 
-  // 删除相机预创建但未使用的空文件（用户取消/相机不可用/结果解析失败时调用），避免 cacheDir 残留
+  // Delete the camera's pre-created but unused empty file (called on user cancel / camera
+  // unavailable / result parsing failure) to avoid leftovers in cacheDir
   private cleanupPreCreatedCameraFile(): void {
     if (this.pendingCameraFilePath != null) {
       try {
@@ -676,18 +710,20 @@ export default class ImagePickerDelegate {
     }
   }
 
-  // 引擎/Ability 解绑时清理插件创建的临时文件（缩放图片、URI 拷贝副本）
+  // Clean up temp files created by the plugin (scaled images, URI copy duplicates) when the engine/Ability unbinds
   cleanupTempFiles(): void {
     FileUtils.cleanupTempFiles(this.context);
   }
 
-  // 引擎/Ability 解绑时统一释放资源：PhotoViewPicker 实例置 null 释放系统资源，
-  // 同时清理待回复回调与临时文件，并异步关闭 Preferences（内存检视：photoPicker/preferences 此前从未被释放）。
+  // Release resources in one place when the engine/Ability unbinds: set the PhotoViewPicker
+  // instance to null to free system resources, clean up the pending reply callback and temp files,
+  // and close Preferences asynchronously (memory inspection: photoPicker/preferences were never
+  // released before).
   release(): void {
     this.photoPicker = null;
     this.clearPendingCallState();
     this.cleanupTempFiles();
-    // fire-and-forget：cleanup 不阻塞解绑流程
+    // fire-and-forget: cleanup does not block the unbind flow
     this.cache.close();
   }
 
@@ -696,16 +732,16 @@ export default class ImagePickerDelegate {
       outputOptions.getQuality());
   }
 
-  // 新增辅助方法检查权限
+  // Added helper method for permission checks
   private async checkAndRequestCameraPermission(): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       ImagePickerUtils.needRequestCameraPermission((_err: BusinessError, isInManifest: boolean ) => {
         if (!isInManifest) {
-          // manifest 中未声明权限，说明不需要相机权限
+          // Permission not declared in the manifest, meaning camera permission is not required
           resolve(true);
           return;
         }
-        // manifest 中声明了权限，进行运行时请求
+        // Permission declared in the manifest; perform the runtime request
         ImagePickerUtils.requestCameraPermission(this.context as common.Context)
           .then((granted) => resolve(granted))
           .catch(() => resolve(false));
@@ -713,7 +749,7 @@ export default class ImagePickerDelegate {
     });
   }
 
-  // 新增：视频判断方法
+  // Added: video detection method
   private isVideoFile(filePath: string): boolean {
     const videoExtensions = ['.mp4', '.3gp', '.mkv', '.webm', '.avi', '.mov', '.m4v'];
     const lowerPath = filePath.toLowerCase();

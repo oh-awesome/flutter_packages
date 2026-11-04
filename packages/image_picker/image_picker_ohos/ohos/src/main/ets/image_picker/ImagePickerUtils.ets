@@ -51,7 +51,7 @@ export default class ImagePickerUtils {
     return ImagePickerUtils.isPermissionPresentInManifest(CAMERA_PERMISSION, callback);
   }
 
-  // 动态获取请求
+  // Request the permission dynamically at runtime
   public static async requestCameraPermission(context: common.Context): Promise<boolean> {
     const atManager = abilityAccessCtrl.createAtManager();
     try {

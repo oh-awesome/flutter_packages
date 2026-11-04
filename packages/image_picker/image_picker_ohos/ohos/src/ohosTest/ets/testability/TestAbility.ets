@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// TestAbility 测试入口 Ability：通过 Hypium.hypiumTest 注册并运行 testsuite 中的用例。
+// TestAbility, the test entry Ability: registers and runs the cases in the testsuite via Hypium.hypiumTest.
 
 import UIAbility from '@ohos.app.ability.UIAbility';
 import AbilityDelegatorRegistry from '@ohos.app.ability.abilityDelegatorRegistry';
@@ -15,9 +15,10 @@ import AbilityConstant from '@ohos.app.ability.AbilityConstant';
 export default class TestAbility extends UIAbility {
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam) {
     hilog.info(0x0000, 'testTag', '%{public}s', 'TestAbility onCreate');
-    // 暴露真实 UIAbilityContext 供测试用例构造真实 ImagePickerCache（getPreferences 需要
-    // ability 级 context；delegator.getAppContext()/getCurrentTopAbility() 在 onCreate 阶段不可用）。
-    // 仅测试侧引用：ImagePickerCache 真实构造路径由此解锁（real_cache_with_ability_context 用例）。
+    // Expose the real UIAbilityContext so test cases can build a real ImagePickerCache (getPreferences needs
+    // an ability-level context; delegator.getAppContext()/getCurrentTopAbility() are unavailable during onCreate).
+    // Referenced only from the test side: this unlocks ImagePickerCache's real construction path
+    // (real_cache_with_ability_context test case).
     (globalThis as ESObject).testAbility = this;
     const abilityDelegator = AbilityDelegatorRegistry.getAbilityDelegator();
     const abilityDelegatorArguments = AbilityDelegatorRegistry.getArguments();

@@ -1,12 +1,17 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ohosTest 环境下 flutter_ohos 的 native 绑定（libflutter.so 的 nativeEncodeUtf8/nativeDecodeUtf8）未初始化，
-// StringUtils.stringToArrayBuffer/uint8ArrayToString 会抛 'Cannot read property nativeEncodeUtf8 of undefined'，
-// 导致所有经真实 codec（StandardMessageCodec → ImagePickerApiCodec）编码非空字符串的用例失败
-// （空字符串在 StringUtils.stringToArrayBuffer 里走 str.length==0 提前返回，故之前那些只含数字/枚举的用例能过）。
-// 本文件以 @ohos.util 的 TextEncoder/TextDecoder（语义与 native UTF-8 编解码等价）替换这两个静态方法，
-// 纯测试注入、不改 main 源码。需在测试入口 List.test.ets 最前面 import，保证在任何用例执行前生效。
+// Under ohosTest, flutter_ohos's native bindings
+// (libflutter.so's nativeEncodeUtf8/nativeDecodeUtf8) are not initialized,
+// so StringUtils.stringToArrayBuffer/uint8ArrayToString throw 'Cannot read property nativeEncodeUtf8 of undefined',
+// making every case that encodes a non-empty string through the real codec
+// (StandardMessageCodec → ImagePickerApiCodec) fail
+// (empty strings take the str.length==0 early return in StringUtils.stringToArrayBuffer,
+// which is why the earlier numeric/enum-only cases passed).
+// This file replaces those two static methods with @ohos.util's TextEncoder/TextDecoder
+// (semantically equivalent to the native UTF-8 codec),
+// a pure test-side injection that does not touch the main source.
+// It must be imported first in the test entry List.test.ets so it takes effect before any case runs.
 
 import util from '@ohos.util';
 import StringUtils from '@ohos/flutter_ohos/src/main/ets/util/StringUtils';
@@ -18,7 +23,8 @@ function utf8EncodeToArrayBuffer(str: string): ArrayBuffer {
   if (str.length == 0) {
     return new ArrayBuffer(0);
   }
-  // UTF-8 下单个 UTF-16 code unit 最多占 3 字节（代理对取 4 字节上限），str.length * 4 必然够用
+  // Under UTF-8 a single UTF-16 code unit takes at most 3 bytes (surrogate pairs use the 4-byte upper bound),
+  // so str.length * 4 is always enough
   const dest = new Uint8Array(str.length * 4);
   const written = UTF8_ENCODER.encodeInto(str, dest).written;
   return dest.slice(0, written).buffer;
@@ -38,8 +44,10 @@ function utf8DecodeFromArrayBuffer(buffer: ArrayBuffer): string {
   return UTF8_DECODER.decode(new Uint8Array(buffer));
 }
 
-// StringUtils 是 class（非 namespace），静态方法可经 ESObject 覆写（与 ImagePickerUtils 补丁同理）。
-// 整个 ohosTest 进程内替换实现与 native 语义等价，无需恢复。
+// StringUtils is a class (not a namespace), so its static methods can be overridden via ESObject
+// (same approach as the ImagePickerUtils patch).
+// Replacing the implementation for the whole ohosTest process is semantically equivalent to the native one,
+// so no restore is needed.
 (StringUtils as ESObject).stringToArrayBuffer = utf8EncodeToArrayBuffer;
 (StringUtils as ESObject).uint8ArrayToString = utf8DecodeFromUint8Array;
 (StringUtils as ESObject).arrayBufferToString = utf8DecodeFromArrayBuffer;

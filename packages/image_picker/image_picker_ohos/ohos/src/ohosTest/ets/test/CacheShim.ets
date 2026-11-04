@@ -1,33 +1,44 @@
-// CacheShim.ets 测试专用：在不 new ImagePickerCache 的前提下，提供行为与真实实现一致的
-// 缓存实例。
+// CacheShim.ets is test-only: it provides cache instances whose behavior matches the real
+// implementation without ever new-ing ImagePickerCache.
 //
-// 背景：ImagePickerCache 构造器调用 data_preferences.getPreferences(this.context, name)，
-// 传 null 或无效 context 会同步抛 "Parameter error. The context is invalid."。@ohos.data.preferences
-// 是 namespace（arkts-no-ns-as-obj 禁止覆写其成员），无法经 ESObject 打补丁；getAppContext()/
-// topAbility 的 context 能否被 getPreferences 接受又因 OHOS 版本而异（官方示例用 getAppContext()，
-// 但本机观测 delegator context 仍同步抛）。
+// Background: the ImagePickerCache constructor calls
+// data_preferences.getPreferences(this.context, name); passing a null or invalid context throws
+// synchronously with "Parameter error. The context is invalid.". @ohos.data.preferences is a
+// namespace (arkts-no-ns-as-obj forbids overriding its members) and cannot be patched via ESObject;
+// whether getAppContext()/topAbility's context is accepted by getPreferences varies with the OHOS
+// version (official examples use getAppContext(), but on this machine the delegator context was
+// still observed to throw synchronously).
 //
-// 绕过构造器：ArkTS 禁止 Object.create（arkts-limited-stdlib）与 .prototype 读写
-// （arkts-no-prototype-assignment），故在测试侧完整重写 ImagePickerCache 的读写逻辑
-// （TestImagePickerCache，语义逐行镜像真实实现）。这些方法闭包引用测试导入的真实
-// Messages 枚举/类型，存储字段由测试注入：
-//  - preferencesInitPromise = Promise.resolve() + preferences = null → 优雅走空分支（默认值/空 map）；
-//  - 注入内存 fake Preferences → 走真实读写路径且无异步覆盖竞态（不会触发真实 getPreferences）。
-// 唯一有意的行为差异：getCacheMap 的 error 分支——真实实现 new CacheRetrievalErrorBuilder(null,null,null)
-// 令 setCode/build 恒为 null（死代码，MAP_KEY_ERROR 永远不写入），测试按 Pigeon 协议语义期望 error
-// 被写入，故此处改为构造真实 CacheRetrievalError（setCode/setMessage + 存入 MAP_KEY_ERROR）。
+// Bypassing the constructor: ArkTS forbids Object.create (arkts-limited-stdlib) and .prototype
+// reads/writes (arkts-no-prototype-assignment), so the test side fully reimplements
+// ImagePickerCache's read/write logic (TestImagePickerCache, mirroring the real implementation
+// line by line). These methods' closures reference the real Messages enums/types imported by the
+// test; the storage fields are injected by the test:
+//  - preferencesInitPromise = Promise.resolve() + preferences = null → gracefully takes the empty
+//    branches (defaults/empty map);
+//  - injecting an in-memory fake Preferences → takes the real read/write path with no async
+//    overwrite race (never triggers real getPreferences).
+// The single intentional behavioral difference: getCacheMap's error branch — the real
+// implementation does new CacheRetrievalErrorBuilder(null,null,null), leaving setCode/build always
+// null (dead code; MAP_KEY_ERROR is never written), while tests, per Pigeon protocol semantics,
+// expect error to be written, so this builds a real CacheRetrievalError instead
+// (setCode/setMessage + stored under MAP_KEY_ERROR).
 //
-// 刻意不 new ImagePickerCache(getAppContext())：真实 Preferences 会持久化写入应用共享首选项文件，
-// 同一 bundle 内后续用例读回非空 → 跨用例污染。真实构造路径由 real_context_getPreferences /
-// ui_ability_context 两个显式真实上下文用例经 try/catch 覆盖。
+// Deliberately not new-ing ImagePickerCache(getAppContext()): a real Preferences would persist
+// writes into the app's shared preferences file, and later cases in the same bundle would read
+// back non-empty values → cross-test pollution. The real construction path is covered, via
+// try/catch, by the two explicit real-context cases real_context_getPreferences and
+// ui_ability_context.
 
 import ArrayList from '@ohos.util.ArrayList';
 import HashMap from '@ohos.util.HashMap';
 import ImagePickerCache, { CacheType } from '../../../main/ets/image_picker/ImagePickerCache';
-import { ImageSelectionOptions, CacheRetrievalType, CacheRetrievalError } from '../../../main/ets/image_picker/Messages';
+import { ImageSelectionOptions, CacheRetrievalType,
+  CacheRetrievalError } from '../../../main/ets/image_picker/Messages';
 import data_preferences from '@ohos.data.preferences'
 
-// 镜像 ImagePickerCache 私有静态常量（ArkTS private static 仅编译期修饰，测试侧直接复制字面量）
+// Mirror of ImagePickerCache's private static constants (ArkTS private static is compile-time only;
+// the test side copies the literals directly)
 const MAP_TYPE_VALUE_IMAGE = 'image';
 const MAP_TYPE_VALUE_VIDEO = 'video';
 const FLUTTER_IMAGE_PICKER_IMAGE_PATH_KEY = 'flutter_image_picker_image_path';
@@ -39,8 +50,9 @@ const SHARED_PREFERENCE_IMAGE_QUALITY_KEY = 'flutter_image_picker_image_quality'
 const SHARED_PREFERENCE_TYPE_KEY = 'flutter_image_picker_type';
 const SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY = 'flutter_image_picker_pending_image_uri';
 
-// 与 data_preferences.Preferences 形状一致的测试侧接口：ohosTest 无法创建真实 Preferences
-// （getPreferences 同步抛，见文件头），注入的 fake 只需满足该形状即可驱动真实读写路径。
+// Test-side interface matching the shape of data_preferences.Preferences: ohosTest cannot create
+// a real Preferences (getPreferences throws synchronously, see the file header); an injected fake
+// only needs to satisfy this shape to drive the real read/write path.
 interface TestPreferences {
   put(key: string, value: ESObject): Promise<void>;
   get(key: string, defValue: ESObject): Promise<ESObject>;
@@ -70,7 +82,7 @@ class TestImagePickerCache {
     try {
       this.setPreferenceData(SHARED_PREFERENCE_TYPE_KEY, type);
     } catch (err) {
-      // setType 失败静默（与真实实现一致，Log.e 输出不影响行为）
+      // setType failures are silent (same as the real implementation; Log.e output does not affect behavior)
     }
   }
 
@@ -120,7 +132,7 @@ class TestImagePickerCache {
         });
       return hasKey;
     } catch (err) {
-      // has 同步抛（如 fake 注入）时外层捕获返回 false
+      // When has throws synchronously (e.g. fake injection), the outer catch returns false
       return false;
     }
   }
@@ -141,7 +153,7 @@ class TestImagePickerCache {
     try {
       this.setPreferenceData(SHARED_PREFERENCE_PENDING_IMAGE_URI_PATH_KEY, uri);
     } catch (err) {
-      // 静默
+      // Silent
     }
   }
 
@@ -153,7 +165,7 @@ class TestImagePickerCache {
           return data;
         });
     } catch (err) {
-      // 读失败回退默认值
+      // Read failure falls back to the default value
     }
     if (typeof result != 'string') {
       result = '';
@@ -183,7 +195,7 @@ class TestImagePickerCache {
       await this.preferences.clear();
       await this.preferences.flush();
     } catch (err) {
-      // clear 失败静默
+      // clear failures are silent
     }
   }
 
@@ -193,7 +205,7 @@ class TestImagePickerCache {
       try {
         await this.preferences.flush();
       } catch (err) {
-        // flush 失败静默
+        // flush failures are silent
       }
       this.preferences = null;
     }
@@ -252,7 +264,8 @@ class TestImagePickerCache {
       }
       hasKey = await this.hasKey(SHARED_PREFERENCE_IMAGE_QUALITY_KEY);
       if (hasKey) {
-        const imageQualityValue: ESObject | null = await this.getPreferenceData(SHARED_PREFERENCE_IMAGE_QUALITY_KEY, 100);
+        const imageQualityValue: ESObject | null =
+          await this.getPreferenceData(SHARED_PREFERENCE_IMAGE_QUALITY_KEY, 100);
         resultMap.set(ImagePickerCache.MAP_KEY_IMAGE_QUALITY, imageQualityValue);
       }
     }
@@ -260,13 +273,15 @@ class TestImagePickerCache {
   }
 }
 
-// 空分支 cache：preferences 恒为 null，所有读写走默认值分支，不触达任何真实存储。
+// Empty-branch cache: preferences is always null, all reads/writes take the default-value branches,
+// and no real storage is touched.
 export function createTestCache(): ImagePickerCache {
   const cache: TestImagePickerCache = new TestImagePickerCache();
   return cache as ESObject as ImagePickerCache;
 }
 
-// 内存 fake Preferences 注入（与 ImagePickerCache.test.ets 原 makeFakeCache 语义一致）。
+// In-memory fake Preferences injection (semantically identical to the original makeFakeCache in
+// ImagePickerCache.test.ets).
 export function createFakeCache(): ImagePickerCache {
   const cache: TestImagePickerCache = new TestImagePickerCache();
   const fakeMap: Map<string, ESObject> = new Map<string, ESObject>();
@@ -292,8 +307,9 @@ export function createFakeCache(): ImagePickerCache {
   return cache as ESObject as ImagePickerCache;
 }
 
-// 可注入失败的 fake：覆盖 setPreferenceData/getPreferenceData/hasKey/clear/close 的异常分支
-// （createFakeCache 全成功，触达不到这些 catch 闭包）。
+// Fail-injectable fake: covers the exception branches of
+// setPreferenceData/getPreferenceData/hasKey/clear/close (createFakeCache always succeeds and
+// cannot reach these catch closures).
 export function createFailingCache(failPut: boolean, failFlush: boolean, failGet: boolean,
   failHasReject: boolean, failHasThrow: boolean, failClear: boolean, nonStringGet: boolean): ImagePickerCache {
   const cache: TestImagePickerCache = new TestImagePickerCache();

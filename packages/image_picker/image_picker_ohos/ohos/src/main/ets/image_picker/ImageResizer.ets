@@ -57,8 +57,10 @@ export default class ImageResizer {
         desiredSize: targetSize
       });
 
-      // 与 Android ImageResizer 对齐：源图含透明通道（如 PNG）时输出 PNG 保留透明度，否则 JPEG。
-      // Android 按 bitmap.hasAlpha() 判断；OHOS 以解码后 alphaType（PREMUL/UNPREMUL 表示含 alpha）近似
+      // Aligned with Android's ImageResizer: when the source image has an alpha channel
+      // (e.g. PNG), output PNG to preserve transparency, otherwise JPEG.
+      // Android decides via bitmap.hasAlpha(); on OHOS this is approximated using the decoded
+      // alphaType (PREMUL/UNPREMUL means alpha is present)
       let hasAlpha: boolean = imageInfo.alphaType == image.AlphaType.PREMUL ||
         imageInfo.alphaType == image.AlphaType.UNPREMUL;
       let outFileName = await this.createImageOnExternalDirectory(imagePixelMap, imageName, imageQuality, hasAlpha);
@@ -86,8 +88,9 @@ export default class ImageResizer {
 
   private calculateTargetSize(originalWidth: number, originalHeight: number, maxWidth: number | null,
                               maxHeight: number | null): image.Size {
-    // null 表示未设置约束（Pigeon 协议 double? 未设置即 null），保持原尺寸；
-    // 非 null 时取 Math.min(原尺寸, 约束)。
+    // null means no constraint is set (in the Pigeon protocol an unset double? arrives as null);
+    // keep the original size;
+    // when non-null, use Math.min(original size, constraint).
     let width: number = maxWidth != null ? Math.min(originalWidth, maxWidth) : originalWidth;
     let height: number = maxHeight != null ? Math.min(originalHeight, maxHeight) : originalHeight;
 
@@ -95,9 +98,10 @@ export default class ImageResizer {
     let shouldDownscaleHeight: boolean = maxHeight != null && maxHeight < originalHeight;
     let shouldDownscale: boolean = shouldDownscaleWidth || shouldDownscaleHeight;
 
-    // 与 Android calculateTargetSize 对齐：比较 heightForMaxWidth 与 height，
-    // 选择不超约束的一边，保证同时设置 maxWidth/maxHeight 时两者都不溢出。
-    // （例 1000x2000 + max 600x800：Android 输出 400x800，旧实现输出 600x1200 超 maxHeight）
+    // Aligned with Android's calculateTargetSize: compare heightForMaxWidth with height and pick the
+    // side that stays within its constraint, ensuring neither overflows when both maxWidth/maxHeight are set.
+    // (Example 1000x2000 + max 600x800: Android outputs 400x800; the old implementation output
+    // 600x1200, exceeding maxHeight)
     if (shouldDownscale) {
       let aspectRatio: number = originalWidth / originalHeight;
       let widthForMaxHeight: number = height * aspectRatio;
@@ -119,12 +123,14 @@ export default class ImageResizer {
     hasAlpha: boolean): Promise<string> {
     let imagePackerApi: image.ImagePacker | null = null;
     let outFile: fs.File | null = null;
-    // 缩放文件写入插件专用临时目录，随 detach 时的 cleanupTempFiles 一并清理
+    // Scaled files are written to the plugin-specific temp directory and cleaned up together
+    // by cleanupTempFiles on detach
     let outFileName: string = FileUtils.getTempDirectory(this.context) + '/scaled_' + imageName;
 
     try {
       imagePackerApi = image.createImagePacker();
-      // PNG 为无损编码，imageQuality 不生效（与 Android 对 PNG 忽略压缩质量一致）
+      // PNG is a lossless format, so imageQuality has no effect (consistent with Android
+      // ignoring compression quality for PNG)
       let format: string = hasAlpha ? 'image/png' : 'image/jpeg';
       let bufferData = await imagePackerApi.packing(imagePixelMap, {
         format: format, quality: imageQuality, needsPackProperties: true

@@ -3,14 +3,14 @@
 // found in the LICENSE_ODID file.
 
 /**
- * @file 日期工具
+ * @file Date/time utility
  */
 
-const NINE: number = 9; // 这是数字9
+const NINE: number = 9; // The number 9
 
 export default class DateTimeUtil {
   /**
-   * 时分秒
+   * Hour/minute/second
    */
   getTime(): string {
     const DATETIME = new Date();
@@ -22,7 +22,7 @@ export default class DateTimeUtil {
   }
 
   /**
-   * 年月日
+   * Year/month/day
    */
   getDate(): string {
     const DATETIME = new Date();
@@ -34,15 +34,15 @@ export default class DateTimeUtil {
   }
 
   /**
-   * 日期不足两位补充0
-   * @param value-数据值
+   * Zero-pad date components to 2 digits
+   * @param value-Data value
    */
   fill(value: number): string {
     return (value > NINE ? '' : '0') + value;
   }
 
   /**
-   * 年月日格式修饰
+   * Year/month/day formatting
    * @param year
    * @param month
    * @param date
@@ -53,7 +53,7 @@ export default class DateTimeUtil {
 
   /**
    * Avoid repetition
-   * 时分秒格式修饰
+   * Hour/minute/second formatting
    * @param hours
    * @param minutes
    * @param seconds

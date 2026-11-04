@@ -21,13 +21,13 @@ dependencies:
     path: ../
   image_picker_platform_interface: ^2.11.0
   mime: ^2.0.0
-  video_player: 
+  video_player:
     git:
       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/video_player/video_player"
 
 dependency_overrides:
-  video_player_ohos: 
+  video_player_ohos:
     git:
       url: "https://gitcode.com/openharmony-tpc/flutter_packages.git"
       path: "packages/video_player/video_player_ohos"

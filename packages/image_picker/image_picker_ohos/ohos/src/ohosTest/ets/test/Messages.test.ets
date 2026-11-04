@@ -1,7 +1,7 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// Messages.ets Pigeon 编解码类（toList/fromList 往返、null-guard、limit 钳制、wrapError）。
+// Messages.ets Pigeon codec classes (toList/fromList round trips, null-guards, limit clamping, wrapError).
 
 import { describe, it, expect } from '@ohos/hypium';
 import ArrayList from '@ohos.util.ArrayList';
@@ -24,7 +24,8 @@ import Messages, {
   MAX_SELECT_NUMBER,
   Result
 } from '../../../main/ets/image_picker/Messages';
-import { BinaryMessenger, BinaryMessageHandler, BinaryReply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
+import { BinaryMessenger, BinaryMessageHandler,
+    BinaryReply } from '@ohos/flutter_ohos/src/main/ets/plugin/common/BinaryMessenger';
 
 function listOf(values: ESObject[]): ArrayList<ESObject> {
   const list: ArrayList<ESObject> = new ArrayList<ESObject>();
@@ -42,10 +43,11 @@ function sleep(ms: number): Promise<void> {
   });
 }
 
-// 捕获 setMessageHandler 注册的 handler 的 fake messenger，用于向 Pigeon 通道注入并分发消息，
-// 从而执行 ImagePickerApi.setup 中 4 个 onMessage 处理闭包（真实引擎环境下才可达的代码路径）。
-// setup 按固定顺序注册 4 条通道（pickImages/pickVideos/pickMedia/retrieveLostResults），
-// 故以索引方式取用，规避 ArkTS String↔string 映射键类型摩擦。
+// A fake messenger that captures the handlers registered via setMessageHandler, used to inject and dispatch messages
+// into the Pigeon channels, thereby executing the 4 onMessage handler closures inside ImagePickerApi.setup
+// (code paths reachable only under a real engine).
+// setup registers the 4 channels (pickImages/pickVideos/pickMedia/retrieveLostResults) in a fixed order,
+// so handlers are fetched by index, avoiding ArkTS String↔string map key type friction.
 class CapturingMessenger {
   handlers: BinaryMessageHandler[] = [];
   setMessageHandlerCount: number = 0;
@@ -66,7 +68,7 @@ class FakeImagePickerApi extends ImagePickerApi {
   pickVideosCount: number = 0;
   pickMediaCount: number = 0;
   retrieveLostCount: number = 0;
-  // true 时 pickImages/pickVideos/pickMedia 回调 result.error，覆盖 setup 中 3 个错误回包闭包
+  // When true, pickImages/pickVideos/pickMedia invoke result.error, covering the 3 error-reply closures in setup
   emitError: boolean = false;
 
   pickImages(source: SourceSpecification, options: ImageSelectionOptions, generalOptions: GeneralOptions,
@@ -478,7 +480,8 @@ export default function messagesTest() {
       const restoredVideo: VideoSelectionOptions = codec.decodeMessage(bufVideo) as ESObject as VideoSelectionOptions;
       expect(restoredVideo.getMaxDurationSeconds()).assertEqual(30);
 
-      const source: SourceSpecification = SourceSpecification.fromList(listOf([SourceType.GALLERY, SourceCamera.FRONT]));
+      const source: SourceSpecification =
+          SourceSpecification.fromList(listOf([SourceType.GALLERY, SourceCamera.FRONT]));
       const bufSource: ArrayBuffer = codec.encodeMessage(source);
       const restoredSource: SourceSpecification = codec.decodeMessage(bufSource) as ESObject as SourceSpecification;
       expect(restoredSource.getType()).assertEqual(SourceType.GALLERY);
@@ -527,7 +530,7 @@ export default function messagesTest() {
 
     it('codec_decode_default_branch_reads_primitive', 0, () => {
       const codec: ImagePickerApiCodec = ImagePickerApiCodec.INSTANCE;
-      // 非自定义类型走 StandardMessageCodec 默认分支
+      // Non-custom types go through the StandardMessageCodec default branch
       const buf: ArrayBuffer = codec.encodeMessage(42);
       const decoded: ESObject = codec.decodeMessage(buf) as ESObject;
       expect(decoded).assertEqual(42);

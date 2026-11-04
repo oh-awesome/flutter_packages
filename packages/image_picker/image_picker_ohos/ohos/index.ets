@@ -1,2 +1,2 @@
-import ImagePickerPulgin from './src/main/ets/image_picker/ImagePickerPlugin'
-export default ImagePickerPulgin
+import ImagePickerPlugin from './src/main/ets/image_picker/ImagePickerPlugin'
+export default ImagePickerPlugin

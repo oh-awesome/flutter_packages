@@ -42,8 +42,8 @@ export default class ImagePickerCache {
   private static SHARED_PREFERENCES_NAME = 'flutter_image_picker_shared_preference';
   private context: common.Context;
   private preferences: data_preferences.Preferences | null = null;
-  // 记录 Preferences 异步初始化完成的 Promise，
-  // 所有读写方法先等待其完成，避免 preferences 未就绪时操作被静默丢弃
+  // Promise that records completion of the asynchronous Preferences initialization;
+  // all read/write methods await it first, so operations are not silently dropped while preferences is not ready
   private preferencesInitPromise: Promise<void>;
 
   constructor(context: common.Context) {
@@ -97,7 +97,8 @@ export default class ImagePickerCache {
     });
   }
 
-  private async getPreferenceData(key: string, defValue: data_preferences.ValueType | null): Promise<data_preferences.ValueType | null> {
+  private async getPreferenceData(key: string,
+      defValue: data_preferences.ValueType | null): Promise<data_preferences.ValueType | null> {
     await this.preferencesInitPromise;
     if (this.preferences == null) {
       return defValue;
@@ -135,7 +136,7 @@ export default class ImagePickerCache {
   }
 
   saveDimensionWithOutputOptions(options: ImageSelectionOptions): void {
-    // getMaxWidth()/getMaxHeight() 现为 number | null，用局部变量承接以做类型收窄
+    // getMaxWidth()/getMaxHeight() now return number | null; local variables are used for type narrowing
     const maxWidth: number | null = options.getMaxWidth();
     if (maxWidth != null) {
       this.setPreferenceData(ImagePickerCache.SHARED_PREFERENCE_MAX_WIDTH_KEY, maxWidth);
@@ -184,8 +185,9 @@ export default class ImagePickerCache {
     }
   }
 
-  // clear 改为 async 并 await preferences.clear() + flush()，消除与 save*() 的竞态：
-  // 原实现不等待 clear() 完成就返回，紧接着的 put() 可能在 clear() 完成前执行而被清掉
+  // clear is now async and awaits preferences.clear() + flush(), eliminating the race with save*():
+  // the old implementation returned before clear() finished, so an immediately following put() could
+  // execute before clear() completed and get wiped
   async clear(): Promise<void> {
     await this.preferencesInitPromise;
     if (this.preferences == null) {
@@ -199,7 +201,8 @@ export default class ImagePickerCache {
     }
   }
 
-  // 引擎/Ability 解绑时显式 flush 并释放 Preferences 引用，避免依赖 GC 延迟释放系统资源
+  // Explicitly flush and release the Preferences reference on engine/Ability detach, avoiding
+  // reliance on delayed GC to free system resources
   async close(): Promise<void> {
     await this.preferencesInitPromise;
     if (this.preferences != null) {
@@ -213,7 +216,8 @@ export default class ImagePickerCache {
   }
 
   async getCacheMap(): Promise<HashMap<string, ArrayList<data_preferences.ValueType>>> {
-    const resultMap: HashMap<string, ArrayList<data_preferences.ValueType> | ESObject> = new HashMap<string, ArrayList<data_preferences.ValueType> | ESObject>();
+    const resultMap: HashMap<string, ArrayList<data_preferences.ValueType> | ESObject> =
+        new HashMap<string, ArrayList<data_preferences.ValueType> | ESObject>();
     let hasData = false;
     let hasKey = await this.hasKey(ImagePickerCache.FLUTTER_IMAGE_PICKER_IMAGE_PATH_KEY).then((result) => {
       return result;
@@ -275,7 +279,8 @@ export default class ImagePickerCache {
             return data;
           });
 
-        resultMap.set(ImagePickerCache.MAP_KEY_TYPE, type == ImagePickerCache.MAP_TYPE_VALUE_VIDEO ? CacheRetrievalType.VIDEO : CacheRetrievalType.IMAGE);
+        resultMap.set(ImagePickerCache.MAP_KEY_TYPE,
+            type == ImagePickerCache.MAP_TYPE_VALUE_VIDEO ? CacheRetrievalType.VIDEO : CacheRetrievalType.IMAGE);
       }
       hasKey = await this.hasKey(ImagePickerCache.SHARED_PREFERENCE_MAX_WIDTH_KEY).then((result) => {
         return result;

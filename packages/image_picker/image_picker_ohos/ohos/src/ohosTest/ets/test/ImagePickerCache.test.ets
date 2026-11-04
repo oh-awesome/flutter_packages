@@ -1,9 +1,10 @@
 // Copyright (c) 2026 Hunan OpenValley Digital Industry Development Co., Ltd.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE_ODID file.
-// ImagePickerCache.ets 测试：null context 下 getPreferences 失败（preferences 保持 null），
-// 所有读写方法优雅走空分支不抛异常；同时通过注入内存 fake Preferences（构造函数测试注入缝）
-// 覆盖 save*/retrieve*/getCacheMap 的真实读写路径。覆盖 MAP_KEY 常量、CacheType 枚举与保存参数解析。
+// ImagePickerCache.ets tests: under null context getPreferences fails (preferences stays null)
+// and all read/write methods gracefully take the empty branches without throwing; injecting an
+// in-memory fake Preferences (constructor test seam) also covers the real read/write paths of
+// save*/retrieve*/getCacheMap, plus the MAP_KEY constants, the CacheType enum, and save parameter parsing.
 
 import { describe, it, expect } from '@ohos/hypium';
 import ArrayList from '@ohos.util.ArrayList';
@@ -14,8 +15,9 @@ import AbilityDelegatorRegistry from '@ohos.app.ability.abilityDelegatorRegistry
 import { createTestCache, createFakeCache, createFailingCache } from './CacheShim';
 
 function makeCache(): ImagePickerCache {
-  // 见 CacheShim：getPreferences(null/任意 context) 在 ohosTest 同步抛，无法经 namespace 打补丁，
-  // 故用 Object.create 绕过构造器 + 注入 preferencesInitPromise/preferences 空分支字段
+  // See CacheShim: getPreferences(null/any context) throws synchronously in ohosTest and cannot be
+  // patched via the namespace, so Object.create bypasses the constructor + injects the
+  // preferencesInitPromise/preferences empty-branch fields
   return createTestCache();
 }
 
@@ -47,7 +49,8 @@ function imageOptions(maxWidth: number | null, maxHeight: number | null, quality
   return ImageSelectionOptions.fromList(listOf(values));
 }
 
-// 内存 fake Preferences：见 CacheShim，覆盖真实读写路径（ohosTest 环境无法创建真实 Preferences）
+// In-memory fake Preferences: see CacheShim, covers the real read/write paths (the ohosTest
+// environment cannot create real Preferences)
 function makeFakeCache(): ImagePickerCache {
   return createFakeCache();
 }
@@ -60,15 +63,16 @@ function stringPaths(values: string[]): ArrayList<string> {
   return list;
 }
 
-// 可注入失败的 fake Preferences：见 CacheShim，覆盖 setPreferenceData/getPreferenceData/hasKey/
-// clear/close 的异常分支（createFakeCache 全部成功，无法触达这些 catch 闭包）
+// Fail-injectable fake Preferences: see CacheShim, covers the exception branches of
+// setPreferenceData/getPreferenceData/hasKey/clear/close (createFakeCache always succeeds and
+// cannot reach these catch closures)
 function makeFailingCache(failPut: boolean, failFlush: boolean, failGet: boolean, failHasReject: boolean,
   failHasThrow: boolean, failClear: boolean, nonStringGet: boolean): ImagePickerCache {
   return createFailingCache(failPut, failFlush, failGet, failHasReject, failHasThrow, failClear, nonStringGet);
 }
 
-// 经 TestAbility 暴露的真实 UIAbilityContext 构造真实 ImagePickerCache；getPreferences 同步抛
-// （真实构造不可达）时返回 null，调用方跳过。
+// Builds a real ImagePickerCache from the real UIAbilityContext exposed via TestAbility; returns
+// null when getPreferences throws synchronously (real construction unreachable), and the caller skips.
 function realCacheOrNull(): ImagePickerCache | null {
   const ability: ESObject = (globalThis as ESObject).testAbility;
   if (ability == null || ability.context == null) {
@@ -81,9 +85,10 @@ function realCacheOrNull(): ImagePickerCache | null {
   }
 }
 
-// 注入真实 ImagePickerCache.preferences 的失败 fake：语义与 CacheShim.createFailingCache 一致，
-// 但作用于真实类的实例，用于覆盖真实 setPreferenceData/getPreferenceData/hasKey/clear/close
-// 的异常 catch 闭包（TestImagePickerCache 镜像类不贡献真实类覆盖率）。
+// Failure fake injected into a real ImagePickerCache's preferences: semantically identical to
+// CacheShim.createFailingCache, but applied to an instance of the real class, to cover the real
+// setPreferenceData/getPreferenceData/hasKey/clear/close exception catch closures (the
+// TestImagePickerCache mirror class does not contribute to real-class coverage).
 function makeInjectedPrefs(failPut: boolean, failFlush: boolean, failGet: boolean, failHasReject: boolean,
   failHasThrow: boolean, failClear: boolean, nonStringGet: boolean): ESObject {
   const fakeMap: Map<string, ESObject> = new Map<string, ESObject>();
@@ -185,10 +190,11 @@ export default function imagePickerCacheTest() {
     });
 
     it('real_context_getPreferences_rejects_catch_keeps_preferences_null', 0, async () => {
-      // 官方推荐：经 AbilityDelegator.getAppContext() 取应用级 Context 构造真实 cache，
-      // getPreferences 在多数版本可正常解析（preferences 被真实赋值）或异步拒绝（构造器 .catch
-      // 令 preferences 保持 null）；个别版本对 delegator context 同步抛。try/catch 兜底到空分支
-      // cache，三条读路径都返回 ''。
+      // Official recommendation: build a real cache from the application-level Context obtained via
+      // AbilityDelegator.getAppContext(); on most versions getPreferences either resolves normally
+      // (preferences is truly assigned) or rejects asynchronously (the constructor's .catch keeps
+      // preferences null); some versions throw synchronously for the delegator context. The
+      // try/catch falls back to an empty-branch cache, and all three read paths return ''.
       let cache: ImagePickerCache;
       try {
         cache = new ImagePickerCache(realContext());
@@ -201,9 +207,10 @@ export default function imagePickerCacheTest() {
     });
 
     it('ui_ability_context_preferences_resolve_or_fallback_never_throws', 0, async () => {
-      // getCurrentTopAbility().context 为真实 UIAbilityContext：getPreferences 若 resolve 则覆盖
-      // 构造器 .then 闭包（preferences 被真实赋值），若仍拒绝则走 .catch 闭包；无论哪种结果，
-      // 后续读写都不应抛异常。取不到 topAbility 时该用例空过（不覆盖任何分支）。
+      // getCurrentTopAbility().context is a real UIAbilityContext: if getPreferences resolves it
+      // covers the constructor's .then closure (preferences is truly assigned); if it still rejects,
+      // the .catch closure runs; either way subsequent reads/writes must not throw. When topAbility
+      // is unavailable this case passes through without covering any branch.
       let topAbility: ESObject = null;
       try {
         topAbility = AbilityDelegatorRegistry.getAbilityDelegator().getCurrentTopAbility() as ESObject;
@@ -221,11 +228,12 @@ export default function imagePickerCacheTest() {
     });
 
     it('init_preferences_promise_resolve_and_reject_closures_covered_elsewhere', 0, async () => {
-      // 原 init_from_preferences_promise_resolve/reject 两个用例调用 ImagePickerCache 上不存在的
-      // initFromPreferencesPromise 方法，运行时抛 TypeError。构造器内联的 .then 闭包（preferences 被赋值）
-      // 已由 makeFakeCache 注入已 resolve 的 preferencesInitPromise 覆盖；.catch 闭包（preferences 保持 null）
-      // 已由 real_context_getPreferences_rejects_catch_keeps_preferences_null 覆盖。
-      // 此处仅验证 resolve 与 reject 两种 promise 状态下读写都不抛异常。
+      // The original init_from_preferences_promise_resolve/reject cases called a nonexistent
+      // initFromPreferencesPromise method on ImagePickerCache and threw TypeError at runtime. The
+      // constructor-inlined .then closure (preferences assigned) is already covered by makeFakeCache
+      // injecting a resolved preferencesInitPromise; the .catch closure (preferences stays null) is
+      // covered by real_context_getPreferences_rejects_catch_keeps_preferences_null.
+      // This only verifies reads/writes do not throw under both the resolve and reject promise states.
       const resolveCache: ImagePickerCache = makeCache();
       (resolveCache as ESObject).preferencesInitPromise = Promise.resolve();
       const resolveResult: string | null = await resolveCache.retrievePendingCameraMediaUriPath();
@@ -241,7 +249,8 @@ export default function imagePickerCacheTest() {
       const cache: ImagePickerCache = makeFakeCache();
       cache.saveType(CacheType.IMAGE);
       cache.saveDimensionWithOutputOptions(imageOptions(800.0, 600.0, 90));
-      // getCacheMap 仅在存在 pathList/error 时（hasData=true）才输出 type/尺寸/质量，故同时写入 pathList
+      // getCacheMap only outputs type/dimensions/quality when pathList/error exists
+      // (hasData=true), so pathList is written too
       cache.saveResult(stringPaths(['/a.jpg']), null, null);
       await sleep(100);
       const map = await cache.getCacheMap();
@@ -272,7 +281,8 @@ export default function imagePickerCacheTest() {
       await sleep(100);
       const map = await cache.getCacheMap();
       expect(map.isEmpty()).assertFalse();
-      const pathList: ArrayList<ESObject> = map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
+      const pathList: ArrayList<ESObject> =
+        map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
       expect(pathList.length).assertEqual(2);
       expect(pathList[0]).assertEqual('/a.jpg');
       const error: ESObject = map.get(ImagePickerCache.MAP_KEY_ERROR) as ESObject;
@@ -284,7 +294,8 @@ export default function imagePickerCacheTest() {
       cache.saveResult(stringPaths(['/a.jpg']), null, null);
       await sleep(100);
       const map = await cache.getCacheMap();
-      const pathList: ArrayList<ESObject> = map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
+      const pathList: ArrayList<ESObject> =
+        map.get(ImagePickerCache.MAP_KEY_PATH_LIST) as ESObject as ArrayList<ESObject>;
       expect(pathList.length).assertEqual(1);
       expect(map.hasKey(ImagePickerCache.MAP_KEY_ERROR)).assertFalse();
     });
@@ -323,7 +334,7 @@ export default function imagePickerCacheTest() {
       cache.savePendingCameraMediaUriPath('file:///camera/cap.jpg');
       await sleep(100);
       await cache.close();
-      // close 后 preferences 引用置空，后续读走空分支返回默认值
+      // After close the preferences reference is nulled, so subsequent reads take the empty branch and return defaults
       const result: string | null = await cache.retrievePendingCameraMediaUriPath();
       expect(result).assertEqual('');
     });
@@ -379,10 +390,12 @@ export default function imagePickerCacheTest() {
     });
 
     it('real_cache_with_ability_context_runs_all_methods', 0, async () => {
-      // 真实构造路径：getPreferences 需要 ability 级 context，delegator.getAppContext() 同步抛。
-      // TestAbility.onCreate 已将自身 UIAbilityContext 暴露到 globalThis.testAbility，
-      // 若 getPreferences 接受该 context 则构造成功 → 真实 save*/retrieve*/getCacheMap/clear/close
-      // 全部可达（覆盖真实实现，而非 TestImagePickerCache 镜像）；仍抛则 try/catch 空过。
+      // Real construction path: getPreferences needs an ability-level context, and
+      // delegator.getAppContext() throws synchronously. TestAbility.onCreate has exposed its own
+      // UIAbilityContext on globalThis.testAbility; if getPreferences accepts that context,
+      // construction succeeds → real save*/retrieve*/getCacheMap/clear/close are all reachable
+      // (covering the real implementation, not the TestImagePickerCache mirror); if it still
+      // throws, the try/catch passes through.
       const ability: ESObject = (globalThis as ESObject).testAbility;
       if (ability == null || ability.context == null) {
         expect(true).assertTrue();
@@ -392,7 +405,7 @@ export default function imagePickerCacheTest() {
       try {
         cache = new ImagePickerCache(ability.context as common.Context);
       } catch (e) {
-        // getPreferences 对 ability context 仍同步抛：真实构造不可达，跳过
+        // getPreferences still throws synchronously for the ability context: real construction unreachable, skipping
         expect(true).assertTrue();
         return;
       }
@@ -401,72 +414,76 @@ export default function imagePickerCacheTest() {
       cache.saveDimensionWithOutputOptions(imageOptions(800.0, 600.0, 90));
       cache.savePendingCameraMediaUriPath('file:///camera/real_cap.jpg');
       const pending: string | null = await cache.retrievePendingCameraMediaUriPath();
-      // 无 error 数据：真实 getCacheMap 走 pathList/type/尺寸/质量 分支（可正常返回）
+      // No error data: the real getCacheMap takes the pathList/type/dimensions/quality branch (returns normally)
       cache.saveResult(stringPaths(['/real_a.jpg']), null, null);
       await sleep(300);
       try {
         const map = await cache.getCacheMap();
       } catch (e) {
       }
-      // error 数据：真实实现 error 分支 new CacheRetrievalErrorBuilder(null,null,null) 使
-      // setCode/build 恒为 null（死代码），getCacheMap 在 error.setCode 处抛 TypeError——
-      // try/catch 进入即覆盖 getCacheMap 函数（及其 hasKey/getPreferenceData 前置行）
+      // Error data: in the real implementation the error branch does new
+      // CacheRetrievalErrorBuilder(null,null,null), leaving setCode/build always null (dead code),
+      // and getCacheMap throws TypeError at error.setCode — entering the try/catch covers the
+      // getCacheMap function (and its leading hasKey/getPreferenceData lines)
       cache.saveResult(stringPaths(['/real_b.jpg']), 'code', 'msg');
       await sleep(300);
       try {
         await cache.getCacheMap();
       } catch (e) {
       }
-      // 清理真实偏好存储，避免残留污染同一 bundle 内断言 '' 的用例
+      // Clean up the real preferences store so leftovers do not pollute cases asserting '' within the same bundle
       await cache.clear();
       await cache.close();
       expect(true).assertTrue();
     });
 
     it('real_cache_injected_failing_prefs_covers_catch_closures', 0, async () => {
-      // 构造真实 cache 后注入失败 fake：覆盖真实 setPreferenceData/getPreferenceData/hasKey/
-      // clear/close 的异常 catch 闭包。真实 cache 的私有字段经 ESObject 覆写（与 CacheShim 一致）。
+      // Build a real cache, then inject a failing fake: covers the real
+      // setPreferenceData/getPreferenceData/hasKey/clear/close exception catch closures. The real
+      // cache's private fields are overwritten via ESObject (same as CacheShim).
       const cache: ImagePickerCache | null = realCacheOrNull();
       if (cache == null) {
         expect(true).assertTrue();
         return;
       }
-      // 等待构造器 getPreferences 落定（resolve→preferences 被赋值 / reject→保持 null），
-      // 避免其 .then 回调在注入后异步覆写 fake（竞态防护）
+      // Wait for the constructor's getPreferences to settle (resolve→preferences assigned /
+      // reject→stays null), so its .then callback cannot asynchronously overwrite the fake after
+      // injection (race protection)
       await sleep(300);
       (cache as ESObject).preferencesInitPromise = Promise.resolve();
 
-      // failPut：put 拒绝 → setPreferenceData 内 put.catch 闭包
+      // failPut: put rejects → the put.catch closure inside setPreferenceData
       (cache as ESObject).preferences = makeInjectedPrefs(true, false, false, false, false, false, false);
       cache.saveType(CacheType.IMAGE);
       await sleep(50);
 
-      // failFlush：put 成功 + flush 拒绝 → flush.catch 闭包
+      // failFlush: put succeeds + flush rejects → the flush.catch closure
       (cache as ESObject).preferences = makeInjectedPrefs(false, true, false, false, false, false, false);
       cache.saveType(CacheType.VIDEO);
       await sleep(50);
 
-      // failGet：get 拒绝 → getPreferenceData.catch 闭包（返回默认值）
+      // failGet: get rejects → the getPreferenceData catch closure (returns the default value)
       (cache as ESObject).preferences = makeInjectedPrefs(false, false, true, false, false, false, false);
       const r1: string | null = await cache.retrievePendingCameraMediaUriPath();
       await sleep(50);
 
-      // failHasReject：has 拒绝 → hasKey 内层 .catch 闭包（返回 false）
+      // failHasReject: has rejects → hasKey's inner .catch closure (returns false)
       (cache as ESObject).preferences = makeInjectedPrefs(false, false, false, true, false, false, false);
       await cache.getCacheMap();
       await sleep(50);
 
-      // failHasThrow：has 同步抛 → hasKey 外层 catch
+      // failHasThrow: has throws synchronously → hasKey's outer catch
       (cache as ESObject).preferences = makeInjectedPrefs(false, false, false, false, true, false, false);
       await cache.getCacheMap();
       await sleep(50);
 
-      // nonStringGet：get 返回 42 → 非字符串回退 ''
+      // nonStringGet: get returns 42 → non-string falls back to ''
       (cache as ESObject).preferences = makeInjectedPrefs(false, false, false, false, false, false, true);
       const r2: string | null = await cache.retrievePendingCameraMediaUriPath();
       await sleep(50);
 
-      // getSyncThrow：get 同步抛 → getPreferenceData 拒绝 → retrievePendingCameraMediaUriPath 的 try/catch
+      // getSyncThrow: get throws synchronously → getPreferenceData rejects →
+      // retrievePendingCameraMediaUriPath's try/catch
       (cache as ESObject).preferences = {
         put: (): Promise<void> => Promise.resolve(),
         get: (): Promise<ESObject> => {
@@ -479,12 +496,12 @@ export default function imagePickerCacheTest() {
       await cache.retrievePendingCameraMediaUriPath();
       await sleep(50);
 
-      // failClear：clear 拒绝 → clear.catch
+      // failClear: clear rejects → clear.catch
       (cache as ESObject).preferences = makeInjectedPrefs(false, false, false, false, false, true, false);
       await cache.clear();
       await sleep(50);
 
-      // failFlush（close 内）：flush 拒绝 → close.catch
+      // failFlush (inside close): flush rejects → close.catch
       (cache as ESObject).preferences = makeInjectedPrefs(false, true, false, false, false, false, false);
       await cache.close();
       await sleep(50);
@@ -494,8 +511,8 @@ export default function imagePickerCacheTest() {
     });
 
     it('real_cache_null_preferences_hits_empty_branches', 0, async () => {
-      // 真实 cache 强制走空分支（preferences 置 null + initPromise resolve）：
-      // 覆盖 setPreferenceData/getPreferenceData/hasKey/clear 的 null-preferences 早退行
+      // Force a real cache into the empty branches (preferences set to null + initPromise resolve):
+      // covers the null-preferences early-return lines of setPreferenceData/getPreferenceData/hasKey/clear
       const cache: ImagePickerCache | null = realCacheOrNull();
       if (cache == null) {
         expect(true).assertTrue();

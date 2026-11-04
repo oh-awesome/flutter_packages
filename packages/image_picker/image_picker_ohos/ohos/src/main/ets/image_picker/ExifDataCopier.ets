@@ -12,14 +12,16 @@ const TAG = 'ExifDataCopier';
 
 export default class ExifDataCopier {
   async copyExif(filePathOri: string, filePathDest: string): Promise<void> {
-    // 与 Android ExifDataCopier 对齐，覆盖其复制的全部 Category II（拍摄条件）/ Category III（其他信息）
-    // 与 GPS 标签；Orientation 是唯一被复制的 Category I 标签（缩放不会使其失效且对显示至关重要）。
-    // OHOS @ohos.multimedia.image 的 PropertyKey 覆盖了 Android 所用键（含 Make/Model/Software/DateTime
-    // /DateTimeDigitized/FocalLengthIn35mmFilm 等），仅 InteroperabilityIndex 在 OHOS 中不存在故不列入；
-    // ISOSpeed 与 ISOSpeedRatings 在 OHOS 中共用同一键值 'ISOSpeedRatings'（列表已含 ISOSpeedRatings），故不重复列入。
-    // 逐个属性 try-catch：原图无该属性或不支持写入时自动跳过，不影响整体复制。
+    // Aligned with Android's ExifDataCopier: covers all the Category II (shooting condition) / Category III
+    // (other information) and GPS tags it copies; Orientation is the only Category I tag copied (scaling does
+    // not invalidate it and it is essential for display). OHOS @ohos.multimedia.image's PropertyKey covers the
+    // keys Android uses (including Make/Model/Software/DateTime/DateTimeDigitized/FocalLengthIn35mmFilm etc.);
+    // only InteroperabilityIndex does not exist on OHOS, so it is omitted; ISOSpeed and ISOSpeedRatings share
+    // the same key 'ISOSpeedRatings' on OHOS (the list already includes ISOSpeedRatings), so it is not listed
+    // twice. Per-property try-catch: attributes missing from the original image or unsupported for writing are
+    // skipped automatically, without affecting the overall copy.
     const attributes = [
-      // Category II - 拍摄条件（Shooting condition）
+      // Category II - Shooting condition
       'ExposureTime',
       'FNumber',
       'ExposureProgram',
@@ -83,7 +85,7 @@ export default class ExifDataCopier {
       'LensMake',
       'LensModel',
       'LensSerialNumber',
-      // Category III - 其他信息（Metadata storing other information）
+      // Category III - Metadata storing other information
       'ImageDescription',
       'Make',
       'Model',
@@ -124,7 +126,7 @@ export default class ExifDataCopier {
       'GPSDateStamp',
       'GPSDifferential',
       'GPSHPositioningError',
-      // Orientation（Category I 例外，缩放不会使其失效）
+      // Orientation (Category I exception: scaling does not invalidate it)
       'Orientation'];
 
     let oldImageFile: fs.File | null = null;

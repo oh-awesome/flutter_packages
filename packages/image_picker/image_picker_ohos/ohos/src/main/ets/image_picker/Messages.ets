@@ -159,7 +159,10 @@ class ImageSelectionOptionsBuilder {
   setQuality: (setterArg: number) => ESObject
   build: () => ESObject
 
-  constructor(setMaxWidth: (setterArg: number | null) => ESObject, setMaxHeight: (setterArg: number | null) => ESObject, setQuality: (setterArg: number) => ESObject, build: () => ESObject) {
+  constructor(setMaxWidth: (setterArg: number | null) => ESObject,
+      setMaxHeight: (setterArg: number | null) => ESObject,
+      setQuality: (setterArg: number) => ESObject,
+      build: () => ESObject) {
     this.setMaxWidth = setMaxWidth
     this.setMaxHeight = setMaxHeight
     this.setQuality = setQuality
@@ -168,8 +171,9 @@ class ImageSelectionOptionsBuilder {
 }
 
 export class ImageSelectionOptions {
-  // maxWidth/maxHeight 在 Pigeon 协议中为可空（Dart 端 double? 未设置即发送 null），
-  // 故声明为 number | null，null 表示不缩放；与 ImageResizer/ImagePickerCache 的 `!= null` 判定一致。
+  // maxWidth/maxHeight are nullable in the Pigeon protocol (the Dart side sends null for an unset double?),
+  // so they are declared as number | null; null means no scaling, consistent with the `!= null`
+  // checks in ImageResizer/ImagePickerCache.
   private maxWidth: number | null = null;
   private maxHeight: number | null = null;
   private quality: number = -1;
@@ -354,7 +358,9 @@ class SourceSpecificationBuilder {
   setCamera: (setterArg: SourceCamera) => ESObject
   build: () => ESObject
 
-  constructor(setType: (setterArg: SourceType) => ESObject, setCamera: (setterArg: SourceCamera) => ESObject, build: () => ESObject) {
+  constructor(setType: (setterArg: SourceType) => ESObject,
+      setCamera: (setterArg: SourceCamera) => ESObject,
+      build: () => ESObject) {
     this.setType = setType
     this.setCamera = setCamera
     this.build = build
@@ -426,7 +432,9 @@ export class CacheRetrievalErrorBuilder {
   setMessage: ((setterArg: string) => ESObject) | null
   build: (() => ESObject) | null
 
-  constructor(setCode: null | ((setterArg: string) => ESObject), setMessage: ((setterArg: string) => ESObject) | null, build: (() => ESObject) | null) {
+  constructor(setCode: null | ((setterArg: string) => ESObject),
+      setMessage: ((setterArg: string) => ESObject) | null,
+      build: (() => ESObject) | null) {
     this.setCode = setCode
     this.setMessage = setMessage
     this.build = build
@@ -502,7 +510,10 @@ export class CacheRetrievalResultBuilder {
   setPaths: ((setterArg: ArrayList<string>) => ESObject) | null
   build: (() => ESObject) | null
 
-  constructor(setType: ((setterArg: CacheRetrievalType) => ESObject) | null, setError: ((setterArg: CacheRetrievalError) => ESObject) | null, setPaths: ((setterArg: ArrayList<string>) => ESObject) | null, build: (() => ESObject) | null) {
+  constructor(setType: ((setterArg: CacheRetrievalType) => ESObject) | null,
+      setError: ((setterArg: CacheRetrievalError) => ESObject) | null,
+      setPaths: ((setterArg: ArrayList<string>) => ESObject) | null,
+      build: (() => ESObject) | null) {
     this.setType = setType
     this.setError = setError
     this.setPaths = setPaths
@@ -669,11 +680,12 @@ export abstract class ImagePickerApi {
     generalOptions: GeneralOptions,
     result: Result<ArrayList<string>>): void;
 
-  // 接口抽象签名保持非空（Promise<CacheRetrievalResult>）：Messages.ets 的 Pigeon handler
-  // 中 `const output: CacheRetrievalResult = await api.retrieveLostResults()` 直接赋值，
-  // 若声明为 `Promise<CacheRetrievalResult | null>` 会产生类型不匹配编译报错（OH-014 实测，
-  // 已回退至非空）。实际运行时空结果仍以 null 编码经 BasicMessageChannel 传输，
-  // Dart 侧 `Future<CacheRetrievalResult?>` 的可空语义不受影响。
+  // The abstract interface signature stays non-null (Promise<CacheRetrievalResult>): the Pigeon handler
+  // in Messages.ets assigns the result directly (`const output: CacheRetrievalResult =
+  // await api.retrieveLostResults()`); declaring it as `Promise<CacheRetrievalResult | null>` produces
+  // a type mismatch compile error (verified by test in OH-014, rolled back to non-null). At runtime an
+  // empty result is still encoded as null and transported over BasicMessageChannel, so the nullable
+  // semantics of the Dart-side `Future<CacheRetrievalResult?>` are unaffected.
   abstract retrieveLostResults(): Promise<CacheRetrievalResult>;
 
   static getCodec(): MessageCodec<ESObject> {
