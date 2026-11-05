@@ -251,6 +251,7 @@ class _MyContextMenuState extends State<MyContextMenu> {
       return;
     }
     switch (defaultTargetPlatform) {
+      case .ohos:
       case .android:
       case .fuchsia:
       case .linux:

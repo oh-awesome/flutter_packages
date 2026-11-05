@@ -603,7 +603,8 @@ class _ExpansionTileState extends State<ExpansionTile> {
     }
     // SemanticsService.sendAnnouncement is deprecated on android.
     // We use live region to achieve the announcement effect instead.
-    else if (defaultTargetPlatform != TargetPlatform.android) {
+    else if (defaultTargetPlatform != TargetPlatform.android &&
+        defaultTargetPlatform != TargetPlatform.ohos) {
       SemanticsService.sendAnnouncement(View.of(context), stateHint, textDirection).catchError((
         Object exception,
         StackTrace stack,
@@ -692,7 +693,8 @@ class _ExpansionTileState extends State<ExpansionTile> {
       ),
     );
 
-    if (defaultTargetPlatform == TargetPlatform.android) {
+    if (defaultTargetPlatform == TargetPlatform.android ||
+        defaultTargetPlatform == TargetPlatform.ohos) {
       return Semantics(
         // Live region used to announce state changes (e.g., "expanded" or "collapsed")
         // without taking focus.

@@ -40,6 +40,7 @@ void main() {
             theme.builders[platform],
             isA<FadeUpwardsPageTransitionsBuilder>(),
           );
+        case .ohos:
         case .android:
         case .fuchsia:
         case .windows:

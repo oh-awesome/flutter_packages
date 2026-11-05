@@ -20,6 +20,95 @@ import 'colors.dart';
 import 'predictive_back_page_transitions_builder.dart';
 import 'theme.dart';
 
+// This transition is intended to match the default for Openharmony.
+class _OpenRightwardsPageTransition extends StatefulWidget {
+  const _OpenRightwardsPageTransition({
+    required this.animation,
+    required this.secondaryAnimation,
+    required this.child,
+  });
+
+  // The new page slides in from the right.
+  static final Tween<Offset> _primaryTranslationTween = Tween<Offset>(
+    begin: const Offset(1.0, 0),
+    end: Offset.zero,
+  );
+
+  // The old page shifts left by 20% of its width as the new page appears.
+  static final Tween<Offset> _secondaryTranslationTween = Tween<Offset>(
+    begin: Offset.zero,
+    end: const Offset(-0.2, 0),
+  );
+
+  // Used by all of the transition animations.
+  static const Curve _transitionCurve = Cubic(0.20, 0.00, 0.00, 1.00);
+
+  final Animation<double> animation;
+  final Animation<double> secondaryAnimation;
+  final Widget child;
+
+  @override
+  State<_OpenRightwardsPageTransition> createState() => _OpenRightwardsPageTransitionState();
+}
+
+// The curved animations own listeners registered on the route animations, so
+// they are owned by the State (created once, replaced when the parent route
+// animations change, and disposed on unmount) instead of being recreated on
+// every transition rebuild, which would leak status listeners on the route
+// animations.
+class _OpenRightwardsPageTransitionState extends State<_OpenRightwardsPageTransition> {
+  late CurvedAnimation primaryAnimation;
+  late CurvedAnimation secondaryAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    primaryAnimation = _curved(widget.animation);
+    secondaryAnimation = _curved(widget.secondaryAnimation);
+  }
+
+  static CurvedAnimation _curved(Animation<double> parent) {
+    return CurvedAnimation(
+      parent: parent,
+      curve: _OpenRightwardsPageTransition._transitionCurve,
+      reverseCurve: _OpenRightwardsPageTransition._transitionCurve.flipped,
+    );
+  }
+
+  @override
+  void didUpdateWidget(_OpenRightwardsPageTransition oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.animation != widget.animation) {
+      primaryAnimation.dispose();
+      primaryAnimation = _curved(widget.animation);
+    }
+    if (oldWidget.secondaryAnimation != widget.secondaryAnimation) {
+      secondaryAnimation.dispose();
+      secondaryAnimation = _curved(widget.secondaryAnimation);
+    }
+  }
+
+  @override
+  void dispose() {
+    primaryAnimation.dispose();
+    secondaryAnimation.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SlideTransition(
+      position: _OpenRightwardsPageTransition._secondaryTranslationTween.animate(
+        secondaryAnimation,
+      ),
+      child: SlideTransition(
+        position: _OpenRightwardsPageTransition._primaryTranslationTween.animate(primaryAnimation),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
 // Zooms and fades a new page in, zooming out the previous page. This transition
 // is designed to match the Android Q activity transition.
 class _ZoomPageTransition extends StatelessWidget {
@@ -545,6 +634,28 @@ class _FadeForwardsSnapshotState extends State<_FadeForwardsSnapshot> {
   }
 }
 
+/// Page transition that slides the new route in from the right.
+class OpenRightwardsPageTransitionsBuilder extends PageTransitionsBuilder {
+  /// Constructs a page transition animation that matches the transition used on
+  /// Openharmony.
+  const OpenRightwardsPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T>? route,
+    BuildContext? context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return _OpenRightwardsPageTransition(
+      animation: animation,
+      secondaryAnimation: secondaryAnimation,
+      child: child,
+    );
+  }
+}
+
 /// Used by [PageTransitionsTheme] to define a horizontal [MaterialPageRoute]
 /// page transition animation that looks like the default page transition used
 /// on Android U.
@@ -950,6 +1061,7 @@ class PageTransitionsTheme with Diagnosticable {
   static const Map<TargetPlatform, PageTransitionsBuilder> _defaultBuilders =
       <TargetPlatform, PageTransitionsBuilder>{
         TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+        TargetPlatform.ohos: OpenRightwardsPageTransitionsBuilder(),
         TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.macOS: CupertinoPageTransitionsBuilder(),
         TargetPlatform.windows: ZoomPageTransitionsBuilder(),
@@ -1072,7 +1184,8 @@ class _PageTransitionsThemeTransitionsState<T> extends State<_PageTransitionsThe
           TargetPlatform.fuchsia ||
           TargetPlatform.windows ||
           TargetPlatform.macOS ||
-          TargetPlatform.linux => const ZoomPageTransitionsBuilder(),
+          TargetPlatform.linux ||
+          TargetPlatform.ohos => const ZoomPageTransitionsBuilder(),
         };
     return matchingBuilder.buildTransitions<T>(
       widget.route,

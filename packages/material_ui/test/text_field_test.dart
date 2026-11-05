@@ -3329,6 +3329,7 @@ void main() {
 
       switch (defaultTargetPlatform) {
         // On Apple platforms, dragging the base handle makes it the extent.
+        case TargetPlatform.ohos:
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
           expect(controller.selection.baseOffset, 11);
@@ -3361,6 +3362,7 @@ void main() {
           // The left handle was already the extent, and it remains so.
           expect(controller.selection.baseOffset, 11);
           expect(controller.selection.extentOffset, 0);
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -3749,6 +3751,7 @@ void main() {
         // On Apple platforms, dragging the base handle makes it the extent.
         expect(controller.selection.baseOffset, testValue.length);
         expect(controller.selection.extentOffset, toOffset);
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -3759,7 +3762,7 @@ void main() {
 
     // The scroll area of text field should not move.
     expect(scrollController.offset, beforeScrollOffset);
-  });
+  }, variant: TargetPlatformVariant.mobile());
 
   testWidgets('Can drag the right handle while the left handle remains off-screen', (
     WidgetTester tester,
@@ -3832,7 +3835,7 @@ void main() {
 
     // The scroll area of text field should not move.
     expect(scrollController.offset, beforeScrollOffset);
-  });
+  }, variant: TargetPlatformVariant.mobile());
 
   testWidgets('Drag handles trigger feedback', (WidgetTester tester) async {
     final feedback = FeedbackTester();
@@ -16291,6 +16294,7 @@ void main() {
         expect(controller.selection.baseOffset, 0);
 
       // Other platforms start from the previous selection.
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -16783,6 +16787,7 @@ void main() {
           expect(find.text('Copy'), findsOneWidget);
           expect(find.text('Paste'), findsOneWidget);
 
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -16808,6 +16813,7 @@ void main() {
           expect(find.text('Copy'), findsOneWidget);
           expect(find.text('Paste'), findsOneWidget);
 
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -16855,6 +16861,7 @@ void main() {
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
           return;
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -17355,23 +17362,30 @@ void main() {
     });
 
     group('defaults', () {
-      testWidgets('should build Magnifier on Android', (WidgetTester tester) async {
-        await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TextField())));
+      testWidgets(
+        'should build Magnifier on Android and OpenHarmony',
+        (WidgetTester tester) async {
+          await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TextField())));
 
-        final BuildContext context = tester.firstElement(find.byType(TextField));
-        final EditableText editableText = tester.widget(find.byType(EditableText));
-        final magnifierInfo = ValueNotifier<MagnifierInfo>(MagnifierInfo.empty);
-        addTearDown(magnifierInfo.dispose);
+          final BuildContext context = tester.firstElement(find.byType(TextField));
+          final EditableText editableText = tester.widget(find.byType(EditableText));
+          final magnifierInfo = ValueNotifier<MagnifierInfo>(MagnifierInfo.empty);
+          addTearDown(magnifierInfo.dispose);
 
-        expect(
-          editableText.magnifierConfiguration.magnifierBuilder(
-            context,
-            MagnifierController(),
-            magnifierInfo,
-          ),
-          isA<TextMagnifier>(),
-        );
-      }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+          expect(
+            editableText.magnifierConfiguration.magnifierBuilder(
+              context,
+              MagnifierController(),
+              magnifierInfo,
+            ),
+            isA<TextMagnifier>(),
+          );
+        },
+        variant: const TargetPlatformVariant(<TargetPlatform>{
+          TargetPlatform.android,
+          TargetPlatform.ohos,
+        }),
+      );
 
       testWidgets('should build CupertinoMagnifier on iOS', (WidgetTester tester) async {
         await tester.pumpWidget(const MaterialApp(home: Scaffold(body: TextField())));
@@ -17411,7 +17425,11 @@ void main() {
           );
         },
         variant: TargetPlatformVariant.all(
-          excluding: <TargetPlatform>{TargetPlatform.iOS, TargetPlatform.android},
+          excluding: <TargetPlatform>{
+            TargetPlatform.iOS,
+            TargetPlatform.android,
+            TargetPlatform.ohos,
+          },
         ),
       );
     });
@@ -18136,6 +18154,7 @@ void main() {
           switch (pointerDeviceKind) {
             case PointerDeviceKind.touch:
               switch (defaultTargetPlatform) {
+                case TargetPlatform.ohos:
                 case TargetPlatform.iOS:
                 case TargetPlatform.android:
                 case TargetPlatform.fuchsia:
@@ -18200,6 +18219,7 @@ void main() {
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
           expect(spellCheckToolbar, isA<CupertinoSpellCheckSuggestionsToolbar>());
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -18229,6 +18249,7 @@ void main() {
             spellCheckSuggestionsToolbarBuilder:
                 CupertinoTextField.defaultSpellCheckSuggestionsToolbarBuilder,
           );
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -18860,10 +18881,16 @@ void main() {
 
     tester.testTextInput.log.clear();
     expect(focusNode.hasFocus, isTrue);
-    semanticsOwner.performAction(4, SemanticsAction.focus);
+    semanticsOwner.performAction(
+      tester.getSemantics(find.byType(EditableText)).id,
+      SemanticsAction.focus,
+    );
     await tester.pumpAndSettle();
     expect(focusNode.hasFocus, isTrue);
-    expect(tester.testTextInput.log.single.method, 'TextInput.show');
+    expect(
+      tester.testTextInput.log.where((MethodCall call) => call.method == 'TextInput.show'),
+      hasLength(1),
+    );
 
     semantics.dispose();
   }, variant: TargetPlatformVariant.all());
@@ -18982,6 +19009,7 @@ void main() {
         case TargetPlatform.iOS:
           expect(find.byType(SystemContextMenu), findsOneWidget);
         case TargetPlatform.macOS:
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -19517,6 +19545,10 @@ void _expectCupertinoToolbarForPartialSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(5));
@@ -19538,6 +19570,7 @@ void _expectCupertinoToolbarForPartialSelection() {
       expect(find.text('Cut'), findsOneWidget);
       expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Paste'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.windows:
@@ -19557,6 +19590,10 @@ void _expectCupertinoToolbarForFullSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(4));
@@ -19572,6 +19609,7 @@ void _expectCupertinoToolbarForFullSelection() {
       expect(find.text('Share...'), findsOneWidget);
       expect(find.text('Look Up'), findsOneWidget);
       expect(find.text('Search Web'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.macOS:
@@ -19590,6 +19628,10 @@ void _expectCupertinoToolbarForCollapsedSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(4));
@@ -19601,6 +19643,7 @@ void _expectCupertinoToolbarForCollapsedSelection() {
       expect(find.byType(CupertinoButton), findsNWidgets(2));
       expect(find.text('Paste'), findsOneWidget);
       expect(find.text('Select All'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.windows:
@@ -19622,6 +19665,10 @@ void _expectMaterialToolbarForPartialSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(TextButton), findsNWidgets(5));
@@ -19630,6 +19677,7 @@ void _expectMaterialToolbarForPartialSelection() {
       expect(find.text('Paste'), findsOneWidget);
       expect(find.text('Share'), findsOneWidget);
       expect(find.text('Select all'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.iOS:
     case TargetPlatform.macOS:
     case TargetPlatform.fuchsia:
@@ -19651,6 +19699,10 @@ void _expectMaterialToolbarForFullSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(TextButton), findsNWidgets(4));
@@ -19658,6 +19710,7 @@ void _expectMaterialToolbarForFullSelection() {
       expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Paste'), findsOneWidget);
       expect(find.text('Share'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.iOS:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:

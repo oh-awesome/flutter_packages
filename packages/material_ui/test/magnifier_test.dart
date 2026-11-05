@@ -52,22 +52,29 @@ void main() {
   });
 
   group('adaptiveMagnifierControllerBuilder', () {
-    testWidgets('should return a TextEditingMagnifier on Android', (WidgetTester tester) async {
-      await tester.pumpWidget(const MaterialApp(home: Placeholder()));
+    testWidgets(
+      'should return a TextEditingMagnifier on Android',
+      (WidgetTester tester) async {
+        await tester.pumpWidget(const MaterialApp(home: Placeholder()));
 
-      final BuildContext context = tester.firstElement(find.byType(Placeholder));
+        final BuildContext context = tester.firstElement(find.byType(Placeholder));
 
-      final magnifierPositioner = ValueNotifier<MagnifierInfo>(MagnifierInfo.empty);
-      addTearDown(magnifierPositioner.dispose);
+        final magnifierPositioner = ValueNotifier<MagnifierInfo>(MagnifierInfo.empty);
+        addTearDown(magnifierPositioner.dispose);
 
-      final Widget? builtWidget = TextMagnifier.adaptiveMagnifierConfiguration.magnifierBuilder(
-        context,
-        MagnifierController(),
-        magnifierPositioner,
-      );
+        final Widget? builtWidget = TextMagnifier.adaptiveMagnifierConfiguration.magnifierBuilder(
+          context,
+          MagnifierController(),
+          magnifierPositioner,
+        );
 
-      expect(builtWidget, isA<TextMagnifier>());
-    }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+        expect(builtWidget, isA<TextMagnifier>());
+      },
+      variant: const TargetPlatformVariant(<TargetPlatform>{
+        TargetPlatform.android,
+        TargetPlatform.ohos,
+      }),
+    );
 
     testWidgets('should return a CupertinoMagnifier on iOS', (WidgetTester tester) async {
       await tester.pumpWidget(const MaterialApp(home: Placeholder()));
@@ -105,7 +112,11 @@ void main() {
         expect(builtWidget, isNull);
       },
       variant: TargetPlatformVariant.all(
-        excluding: <TargetPlatform>{TargetPlatform.iOS, TargetPlatform.android},
+        excluding: <TargetPlatform>{
+          TargetPlatform.iOS,
+          TargetPlatform.android,
+          TargetPlatform.ohos,
+        },
       ),
     );
   });

@@ -36,6 +36,7 @@ class AdaptiveDialogExample extends StatelessWidget {
   }) {
     final ThemeData theme = Theme.of(context);
     switch (theme.platform) {
+      case .ohos:
       case .android:
       case .fuchsia:
       case .linux:

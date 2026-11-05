@@ -50,6 +50,7 @@ void main() {
     expect(find.text(buttonText), findsOneWidget);
 
     switch (defaultTargetPlatform) {
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
         expect(find.byType(TextSelectionToolbar), findsOneWidget);
         expect(find.byType(CupertinoTextSelectionToolbar), findsNothing);
@@ -143,6 +144,7 @@ void main() {
       expect(find.text('Paste'), findsOneWidget);
 
       switch (defaultTargetPlatform) {
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
           expect(find.byType(TextSelectionToolbarTextButton), findsOneWidget);
@@ -190,12 +192,18 @@ void main() {
       expect(find.byKey(key), findsOneWidget);
 
       switch (defaultTargetPlatform) {
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
           expect(find.byType(TextSelectionToolbarTextButton), findsNWidgets(6));
           expect(find.text('Cut'), findsOneWidget);
           expect(find.text('Copy'), findsOneWidget);
           expect(find.text('Paste'), findsOneWidget);
-          expect(find.text('Share'), findsOneWidget);
+          // Only Android orders an explicitly supplied Share action before
+          // Select all. On OHOS it appears in the overflow menu.
+          expect(
+            find.text(defaultTargetPlatform == TargetPlatform.android ? 'Share' : 'Search Web'),
+            findsOneWidget,
+          );
           expect(find.text('Select all'), findsOneWidget);
           expect(find.text('Look Up'), findsOneWidget);
           expect(
@@ -206,7 +214,10 @@ void main() {
           await tapMaterialOverflowNextButton(tester);
 
           expect(find.byType(TextSelectionToolbarTextButton), findsNWidgets(2));
-          expect(find.text('Search Web'), findsOneWidget);
+          expect(
+            find.text(defaultTargetPlatform == TargetPlatform.android ? 'Search Web' : 'Share'),
+            findsOneWidget,
+          );
           expect(findLiveTextButton(), findsOneWidget);
           expect(
             findMaterialOverflowBackButton(),
@@ -285,7 +296,7 @@ void main() {
       expect(tester.getSize(find.byType(AdaptiveTextSelectionToolbar)), Size.zero);
       expect(tester.takeException(), isNull);
     },
-    skip: isBrowser, // [intended] on web the browser handles the context menu.
+    skip: isBrowser, // [intended] see https://github.com/flutter/flutter/issues/108382
     variant: TargetPlatformVariant.all(),
   );
 
@@ -350,6 +361,7 @@ void main() {
         expect(buttonTypes, contains(ContextMenuButtonType.paste));
 
         switch (defaultTargetPlatform) {
+          case TargetPlatform.ohos:
           case TargetPlatform.android:
           case TargetPlatform.iOS:
           case TargetPlatform.fuchsia:
@@ -371,6 +383,7 @@ void main() {
         expect(buttonTypes, contains(ContextMenuButtonType.paste));
 
         switch (defaultTargetPlatform) {
+          case TargetPlatform.ohos:
           case TargetPlatform.android:
           case TargetPlatform.fuchsia:
           case TargetPlatform.linux:
@@ -418,6 +431,7 @@ void main() {
       expect(find.text(buttonText), findsOneWidget);
 
       switch (defaultTargetPlatform) {
+        case TargetPlatform.ohos:
         case TargetPlatform.fuchsia:
         case TargetPlatform.android:
           expect(find.byType(TextSelectionToolbarTextButton), findsOneWidget);

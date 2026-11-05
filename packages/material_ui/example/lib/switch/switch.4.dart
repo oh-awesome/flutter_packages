@@ -119,6 +119,7 @@ class _SwitchThemeAdaptation extends Adaptation<SwitchThemeData> {
   @override
   SwitchThemeData adapt(ThemeData theme, SwitchThemeData defaultValue) {
     switch (theme.platform) {
+      case .ohos:
       case .android:
       case .fuchsia:
       case .linux:

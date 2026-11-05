@@ -4518,6 +4518,7 @@ void main() {
         case TargetPlatform.iOS:
           expect(find.byType(SystemContextMenu), findsOneWidget);
         case TargetPlatform.macOS:
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:

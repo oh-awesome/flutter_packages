@@ -82,6 +82,35 @@ void main() {
   final material3Theme = ThemeData(brightness: Brightness.dark);
   final material2Theme = ThemeData(useMaterial3: false, brightness: Brightness.dark);
 
+  test('AlertDialog.scrollable returns null when omitted', () {
+    final bool? scrollable = const AlertDialog().scrollable;
+    final bool? adaptiveScrollable = const AlertDialog.adaptive().scrollable;
+    expect(scrollable, isNull);
+    expect(adaptiveScrollable, isNull);
+    expect(const AlertDialog(scrollable: true).scrollable, isTrue);
+    expect(const AlertDialog(scrollable: false).scrollable, isFalse);
+  });
+
+  for (final adaptive in <bool>[false, true]) {
+    testWidgets(
+      'AlertDialog default and explicit scrolling (adaptive: $adaptive)',
+      (tester) async {
+        for (final setting in <bool?>[null, false, true]) {
+          final dialog = adaptive
+              ? AlertDialog.adaptive(scrollable: setting, content: const Text('content'))
+              : AlertDialog(scrollable: setting, content: const Text('content'));
+          await tester.pumpWidget(MaterialApp(home: dialog));
+          final bool shouldScroll = setting ?? defaultTargetPlatform == TargetPlatform.ohos;
+          expect(find.byType(SingleChildScrollView), shouldScroll ? findsOneWidget : findsNothing);
+        }
+      },
+      variant: const TargetPlatformVariant(<TargetPlatform>{
+        TargetPlatform.android,
+        TargetPlatform.ohos,
+      }),
+    );
+  }
+
   testWidgets('Dialog is scrollable', (WidgetTester tester) async {
     var didPressOk = false;
     final dialog = AlertDialog(

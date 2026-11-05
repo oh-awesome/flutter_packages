@@ -1285,6 +1285,7 @@ void main() {
     // The inherited ScrollBehavior should not apply Scrollbars since they are
     // already built in to the widget.
     switch (debugDefaultTargetPlatformOverride) {
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -1342,6 +1343,7 @@ void main() {
     // The inherited ScrollBehavior should not apply Scrollbars since they are
     // already built in to the widget.
     switch (debugDefaultTargetPlatformOverride) {
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
