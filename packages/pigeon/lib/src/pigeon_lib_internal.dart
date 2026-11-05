@@ -16,6 +16,7 @@ import 'package:path/path.dart' as path;
 import 'package:pub_semver/pub_semver.dart';
 import 'package:yaml/yaml.dart' as yaml;
 
+import 'arkts/arkts_generator.dart';
 import 'ast.dart';
 import 'ast_generator.dart';
 import 'cpp/cpp_generator.dart';
@@ -44,6 +45,7 @@ class InternalPigeonOptions {
     required this.cppOptions,
     required this.gobjectOptions,
     required this.dartOptions,
+    this.arkTSOptions,
     this.copyrightHeader,
     this.astOut,
     this.debugGenerators,
@@ -133,6 +135,13 @@ class InternalPigeonOptions {
               jniErrorClassName: options.kotlinOptions?.errorClassName ?? 'FlutterError',
               fileSpecificClassNameComponent: _dartNativeInteropClassNameComponent(options),
             ),
+      arkTSOptions = options.arkTSOut == null
+          ? null
+          : InternalArkTSOptions.fromArkTSOptions(
+              options.arkTSOptions ?? const ArkTSOptions(),
+              arkTSOut: options.arkTSOut!,
+              copyrightHeader: copyrightHeader,
+            ),
       copyrightHeader = options.copyrightHeader != null
           ? _lineReader(path.posix.join(options.basePath ?? '', options.copyrightHeader))
           : null,
@@ -179,6 +188,9 @@ class InternalPigeonOptions {
 
   /// Options that control how GObject source will be generated.
   final InternalGObjectOptions? gobjectOptions;
+
+  /// Options that control how ArkTS will be generated.
+  final InternalArkTSOptions? arkTSOptions;
 
   /// Path to a copyright header that will get prepended to generated code.
   final Iterable<String>? copyrightHeader;
@@ -906,6 +918,106 @@ class GObjectGeneratorAdapter implements GeneratorAdapter {
     _errorOnInheritedClass(errors, languageString, root);
 
     return errors;
+  }
+}
+
+/// ArkTS-specific validation executed when `--arkts_out` is configured.
+List<Error> _validateArkTS(Root root) {
+  final errors = <Error>[];
+  const Set<String> reservedWords = <String>{
+    'abstract',
+    'as',
+    'async',
+    'await',
+    'break',
+    'case',
+    'catch',
+    'class',
+    'const',
+    'continue',
+    'debugger',
+    'declare',
+    'default',
+    'delete',
+    'do',
+    'else',
+    'enum',
+    'export',
+    'extends',
+    'false',
+    'finally',
+    'for',
+    'function',
+    'if',
+    'implements',
+    'import',
+    'in',
+    'instanceof',
+    'interface',
+    'let',
+    'namespace',
+    'new',
+    'null',
+    'of',
+    'package',
+    'private',
+    'protected',
+    'public',
+    'readonly',
+    'return',
+    'static',
+    'super',
+    'switch',
+    'this',
+    'throw',
+    'true',
+    'try',
+    'type',
+    'typeof',
+    'var',
+    'void',
+    'while',
+    'with',
+    'yield',
+  };
+  for (final Api api in root.apis) {
+    if (api is AstProxyApi &&
+        reservedWords.contains(api.name.toLowerCase())) {
+      errors.add(
+        Error(message: 'ArkTS: ProxyApi name "${api.name}" conflicts with a reserved keyword.'),
+      );
+    }
+  }
+  return errors;
+}
+
+/// A [GeneratorAdapter] that generates ArkTS source code.
+class ArkTSGeneratorAdapter implements GeneratorAdapter {
+  /// Constructor for [ArkTSGeneratorAdapter].
+  const ArkTSGeneratorAdapter();
+
+  @override
+  List<FileType> get fileTypeList => const <FileType>[FileType.na];
+
+  @override
+  void generate(StringSink sink, InternalPigeonOptions options, Root root, FileType fileType) {
+    if (options.arkTSOptions == null) {
+      return;
+    }
+    const generator = ArkTSGenerator();
+    generator.generate(options.arkTSOptions!, root, sink, dartPackageName: options.dartPackageName);
+  }
+
+  @override
+  IOSink? shouldGenerate(InternalPigeonOptions options, FileType _) =>
+      _openSink(options.arkTSOptions?.arkTSOut, basePath: options.basePath ?? '');
+
+  @override
+  List<Error> validate(InternalPigeonOptions options, Root root) {
+    if (options.arkTSOptions == null) {
+      return <Error>[];
+    }
+    return _validateArkTS(root);
   }
 }
 

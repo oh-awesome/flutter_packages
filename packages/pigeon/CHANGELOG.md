@@ -2,6 +2,14 @@
 
 * [swift] Warns after FFI code generation if the `objective_c` version constraint in `pubspec.yaml` does not match the generated `ObjCVersionCheck`.
 * [kotlin] Warns after JNI code generation if the `jni` version constraint in `pubspec.yaml` does not match the generated `JniVersionCheck`.
+* [arkts] Adds OpenHarmony ArkTS code generation (`--arkts_out` / `ArkTSOptions`), `ArkTSGeneratorAdapter` CLI wiring, and OHOS example under `example/app/ohos/` (CPF OH fork on `oh-3.47.7-dev`).
+* [arkts] Adds cross-platform constant generation, data-class equality, and ProxyApi-only `wrapError` support.
+* [arkts] Aligns non-`FlutterError` `wrapError` tuple with the JNI generator (`name`, `toString()`, cause/stacktrace).
+* [arkts] Aligns `FlutterError` and `wrapError` with the JNI generator (`code`, `message`, `details`); adds connection/null reply helpers.
+* [arkts] Hardens generated code: EventChannel try-catch, `fromList` length checks, nullable FlutterApi args, ArkTS-safe deep equality, and `PigeonInstanceManager` finalization cleanup.
+* [arkts] Adds `_validateArkTS` for ProxyApi reserved-word checks.
+* [arkts] Fixes double values with a zero fractional part being encoded as integers when transferred from ArkTS to Dart (`PigeonInternalDoubleBox`).
+* [dart] Restores typed-data reply casting when ArkTS maps `Uint8List`/`Int32List`/etc. to `number[]` (`_castTypedDataListIfNeeded`).
 
 ## 29.0.10
 

@@ -1,0 +1,120 @@
+# `pigeon`
+
+This project is based on [pigeon@29.0.11](https://pub.dev/packages/pigeon/versions/29.0.11) 
+
+## 1. Installation and Usage
+
+### 1.1 Installation
+
+Go to the project directory and add the following dependencies in pubspec.yaml
+
+#### pubspec.yaml
+
+```yaml
+
+dependencies:
+  pigeon:
+    git:
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
+      path: "packages/pigeon"
+      ref: "pigeon-v29.0.11-ohos-1.0.0"
+
+```
+
+**TAG Version Table**
+
+| Flutter Version | TAG1 | TAG2 | Branch |
+| :--- | :--- | :--- | :--- |
+| 3.47 | `-` | `-` | `oh-3.47.7-dev` |
+| 3.44 | `pigeon-v27.3.1-ohos-1.0.0` | `-` | `oh-3.44.9-dev` |
+| 3.41 | `-` | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
+| 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
+| 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
+| 3.22 | `-` | `-` | `pigeon-v21.2.0` |
+| 3.7 | `pigeon-v14.0.0-ohos-1.0.0` | `pigeon-v14.0.0-ohos-1.0.1` | `master` |
+
+Execute Command
+
+```bash
+flutter pub get
+```
+
+### 1.2 Usage
+
+For use cases, see [example](./example). For OHOS end-to-end integration, see [example/OHOS_README.md](./example/OHOS_README.md).
+
+## 2. Constraints
+
+### 2.1 Compatibility
+
+This document is verified based on the following versions:
+
+1. Flutter version 3.44.10-ohos-0.0.1-canary1; SDK: 26.0.0 Beta2 (API Version 26.0.0 Beta2); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.135 SP8;
+
+## 3. API
+
+> [!TIP] "Pigeon" is a code generation tool that is invoked by executing commands in the terminal and does not involve any API.
+
+## 4. Annotation
+
+> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this annotation; **no** means the opposite; **partially** means some capabilities of this annotation are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+
+| Name               | Description                                                                                                                                                           | Type       | ohos Support |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- | ------------ |
+| @HostApi()         | Defines interfaces using the @HostApi() annotation, which are implemented by the native platform and called by Flutter                                                | annotation | yes          |
+| @FlutterApi()      | Defines interfaces using the @FlutterApi() annotation, which are implemented by Flutter and called by the native platform                                             | annotation | yes          |
+| @ProxyApi()        | Defines bidirectional object references with `InstanceManager`, weak-ref GC, inheritance, and per-API adapters (see §7).                                              | annotation | partially    |
+| @EventChannelApi() | Defines event-stream APIs. ArkTS emits `PigeonStreamHandler`, `PigeonEventSink`, and per-method `*StreamHandler.register(...)` (see §7).                              | annotation | yes          |
+| @TaskQueue()       | `@TaskQueue` is accepted in the IDL; **`flutter_ohos` `BasicMessageChannel` is three arguments only**, so the queue is **not bound** to the channel yet (see §7). | annotation | partially    |
+
+## 5. Command
+
+> [!TIP] If the value of **ohos Support** is **yes**, it means that the ohos platform supports this command; **no** means the opposite; **partially** means some capabilities of this command are supported. The usage method is the same on different platforms and the effect is the same as that of iOS or Android.
+
+Usage：`flutter pub run pigeon --input <pigeon path> --dart_out<dart path> [option]*`
+
+| Command                                         | Description                                                                  | ohos Support |
+| ----------------------------------------------- | ---------------------------------------------------------------------------- | ------------ |
+| --input                                         | Specifies the path to the Dart file that defines the communication interface | yes          |
+| --dart_out                                      | Specifies the output path for the generated Dart file                        | yes          |
+| --objc_header_out                               | Specifies the output path for the generated iOS header(".h") file            | yes          |
+| --objc_source_out                               | Specifies the output path for the generated iOS source(".m") file            | yes          |
+| --java_out                                      | Specifies the output path for the generated Android Java file                | yes          |
+| --java_package                                  | Specifies the package name for the generated Android Java file               | yes          |
+| --arkts_out                                     | Specifies the output path for the generated ohos ArkTS file                  | yes          |
+| --kotlin_out                                    | Specifies the output path for the generated Android Kotlin file              | yes          |
+| --swift_out                                     | Specifies the output path for the generated macOS Swift file                 | yes          |
+| --cpp_header_out <C++ header file path>         | Specifies the output path for the generated Windows C++ header(".h") file    | yes          |
+| --cpp_source_out <C++ implementation file path> | Specifies the output path for the generated Windows C++ classes(".cpp") file | yes          |
+
+## 6. Known Issues
+
+| Item | Description |
+| ---- | ----------- |
+| `@TaskQueue` not wired | Pending four-argument `BasicMessageChannel` in `flutter_ohos` (see §7 #1). |
+| `Int64List` precision | Mapped to `number[]` in ArkTS; values outside ±2^53−1 lose precision (see §7 #7). |
+| `platform_tests/test_plugin/ohos/` | No upstream OHOS counterpart; regression uses `example/app/ohos/entry/src/ohosTest/` (Hypium). |
+| ProxyApi `ESObject` parameters | User ProxyApi class names are not visible at codegen time; runtime uses `ESObject` plus comment hints (see §7 #4). |
+
+## 7. **Others**
+
+Section 4 summarizes **annotation-level** OHOS support. The table below lists **codegen and runtime differences** between **OHOS ArkTS** output and typical **Android JNI** or **Swift** Pigeon generators. Teams should validate generated sources for their own IDLs.
+
+| #   | Capability                                                         | Typical difference vs JNI/Swift generators                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | `@TaskQueue` / `TaskQueueType` (**partially**)                     | The JNI generator binds `TaskQueue` as the **fourth** `BasicMessageChannel` argument. `flutter_ohos` **currently exposes a three-argument** `BasicMessageChannel` only, so ArkTS generates a **standard 3-arg channel** even when `@TaskQueue(type: TaskQueueType.serialBackgroundThread)` is present. Handler code runs on the default platform thread until `flutter_ohos` adds 4-arg support.                                                                                                                                                                                                                                                                                                       |
+| 2   | `@EventChannelApi`                                                 | ArkTS generates `PigeonStreamHandler`, `PigeonEventSink`, `PigeonEventChannelWrapper`, and per-method `*StreamHandler.register(binaryMessenger, handler, instanceName?)` using `PigeonMethodChannelCodec`. Host plugins subclass the generated handler and call `register` from `onAttachedToEngine`; call `setStreamHandler(null)` on detach.                                                                                                                                                                                                                                                                                                                                                        |
+| 3   | **Enum companion wrapper**                                         | Besides `export enum`, the generator also emits a **`<EnumName>Enum` companion class** (for example carrying `index`) for each Pigeon enum. **`toList` / `fromList` and `PigeonCodec`** wrap values with **`new <EnumName>Enum(...)`** for wire transfer via `StandardMessageCodec`. JNI and Swift output typically uses **native enums** directly—the **shape and idioms differ from ArkTS**; mixing raw enum values with wrapped instances on the host side often breaks encode/decode—follow the generated getters/setters and codec branches.                                                                                                                                                    |
+| 4   | `@ProxyApi` (**partially**)                                        | **Implemented:** `PigeonInstanceManager` (**WeakRef + FinalizationRegistry** GC), `PigeonProxyApiRegistrar`, `PigeonApi<Name>` adapters, **inheritance/interface** registrar getters, `List<MyProxyApi>` typing, **decode-side** `pigeon_newInstance` topological dispatch, and instance-ref tag 128. **Diff vs JNI:** `PigeonProxyApiBaseCodec.writeValue` does **not** auto-call `pigeon_newInstance` for host ProxyApi instances that are not yet in the InstanceManager (the JNI codec may auto-register on write); on ArkTS, call the generated `pigeon_newInstance` **before** encoding. `minAndroidApi` is recorded via `PigeonMinApi.isSatisfied()` but **not enforced** on OpenHarmony. Required Flutter callbacks may omit the Dart `pigeon_newInstance` handler—validate host-create flows. |
+| 5   | `sealed` class hierarchies                                         | JNI and Swift generators cover curated **sealed subtype** graphs. ArkTS codegen sets `excludeSealedClasses: true` in the codec and **may not fully cover arbitrary sealed hierarchies**—always compile and integration-test `dart run pigeon` **output for JNI/Swift alongside ArkTS** when `sealed` appears in the pigeon file.                                                                                                                                                                                                                                                                                                                                                                   |
+| 6   | `messageChannelSuffix`                                             | ArkTS `HostApi.setup(..., messageChannelSuffix: '')` and `FlutterApi` **constructor** accept the same suffix as Dart, appending `.suffix` to channel names when non-empty.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| 7   | Typed data (`Uint8List`, `Float32List`, …)                         | `Uint8List`, `Int32List`, `Int64List`, `Float32List`, and `Float64List` map to ArkTS `number[]`, not typed arrays such as `Uint8Array`. JNI and Swift targets use platform-native byte/float buffers with richer codec support.                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| 8   | Platform-specific annotations (`@Swift*`, `@Jvm*`, `@Objc*`, …) | JVM- and Apple-specific annotation families affect **other** generators only. They are **ignored** for `--arkts_out` output.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| 9   | `PigeonCodec` **constructor visibility**                           | Without ProxyApi, `PigeonCodec` uses a `private` constructor; with ProxyApi, `PigeonProxyApiBaseCodec` must extend it, so the constructor is `public`. This is an intentional ArkTS design trade-off.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| 10  | **Plugin lifecycle and memory management**                         | Host `FlutterPlugin` implementations should call `HostApi.setup(messenger, null)`, ProxyApi `tearDown()`, and `EventChannel.setStreamHandler(null)` in `onDetachedFromEngine`, and stop in-flight async work. See `example/app/ohos/.../MessagePlugin.ets`.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+## 8. **License**
+
+This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.47.7-dev/packages/pigeon/LICENSE).
+
+> Template version: v0.0.1
