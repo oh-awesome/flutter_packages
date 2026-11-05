@@ -19,8 +19,9 @@ dependencies:
   in_app_purchase_platform_interface: ^1.4.0
   shared_preferences:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/shared_preferences/shared_preferences
+      ref: shared_preferences-v2.5.4-ohos-1.0.1
 
 dev_dependencies:
   # build_runner: ^2.4.5

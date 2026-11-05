@@ -14,7 +14,7 @@ in_app_purchase_ohos 是 in_app_purchase 在 OpenHarmony 平台上的 federated 
 dependencies:
   in_app_purchase:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase
       # ref: 根据下方表格选择不同框架适配的TAG版本
       ref: TAG
@@ -26,7 +26,7 @@ dependencies:
 dependencies:
   in_app_purchase_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase_ohos
       # ref: 根据下方表格选择不同框架适配的TAG版本
       ref: TAG
