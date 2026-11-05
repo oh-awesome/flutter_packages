@@ -23,17 +23,15 @@ dependencies:
 
 **TAG 版本对应表**
 
-
-| Flutter 框架版本 | TAG1                        | TAG2                        | 分支                       |
-| ------------ | --------------------------- | --------------------------- | ------------------------ |
-| 3.47         | `-`                         | `-`                         | `oh-3.47.7-dev`          |
-| 3.44         | `pigeon-v27.3.1-ohos-1.0.0` | `-`                         | `oh-3.44.9-dev`          |
-| 3.41         | `-`                         | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
-| 3.35         | `pigeon-v26.1.5-ohos-1.0.0` | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
-| 3.27         | `pigeon-v25.3.2-ohos-1.0.0` | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
-| 3.22         | `-`                         | `-`                         | `pigeon-v21.2.0`         |
-| 3.7          | `pigeon-v14.0.0-ohos-1.0.0` | `pigeon-v14.0.0-ohos-1.0.1` | `master`                 |
-
+| Flutter 框架版本 | TAG1                         | TAG2                        | 分支                       |
+| ------------ | ---------------------------- | --------------------------- | ------------------------ |
+| 3.47         | `pigeon-v29.0.11-ohos-1.0.0` | `-`                         | `oh-3.47.7-dev`          |
+| 3.44         | `pigeon-v27.3.1-ohos-1.0.0`  | `-`                         | `oh-3.44.9-dev`          |
+| 3.41         | `-`                          | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
+| 3.35         | `pigeon-v26.1.5-ohos-1.0.0`  | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
+| 3.27         | `pigeon-v25.3.2-ohos-1.0.0`  | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
+| 3.22         | `-`                          | `-`                         | `pigeon-v21.2.0`         |
+| 3.7          | `pigeon-v14.0.0-ohos-1.0.0`  | `pigeon-v14.0.0-ohos-1.0.1` | `master`                 |
 
 执行命令
 
@@ -41,34 +39,25 @@ dependencies:
 flutter pub get
 ```
 
-
-
 ### 1.2 使用案例
 
 使用案例详见 [example](./example)。OpenHarmony 端到端集成说明见 [example/OHOS_README.md](./example/OHOS_README.md)。
 
 ## 2. 约束与限制
 
-
-
 ### 2.1 兼容性
 
-在以下版本中已测试通过
+在以下版本中已测试通过：
 
-1. Flutter version 3.44.10-ohos-0.0.1-canary1; SDK: 26.0.0 Beta2 (API Version 26.0.0 Beta2); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.135 SP8;
-
-
+1. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.135.SP8;
 
 ## 3. API
 
 > [!TIP] "Pigeon"是一个代码生成工具，通过终端执行命令调用，不涉及 API
 
-
-
 ## 4. 注解
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该注解；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
-
 
 | Name               | Description                                                                                         | Type       | ohos Support |
 | ------------------ | --------------------------------------------------------------------------------------------------- | ---------- | ------------ |
@@ -78,15 +67,11 @@ flutter pub get
 | @EventChannelApi() | 定义事件流 API。ArkTS 生成 `PigeonStreamHandler`、`PigeonEventSink` 及 `*StreamHandler.register(...)`（详见 §7）。 | annotation | yes          |
 | @TaskQueue()       | IDL 可标注 `@TaskQueue`；`flutter_ohos` **的** `BasicMessageChannel` **目前仅三参数**，队列**尚未绑定**到通道（详见 §7）。    | annotation | partially    |
 
-
-
-
 ## 5. 命令
 
 > [!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该命令；no 则表示不支持；partially 表示部分支持。使用方法跨平台一致，效果对标 iOS 或 Android 的效果。
 
 使用：`flutter pub run pigeon --input <pigeon path> --dart_out<dart path> [option]*`
-
 
 | Command                       | Description                   | ohos Support |
 | ----------------------------- | ----------------------------- | ------------ |
@@ -102,11 +87,7 @@ flutter pub get
 | --cpp_header_out <C++头文件路径>   | 指定生成的 Windows 头文件(".h")文件路径   | yes          |
 | --cpp_source_out <C++实现文件路径>  | 指定生成的 Windows 源文件(".cpp")文件路径 | yes          |
 
-
-
-
 ## 6. 遗留问题
-
 
 | 项                                  | 说明                                                                  |
 | ---------------------------------- | ------------------------------------------------------------------- |
@@ -115,29 +96,22 @@ flutter pub get
 | `platform_tests/test_plugin/ohos/` | 上游无 OHOS 对等目录；回归在 `example/app/ohos/entry/src/ohosTest/`（Hypium）。   |
 | ProxyApi `ESObject` 参数             | 生成期无法引用用户 ProxyApi 类名，运行时以 `ESObject` + 注释提示（见 §7 序号 4）。            |
 
-
-
-
 ## 7. 平台差异说明
 
 §4 汇总了**注解级别**的 OpenHarmony（OHOS）支持情况。下表列出 **ArkTS（OHOS）** 宿主生成结果与典型 **Android JNI、iOS/macOS（Swift）** 生成路径在**代码生成与运行时**上的差异；集成时请按业务逐项核对生成的 ArkTS / JNI（或 Swift）源码。
-
 
 | 序号  | 能力项                                     | OHOS ArkTS 与 JNI / Swift（参考生成侧）的差异要点                                                                                                                                                                                                                                                                                                                                                                                                                                   |
 | --- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1   | `@TaskQueue` / `TaskQueueType`（**部分**）  | JNI 生成器将 `TaskQueue` 作为 `BasicMessageChannel` **第四参数**。`flutter_ohos` **当前仅提供三参数**构造，因此即使 IDL 标注 `@TaskQueue(type: TaskQueueType.serialBackgroundThread)`，ArkTS 仍生成**标准三参数通道**；处理器在默认平台线程执行，待 `flutter_ohos` 支持四参数后再对齐 JNI 生成器。                                                                                                                                                                                                                                    |
 | 2   | `@EventChannelApi`                      | ArkTS 生成 `PigeonStreamHandler`、`PigeonEventSink`、`PigeonEventChannelWrapper` 及按方法划分的 `*StreamHandler.register(binaryMessenger, handler, instanceName?)`（使用 `PigeonMethodChannelCodec`）。宿主插件继承生成的 handler，在 `onAttachedToEngine` 中调用 `register`，在 detach 时 `setStreamHandler(null)`。                                                                                                                                                                                    |
 | 3   | **枚举（enum）的伴侣类包装**                      | 除 `export enum` 外，生成器还会为每个 Pigeon 枚举生成 `<枚举名>Enum` **伴侣类**（如携带 `index` 等），在 `toList` / `fromList` 与 `PigeonCodec` 中通过 `new <枚举名>Enum(...)` **包装** 参与编解码，以契合 `StandardMessageCodec` 对自定义类型的传递。JNI / Swift 侧生成物通常更直接地使用 **语言原生 enum**，**形态与手写习惯与 ArkTS 不一致**；宿主侧若混用「裸枚举值」与「包装实例」易导致编解码失败，须按生成代码的 getter/setter 与 codec 分支使用。                                                                                                                                         |
-| 4   | `@ProxyApi`（**部分支持**）                   | **已实现：** `PigeonInstanceManager`（**WeakRef + FinalizationRegistry** GC）、`PigeonProxyApiRegistrar`、`PigeonApi<名称>` 适配器、**继承/接口** registrar getter、`List<某ProxyApi>` 类型映射、**解码侧** `pigeon_newInstance` 拓扑分发、实例引用标签 128。**与 JNI 差异：** `PigeonProxyApiBaseCodec.writeValue` **不会**对未入 InstanceManager 的宿主 ProxyApi 实例自动调用 `pigeon_newInstance`（JNI codec 会在 write 时尝试自动注册）；ArkTS 侧须**先**通过生成的 `pigeon_newInstance` 完成注册再编码。`minAndroidApi` 经 `PigeonMinApi.isSatisfied()` 记录，**不在 OpenHarmony 侧强制执行**。若 ProxyApi 含必填 Flutter 回调，Dart 可能不生成 `pigeon_newInstance` 处理器。 |
+| 4   | `@ProxyApi`（**部分支持**）                   | **已实现：** `PigeonInstanceManager`（**WeakRef + FinalizationRegistry** GC）、`PigeonProxyApiRegistrar`、`PigeonApi<名称>` 适配器、**继承/接口** registrar getter、`List<某ProxyApi>` 类型映射、**write 侧**按 ProxyApi 继承拓扑 `instanceof` 并自动调用 `pigeon_newInstance`（与 Android JNI 侧 `PigeonProxyApiBaseCodec` 同级）、实例引用标签 128。ArkTS 会为每个 `@ProxyApi` 生成空的宿主实例 **marker 类**（`export class <名称> {}`），宿主对象应 **extends** 该 marker，或通过 pigeon 文件中的 Proxy API 宿主类名选项（`fullClassName`）指定已在生成 `.ets` 模块内可见的运行时类名；Android `minSdk` 类选项 **不在 OpenHarmony 侧强制执行**。若 ProxyApi 含必填 Flutter 回调，Dart 可能不生成 `pigeon_newInstance` 处理器。 |
 | 5   | `sealed` **数据类继承**                      | JNI / Swift 普遍支持受限的 sealed 父子类建模与生成。ArkTS 生成器在 codec 中设置 `excludeSealedClasses: true`，对「任意 HostApi 或数据结构里的 sealed 继承树」的覆盖可能不完整；使用前应对同一份 pigeon 输出的 JNI（或 Swift）与 ArkTS 文件都做编译与联调测试。                                                                                                                                                                                                                                                                                     |
 | 6   | `messageChannelSuffix`                  | ArkTS `HostApi.setup(..., messageChannelSuffix: '')` 与 `FlutterApi` **构造器**支持与 Dart 相同的后缀，非空时向频道名追加 `.suffix`。                                                                                                                                                                                                                                                                                                                                                         |
 | 7   | 类型化二进制数据（`Uint8List`、`Float32List` 等）   | `Uint8List`、`Int32List`、`Int64List`、`Float32List`、`Float64List` 在 ArkTS 侧映射为 `number[]`，而非 `Uint8Array` 等类型化数组。JNI / Swift 使用平台原生字节/浮点缓冲区，codec 支持更丰富。                                                                                                                                                                                                                                                                                                                 |
 | 8   | 平台专属注解（`@Swift*`、`@Jvm*`、`@Objc*` 等）   | 这些注解仅影响**非 ArkTS 目标平台**的生成器，对 `--arkts_out` **输出会被忽略**。                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 9   | `PigeonCodec` **构造函数可见性**               | 无 ProxyApi 时 `PigeonCodec` 构造函数为 `private`；存在 ProxyApi 时需被 `PigeonProxyApiBaseCodec` 继承，构造函数为 `public`。此为 ArkTS 语言限制下的设计取舍。                                                                                                                                                                                                                                                                                                                                            |
 | 10  | **插件生命周期与内存管理**                         | 宿主 `FlutterPlugin` 应在 `onDetachedFromEngine` 中：`HostApi.setup(messenger, null)`、ProxyApi `tearDown()`、`EventChannel.setStreamHandler(null)`，并停止进行中的异步操作。示例见 `example/app/ohos/.../MessagePlugin.ets`。                                                                                                                                                                                                                                                                  |
-
-
-
 
 ## 8. 开源协议
 

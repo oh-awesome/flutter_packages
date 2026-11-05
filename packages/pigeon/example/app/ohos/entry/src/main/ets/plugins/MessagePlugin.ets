@@ -17,7 +17,7 @@ import {
   FlutterPlugin,
   FlutterPluginBinding
 } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/plugins/FlutterPlugin';
-import { ExampleHostApi, MessageData } from './Messages';
+import { Code, ExampleHostApi, FlutterError, MessageData, Result } from './Messages';
 import {
   IntEvent,
   StringEvent,
@@ -68,10 +68,6 @@ class HostApiImp extends StreamEventsStreamHandler {
   add(a: number, b: number): number {
     return a + b;
   }
-
-  sendMessage(message: MessageData): boolean {
-    return true;
-  }
 }
 
 /** ArkTS single inheritance: bridge [HostApiImp] to [ExampleHostApi.setup]. */
@@ -91,8 +87,12 @@ class ExampleHostApiAdapter extends ExampleHostApi {
     return this.impl.add(a, b);
   }
 
-  sendMessage(message: MessageData): boolean {
-    return this.impl.sendMessage(message);
+  sendMessage(message: MessageData, result: Result<boolean>): void {
+    if (message.getCode() === Code.ONE) {
+      result.error(new FlutterError('code', 'message', 'details'));
+      return;
+    }
+    result.success(true);
   }
 }
 

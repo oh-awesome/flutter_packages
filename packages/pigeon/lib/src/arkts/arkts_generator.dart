@@ -4,6 +4,8 @@
 // Based on Camera.java originally written by
 // Copyright 2013 The Flutter Authors.
 
+import 'package:graphs/graphs.dart';
+
 import '../ast.dart';
 import '../functional.dart';
 import '../generator.dart';
@@ -23,6 +25,12 @@ const String _codecName = 'PigeonCodec';
 const String _overflowClassName = '${classNamePrefix}CodecOverflow';
 // Used to create classes with type number rather than long.
 const String _forceInt = '${varNamePrefix}forceInt';
+
+/// Wrapper type so [PigeonCodec] always serializes a Dart `double` as float64.
+const String _doubleBoxClassName = '${classNamePrefix}DoubleBox';
+
+/// [StandardMessageCodec] type tag for IEEE 754 float64 values.
+const int _standardCodecFloat64Tag = 6;
 
 ///Enum companion suffix
 const String _enumCompanionSuffix = 'Enum';
@@ -436,6 +444,10 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
             indent.writeln(
               'arr.push(new ${field.type.baseName}$_enumCompanionSuffix($fieldName$_string_Param_Suffix));',
             );
+          } else if (_isDartDoubleType(field.type)) {
+            indent.writeln(
+              'arr.push(${_encodeDoubleForCodec(field.type, 'this.$fieldName')});',
+            );
           } else {
             indent.writeln('arr.push(this.$fieldName);');
           }
@@ -620,6 +632,9 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                   ? '($argName == null ? null : new $enumName$_enumCompanionSuffix($enumName[$argName as number]))'
                   : 'new $enumName$_enumCompanionSuffix($enumName[$argName as number])';
             }
+            if (_isDartDoubleType(arg.type)) {
+              return _encodeDoubleForCodec(arg.type, argName);
+            }
             return argName;
           }).toList();
 
@@ -768,6 +783,9 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
     // declarations, so we cannot emit this in writeProxyApiBaseCodec; do it
     // here instead, before per-ProxyApi adapters.
     if (root.apis.any((Api api) => api is AstProxyApi)) {
+      final Iterable<AstProxyApi> proxyApis = root.apis
+          .whereType<AstProxyApi>();
+      _writeProxyApiHostInstanceMarkerClasses(indent, proxyApis: proxyApis);
       _writeProxyApiBaseCodecClass(
         generatorOptions,
         root,
@@ -915,6 +933,8 @@ class ArkTSGenerator extends StructuredGenerator<InternalArkTSOptions> {
                   ? 'null'
                   : (method.returnType.isEnum
                         ? '(result === null || result === undefined ? null : new ${_arkTSCustomTypeName(method.returnType)}$_enumCompanionSuffix(${_arkTSCustomTypeName(method.returnType)}[result as number]))'
+                        : _isDartDoubleType(method.returnType)
+                        ? _encodeDoubleForCodec(method.returnType, 'result')
                         : 'result');
               const resultName = 'resultCallback';
               indent.format('''
@@ -969,7 +989,10 @@ let $resultName: Result<$returnType> = new ResultImp();
                   } else {
                     indent.writeln('let output: $returnType = $call;');
                   }
-                  indent.writeln('res.push(output);');
+                  final String outputPush = _isDartDoubleType(method.returnType)
+                      ? _encodeDoubleForCodec(method.returnType, 'output')
+                      : 'output';
+                  indent.writeln('res.push($outputPush);');
                 }
               });
               indent.add(' catch (error) ');
@@ -1078,6 +1101,27 @@ let $resultName: Result<$returnType> = new ResultImp();
     });
   }
 
+  void _writeDoubleBoxClass(Indent indent) {
+    indent.writeln('/**');
+    indent.writeln(
+      ' * Wrapper so $_codecName always serializes a Dart `double` as float64.',
+    );
+    indent.writeln(
+      ' * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded',
+    );
+    indent.writeln(
+      ' * as integers by StandardMessageCodec and fail strict Dart double casts.',
+    );
+    indent.writeln(' */');
+    indent.write('export class $_doubleBoxClassName ');
+    indent.addScoped('{', '}', () {
+      indent.writeln('value: number;');
+      indent.writeScoped('constructor(value: number) {', '}', () {
+        indent.writeln('this.value = value;');
+      });
+    });
+  }
+
   void _writeWrapError(Indent indent) {
     indent.format('''
 function wrapError(error: Error): Array<Object | null> {
@@ -1118,6 +1162,11 @@ getByte(n: number): number {
 
     indent.newln();
     _writeErrorClass(indent);
+
+    if (_rootUsesDartDouble(root)) {
+      indent.newln();
+      _writeDoubleBoxClass(indent);
+    }
 
     if (hasHostApi) {
       indent.newln();
@@ -1412,6 +1461,23 @@ getByte(n: number): number {
         'writeValue(stream: ByteBuffer , value: ESObject): ESObject',
       );
       indent.addScoped('{', '}', () {
+        if (_rootUsesDartDouble(root)) {
+          indent.writeScoped(
+            'if (value instanceof $_doubleBoxClassName) {',
+            '} else ',
+            () {
+              indent.writeln(
+                'stream.writeInt8(this.getByte($_standardCodecFloat64Tag));',
+              );
+              indent.writeln('this.writeAlignment(stream, 8);');
+              indent.writeln(
+                'stream.writeFloat64((value as $_doubleBoxClassName).value, true);',
+              );
+              indent.writeln('return;');
+            },
+            addTrailingNewline: false,
+          );
+        }
         indent.write('');
         enumeratedTypes.forEach(writeEncodeLogic);
         indent.addScoped('{', '}', () {
@@ -1611,14 +1677,14 @@ static fromList(list: Object[]): Object | null {
  * Maintains a 1:1 mapping between native objects and integer identifiers
  * shared with the Dart `InstanceManager`.
  *
- * Memory management mirrors Kotlin/Swift: each instance is tracked with a
+ * Memory management mirrors Android JNI / Swift: each instance is tracked with a
  * [WeakRef] and a strong reference. [remove] drops the strong reference; when
  * the weak reference is garbage collected, [FinalizationRegistry] notifies the
  * [finalizationListener]. [getIdentifierForStrongReference] re-creates a strong
  * reference when needed to pass an identifier to Dart.
  *
  * Thread safety: synchronous, single-threaded platform channel thread (see
- * Kotlin `InstanceManager` rationale).
+ * Android JNI `InstanceManager` rationale).
  */
 export class $_instanceManagerClassName {
   private static readonly minHostCreatedIdentifier: number = $_minHostCreatedIdentifier;
@@ -1958,6 +2024,39 @@ class PigeonNoOpVoidReply implements Reply<void> {
   }
 }
 
+function logNewInstanceFailure(apiName: string, value: ESObject, detail: string): void {
+  console.warn(
+    '$_proxyApiBaseCodecClassName: Failed to create new Dart proxy instance of ' + apiName + ': ' +
+    String(value) + '. ' + detail);
+}
+
+/**
+ * [Reply] used from [PigeonProxyApiBaseCodec.writeValue] when auto-invoking
+ * [pigeon_newInstance]. Logs failures like the Android JNI codec; does not
+ * block encoding.
+ */
+class PigeonLogNewInstanceFailureReply implements Reply<void> {
+  private readonly apiName: string;
+  private readonly value: ESObject;
+
+  constructor(apiName: string, value: ESObject) {
+    this.apiName = apiName;
+    this.value = value;
+  }
+
+  reply(_value: void): void {
+    if (_value === undefined || _value === null) {
+      return;
+    }
+    if (_value instanceof FlutterError) {
+      const err: FlutterError = _value as FlutterError;
+      logNewInstanceFailure(this.apiName, this.value, err.code + ': ' + err.message);
+      return;
+    }
+    logNewInstanceFailure(this.apiName, this.value, String(_value));
+  }
+}
+
 class PigeonRegistrarFinalizationListener implements $_finalizationListenerInterfaceName {
   private readonly api: $_instanceManagerApiClassName;
 
@@ -2020,6 +2119,37 @@ ${tearDownBody.toString().trimRight()}
     indent.newln();
   }
 
+  /// Empty host instance markers so `instanceof ${api.name}` type-checks in ArkTS.
+  ///
+  /// Host implementations should `extends` the generated marker (or set
+  /// [KotlinProxyApiOptions.fullClassName] to a host class visible to the
+  /// generated `.ets` module).
+  void _writeProxyApiHostInstanceMarkerClasses(
+    Indent indent, {
+    required Iterable<AstProxyApi> proxyApis,
+  }) {
+    for (final AstProxyApi api in proxyApis) {
+      if (api.kotlinOptions?.fullClassName != null) {
+        continue;
+      }
+      indent.writeln(
+        '/** Host-side instance marker for ProxyApi `${api.name}`. */',
+      );
+      indent.writeln('export class ${api.name} {}');
+      indent.newln();
+    }
+  }
+
+  /// Host-side runtime class used for `instanceof` in [PigeonProxyApiBaseCodec].
+  String _proxyApiHostRuntimeClassName(AstProxyApi api) {
+    final String? fullClassName = api.kotlinOptions?.fullClassName;
+    if (fullClassName == null) {
+      return api.name;
+    }
+    final int lastDot = fullClassName.lastIndexOf('.');
+    return lastDot >= 0 ? fullClassName.substring(lastDot + 1) : fullClassName;
+  }
+
   /// Writes `PigeonProxyApiBaseCodec` AFTER PigeonCodec has been written, so
   /// that `extends $_codecName` is valid at module evaluation time.
   void _writeProxyApiBaseCodecClass(
@@ -2028,11 +2158,29 @@ ${tearDownBody.toString().trimRight()}
     Indent indent, {
     required String dartPackageName,
   }) {
+    final Iterable<AstProxyApi> allProxyApis = root.apis
+        .whereType<AstProxyApi>();
+    // Child ProxyApi types before parents (same ordering as Kotlin/Swift).
+    final List<AstProxyApi> sortedProxyApis = topologicalSort(allProxyApis, (
+      AstProxyApi api,
+    ) {
+      return <AstProxyApi>[
+        if (api.superClass?.associatedProxyApi != null)
+          api.superClass!.associatedProxyApi!,
+        ...api.interfaces.map(
+          (TypeDeclaration interface) => interface.associatedProxyApi!,
+        ),
+      ];
+    });
+
     indent.writeln('/**');
     indent.writeln(' * Codec extending `$_codecName` with ProxyApi instance');
-    indent.writeln(' * references (tag $_proxyApiInstanceTag). Host-created');
+    indent.writeln(' * references (tag $_proxyApiInstanceTag). Unregistered');
     indent.writeln(
-      ' * instances must be registered via `pigeon_newInstance` before encoding.',
+      ' * host ProxyApi values trigger `${classMemberNamePrefix}newInstance` on write,',
+    );
+    indent.writeln(
+      ' * matching the Android JNI `PigeonProxyApiBaseCodec` behavior.',
     );
     indent.writeln(' */');
     indent.write(
@@ -2079,6 +2227,20 @@ ${tearDownBody.toString().trimRight()}
             indent.writeln('return super.writeValue(stream, value);');
           },
         );
+        indent.newln();
+        enumerate(sortedProxyApis, (int index, AstProxyApi api) {
+          final String className = _proxyApiHostRuntimeClassName(api);
+          final String branchPrefix = index > 0 ? ' else ' : '';
+          indent.writeScoped(
+            '${branchPrefix}if (value instanceof $className) {',
+            '}',
+            () {
+              indent.writeln(
+                'this.registrar.get${api.name}().${classMemberNamePrefix}newInstance(value, new PigeonLogNewInstanceFailureReply(\'${api.name}\', value));',
+              );
+            },
+          );
+        });
         indent.newln();
         indent.writeScoped(
           'if (this.registrar.instanceManager.containsInstance(value)) {',
@@ -2412,6 +2574,10 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
                   'let output: ESObject = ${_proxyApiEncodeEnum(method.returnType, 'pigeonEnumResult')}; '
                   'res.push(output);';
             }
+            if (_isDartDoubleType(method.returnType)) {
+              return 'let output: ESObject = $call; '
+                  'res.push(${_encodeDoubleForCodec(method.returnType, 'output')});';
+            }
             return 'let output: ESObject = $call; res.push(output);';
           },
         );
@@ -2485,6 +2651,8 @@ ${classMemberNamePrefix}get$hostName(): $hostName {
                   ? 'null'
                   : (returnType.isEnum
                         ? _proxyApiEncodeEnum(returnType, 'result')
+                        : _isDartDoubleType(returnType)
+                        ? _encodeDoubleForCodec(returnType, 'result')
                         : 'result');
               indent.format('''
 class ResultImp implements Result<$resultType> {
@@ -2591,6 +2759,8 @@ const pigeon_identifier: number = this.pigeonRegistrar.instanceManager.addHostCr
           sendParts.add(
             field.type.isEnum
                 ? _proxyApiEncodeEnum(field.type, argRef)
+                : _isDartDoubleType(field.type)
+                ? _encodeDoubleForCodec(field.type, argRef)
                 : argRef,
           );
         }
@@ -2651,6 +2821,8 @@ callback.reply(new FlutterError('new-instance-error', 'Attempting to create a ne
         // enum value (matches the data-class toList enum handling).
         return arg.type.isEnum
             ? _proxyApiEncodeEnum(arg.type, argName)
+            : _isDartDoubleType(arg.type)
+            ? _encodeDoubleForCodec(arg.type, argName)
             : argName;
       }),
     ];
@@ -2765,5 +2937,59 @@ channel.send([${sendParts.join(', ')}], channelReply => {
 
   String _proxyApiParamSig(Parameter p) {
     return '${_proxyApiSafeName(0, p)}: ${_arkTSTypeOrEsObject(p.type)}';
+  }
+
+  bool _isDartDoubleType(TypeDeclaration type) => type.baseName == 'double';
+
+  bool _typeDeclarationUsesDouble(TypeDeclaration type) {
+    if (type.baseName == 'double') {
+      return true;
+    }
+    for (final TypeDeclaration typeArg in type.typeArguments) {
+      if (_typeDeclarationUsesDouble(typeArg)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  bool _rootUsesDartDouble(Root root) {
+    for (final Class klass in root.classes) {
+      for (final NamedType field in klass.fields) {
+        if (_typeDeclarationUsesDouble(field.type)) {
+          return true;
+        }
+      }
+    }
+    for (final Api api in root.apis) {
+      for (final Method method in api.methods) {
+        if (_typeDeclarationUsesDouble(method.returnType)) {
+          return true;
+        }
+        for (final NamedType param in method.parameters) {
+          if (_typeDeclarationUsesDouble(param.type)) {
+            return true;
+          }
+        }
+      }
+      if (api is AstProxyApi) {
+        for (final ApiField field in api.unattachedFields) {
+          if (_typeDeclarationUsesDouble(field.type)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Wraps [valueExpr] so [PigeonCodec] always serializes a Pigeon `double`
+  /// as float64 on the wire.
+  String _encodeDoubleForCodec(TypeDeclaration type, String valueExpr) {
+    assert(_isDartDoubleType(type));
+    if (type.isNullable) {
+      return '($valueExpr === null || $valueExpr === undefined ? null : new $_doubleBoxClassName($valueExpr))';
+    }
+    return 'new $_doubleBoxClassName($valueExpr)';
   }
 }
