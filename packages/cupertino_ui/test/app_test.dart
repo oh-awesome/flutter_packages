@@ -660,6 +660,7 @@ void main() {
     final Widget child = Container();
 
     switch (defaultTargetPlatform) {
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:

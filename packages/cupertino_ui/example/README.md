@@ -108,3 +108,24 @@ Tests go into a directory under [test](./test) that matches their location under
 have its tests in a file named
 [`test/activity_indicator/cupertino_activity_indicator.0_test.dart`](
 ./test/activity_indicator/cupertino_activity_indicator.0_test.dart)
+
+## OpenHarmony device integration tests
+
+Run these tests on an OpenHarmony device using the Flutter SDK listed in the
+package's compatibility section. Before running:
+
+- Configure signing for the `ohos/` example project in DevEco Studio. The
+  example declares `ohos.permission.READ_PASTEBOARD`; its debug signing profile
+  must allow this permission in its ACL. Grant clipboard access on the device.
+- Use a dedicated device with a known text-only clipboard. The tests change the
+  real platform clipboard and restore only plain text; image and rich-text
+  clipboard content cannot be preserved.
+
+From this directory, run:
+
+```bash
+flutter pub get
+flutter drive -d <device-id> \
+  --driver=test_driver/integration_test.dart \
+  --target=integration_test/cupertino_ohos_adaptation_test.dart
+```
