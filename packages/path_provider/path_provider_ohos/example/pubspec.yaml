@@ -1,0 +1,23 @@
+name: path_provider_ohos_example
+description: Demonstrates how to use the path_provider_ohos plugin.
+publish_to: "none"
+
+environment:
+  sdk: ^3.10.0
+  flutter: ">=3.38.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  path_provider_ohos:
+    path: ../
+  path_provider_platform_interface: ^2.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

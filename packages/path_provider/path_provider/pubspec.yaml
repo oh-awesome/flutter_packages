@@ -19,6 +19,8 @@ flutter:
         default_package: path_provider_linux
       macos:
         default_package: path_provider_foundation
+      ohos:
+        default_package: path_provider_ohos
       windows:
         default_package: path_provider_windows
 
@@ -28,6 +30,8 @@ dependencies:
   path_provider_android: ^2.2.5
   path_provider_foundation: ^2.3.2
   path_provider_linux: ^2.2.0
+  path_provider_ohos:
+    path: ../path_provider_ohos
   path_provider_platform_interface: ^2.1.0
   path_provider_windows: ^2.2.0
 
