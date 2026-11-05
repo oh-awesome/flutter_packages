@@ -1,0 +1,16 @@
+{
+  "string": [
+    {
+      "name": "module_test_desc",
+      "value": "image_picker_ohos test module"
+    },
+    {
+      "name": "TestAbility_desc",
+      "value": "the image_picker_ohos test ability"
+    },
+    {
+      "name": "TestAbility_label",
+      "value": "image_picker_ohos test"
+    }
+  ]
+}
