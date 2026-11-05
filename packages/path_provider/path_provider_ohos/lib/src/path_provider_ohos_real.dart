@@ -39,7 +39,6 @@ class PathProviderOhos extends PathProviderPlatform {
 
   @override
   Future<String?> getApplicationDocumentsPath() async {
-    // Android: Context.getDir("flutter", MODE_PRIVATE) → <dataDir>/app_flutter
     final String? filesDir = _bindings.getFilesDir();
     if (filesDir == null) {
       return null;
