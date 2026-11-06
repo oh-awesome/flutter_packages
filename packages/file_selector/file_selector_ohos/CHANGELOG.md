@@ -1,3 +1,7 @@
+## file_selector-v1.1.0-ohos-1.0.3 - 2026.11
+**Changed**
+* Adapt to Flutter 3.47: update README.md and README_CN.md install TAG, mapping table, and compatibility.
+
 ## file_selector-v1.1.0-ohos-1.0.2 - 2026.8
 **Added**
 * Documentation Refactoring: Added README.md and README_CN.md with installation, compatibility, usage, and known issues.

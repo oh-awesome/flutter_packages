@@ -22,7 +22,7 @@ dependencies:
     git: 	 
       url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/file_selector/file_selector
-      ref: file_selector-v1.1.0-ohos-1.0.2
+      ref: TAG
 ```
 
 Run:
@@ -35,9 +35,7 @@ flutter pub get
 
 | Flutter framework | TAG | Branch |
 | --- | --- | --- |
-| 3.35 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
-| 3.41 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
-| 3.44 | file_selector-v1.1.0-ohos-1.0.2 | oh-3.44.9 |
+| 3.47 | file_selector-v1.1.0-ohos-1.0.3 | oh-3.47.7 |
 
 ## Constraints and Limitations
 
@@ -45,9 +43,7 @@ flutter pub get
 
 Tested and passed on the following versions:
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.2.268; ROM: 6.0.0.130 SP18;
-3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio 26.0.0 Beta2; ROM: 7.0.0.102 SP8;
+1. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio 26.0.0 Beta2, ROM: 6.1.0.135 SP8;
 
 ## Usage Example
 
