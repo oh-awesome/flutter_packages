@@ -23,7 +23,8 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/image_picker/image_picker_ohos"
-      ref: "oh-3.44.9"
+      # ref: 根据下方表格选择不同框架适配的TAG版本
+      ref: TAG # 根据下方表格选择不同框架适配的TAG版本
 ```
 
 ### 安装依赖
@@ -37,7 +38,8 @@ flutter pub get
  
 | Flutter 框架版本 | TAG 名称                     | 分支名    |
 | ----------------|------------------------------|-----------|
-| 3.44             | image_picker-1.2.3-ohos-1.0.0 | oh-3.44.9 |
+| 3.44             | image_picker-1.2.3-ohos-1.0.0 | oh-3.44.9-release |
+| 3.47             | image_picker-1.2.4-ohos-1.0.0 | oh-3.47.7-release |
 
 
 ## 约束与限制
@@ -45,11 +47,9 @@ flutter pub get
 ### 兼容性
 在以下版本中已测试通过
 
-1. Flutter: 3.35.7-ohos-0.0.1; SDK: 6.0.1(21); IDE: DevEco Studio: 6.0.1.260; ROM: 6.0.0.120 SP6;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 6.1.0(23); IDE: DevEco Studio: 6.1.0.830; ROM: 6.23.0.100 SP6;
-3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
 
-**版本兼容性**：OHOS 实现依赖 `@ohos/flutter_ohos` 运行时（以 HAR 形式提供），因此 Flutter SDK 必须是支持 OHOS 的构建版本。上表三个 Flutter 版本共用同一个 `image_picker_ohos` 版本，切换时无需额外配置，只要 DevEco Studio / HarmonyOS SDK / ROM 组合保持在已验证矩阵内。不支持的组合（如未带 OHOS 的上游 Flutter，或低于所列最低版本的 DevEco SDK）将导致 `ohos/` 模块编译失败，不在支持范围内。
+**版本兼容性**：OHOS 实现依赖 `@ohos/flutter_ohos` 运行时（以 HAR 形式提供），因此 Flutter SDK 必须是支持 OHOS 的构建版本。上表每个 Flutter 框架版本对应各自的 OHOS TAG 与 `image_picker_ohos` 版本，切换框架版本时需将 Git 依赖的 `ref` 同步切换到对应 TAG，DevEco Studio / HarmonyOS SDK / ROM 组合保持在已验证矩阵内即可。不支持的组合（如未带 OHOS 的上游 Flutter，或低于所列最低版本的 DevEco SDK）将导致 `ohos/` 模块编译失败，不在支持范围内。
 
 **升级迁移**：
 
@@ -376,7 +376,7 @@ image_picker_ohos/
 
 ## 贡献代码
 
-欢迎贡献代码或提交 Issue！请访问 [仓库地址](https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) 提交 Pull Request 或反馈问题。
+欢迎贡献代码或提交 Issue！请访问 [仓库地址](https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) 提交 Pull Request 或反馈问题。
 
 ## 开源协议
 

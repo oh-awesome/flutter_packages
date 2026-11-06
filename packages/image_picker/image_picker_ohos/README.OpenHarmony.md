@@ -23,7 +23,8 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/image_picker/image_picker_ohos"
-      ref: "br_image_picker-v1.2.1_ohos"
+      # ref: Select the TAG version that matches your Flutter framework version from the table below
+      ref: TAG  # Select a TAG from the TAG version mapping table below
 ```
 
 ### Install Dependencies
@@ -58,17 +59,16 @@ This document is verified based on the following versions:
 
 | Flutter framework version | TAG name                     | Branch    |
 |---------------------------|------------------------------|-----------|
-| 3.44                      | image_picker-1.2.3-ohos-1.0.0 | oh-3.44.9 |
+| 3.44                      | image_picker-1.2.3-ohos-1.0.0 | oh-3.44.9-release |
+| 3.47                      | image_picker-1.2.4-ohos-1.0.0 | oh-3.47.7-release |
 
 TAG naming rule: `<upstream-version>-ohos-<version>-betax`; changes between TAGs are recorded in `CHANGELOG.md`.
 
 Tested runtime combinations:
 
-1. Flutter: 3.35.7-ohos-0.0.1; SDK: 6.0.1(21); IDE: DevEco Studio: 6.0.1.260; ROM: 6.0.0.120 SP6;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 6.1.0(23); IDE: DevEco Studio: 6.1.0.830; ROM: 6.23.0.100 SP6;
-3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.47.7+ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.821; ROM: 7.0.0.109 SP6;
 
-**Version compatibility**: the OHOS implementation depends on the `@ohos/flutter_ohos` runtime (shipped as a HAR), so the Flutter SDK must be an OHOS-enabled build. The three Flutter versions above are all served by the same `image_picker_ohos` version — no extra configuration is needed when switching between them, as long as the DevEco Studio / HarmonyOS SDK / ROM combination stays inside the tested matrix. Unsupported combinations (e.g. a stock upstream Flutter without OHOS support, or a DevEco SDK older than the listed minimum) fail to compile the `ohos/` module and are not supported.
+**Version compatibility**: the OHOS implementation depends on the `@ohos/flutter_ohos` runtime (shipped as a HAR), so the Flutter SDK must be an OHOS-enabled build. Each Flutter framework version in the table above maps to its own OHOS TAG and `image_picker_ohos` release — when switching framework versions, switch the `ref` of the Git dependency to the corresponding TAG as well, keeping the DevEco Studio / HarmonyOS SDK / ROM combination inside the tested matrix. Unsupported combinations (e.g. a stock upstream Flutter without OHOS support, or a DevEco SDK older than the listed minimum) fail to compile the `ohos/` module and are not supported.
 
 **Upgrade / Migration**:
 
@@ -379,7 +379,7 @@ image_picker_ohos/
 
 ## Contributing
 
-Contributions and issues are welcome! Please visit the [repository](https://gitcode.com/openharmony-tpc/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) to submit a Pull Request or report issues.
+Contributions and issues are welcome! Please visit the [repository](https://gitcode.com/CPF-Flutter/flutter_packages/tree/master/packages/image_picker/image_picker_ohos) to submit a Pull Request or report issues.
 
 ## License
 
