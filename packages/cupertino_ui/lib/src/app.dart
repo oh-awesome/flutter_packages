@@ -506,6 +506,7 @@ class CupertinoScrollBehavior extends ScrollBehavior {
       case TargetPlatform.windows:
         assert(details.controller != null);
         return CupertinoScrollbar(controller: details.controller, child: child);
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.iOS:

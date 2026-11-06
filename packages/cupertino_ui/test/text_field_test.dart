@@ -6453,6 +6453,7 @@ void main() {
         // On Apple platforms, dragging the base handle makes it the extent.
         expect(controller.selection.baseOffset, testValue.length);
         expect(controller.selection.extentOffset, toOffset);
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -6463,7 +6464,7 @@ void main() {
 
     // The scroll area of text field should not move.
     expect(scrollController.offset, beforeScrollOffset);
-  });
+  }, variant: TargetPlatformVariant.mobile());
 
   testWidgets('Can drag the right handle while the left handle remains off-screen', (
     WidgetTester tester,
@@ -6534,7 +6535,7 @@ void main() {
 
     // The scroll area of text field should not move.
     expect(scrollController.offset, beforeScrollOffset);
-  });
+  }, variant: TargetPlatformVariant.mobile());
 
   group(
     'Text selection toolbar',
@@ -8343,6 +8344,7 @@ void main() {
         expect(controller.selection.baseOffset, 0);
 
       // Other platforms start from the previous selection.
+      case TargetPlatform.ohos:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
@@ -8826,6 +8828,7 @@ void main() {
           expect(find.text('Copy'), findsOneWidget);
           expect(find.text('Paste'), findsOneWidget);
 
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -8850,6 +8853,7 @@ void main() {
           expect(find.text('Copy'), findsOneWidget);
           expect(find.text('Paste'), findsOneWidget);
 
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -8897,6 +8901,7 @@ void main() {
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
           return;
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -9298,7 +9303,7 @@ void main() {
 
       group('defaults', () {
         testWidgets(
-          'should build CupertinoMagnifier on iOS and Android',
+          'should build CupertinoMagnifier on iOS, Android and OpenHarmony',
           (WidgetTester tester) async {
             await tester.pumpWidget(const CupertinoApp(home: CupertinoTextField()));
 
@@ -9319,12 +9324,13 @@ void main() {
           variant: const TargetPlatformVariant(<TargetPlatform>{
             TargetPlatform.iOS,
             TargetPlatform.android,
+            TargetPlatform.ohos,
           }),
         );
       });
 
       testWidgets(
-        'should build nothing on all platforms but iOS and Android',
+        'should build nothing on all platforms but iOS, Android and OpenHarmony',
         (WidgetTester tester) async {
           await tester.pumpWidget(const CupertinoApp(home: CupertinoTextField()));
 
@@ -9343,7 +9349,11 @@ void main() {
           );
         },
         variant: TargetPlatformVariant.all(
-          excluding: <TargetPlatform>{TargetPlatform.iOS, TargetPlatform.android},
+          excluding: <TargetPlatform>{
+            TargetPlatform.iOS,
+            TargetPlatform.android,
+            TargetPlatform.ohos,
+          },
         ),
       );
     });
@@ -10506,7 +10516,10 @@ void main() {
     semanticsOwner.performAction(node.id, SemanticsAction.focus);
     await tester.pumpAndSettle();
     expect(focusNode.hasFocus, isTrue);
-    expect(tester.testTextInput.log.single.method, 'TextInput.show');
+    expect(
+      tester.testTextInput.log.where((MethodCall call) => call.method == 'TextInput.show'),
+      hasLength(1),
+    );
   }, variant: TargetPlatformVariant.all());
 
   testWidgets(
@@ -10604,6 +10617,7 @@ void main() {
         case TargetPlatform.iOS:
           expect(find.byType(SystemContextMenu), findsOneWidget);
         case TargetPlatform.macOS:
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.fuchsia:
         case TargetPlatform.linux:
@@ -10764,6 +10778,10 @@ void _expectCupertinoToolbarForPartialSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(5));
@@ -10785,6 +10803,7 @@ void _expectCupertinoToolbarForPartialSelection() {
       expect(find.text('Cut'), findsOneWidget);
       expect(find.text('Copy'), findsOneWidget);
       expect(find.text('Paste'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.windows:
@@ -10804,6 +10823,10 @@ void _expectCupertinoToolbarForFullSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(4));
@@ -10819,6 +10842,7 @@ void _expectCupertinoToolbarForFullSelection() {
       expect(find.text('Share...'), findsOneWidget);
       expect(find.text('Look Up'), findsOneWidget);
       expect(find.text('Search Web'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.macOS:
@@ -10837,6 +10861,10 @@ void _expectCupertinoToolbarForCollapsedSelection() {
     return;
   }
 
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    expect(find.text('Share...'), findsNothing);
+  }
+
   switch (defaultTargetPlatform) {
     case TargetPlatform.android:
       expect(find.byType(CupertinoButton), findsNWidgets(4));
@@ -10848,6 +10876,7 @@ void _expectCupertinoToolbarForCollapsedSelection() {
       expect(find.byType(CupertinoButton), findsNWidgets(2));
       expect(find.text('Paste'), findsOneWidget);
       expect(find.text('Select All'), findsOneWidget);
+    case TargetPlatform.ohos:
     case TargetPlatform.fuchsia:
     case TargetPlatform.linux:
     case TargetPlatform.windows:

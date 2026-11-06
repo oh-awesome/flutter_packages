@@ -569,11 +569,20 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(selectedItems, <int>[1]);
-        expect(systemCalls, isEmpty);
+        // On OHOS the scroll coordination reports Scroll.* activity on the
+        // platform channel unrelated to haptics or sounds, so filter those
+        // calls out before asserting.
+        expect(
+          systemCalls
+              .where((MethodCall call) => !call.method.startsWith('Scroll.')),
+          isEmpty,
+        );
       },
       variant: TargetPlatformVariant(
         TargetPlatform.values
-            .where((TargetPlatform platform) => platform != TargetPlatform.iOS)
+            .where(
+              (TargetPlatform platform) => platform != TargetPlatform.iOS,
+            )
             .toSet(),
       ),
     );

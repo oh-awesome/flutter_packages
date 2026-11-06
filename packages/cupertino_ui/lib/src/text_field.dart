@@ -121,6 +121,7 @@ class _CupertinoTextFieldSelectionGestureDetectorBuilder
         return;
       }
     }
+    _state._deviceKind = details.kind;
     super.onSingleTapUp(details);
     _state.widget.onTap?.call();
   }
@@ -1140,6 +1141,7 @@ class CupertinoTextField extends StatefulWidget {
           switch (defaultTargetPlatform) {
             case TargetPlatform.android:
             case TargetPlatform.iOS:
+            case TargetPlatform.ohos:
               return CupertinoTextMagnifier(controller: controller, magnifierInfo: magnifierInfo);
             case TargetPlatform.fuchsia:
             case TargetPlatform.linux:
@@ -1268,7 +1270,10 @@ class _CupertinoTextFieldState extends State<CupertinoTextField>
 
   EditableTextState get _editableText => editableTextKey.currentState!;
 
+  PointerDeviceKind _deviceKind = PointerDeviceKind.unknown;
+
   void _requestKeyboard() {
+    _deviceKind = PointerDeviceKind.unknown;
     _editableText.requestKeyboard();
   }
 
@@ -1322,6 +1327,9 @@ class _CupertinoTextFieldState extends State<CupertinoTextField>
       case TargetPlatform.windows:
       case TargetPlatform.fuchsia:
       case TargetPlatform.android:
+      case TargetPlatform.ohos:
+        // EditableText scrolls the dragged endpoint into view. Scrolling to the
+        // extent here would also reveal an unchanged, off-screen end handle.
         if (cause == SelectionChangedCause.longPress) {
           _editableText.bringIntoView(selection.extent);
         }
@@ -1331,6 +1339,7 @@ class _CupertinoTextFieldState extends State<CupertinoTextField>
       case TargetPlatform.iOS:
       case TargetPlatform.fuchsia:
       case TargetPlatform.android:
+      case TargetPlatform.ohos:
         break;
       case TargetPlatform.macOS:
       case TargetPlatform.linux:
@@ -1521,6 +1530,7 @@ class _CupertinoTextFieldState extends State<CupertinoTextField>
 
     return _editableText.textInputConfiguration.copyWith(
       autofillConfiguration: autofillConfiguration,
+      deviceKind: _deviceKind,
     );
   }
 
@@ -1539,6 +1549,7 @@ class _CupertinoTextFieldState extends State<CupertinoTextField>
       case TargetPlatform.iOS:
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
+      case TargetPlatform.ohos:
         textSelectionControls ??= cupertinoTextSelectionHandleControls;
       case TargetPlatform.linux:
       case TargetPlatform.macOS:

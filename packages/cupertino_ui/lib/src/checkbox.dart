@@ -438,6 +438,7 @@ class _CupertinoCheckboxState extends State<CupertinoCheckbox>
         widget.tapTargetSize ??
         switch (defaultTargetPlatform) {
           TargetPlatform.iOS ||
+          TargetPlatform.ohos ||
           TargetPlatform.android ||
           TargetPlatform.fuchsia => const Size.square(kMinInteractiveDimensionCupertino),
           TargetPlatform.macOS ||
