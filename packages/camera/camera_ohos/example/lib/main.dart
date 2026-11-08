@@ -11,11 +11,15 @@ import 'package:camera_platform_interface/camera_platform_interface.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+// CameraPlatform ZSL passthroughs surface channel errors as PlatformException.
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:path_provider/path_provider.dart';
 import 'package:video_player/video_player.dart';
 
 import 'camera_controller.dart';
 import 'camera_preview.dart';
 import 'fileselector/file_selector.dart';
+import 'stream_thumb.dart';
 
 /// Camera example home widget.
 class CameraExampleHome extends StatefulWidget {
@@ -55,6 +59,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   XFile? imageFile;
   XFile? videoFile;
   VideoPlayerController? videoController;
+  // File descriptor handed to the video player on ohos; closed when the previous
+  // player is torn down (see _closeVideoFileDescriptor).
+  int? _videoFileFd;
   VoidCallback? videoPlayerListener;
   bool enableAudio = true;
   static const List<int> _fpsOptions = <int>[24, 30, 60];
@@ -63,6 +70,16 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   VideoStabilizationMode _currentVideoStabilizationMode =
       VideoStabilizationMode.off;
   int _jpegQuality = 100;
+
+  // Zero-shutter-lag (ZSL) support probe. Re-queried on every camera
+  // (re)selection and auto-switch; a null value or false renders the
+  // "not supported" hint instead of the toggle.
+  bool? _isZslSupported;
+  bool _zslEnabled = false;
+  // Custom recording output path. Empty input keeps the platform default
+  // (cache dir) path; non-.mp4 paths are rejected by the native side.
+  final TextEditingController _videoOutputPathController =
+      TextEditingController();
 
   // True when the current image file format is JPEG. The JPEG quality slider is
   // only interactive in this case.
@@ -126,6 +143,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     _cameraErrorSubscription?.cancel();
     _cameraSwitchedSubscription?.cancel();
     _refreshCamerasDebounceTimer?.cancel();
+    _videoOutputPathController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     _flashModeControlRowAnimationController.dispose();
     _exposureModeControlRowAnimationController.dispose();
@@ -184,7 +202,15 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Camera example')),
+      appBar: AppBar(
+        title: const Text('Camera example'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _showSettingsDialog,
+          ),
+        ],
+      ),
       body: Column(
         children: <Widget>[
           _settingsRowWidget(),
@@ -239,16 +265,28 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         onPointerCancel: (_) => _pointers--,
         child: CameraPreview(
           controller!,
-          child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onScaleStart: _handleScaleStart,
-                onScaleUpdate: _handleScaleUpdate,
-                onTapDown: (TapDownDetails details) =>
-                    onViewFinderTap(details, constraints),
-              );
-            },
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onScaleStart: _handleScaleStart,
+                    onScaleUpdate: _handleScaleUpdate,
+                    onTapDown: (TapDownDetails details) =>
+                        onViewFinderTap(details, constraints),
+                  );
+                },
+              ),
+              Align(
+                alignment: Alignment.topRight,
+                child: StreamThumb(
+                  controller: controller!,
+                  cameraId: controller!.cameraId,
+                ),
+              ),
+            ],
           ),
         ),
       );
@@ -849,6 +887,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
               .getMinZoomLevel(controller!.cameraId)
               .then((double value) => _minAvailableZoom = value),
         ]);
+
+        // Refresh ZSL support for the newly selected camera.
+        await _refreshZslSupport();
       } on CameraException catch (e) {
         if (e.code == 'CameraError' &&
             e.description == 'FRONT_CAMERA_UNAVAILABLE') {
@@ -893,25 +934,30 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       _currentScale = 1.0;
       _currentExposureOffset = 0.0;
       Future.wait(<Future<Object?>>[
-        CameraPlatform.instance
-            .getMaxZoomLevel(controller!.cameraId)
-            .then((double value) => _maxAvailableZoom = value),
-        CameraPlatform.instance
-            .getMinZoomLevel(controller!.cameraId)
-            .then((double value) => _minAvailableZoom = value),
-        CameraPlatform.instance
-            .getMinExposureOffset(controller!.cameraId)
-            .then((double value) => _minAvailableExposureOffset = value),
-        CameraPlatform.instance
-            .getMaxExposureOffset(controller!.cameraId)
-            .then((double value) => _maxAvailableExposureOffset = value),
-      ]).then((_) {
-        if (mounted) {
-          setState(() {});
-        }
-      }).catchError((Object e) {
-        debugPrint('Failed to refresh camera ranges after auto switch: $e');
-      });
+            CameraPlatform.instance
+                .getMaxZoomLevel(controller!.cameraId)
+                .then((double value) => _maxAvailableZoom = value),
+            CameraPlatform.instance
+                .getMinZoomLevel(controller!.cameraId)
+                .then((double value) => _minAvailableZoom = value),
+            CameraPlatform.instance
+                .getMinExposureOffset(controller!.cameraId)
+                .then((double value) => _minAvailableExposureOffset = value),
+            CameraPlatform.instance
+                .getMaxExposureOffset(controller!.cameraId)
+                .then((double value) => _maxAvailableExposureOffset = value),
+          ])
+          .then((_) {
+            if (mounted) {
+              setState(() {});
+            }
+          })
+          .catchError((Object e) {
+            debugPrint('Failed to refresh camera ranges after auto switch: $e');
+          });
+      // Re-probe ZSL support: the auto-switch recreates the native camera, so
+      // the toggle must reflect the new camera's capabilities.
+      unawaited(_refreshZslSupport());
     }
   }
 
@@ -1015,6 +1061,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
             .then((double value) => _minAvailableZoom = value),
       ]);
 
+      // Refresh ZSL support for the new camera before any recording starts.
+      await _refreshZslSupport();
+
       _cameraErrorSubscription = CameraPlatform.instance
           .onCameraError(cameraController.cameraId)
           .listen((CameraErrorEvent event) {});
@@ -1060,6 +1109,216 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
     if (mounted) {
       setState(() {});
+    }
+  }
+
+  // Opens the settings dialog holding the ZSL toggle and the custom video
+  // output path input. The dialog is only a container: the ZSL switch applies
+  // immediately (optimistic + rollback) and the path field shares
+  // _videoOutputPathController, so edits take effect for the next recording.
+  Future<void> _showSettingsDialog() async {
+    // Prefill a sandbox path so the field demonstrates the custom-path feature
+    // without typing it by hand. On failure keep the field empty (the hint
+    // explains the default-path behavior) and still open the dialog.
+    if (_videoOutputPathController.text.isEmpty) {
+      try {
+        final Directory dir = await getTemporaryDirectory();
+        _videoOutputPathController.text = '${dir.path}/camera_demo_rec.mp4';
+      } catch (_) {
+        // Prefill is best-effort; leave the field empty on failure.
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // StatefulBuilder: the dialog is an independent route subtree, so the
+        // home page's setState does not rebuild it. The dialog drives its own
+        // rebuilds for the ZSL switch via setDialogState.
+        return StatefulBuilder(
+          builder: (BuildContext dialogContext, StateSetter setDialogState) {
+            return AlertDialog(
+              title: const Text('Settings'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Zero-shutter-lag toggle. Rendered only when the current
+                    // camera reports support; the query is refreshed on every
+                    // camera (re)selection, so unsupported devices show a plain
+                    // hint.
+                    Row(
+                      children: <Widget>[
+                        const Text(
+                          'ZSL:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_isZslSupported != true)
+                          const Expanded(
+                            child: Text('Not supported on this camera'),
+                          )
+                        else
+                          Switch(
+                            value: _zslEnabled,
+                            onChanged:
+                                controller != null &&
+                                    !controller!.value.isRecordingVideo
+                                ? (bool newValue) => unawaited(
+                                    _onZslChanged(newValue, () {
+                                      // After the async native call the dialog
+                                      // may already be dismissed; only rebuild
+                                      // the dialog subtree while it is mounted.
+                                      if (dialogContext.mounted) {
+                                        setDialogState(() {});
+                                      }
+                                    }),
+                                  )
+                                : null,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Custom recording output path. Empty input keeps the platform
+                    // default (cache dir) path; the native side rejects non-.mp4
+                    // paths with videoRecordingFailed at recording start.
+                    // The disabled state reads isRecordingVideo only when this
+                    // dialog subtree rebuilds; recording cannot start while the
+                    // modal dialog is up, so it never goes stale in practice.
+                    Row(
+                      children: <Widget>[
+                        const Text(
+                          'Path:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _videoOutputPathController,
+                            enabled:
+                                controller != null &&
+                                !controller!.value.isRecordingVideo,
+                            style: const TextStyle(fontSize: 12),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              labelText: 'Video output path',
+                              hintText: 'Sandbox .mp4 path; empty = default',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Queries ZSL support for the freshly (re)initialized camera and refreshes
+  // the toggle UI. Query failures are treated as unsupported, matching the
+  // API 21+ guard semantics of the native side. Must not be called while
+  // recording: the native side rejects support queries from a recording
+  // camera.
+  //
+  // _zslEnabled is deliberately kept as-is here: it mirrors the user's
+  // requested state, and the native layer preserves zeroShutterLagRequested
+  // across camera switches and replays it onto the new camera instance, so
+  // resetting it to false would desync the UI from the still-active request.
+  Future<void> _refreshZslSupport() async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+    bool supported = false;
+    try {
+      supported = await CameraPlatform.instance.isZeroShutterLagSupported(
+        cameraController.cameraId,
+      );
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    } on PlatformException catch (e) {
+      // Unified wrapping: keep the failure-as-unsupported semantics but hand
+      // the wrapped CameraException to the shared display entry point.
+      _showCameraException(CameraException(e.code, e.message));
+    }
+    if (mounted) {
+      setState(() {
+        _isZslSupported = supported;
+      });
+    }
+  }
+
+  // Optimistically toggles ZSL and rolls the switch back if the native call
+  // rejects it (e.g. unsupported camera or wrong lifecycle timing).
+  // [setDialogState] drives the settings dialog's own StatefulBuilder: the
+  // dialog is an independent route subtree, so the home page setState alone
+  // never rebuilds the switch. It is invoked only through a wrapper that
+  // checks dialogContext.mounted, so calling it after the dialog is dismissed
+  // is a no-op.
+  Future<void> _onZslChanged(
+    bool newValue,
+    VoidCallback? setDialogState,
+  ) async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null) {
+      return;
+    }
+    final bool previous = _zslEnabled;
+    void syncUi() {
+      setState(() {
+        _zslEnabled = newValue;
+      });
+      setDialogState?.call();
+    }
+
+    void rollbackUi() {
+      setState(() {
+        _zslEnabled = previous;
+      });
+      setDialogState?.call();
+    }
+
+    syncUi();
+    try {
+      await CameraPlatform.instance.setZeroShutterLagEnabled(
+        cameraController.cameraId,
+        newValue,
+      );
+      // Re-affirm after the await: another flow (e.g. _refreshZslSupport) may
+      // have reset the flag while the native call was in flight.
+      if (mounted) {
+        setState(() {
+          _zslEnabled = newValue;
+        });
+      }
+      setDialogState?.call();
+      showInSnackBar('Zero-shutter-lag ${newValue ? 'enabled' : 'disabled'}');
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      if (mounted) {
+        rollbackUi();
+      }
+    } on PlatformException catch (e) {
+      // Unified wrapping: hand the wrapped CameraException to the shared
+      // display entry point instead of a bare snackbar.
+      _showCameraException(CameraException(e.code, e.message));
+      if (mounted) {
+        rollbackUi();
+      }
     }
   }
 
@@ -1145,6 +1404,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           videoController?.dispose();
           videoController = null;
         });
+        unawaited(_closeVideoFileDescriptor());
         if (file != null) {
           showInSnackBar('Picture saved to ${file.path}');
         }
@@ -1310,7 +1570,10 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     }
 
     try {
-      await cameraController.startVideoRecording();
+      final String trimmedPath = _videoOutputPathController.text.trim();
+      await cameraController.startVideoRecording(
+        videoOutputPath: trimmedPath.isEmpty ? null : trimmedPath,
+      );
     } on CameraException catch (e) {
       _showCameraException(e);
       return;
@@ -1325,7 +1588,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     }
 
     try {
-      return cameraController.stopVideoRecording();
+      return await cameraController.stopVideoRecording();
     } on CameraException catch (e) {
       _showCameraException(e);
       return null;
@@ -1422,12 +1685,14 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       return;
     }
     final VideoPlayerController vController;
+    int? newFd;
     if (Platform.operatingSystem == 'ohos') {
       // OHOS: on the ohos platform the video player must open the file by descriptor,
       // so the file is opened through FileSelector.
       final FileSelector instance = FileSelector();
       int? fileFd = await instance.openFileByPath(videoFile!.path);
       vController = VideoPlayerController.fileFd(fileFd!);
+      newFd = fileFd;
     } else {
       vController = kIsWeb
           ? VideoPlayerController.network(videoFile!.path)
@@ -1446,6 +1711,8 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     await vController.setLooping(true);
     await vController.initialize();
     await videoController?.dispose();
+    await _closeVideoFileDescriptor();
+    _videoFileFd = newFd;
     if (mounted) {
       setState(() {
         imageFile = null;
@@ -1453,6 +1720,23 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       });
     }
     await vController.play();
+  }
+
+  // Closes the descriptor handed to the video player for the previous recording.
+  // The native side keeps it open while the player reads it, so the plugin must
+  // be asked to close it once the player is torn down; best-effort cleanup.
+  Future<void> _closeVideoFileDescriptor() async {
+    final int? fd = _videoFileFd;
+    if (fd == null) {
+      return;
+    }
+    _videoFileFd = null;
+    try {
+      await FileSelector().closeFileByFd(fd);
+    } catch (e) {
+      // Best-effort cleanup; surface without interrupting the recording flow.
+      showInSnackBar('Failed to close video file descriptor: $e');
+    }
   }
 
   Future<XFile?> takePicture() async {

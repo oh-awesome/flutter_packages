@@ -80,8 +80,11 @@ class ImageFormat {
 ImageFormatGroup _asImageFormatGroup(dynamic rawFormat) {
   if (defaultTargetPlatform == TargetPlatform.ohos) {
     switch (rawFormat) {
-    // android.graphics.ImageFormat.JPEG
-      case 256:
+      // camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+      case 1003:
+        return ImageFormatGroup.nv21;
+      // camera.CameraFormat.CAMERA_FORMAT_JPEG
+      case 2000:
         return ImageFormatGroup.jpeg;
     }
   }

@@ -202,12 +202,40 @@ class CameraController extends ValueNotifier<CameraValue> {
   /// The camera identifier with which the controller is associated.
   int get cameraId => _cameraId;
 
+  /// Runs [action] and converts any thrown error into a [CameraException].
+  ///
+  /// CameraExceptions are rethrown unchanged; PlatformExceptions keep their
+  /// platform code and message; any other error is wrapped with its runtime
+  /// type so callers only ever need to catch CameraException.
+  Future<T> _wrapErrors<T>(Future<T> Function() action) async {
+    try {
+      return await action();
+    } on CameraException {
+      rethrow;
+    } on PlatformException catch (e) {
+      throw CameraException(e.code, e.message);
+    } catch (e) {
+      throw CameraException(e.runtimeType.toString(), e.toString());
+    }
+  }
+
   /// Initializes the camera on the device.
-  Future<void> initialize() => _initializeWithDescription(description);
+  Future<void> initialize() {
+    return _wrapErrors(() => _initializeWithDescription(description));
+  }
 
   Future<void> _initializeWithDescription(CameraDescription description) async {
     final Completer<CameraInitializedEvent> initializeCompleter =
         Completer<CameraInitializedEvent>();
+
+    // setDescription rebuilds through this path while not recording, which
+    // overwrites the subscription fields without cancelling the previous
+    // ones. The orphaned listeners survive dispose() (dispose only cancels
+    // the current references) and keep writing into the disposed CameraValue
+    // afterwards ("used after being disposed" assert). Cancel before
+    // overwriting so a rebuild never leaks the previous generation.
+    await _deviceOrientationSubscription?.cancel();
+    await _cameraInitializedSubscription?.cancel();
 
     _deviceOrientationSubscription = CameraPlatform.instance
         .onDeviceOrientationChanged()
@@ -265,113 +293,156 @@ class CameraController extends ValueNotifier<CameraValue> {
   }
 
   /// Prepare the capture session for video recording.
-  Future<void> prepareForVideoRecording() async {
-    await CameraPlatform.instance.prepareForVideoRecording();
+  Future<void> prepareForVideoRecording() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.prepareForVideoRecording();
+    });
   }
 
   /// Pauses the current camera preview
-  Future<void> pausePreview() async {
-    await CameraPlatform.instance.pausePreview(_cameraId);
-    value = value.copyWith(
+  Future<void> pausePreview() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.pausePreview(_cameraId);
+      value = value.copyWith(
         isPreviewPaused: true,
         previewPauseOrientation: Optional<DeviceOrientation>.of(
-            value.lockedCaptureOrientation ?? value.deviceOrientation));
+          value.lockedCaptureOrientation ?? value.deviceOrientation,
+        ),
+      );
+    });
   }
 
   /// Resumes the current camera preview
-  Future<void> resumePreview() async {
-    await CameraPlatform.instance.resumePreview(_cameraId);
-    value = value.copyWith(
+  Future<void> resumePreview() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.resumePreview(_cameraId);
+      value = value.copyWith(
         isPreviewPaused: false,
-        previewPauseOrientation: const Optional<DeviceOrientation>.absent());
+        previewPauseOrientation: const Optional<DeviceOrientation>.absent(),
+      );
+    });
   }
 
   /// Sets the description of the camera.
-  Future<void> setDescription(CameraDescription description) async {
-    if (value.isRecordingVideo) {
-      await CameraPlatform.instance.setDescriptionWhileRecording(description);
-      value = value.copyWith(description: description);
-    } else {
-      await _initializeWithDescription(description);
-    }
+  Future<void> setDescription(CameraDescription description) {
+    return _wrapErrors(() async {
+      if (value.isRecordingVideo) {
+        await CameraPlatform.instance.setDescriptionWhileRecording(description);
+        value = value.copyWith(description: description);
+      } else {
+        await _initializeWithDescription(description);
+      }
+    });
   }
 
   /// Captures an image and returns the file where it was saved.
   ///
   /// Throws a [CameraException] if the capture fails.
-  Future<XFile> takePicture() async {
-    value = value.copyWith(isTakingPicture: true);
-    final XFile file = await CameraPlatform.instance.takePicture(_cameraId);
-    value = value.copyWith(isTakingPicture: false);
-    return file;
+  Future<XFile> takePicture() {
+    return _wrapErrors(() async {
+      value = value.copyWith(isTakingPicture: true);
+      final XFile file = await CameraPlatform.instance.takePicture(_cameraId);
+      value = value.copyWith(isTakingPicture: false);
+      return file;
+    });
   }
 
   /// Start streaming images from platform camera.
   Future<void> startImageStream(
-      void Function(CameraImageData image) onAvailable) async {
-    _imageStreamSubscription = CameraPlatform.instance
-        .onStreamedFrameAvailable(_cameraId)
-        .listen((CameraImageData imageData) {
-      onAvailable(imageData);
+    void Function(CameraImageData image) onAvailable,
+  ) {
+    return _wrapErrors(() async {
+      // Same cancel-before-overwrite discipline as _initializeWithDescription:
+      // a double startImageStream without stopImageStream must not orphan the
+      // previous subscription.
+      await _imageStreamSubscription?.cancel();
+      _imageStreamSubscription = CameraPlatform.instance
+          .onStreamedFrameAvailable(_cameraId)
+          .listen((CameraImageData imageData) {
+            onAvailable(imageData);
+          });
+      value = value.copyWith(isStreamingImages: true);
     });
-    value = value.copyWith(isStreamingImages: true);
   }
 
   /// Stop streaming images from platform camera.
-  Future<void> stopImageStream() async {
-    value = value.copyWith(isStreamingImages: false);
-    await _imageStreamSubscription?.cancel();
-    _imageStreamSubscription = null;
+  Future<void> stopImageStream() {
+    return _wrapErrors(() async {
+      value = value.copyWith(isStreamingImages: false);
+      await _imageStreamSubscription?.cancel();
+      _imageStreamSubscription = null;
+    });
   }
 
   /// Start a video recording.
   ///
   /// The video is returned as a [XFile] after calling [stopVideoRecording].
+  /// If [videoOutputPath] is non-null, the recording is written to that path
+  /// (must be a writable sandbox path ending in .mp4); otherwise the platform
+  /// default (cache dir) is used.
   /// Throws a [CameraException] if the capture fails.
-  Future<void> startVideoRecording(
-      {void Function(CameraImageData image)? streamCallback}) async {
-    await CameraPlatform.instance.startVideoCapturing(
-        VideoCaptureOptions(_cameraId, streamCallback: streamCallback));
-    value = value.copyWith(
+  Future<void> startVideoRecording({
+    void Function(CameraImageData image)? streamCallback,
+    String? videoOutputPath,
+  }) {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.startVideoCapturing(
+        VideoCaptureOptions(
+          _cameraId,
+          streamCallback: streamCallback,
+          videoOutputPath: videoOutputPath,
+        ),
+      );
+      value = value.copyWith(
         isRecordingVideo: true,
         isRecordingPaused: false,
         isStreamingImages: streamCallback != null,
         recordingOrientation: Optional<DeviceOrientation>.of(
-            value.lockedCaptureOrientation ?? value.deviceOrientation));
+          value.lockedCaptureOrientation ?? value.deviceOrientation,
+        ),
+      );
+    });
   }
 
   /// Stops the video recording and returns the file where it was saved.
   ///
   /// Throws a [CameraException] if the capture failed.
-  Future<XFile> stopVideoRecording() async {
-    if (value.isStreamingImages) {
-      await stopImageStream();
-    }
+  Future<XFile> stopVideoRecording() {
+    return _wrapErrors(() async {
+      if (value.isStreamingImages) {
+        await stopImageStream();
+      }
 
-    final XFile file =
-        await CameraPlatform.instance.stopVideoRecording(_cameraId);
-    value = value.copyWith(
-      isRecordingVideo: false,
-      isRecordingPaused: false,
-      recordingOrientation: const Optional<DeviceOrientation>.absent(),
-    );
-    return file;
+      final XFile file = await CameraPlatform.instance.stopVideoRecording(
+        _cameraId,
+      );
+      value = value.copyWith(
+        isRecordingVideo: false,
+        isRecordingPaused: false,
+        recordingOrientation: const Optional<DeviceOrientation>.absent(),
+      );
+      return file;
+    });
   }
 
   /// Pause video recording.
   ///
   /// This feature is only available on iOS and Android sdk 24+.
-  Future<void> pauseVideoRecording() async {
-    await CameraPlatform.instance.pauseVideoRecording(_cameraId);
-    value = value.copyWith(isRecordingPaused: true);
+  Future<void> pauseVideoRecording() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.pauseVideoRecording(_cameraId);
+      value = value.copyWith(isRecordingPaused: true);
+    });
   }
 
   /// Resume video recording after pausing.
   ///
   /// This feature is only available on iOS and Android sdk 24+.
-  Future<void> resumeVideoRecording() async {
-    await CameraPlatform.instance.resumeVideoRecording(_cameraId);
-    value = value.copyWith(isRecordingPaused: false);
+  Future<void> resumeVideoRecording() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.resumeVideoRecording(_cameraId);
+      value = value.copyWith(isRecordingPaused: false);
+    });
   }
 
   /// Returns a widget showing a live camera preview.
@@ -380,106 +451,127 @@ class CameraController extends ValueNotifier<CameraValue> {
   }
 
   /// Sets the flash mode for taking pictures.
-  Future<void> setFlashMode(FlashMode mode) async {
-    await CameraPlatform.instance.setFlashMode(_cameraId, mode);
-    value = value.copyWith(flashMode: mode);
+  Future<void> setFlashMode(FlashMode mode) {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.setFlashMode(_cameraId, mode);
+      value = value.copyWith(flashMode: mode);
+    });
   }
 
   /// Sets the exposure mode for taking pictures.
-  Future<void> setExposureMode(ExposureMode mode) async {
-    await CameraPlatform.instance.setExposureMode(_cameraId, mode);
-    value = value.copyWith(exposureMode: mode);
+  Future<void> setExposureMode(ExposureMode mode) {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.setExposureMode(_cameraId, mode);
+      value = value.copyWith(exposureMode: mode);
+    });
   }
 
   /// Sets the exposure offset for the selected camera.
-  Future<double> setExposureOffset(double offset) async {
-    // Check if offset is in range
-    final List<double> range = await Future.wait(<Future<double>>[
-      CameraPlatform.instance.getMinExposureOffset(_cameraId),
-      CameraPlatform.instance.getMaxExposureOffset(_cameraId)
-    ]);
+  Future<double> setExposureOffset(double offset) {
+    return _wrapErrors(() async {
+      // Check if offset is in range
+      final List<double> range = await Future.wait(<Future<double>>[
+        CameraPlatform.instance.getMinExposureOffset(_cameraId),
+        CameraPlatform.instance.getMaxExposureOffset(_cameraId),
+      ]);
 
-    // Round to the closest step if needed
-    final double stepSize =
-        await CameraPlatform.instance.getExposureOffsetStepSize(_cameraId);
-    if (stepSize > 0) {
-      final double inv = 1.0 / stepSize;
-      double roundedOffset = (offset * inv).roundToDouble() / inv;
-      if (roundedOffset > range[1]) {
-        roundedOffset = (offset * inv).floorToDouble() / inv;
-      } else if (roundedOffset < range[0]) {
-        roundedOffset = (offset * inv).ceilToDouble() / inv;
+      // Round to the closest step if needed
+      final double stepSize = await CameraPlatform.instance
+          .getExposureOffsetStepSize(_cameraId);
+      if (stepSize > 0) {
+        final double inv = 1.0 / stepSize;
+        double roundedOffset = (offset * inv).roundToDouble() / inv;
+        if (roundedOffset > range[1]) {
+          roundedOffset = (offset * inv).floorToDouble() / inv;
+        } else if (roundedOffset < range[0]) {
+          roundedOffset = (offset * inv).ceilToDouble() / inv;
+        }
+        offset = roundedOffset;
       }
-      offset = roundedOffset;
-    }
 
-    return CameraPlatform.instance.setExposureOffset(_cameraId, offset);
+      return CameraPlatform.instance.setExposureOffset(_cameraId, offset);
+    });
   }
 
   /// Locks the capture orientation.
   ///
   /// If [orientation] is omitted, the current device orientation is used.
-  Future<void> lockCaptureOrientation() async {
-    await CameraPlatform.instance
-        .lockCaptureOrientation(_cameraId, value.deviceOrientation);
-    value = value.copyWith(
-        lockedCaptureOrientation:
-            Optional<DeviceOrientation>.of(value.deviceOrientation));
+  Future<void> lockCaptureOrientation() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.lockCaptureOrientation(
+        _cameraId,
+        value.deviceOrientation,
+      );
+      value = value.copyWith(
+        lockedCaptureOrientation: Optional<DeviceOrientation>.of(
+          value.deviceOrientation,
+        ),
+      );
+    });
   }
 
   /// Unlocks the capture orientation.
-  Future<void> unlockCaptureOrientation() async {
-    await CameraPlatform.instance.unlockCaptureOrientation(_cameraId);
-    value = value.copyWith(
-        lockedCaptureOrientation: const Optional<DeviceOrientation>.absent());
+  Future<void> unlockCaptureOrientation() {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.unlockCaptureOrientation(_cameraId);
+      value = value.copyWith(
+        lockedCaptureOrientation: const Optional<DeviceOrientation>.absent(),
+      );
+    });
   }
 
   /// Sets the focus mode for taking pictures.
-  Future<void> setFocusMode(FocusMode mode) async {
-    await CameraPlatform.instance.setFocusMode(_cameraId, mode);
-    value = value.copyWith(focusMode: mode);
+  Future<void> setFocusMode(FocusMode mode) {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.setFocusMode(_cameraId, mode);
+      value = value.copyWith(focusMode: mode);
+    });
   }
 
   /// Sets the image file format for taking pictures.
-  Future<void> setImageFileFormat(ImageFileFormat format) async {
-    await CameraPlatform.instance.setImageFileFormat(_cameraId, format);
+  Future<void> setImageFileFormat(ImageFileFormat format) {
+    return _wrapErrors(() async {
+      await CameraPlatform.instance.setImageFileFormat(_cameraId, format);
+    });
   }
 
   /// Sets the video stabilization mode.
-  Future<void> setVideoStabilizationMode(VideoStabilizationMode mode) async {
-    try {
+  Future<void> setVideoStabilizationMode(VideoStabilizationMode mode) {
+    return _wrapErrors(() async {
       await CameraPlatform.instance.setVideoStabilizationMode(_cameraId, mode);
-    } on PlatformException catch (e) {
-      throw CameraException(e.code, e.message);
-    }
+    });
   }
 
   /// Gets the supported video stabilization modes.
   Future<Iterable<VideoStabilizationMode>>
-  getSupportedVideoStabilizationModes() async {
-    try {
-      return await CameraPlatform.instance.getSupportedVideoStabilizationModes(
+  getSupportedVideoStabilizationModes() {
+    return _wrapErrors(
+      () => CameraPlatform.instance.getSupportedVideoStabilizationModes(
         _cameraId,
-      );
-    } on PlatformException catch (e) {
-      throw CameraException(e.code, e.message);
-    }
+      ),
+    );
   }
 
   /// Releases the resources of this camera.
   @override
-  Future<void> dispose() async {
-    if (_isDisposed) {
-      return;
-    }
-    _isDisposed = true;
-    await _deviceOrientationSubscription?.cancel();
-    await _cameraInitializedSubscription?.cancel();
-    super.dispose();
-    if (_initCalled != null) {
-      await _initCalled;
-      await CameraPlatform.instance.dispose(_cameraId);
-    }
+  Future<void> dispose() {
+    return _wrapErrors(() async {
+      if (_isDisposed) {
+        return;
+      }
+      _isDisposed = true;
+      await _deviceOrientationSubscription?.cancel();
+      await _cameraInitializedSubscription?.cancel();
+      // An active image stream must not survive disposal either, otherwise
+      // frames keep flowing into the client callback after dispose().
+      await _imageStreamSubscription?.cancel();
+      _imageStreamSubscription = null;
+      super.dispose();
+      if (_initCalled != null) {
+        await _initCalled;
+        await CameraPlatform.instance.dispose(_cameraId);
+      }
+    });
   }
 
   @override

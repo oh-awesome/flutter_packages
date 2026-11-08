@@ -133,7 +133,7 @@ export default function cameraApiImplGuardsTest() {
     });
 
     it('startVideoRecording_guardRejects', 0, async (): Promise<void> => {
-      expect(await rejectGuardCode(makeApi().startVideoRecording(true)))
+      expect(await rejectGuardCode(makeApi().startVideoRecording(true, null)))
         .assertEqual('CAMERA_NOT_INITIALIZED');
     });
 

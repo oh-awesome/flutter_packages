@@ -102,9 +102,15 @@ class MockCameraApi extends _i1.Mock implements _i2.CameraApi {
           as _i3.Future<String>);
 
   @override
-  _i3.Future<void> startVideoRecording(bool? arg_enableStream) =>
+  _i3.Future<void> startVideoRecording(
+    bool? arg_enableStream,
+    String? arg_videoOutputPath,
+  ) =>
       (super.noSuchMethod(
-            Invocation.method(#startVideoRecording, [arg_enableStream]),
+            Invocation.method(#startVideoRecording, [
+              arg_enableStream,
+              arg_videoOutputPath,
+            ]),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
@@ -178,6 +184,23 @@ class MockCameraApi extends _i1.Mock implements _i2.CameraApi {
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setZeroShutterLagEnabled(bool? arg_enabled) =>
+      (super.noSuchMethod(
+            Invocation.method(#setZeroShutterLagEnabled, [arg_enabled]),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<bool> isZeroShutterLagSupported() =>
+      (super.noSuchMethod(
+            Invocation.method(#isZeroShutterLagSupported, []),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
 
   @override
   _i3.Future<void> setFlashMode(_i2.PlatformFlashMode? arg_flashMode) =>

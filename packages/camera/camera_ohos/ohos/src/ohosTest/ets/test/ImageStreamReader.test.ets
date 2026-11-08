@@ -21,6 +21,7 @@
 
 import { describe, it, expect } from '@ohos/hypium';
 import image from '@ohos.multimedia.image';
+import camera from '@ohos.multimedia.camera';
 import { ArrayList, HashMap } from '@kit.ArkTS';
 import { Size } from '@kit.ArkUI';
 import { ImageStreamReader } from
@@ -40,7 +41,10 @@ let factoryFailureMessage: string = '';
 function tryMakeReader(): ImageStreamReader | null {
   try {
     const size: Size = { width: 16, height: 16 };
-    return new ImageStreamReader(size, image.ImageFormat.JPEG, 3);
+    // Creation format (JPEG) stays decoupled from the reported format (YUV420 SP,
+    // the preview-profile constant the reader reports to Dart).
+    return new ImageStreamReader(size, image.ImageFormat.JPEG, 3,
+      camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP);
   } catch (e) {
     factoryFailureMessage = (e as Error).message;
     return null;
@@ -95,7 +99,7 @@ export default function imageStreamReaderTest() {
         (sink.successEvents[0] as ESObject) as HashMap<string, Object>;
       expect(payload.get('width')).assertEqual(1920);
       expect(payload.get('height')).assertEqual(1080);
-      expect(payload.get('format')).assertEqual(image.ImageFormat.JPEG);
+      expect(payload.get('format')).assertEqual(camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP);
       expect(payload.get('lensAperture')).assertEqual(1.8);
       expect(payload.get('sensorExposureTime')).assertEqual(25000);
       expect(payload.get('sensorSensitivity')).assertEqual(400);

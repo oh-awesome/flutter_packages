@@ -128,4 +128,30 @@ class FileSelectorApi {
     }
   }
 
+  /// Closes a file descriptor previously returned by [openFileByPath].
+  ///
+  /// Returns whether the descriptor was closed by the native side. Returns
+  /// `false` if the fd was not tracked by the native plugin.
+  Future<bool?> closeFileByFd(int fd) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.FileSelectorApi.closeFileByFd', codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[fd]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return (replyList[0] as bool?);
+    }
+  }
+
 }

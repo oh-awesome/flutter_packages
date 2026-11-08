@@ -446,7 +446,7 @@ export abstract class CameraApi {
   */
   abstract takePicture(result: Result<string>): void;
   /* Starts recording a video on the camera with the given ID.*/
-  abstract startVideoRecording(enableStream: boolean ): Promise<void>;
+  abstract startVideoRecording(enableStream: boolean , videoOutputPath: string | null): Promise<void>;
   /*
   *  Ends video recording on the camera with the given ID and returns the path
   *  to the resulting file.
@@ -513,6 +513,13 @@ export abstract class CameraApi {
   abstract setImageFileFormat(format: PlatformImageFileFormat, result: Result<void>): void;
   /* Sets the JPEG compression quality (1-100) for captured still images.*/
   abstract setJpegImageQuality(quality: number, result: Result<void>): void;
+  /* Sets whether zero-shutter-lag (SPEED photo quality prioritization) is enabled.*/
+  abstract setZeroShutterLagEnabled(enabled: boolean): Promise<void>;
+  /*
+  *  Returns whether zero-shutter-lag (speed-priority) capture is supported on the
+  *  current photo output.
+  */
+  abstract isZeroShutterLagSupported(result: Result<boolean>): void;
   /** The codec used by CameraApi. */
   static getCodec(): MessageCodec<Object>{
     return CameraApiCodec.INSTANCE;
@@ -697,7 +704,7 @@ export abstract class CameraApi {
               let args: Array<Object> = message as Array<Object>;
               let res: Array<Object> = [];
               try {
-                await api!.startVideoRecording(args[0] as boolean);
+                await api!.startVideoRecording(args[0] as boolean, args[1] as string | null);
                 res.push(null);
               }
  catch (error) {
@@ -1304,6 +1311,57 @@ export abstract class CameraApi {
               let resultCallback: Result<void> = new ResultImp();
 
               api!.setJpegImageQuality(args[0] as number, resultCallback);
+            } });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      let channel: BasicMessageChannel<Object> =
+          new BasicMessageChannel(
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.setZeroShutterLagEnabled', CameraApi.getCodec());
+      if (api != null) {
+        channel.setMessageHandler({
+            async onMessage(message: Object ,reply: Reply<Object> ) {
+              let args: Array<Object> = message as Array<Object>;
+              let res: Array<Object> = [];
+              try {
+                await api!.setZeroShutterLagEnabled(args[0] as boolean);
+                res.push(null);
+              }
+ catch (error) {
+                let wrappedError: Array<Object> = wrapError(error);
+                res = wrappedError;
+              }
+              reply.reply(res);
+            } });
+      } else {
+        channel.setMessageHandler(null);
+      }
+    }
+    {
+      let channel: BasicMessageChannel<Object> =
+          new BasicMessageChannel(
+              binaryMessenger, 'dev.flutter.pigeon.camera_ohos.CameraApi.isZeroShutterLagSupported', CameraApi.getCodec());
+      if (api != null) {
+        channel.setMessageHandler({
+            onMessage(message: Object ,reply: Reply<Object> ) {
+              let args: Array<Object> = message as Array<Object>;
+              class ResultImp implements Result<boolean>{
+                    success(result: boolean): void {
+                      let res: Array<Object> = [];
+                      res.push(result);
+                      reply.reply(res);
+                    }
+
+                    error(error: Error): void {
+                      let wrappedError: Array<Object> = wrapError(error);
+                      reply.reply(wrappedError);
+                    }
+              }
+              let resultCallback: Result<boolean> = new ResultImp();
+
+              api!.isZeroShutterLagSupported(resultCallback);
             } });
       } else {
         channel.setMessageHandler(null);

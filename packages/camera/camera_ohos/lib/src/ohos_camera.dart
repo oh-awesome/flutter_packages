@@ -60,6 +60,12 @@ class OhosCamera extends CameraPlatform {
   // The stream for vending frames to platform interface clients.
   StreamController<CameraImageData>? _frameStreamController;
 
+  // The frame stream subscription created by startVideoCapturing. It must be
+  // kept so it can be cancelled on stop/dispose/restart, otherwise a repeated
+  // startVideoCapturing orphans the old subscription when the shared
+  // _frameStreamController is replaced (leak).
+  StreamSubscription<CameraImageData>? _recordingFrameStreamSubscription;
+
   // Map of camera IDs to recording state, preventing duplicate recording per camera.
   final Map<int, bool> _isRecordingMap = <int, bool>{};
 
@@ -123,9 +129,13 @@ class OhosCamera extends CameraPlatform {
     ImageFormatGroup imageFormatGroup = ImageFormatGroup.unknown,
   }) async {
     hostCameraHandlers.putIfAbsent(
+      cameraId,
+      () => HostCameraMessageHandler(
         cameraId,
-        () => HostCameraMessageHandler(cameraId, cameraEventStreamController,
-            cameraSwitchedStreamController));
+        cameraEventStreamController,
+        cameraSwitchedStreamController,
+      ),
+    );
 
     final Completer<void> completer = Completer<void>();
     bool completed = false;
@@ -170,6 +180,9 @@ class OhosCamera extends CameraPlatform {
     final HostCameraMessageHandler? handler =
         hostCameraHandlers.remove(cameraId);
     handler?.dispose();
+    // The recording frame stream must not outlive the camera, otherwise the
+    // native image stream listener is left orphaned after disposal.
+    await _cancelRecordingFrameStream();
 
     await _hostApi.dispose();
   }
@@ -241,13 +254,21 @@ class OhosCamera extends CameraPlatform {
     if (_isRecordingMap[options.cameraId] == true) return;
     _isRecordingMap[options.cameraId] = true;
     try {
-      await _hostApi.startVideoRecording(options.streamCallback != null);
+      await _hostApi.startVideoRecording(
+        options.streamCallback != null,
+        options.videoOutputPath,
+      );
     } catch (e) {
       _isRecordingMap[options.cameraId] = false;
       rethrow;
     }
     if (options.streamCallback != null) {
-      _installStreamController().stream.listen(options.streamCallback);
+      // Cancel any leftover subscription before replacing the shared
+      // controller, so the old callback is not orphaned when a previous
+      // recording's stream was never explicitly stopped.
+      await _cancelRecordingFrameStream();
+      _recordingFrameStreamSubscription = _installStreamController().stream
+          .listen(options.streamCallback);
       _startStreamListener();
     }
   }
@@ -262,6 +283,9 @@ class OhosCamera extends CameraPlatform {
       return XFile(path);
     } finally {
       _isRecordingMap[cameraId] = false;
+      // The recording frame stream belongs to the recording lifecycle: tear
+      // it down with the recording, mirroring _onFrameStreamCancel.
+      await _cancelRecordingFrameStream();
     }
   }
 
@@ -323,6 +347,15 @@ class OhosCamera extends CameraPlatform {
     await _platformImageStreamSubscription?.cancel();
     _platformImageStreamSubscription = null;
     _frameStreamController = null;
+  }
+
+  // Tears down the frame stream installed by startVideoCapturing. Mirrors the
+  // _onFrameStreamCancel teardown: cancelling the controller's last listener
+  // runs the controller's onCancel (_onFrameStreamCancel), which stops the
+  // native image stream and nulls _frameStreamController.
+  FutureOr<void> _cancelRecordingFrameStream() async {
+    await _recordingFrameStreamSubscription?.cancel();
+    _recordingFrameStreamSubscription = null;
   }
 
   void _onFrameStreamPauseResume() {
@@ -452,8 +485,18 @@ class OhosCamera extends CameraPlatform {
   }
 
   @override
-  // OHOS 平台限制：Camera Kit 无"录制中切换相机"API，原生侧恒返回
-  // setDescriptionWhileRecordingUnsupported 错误，此处透传为 CameraException。
+  Future<bool> isZeroShutterLagSupported(int cameraId) {
+    return _hostApi.isZeroShutterLagSupported();
+  }
+
+  @override
+  Future<void> setZeroShutterLagEnabled(int cameraId, bool enabled) async {
+    await _hostApi.setZeroShutterLagEnabled(enabled);
+  }
+
+  @override
+  // OHOS platform limitation: Camera Kit has no "switch camera while recording" API; the native side always returns
+  // the setDescriptionWhileRecordingUnsupported error, which is rethrown here as CameraException.
   Future<void> setDescriptionWhileRecording(
       CameraDescription description) async {
     try {

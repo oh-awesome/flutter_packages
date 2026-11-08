@@ -1,5 +1,41 @@
 # CHANGELOG for OpenHarmony
- 
+
+## camera-v0.12.2-ohos-1.0.0 - 2026.11
+
+* **Added:**
+
+  `videoOutputPath` support: recordings can be written to a caller-provided
+  app-sandbox path (validated to end with `.mp4` natively), falling back to
+  the default cache directory when omitted. Aligns with the upstream camera
+  0.12.2 platform interface.
+
+  Zero-shutter-lag support (`isZeroShutterLagSupported` /
+  `setZeroShutterLagEnabled` from the upstream 0.12.2 platform interface),
+  mapped to photo output quality prioritization
+  (`PhotoQualityPrioritization.SPEED`, API 21+; unsupported / ignored on
+  older APIs). The requested state is preserved across camera switches and
+  session rebuilds, mirroring the upstream iOS implementation.
+
+* **Fixed:**
+
+  `dispose` during an active recording now finalizes the mp4 via
+  `AVRecorder.stop()` per the state machine and closes the capture file,
+  instead of only resetting the recorder, so recording-interrupted-by-dispose
+  no longer produces corrupted output files.
+  Recording frame stream subscription leak in `startVideoCapturing`: repeated
+  calls no longer orphan the previous callback's subscription; the stream is
+  torn down on stop and dispose.
+  Image stream format reporting followed the `ImageReceiver` creation format
+  instead of the actual selected preview profile; frames now report the real
+  delivered format (NV21, `1003` → `ImageFormatGroup.nv21`, `2000` →
+  `ImageFormatGroup.jpeg`; formats without a faithful group report as
+  `unknown`), and the legacy Android constant branches were removed.
+  ZSL (zero-shutter-lag) calls are now isolated behind an explicit version
+  gate (`deviceInfo.sdkApiVersion >= 21`) plus a cached photoOutput
+  capability probe, so pre-API 21 runtimes short-circuit without touching
+  the API 21+ symbols (no more throw-and-catch noise) and the camera-switch
+  replay stays silent when the gate is off.
+
 ## camera-0.12.0+2-ohos-1.0.0 - 2026.08
 
 * **Added:**

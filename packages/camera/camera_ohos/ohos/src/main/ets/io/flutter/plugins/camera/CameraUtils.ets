@@ -7,6 +7,7 @@
 import camera from '@ohos.multimedia.camera';
 import { BusinessError } from '@ohos.base';
 import { HashMap } from '@kit.ArkTS';
+import { Log } from '@ohos/flutter_ohos';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 
 
@@ -28,7 +29,7 @@ const CameraDeviceMap = (cameraManager: camera.CameraManager): HashMap<string, c
     }
   } catch (error) {
     let err = error as BusinessError;
-  
+    Log.e('CameraUtils', 'CameraDeviceMap: getSupportedCameras failed: ' + err.code + ' ' + err.message);
   }
   return deviceMap;
 }
@@ -74,8 +75,9 @@ export class CameraUtils {
 
 
   static serializeDeviceOrientation(orientation: DeviceOrientation): string {
-    if (orientation == null)
+    if (orientation == null) {
       throw new Error('Could not serialize null device orientation.');
+    }
     switch (orientation) {
       case DeviceOrientation.PORTRAIT_UP:
         return 'portraitUp';
@@ -92,8 +94,9 @@ export class CameraUtils {
   }
 
   static deserializeDeviceOrientation(orientation: string): DeviceOrientation {
-    if (orientation == null)
+    if (orientation == null) {
       throw new Error('Could not deserialize null device orientation.');
+    }
     switch (orientation) {
       case 'portraitUp':
         return DeviceOrientation.PORTRAIT_UP;
@@ -141,8 +144,8 @@ export class CameraUtils {
     } catch (error) {
       let err = error as BusinessError;
       console.error(`The getAvailableCameras call failed. error code: ${err.code}`);
-      // 不再静默降级为空数组：失败向上抛，由 Pigeon 包装层转 PlatformException，
-      // 避免 Dart 侧误判为"无可用摄像头"
+      // No silent fallback to an empty array: failures propagate up and the Pigeon wrapper
+      // converts them to PlatformException, so Dart never misreads this as "no cameras available".
       throw new Error(`getAvailableCameras failed: ${err.message}`);
     }
     return cameraArray;
@@ -154,63 +157,66 @@ export class CameraUtils {
     return capability;
   }
 
-  //检测是否有闪光灯
-  // 系统调用失败 ≠ 设备不支持：抛错由上层传播，避免被误报为"设备无闪光灯"
+  // Detect whether the device has a flash.
+  // A failed system call does not imply unsupported hardware: throw for upper layers,
+  // avoiding false "no flash" reports.
   public static hasFlash(captureSession: camera.PhotoSession | camera.VideoSession): boolean {
     try {
       return captureSession.hasFlash();
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The hasFlash call failed. error code: ${err.code}`);
       throw error as Error;
     }
   }
 
-  //检测闪光灯模式是否支持
-  // 系统调用失败 ≠ 模式不支持：抛错由上层传播，避免被误报为"该闪光灯模式不支持"
+  // Detect whether the flash mode is supported.
+  // A failed system call does not imply unsupported: throw for upper layers,
+  // avoiding false "flash mode unsupported" reports.
   public static isFlashModeSupported(captureSession: camera.PhotoSession | camera.VideoSession,
       mode: camera.FlashMode): boolean {
     try {
       return captureSession.isFlashModeSupported(mode);
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The isFlashModeSupported call failed. error code: ${err.code}`);
       throw error as Error;
     }
   }
 
-  // 检测曝光模式是否支持
-  // 系统调用失败 ≠ 模式不支持：抛错由上层传播，避免被误报为"该曝光模式不支持"
+  // Detect whether the exposure mode is supported.
+  // A failed system call does not imply unsupported: throw for upper layers,
+  // avoiding false "exposure mode unsupported" reports.
   public static isExposureModeSupported(captureSession: camera.PhotoSession | camera.VideoSession,
       mode: camera.ExposureMode): boolean {
     try {
       return captureSession.isExposureModeSupported(mode);
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The isExposureModeSupported call failed. error code: ${err.code}`);
       throw error as Error;
     }
   }
 
-  // 获取支持的变焦范围
+  // Get the supported zoom range.
   public static getZoomRatioRange(captureSession: camera.PhotoSession | camera.VideoSession): Array<number> {
     let zoomRatioRange: Array<number> = [];
     try {
       zoomRatioRange = captureSession.getZoomRatioRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The getZoomRatioRange call failed. error code: ${err.code}`);
     }
     return zoomRatioRange;
   }
 
-  // 获取支持的最小变焦范围
-  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
-  // 值
+  // Get the minimum supported zoom range.
+  // Throw when the query fails or returns an empty array; upper-layer FlutterError/Pigeon propagates to
+  // Dart instead of silently falling back to default values.
   public static getMinZoomRatio(captureSession: camera.PhotoSession | camera.VideoSession): number {
     let zoomRatioRange: Array<number> = [];
     try {
@@ -226,9 +232,9 @@ export class CameraUtils {
     return Math.min(...zoomRatioRange);
   }
 
-  // 获取支持的最大变焦范围
-  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
-  // 值
+  // Get the maximum supported zoom range.
+  // Throw when the query fails or returns an empty array; upper-layer FlutterError/Pigeon propagates to
+  // Dart instead of silently falling back to default values.
   public static getMaxZoomRatio(captureSession: camera.PhotoSession | camera.VideoSession): number {
     let zoomRatioRange: Array<number> = [];
     try {
@@ -244,28 +250,28 @@ export class CameraUtils {
     return Math.max(...zoomRatioRange);
   }
 
-  // 查询曝光补偿范围
+  // Query the exposure compensation range.
   public static getExposureBiasRange(captureSession: camera.PhotoSession | camera.VideoSession): Array<number> {
     let biasRangeArray: Array<number> = [];
     try {
       biasRangeArray = captureSession.getExposureBiasRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The getExposureBiasRange call failed. error code: ${err.code}`);
     }
     return biasRangeArray;
   }
 
-  // 查询最小曝光补偿值
-  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
-  // 值
+  // Query the minimum exposure compensation.
+  // Throw when the query fails or returns an empty array; upper-layer FlutterError/Pigeon propagates to
+  // Dart instead of silently falling back to default values.
   public static getMinExposureBias(captureSession: camera.PhotoSession | camera.VideoSession): number {
     let biasRangeArray: Array<number> = new Array<number>();
     try {
       biasRangeArray = captureSession.getExposureBiasRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The getExposureBiasRange call failed. error code: ${err.code}`);
       throw error as Error;
@@ -276,15 +282,15 @@ export class CameraUtils {
     return biasRangeArray[0];
   }
 
-  // 查询最大曝光补偿值
-  // 查询失败或返回空数组时抛错，由上层 FlutterError/Pigeon 传播到 Dart，不再静默兜底默认
-  // 值
+  // Query the maximum exposure compensation.
+  // Throw when the query fails or returns an empty array; upper-layer FlutterError/Pigeon propagates to
+  // Dart instead of silently falling back to default values.
   public static getMaxExposureBias(captureSession: camera.PhotoSession | camera.VideoSession): number {
     let biasRangeArray: Array<number> = new Array<number>();
     try {
       biasRangeArray = captureSession.getExposureBiasRange();
     } catch (error) {
-      // 失败返回错误码error.code并处理
+      // Failure returns the error code; handled by upper layers.
       let err = error as BusinessError;
       console.error(`The getExposureBiasRange call failed. error code: ${err.code}`);
       throw error as Error;
@@ -296,7 +302,7 @@ export class CameraUtils {
   }
 
 
-  // 查询曝光补偿值步长
+  // Query the exposure compensation step size.
   public static getExposureBiasStep(captureSession: camera.PhotoSession | camera.VideoSession): number {
     return 0.5;
   }

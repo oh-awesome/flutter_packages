@@ -1,12 +1,11 @@
 {
   "app": {
-    "signingConfigs": [
-    ],
+    "signingConfigs": [],
     "products": [
       {
         "name": "default",
         "signingConfig": "default",
-        "compatibleSdkVersion": "5.0.0(12)",
+        "compatibleSdkVersion": "5.0.5(17)",
         "runtimeOS": "HarmonyOS"
       }
     ],
@@ -41,6 +40,12 @@
       "targets": [
         {
           "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        },
+        {
+          "name": "ohosTest",
           "applyToProducts": [
             "default"
           ]

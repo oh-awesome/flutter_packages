@@ -3,17 +3,15 @@
 // found in the LICENSE file.
 import 'package:pigeon/pigeon.dart';
 
-
-@ConfigurePigeon(PigeonOptions(
-  input: 'pigeons/messages.dart',
-  arkTsOut: 'ohos/src/main/ets/io/flutter/plugins/camera/Messages.ets',
-  arkTsOptions: ArkTsOptions(
-    className: 'Messages',
+@ConfigurePigeon(
+  PigeonOptions(
+    input: 'pigeons/messages.dart',
+    arkTsOut: 'ohos/src/main/ets/io/flutter/plugins/camera/Messages.ets',
+    arkTsOptions: ArkTsOptions(className: 'Messages'),
+    dartOut: 'lib/src/messages.g.dart',
+    copyrightHeader: 'pigeons/copyright.txt',
   ),
-  dartOut: 'lib/src/messages.g.dart',
-  copyrightHeader: 'pigeons/copyright.txt',
-))
-
+)
 /// Pigeon equivalent of [CameraLensDirection].
 enum PlatformCameraLensDirection {
   front,
@@ -55,14 +53,15 @@ enum PlatformFocusMode {
 
 /// Data needed for [CameraInitializedEvent].
 class PlatformCameraState {
-  PlatformCameraState(
-      {this.previewSize,  // 移除required
-      required this.exposureMode,
-      required this.focusMode,
-      required this.exposurePointSupported,
-      required this.focusPointSupported});
+  PlatformCameraState({
+    this.previewSize, // required removed
+    required this.exposureMode,
+    required this.focusMode,
+    required this.exposurePointSupported,
+    required this.focusPointSupported,
+  });
 
-  final PlatformSize? previewSize;  // 改为可空类型
+  final PlatformSize? previewSize; // made nullable
   final PlatformExposureMode exposureMode;
   final PlatformFocusMode focusMode;
   final bool exposurePointSupported;
@@ -167,8 +166,12 @@ abstract class CameraApi {
   String takePicture();
 
   /// Starts recording a video on the camera with the given ID.
+  ///
+  /// If [videoOutputPath] is provided, the recording is written to that path
+  /// instead of the default cache directory. The path must be writable inside
+  /// the app sandbox and use the .mp4 extension.
   @async
-  void startVideoRecording(bool enableStream);
+  void startVideoRecording(bool enableStream, String? videoOutputPath);
 
   /// Ends video recording on the camera with the given ID and returns the path
   /// to the resulting file.
@@ -201,6 +204,21 @@ abstract class CameraApi {
   /// setting ignore it.
   @async
   void setJpegImageQuality(int quality);
+
+  /// Sets the OHOS photo quality prioritization strategy on the photo output
+  /// (API 21+; ignored on older APIs).
+  ///
+  /// Used to implement the platform interface's zero-shutter-lag API:
+  /// enabling maps to `PhotoQualityPrioritization.SPEED` (trade image quality
+  /// for capture latency), disabling maps back to the default priority.
+  /// Supported-ness is queried via [isZeroShutterLagSupported].
+  @async
+  void setZeroShutterLagEnabled(bool enabled);
+
+  /// Returns whether zero-shutter-lag (speed-priority) capture can be
+  /// enabled on the current photo output (API 21+; false on older APIs).
+  @async
+  bool isZeroShutterLagSupported();
 
   /// Sets the flash mode of the camera with the given ID.
   @async

@@ -212,7 +212,10 @@ export default function pigeonDispatchTest() {
       const api: CameraApiImpl =
         new CameraApiImpl(new MockAbilityBinding().getAbility(), messenger, makeFakeTextureRegistry());
       CameraApi.setUp(messenger, api);
-      expect(messenger.countTotalHandlers()).assertEqual(32);
+      // 34 = 32 original CameraApi channels + 2 ZSL channels
+      // (setZeroShutterLagEnabled / isZeroShutterLagSupported); bump together with
+      // future Messages.ets setUp additions.
+      expect(messenger.countTotalHandlers()).assertEqual(34);
       CameraApi.setUp(messenger, null);
       expect(messenger.countTotalHandlers()).assertEqual(0);
     });

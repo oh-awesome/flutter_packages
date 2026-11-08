@@ -41,6 +41,7 @@ import photoAccessHelper from '@ohos.file.photoAccessHelper';
 import { DeviceOrientation } from '@ohos/flutter_ohos/src/main/ets/embedding/engine/systemchannels/PlatformChannel';
 import display from '@ohos.display';
 import { AudioPermission, CameraPermissions } from './CameraPermissions';
+import { ZslCapability, ZslVersionGate } from './ZslCapability';
 import {
   CameraEventApi,
   PlatformCameraState,
@@ -54,14 +55,17 @@ import { sensor } from '@kit.SensorServiceKit';
 
 const TAG = 'Camera';
 
-// 图像格式映射：OHOS ImageReceiver 实际仅支持 JPEG。
-// Pigeon 传入的 PlatformImageFormatGroup 枚举字符串（jpeg/yuv420/nv21/bgra8888）统一解析，
-// 非 jpeg 请求打日志并降级为 JPEG，避免哈希键与枚举名不匹配的静默死映射。
+// Only used to create the image stream's ImageReceiver; unrelated to the format reported to Dart.
+// Image format mapping: the OHOS ImageReceiver practically only supports JPEG.
+// PlatformImageFormatGroup enum strings from Pigeon (jpeg/yuv420/nv21/bgra8888) are resolved uniformly;
+// non-jpeg requests log a warning and fall back to JPEG, avoiding silent dead mappings from mismatched hash keys.
 function getSupportedImageFormat(imageFormatGroup: string | null): image.ImageFormat {
   if (imageFormatGroup === 'jpeg') {
     return image.ImageFormat.JPEG;
   }
-  Log.w(TAG, 'The selected imageFormatGroup ' + imageFormatGroup + ' is not supported by ohos. Defaulting to JPEG');
+  Log.w(TAG, 'The selected imageFormatGroup ' + imageFormatGroup + ' is not supported by ohos. ' +
+    'ImageReceiver creation format defaults to JPEG; the image stream reports the actual output format ' +
+    'CAMERA_FORMAT_YUV_420_SP');
   return image.ImageFormat.JPEG;
 }
 
@@ -82,9 +86,9 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
-  private previewOutput: camera.PreviewOutput | null = null; // 第一路预览流
-  private previewOutput2: camera.PreviewOutput | null = null; // 第二路预览流
-  private pausedPreview: boolean = false; // 暂停预览
+  private previewOutput: camera.PreviewOutput | null = null; // First preview output stream
+  private previewOutput2: camera.PreviewOutput | null = null; // Second preview output stream
+  private pausedPreview: boolean = false; // Preview paused
   private captureTimeouts: CaptureTimeoutsWrapper;
   private captureProps: CameraCaptureProperties;
   private cameraManager: camera.CameraManager;
@@ -94,23 +98,23 @@ export class Camera implements CameraCaptureStateListener {
   private captureFile: fs.File | null = null;
   private cameraOutputCapability: camera.CameraOutputCapability | null = null;
   private initialCameraFacing: number = 0;
-  private photoSession: camera.PhotoSession | null = null; // 拍照模式
-  private videoSession: camera.VideoSession | null = null; // 视频模式
+  private photoSession: camera.PhotoSession | null = null; // Photo mode
+  private videoSession: camera.VideoSession | null = null; // Video mode
   private cameras: Array<camera.CameraDevice> | null = null;
   private photoOutput: camera.PhotoOutput | null = null;
   private fd: number = -1;
-  private isVideoMode: boolean = false; // 视频模式
+  private isVideoMode: boolean = false; // Video mode
   private aVRecorderProfile: media.AVRecorderProfile = {
     audioChannels: 2,
     audioCodec: media.CodecMimeType.AUDIO_AAC,
     audioBitrate: 48000,
     audioSampleRate: 48000,
-    fileFormat: media.ContainerFormatType.CFT_MPEG_4, // 视频文件封装格式，只支持MP4
-    videoBitrate: 100000000, // 视频比特率
-    videoCodec: media.CodecMimeType.VIDEO_AVC, // 视频文件编码格式，支持mpeg4和avc两种格式
-    videoFrameWidth: 1920, // 视频分辨率的宽
-    videoFrameHeight: 1080, // 视频分辨率的高
-    videoFrameRate: 30 // 视频帧率
+    fileFormat: media.ContainerFormatType.CFT_MPEG_4, // Video container format; only MP4 is supported
+    videoBitrate: 100000000, // Video bitrate
+    videoCodec: media.CodecMimeType.VIDEO_AVC, // Video codec; mpeg4 and avc are supported
+    videoFrameWidth: 1920, // Video resolution width
+    videoFrameHeight: 1080, // Video resolution height
+    videoFrameRate: 30 // Video frame rate
   };
   private phAccessHelper: photoAccessHelper.PhotoAccessHelper;
   private videoPath: string | null = null;
@@ -121,10 +125,18 @@ export class Camera implements CameraCaptureStateListener {
   private photoRotation: camera.ImageRotation | undefined;
   private nowZoom: number = 1;
   private imageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
-  // JPEG 压缩质量 (1-100)；null 表示用相机默认输出（直接写原始 buffer，不重压缩）。
-  // OHOS 的 PhotoCaptureSetting.quality 仅支持 3 档枚举，无法满足 1-100 连续精度，
-  // 故在拍照落盘时用 ImagePacker 按此质量重新编码 JPEG。
+  // JPEG compression quality (1-100); null means camera default output (raw buffer written directly,
+  // no re-encoding). OHOS PhotoCaptureSetting.quality only offers a 3-level enum and cannot express
+  // 1-100 precision, so captures are re-encoded with ImagePacker at this quality when writing to disk.
   private jpegQuality: number | null = null;
+  // Zero-shutter-lag (SPEED photo priority) request state; re-applied on session rebuilds
+  // and replayed onto recreated Camera instances by CameraApiImpl.
+  private zeroShutterLagRequested: boolean = false;
+  // ZSL API version gate + cached capability probe; short-circuits all ZSL calls on
+  // pre-API 21 runtimes so the PhotoQualityPrioritization symbols are never touched.
+  private zslCapability: ZslCapability = new ZslCapability();
+  // Start time of the in-flight capture, used to measure the full capture-to-file latency.
+  private captureStartTime: number = 0;
   private displayChangeCallback: ((_displayId: number) => void) | null = null;
   private photoAssetAvailableCallback:
     ((err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset) => void) | null = null;
@@ -152,9 +164,15 @@ export class Camera implements CameraCaptureStateListener {
     fps: number = 30,
     videoBitrate: number = 100000000,
     audioBitrate: number = 48000,
+    zslGate?: ZslVersionGate,
   ) {
     if (ability == null) {
       throw new Error('No Ability available!');
+    }
+    // ZSL gate injection: the default production gate reads sdkApiVersion once; tests
+    // inject a fake gate to simulate pre-API 21 runtimes without a real low-API device.
+    if (zslGate) {
+      this.zslCapability = new ZslCapability(zslGate);
     }
 
     this.ability = ability;
@@ -190,20 +208,20 @@ export class Camera implements CameraCaptureStateListener {
   public onPrecapture(): void {
   }
 
-  // 获取当前场景（拍照模式、视频模式）的Session实例
+  // Get the session instance for the current scene (photo mode, video mode).
   getCurSession(): camera.PhotoSession | camera.VideoSession {
     return this.isVideoMode ? this.videoSession! : this.photoSession!;
   }
 
   public async open(imageFormatGroup: string | null): Promise<void> {
-    // 相机已 close/dispose（isClosed=true）后禁止重新 open：释放状态下重建资源会残留
-    // 已注册的 display/fold 监听与原生会话，形成"僵尸相机"（如 stopVideoRecording finally 尾随重
-    // 建）
+    // Re-opening after close/dispose (isClosed=true) is forbidden: rebuilding resources in a released
+    // state leaves registered display/fold listeners and native sessions behind, creating a "zombie
+    // camera" (e.g. the trailing rebuild in stopVideoRecording finally).
     if (this.isClosed) {
       Log.w(TAG, 'open() called after close/dispose, ignoring to avoid resource leak');
       return;
     }
-    // 复位 isClosed，使 close() 后重建的相机在后续 close() 时仍能完整释放新资源
+    // Reset isClosed so a camera rebuilt after close() is still fully released by a later close()
     this.isClosed = false;
     this.imageFormatGroup = imageFormatGroup;
     const resolutionFeature: ResolutionFeature = this.cameraFeatures.getResolution();
@@ -216,10 +234,10 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
-    // 重建前释放可能残留的旧资源, 避免覆盖引用导致泄漏
+    // Release possibly stale resources before rebuilding to avoid overwrite leaks
     await this.releasePreviewOutput();
     await this.releasePhotoOutput();
-    await this.releaseSession();   // 释放残留的旧 session，避免重建时覆盖泄漏
+    await this.releaseSession();   // Release the stale session to avoid overwrite leaks on rebuild
     if (this.imageStreamReader != null) {
       try {
         this.imageStreamReader.close();
@@ -231,18 +249,27 @@ export class Camera implements CameraCaptureStateListener {
 
     let imageFormat: number = getSupportedImageFormat(imageFormatGroup);
 
+    // The ImageReceiver creation format only decides how the receiver is set up;
+    // it does NOT describe the frames actually delivered by the preview stream.
+    // The reported format defaults to CAMERA_FORMAT_YUV_420_SP here (NV21 on current
+    // devices) and is later updated to the format of the selected preview profile in
+    // startImageStream()/startCapture(), so the value reported to Dart still reflects
+    // the real buffer layout and the Dart-side mapping (type_conversion.dart) can
+    // recognize it.
+    const reportedImageFormat: number = camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP;
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
-      1
+      1,
+      reportedImageFormat
     )
 
-    // 增强相机设备获取的错误处理
+    // Enhanced error handling for camera device acquisition
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
       this.imageStreamReader?.close();
       this.imageStreamReader = null;
-      this.sendCameraErrorEvent('无法获取相机设备: ' + this.cameraProperties.getCameraName());
+      this.sendCameraErrorEvent('Failed to get camera device: ' + this.cameraProperties.getCameraName());
       return;
     }
 
@@ -255,7 +282,7 @@ export class Camera implements CameraCaptureStateListener {
     if (this.isTriFoldDevice() && display.getFoldStatus() === display.FoldStatus.FOLD_STATUS_EXPANDED) {
       if (this.cameraDevice.cameraPosition === camera.CameraPosition.CAMERA_POSITION_FRONT) {
         Log.w(TAG, 'Cannot open front camera in tri-fold dual-screen state');
-        // 释放本方法上方已创建的 ImageStreamReader，避免错误路径泄漏原生 ImageReceiver
+        // Release the ImageStreamReader created above so the failure path does not leak the native receiver.
         this.imageStreamReader?.close();
         this.imageStreamReader = null;
         this.sendCameraErrorEvent('FRONT_CAMERA_UNAVAILABLE');
@@ -264,7 +291,7 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     try{
-      // createCameraInput 也纳入 try 块，保证打开失败时走统一的语义化错误映射与资源清理
+      // createCameraInput is inside the try so open failures use the unified error mapping and cleanup.
       this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
       await this.cameraInput.open();
       await this.startPreview();
@@ -272,10 +299,31 @@ export class Camera implements CameraCaptureStateListener {
         this.sendCameraInitializedEvent(resolutionFeature);
       }
       this.registerFoldStatusChangeListener();
-      // close() 已停止方向监听，重建成功后需恢复（start 幂等，重复调用安全）
+      // close() stopped orientation listening; restart after rebuild (start is idempotent and safe to repeat)
       this.getDeviceOrientationManager()?.start();
     }catch (err) {
-      await this.close();
+      // Release what this open attempt built WITHOUT flipping isClosed: the instance
+      // must stay re-openable because CameraApiImpl.initialize retries a contention
+      // failed open once. close() would set isClosed=true and turn that retry into a
+      // silent no-op zombie success; the full close semantics (in-flight capture reply,
+      // captureFile, recording teardown) have no in-flight counterpart during open.
+      await this.releaseSession();
+      await this.releasePhotoOutput();
+      await this.releasePreviewOutput();
+      await this.releaseCameraInput();
+      // The image stream reader (native ImageReceiver) and the fold listener are
+      // also owned by this open attempt; release them here or a switch-time open
+      // failure leaks the receiver and the listener closure keeps the failed
+      // Camera alive until the next camera op triggers close().
+      if (this.imageStreamReader != null) {
+        try {
+          this.imageStreamReader.close();
+        } catch (streamError) {
+          Log.d(TAG, 'open: failed to close imageStreamReader: ' + (streamError as Error).message);
+        }
+        this.imageStreamReader = null;
+      }
+      this.unregisterFoldStatusChangeListener();
       let errorDescription: string;
       switch (err.code) {
       case camera.CameraErrorCode.INVALID_ARGUMENT:
@@ -290,12 +338,12 @@ export class Camera implements CameraCaptureStateListener {
       default:
       errorDescription = 'Unknown camera error';
       }
-      // 仅通过异常上抛（发事件的路径不 throw、throw 的路径不发事件）：错误由各调用方决
-      // 定
-      // 上报通道——initialize 经 Pigeon 错误回复，三折叠自动切后摄在其自身 catch 补发事件
-      // ——
-      // 避免双发使 Dart 侧 initializeCamera 二次 completeError 抛出 StateError。
-      // 抛映射后的可读文案；原始 err 经日志保留。
+      // Errors propagate only via exceptions: event-emitting paths do not throw, throwing paths do not emit;
+      // each caller picks its own reporting channel.
+      // initialize reports via the Pigeon error reply;
+      // the tri-fold auto rear-switch emits in its own catch.
+      // Double reporting would double-complete Dart's initializeCamera completer and throw StateError.
+      // The mapped, readable message is thrown; the original error is kept in logs.
       Log.e(TAG, 'open failed: ' + errorDescription + ' (' + err.message + ')');
       throw new Error(errorDescription);
     }
@@ -305,7 +353,7 @@ export class Camera implements CameraCaptureStateListener {
     return this.cameraFeatures?.getSensorOrientation().getDeviceOrientationManager();
   }
 
-  // 统一的错误事件发送方法
+  // Unified error event sender
   private sendCameraErrorEvent(errorMessage: string): void {
     try {
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
@@ -316,7 +364,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 统一的关闭事件发送方法
+  // Unified closing event sender
   private sendCameraClosingEvent(): void {
     try {
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
@@ -329,11 +377,11 @@ export class Camera implements CameraCaptureStateListener {
 
   private sendCameraInitializedEvent(resolutionFeature: ResolutionFeature): void {
     try {
-      // 获取 BinaryMessenger 实例
+      // Get the BinaryMessenger instance
       const binaryMessenger: BinaryMessenger = this.dartMessenger.getBinaryMessenger();
       const cameraEventApi = new CameraEventApi(binaryMessenger, this.dartMessenger.getCameraIdSuffix());
 
-      // 从相机特性中获取所需的值
+      // Fetch required values from camera features
       const previewSize = new PlatformSize(
         resolutionFeature.getPreviewSize().width,
         resolutionFeature.getPreviewSize().height
@@ -364,7 +412,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 添加转换方法
+  // Conversion helper
   private convertExposureMode(exposureMode: camera.ExposureMode): PlatformExposureMode {
     switch (exposureMode) {
       case camera.ExposureMode.EXPOSURE_MODE_LOCKED:
@@ -425,14 +473,14 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 设置曝光补偿。
-  // offset 为实际 EV 值（Dart 侧已按 stepSize 取整）；setExposureBias 应用该值，
-  // 返回值必须是实际应用 EV 值（ExposureOffsetFeature.getValue() 现直接返回该值，而非步进索引
-  // ）。
+  // Sets the exposure compensation.
+  // offset is the actual EV value (rounded to a step on the Dart side); setExposureBias applies it and
+  // must return the applied EV value.
+  // (ExposureOffsetFeature.getValue() returns that value directly).
   setExposureOffset(result: MethodResult, offset: number) {
     const exposureOffsetFeature: ExposureOffsetFeature = this.cameraFeatures.getExposureOffset();
     const session = this.getCurSession();
-    // 钳制到设备实际曝光补偿范围 [min, max]，避免越界直达系统 API；返回实际应用值
+    // Clamp to the device range [min, max] to avoid out-of-range system calls; return the applied value.
     const minOffset: number = exposureOffsetFeature.getMinExposureOffset(session);
     const maxOffset: number = exposureOffsetFeature.getMaxExposureOffset(session);
     const clampedOffset: number = Math.min(Math.max(offset, minOffset), maxOffset);
@@ -448,14 +496,14 @@ export class Camera implements CameraCaptureStateListener {
 
   public getMaxZoomLevel(): number {
     if (this.photoSession == null && this.videoSession == null) {
-      return 0;   // 会话未建立，返回未知标记（对齐 CameraPropertiesImpl 文档）
+      return 0;   // Session not established: unknown marker (aligned with CameraPropertiesImpl docs)
     }
     return this.cameraFeatures.getZoomLevel().getMaximumZoomLevel(this.getCurSession());
   }
 
   public getMinZoomLevel(): number {
     if (this.photoSession == null && this.videoSession == null) {
-      return 0;   // 会话未建立，返回未知标记（对齐 CameraPropertiesImpl 文档）
+      return 0;   // Session not established: unknown marker (aligned with CameraPropertiesImpl docs)
     }
     return this.cameraFeatures.getZoomLevel().getMinimumZoomLevel(this.getCurSession());
   }
@@ -491,7 +539,7 @@ export class Camera implements CameraCaptureStateListener {
     this.cameraFeatures.getSensorOrientation().unlockCaptureOrientation();
   }
 
-  // 暂停预览
+  // Pause the preview
   public async pausePreview(result: MethodResult) {
     try {
       await this.previewOutput?.stop();
@@ -505,7 +553,7 @@ export class Camera implements CameraCaptureStateListener {
     result.success(null);
   }
 
-  // 恢复预览
+  // Resume the preview
   public async resumePreview(result: MethodResult) {
     try {
       if (this.pausedPreview) {
@@ -521,7 +569,7 @@ export class Camera implements CameraCaptureStateListener {
     result.success(null);
   }
 
-  // 设置曝光区域中心点
+  // Set the exposure point
   setExposurePoint(result: MethodResult, point: Point) {
     const exposurePointFeature: ExposurePointFeature = this.cameraFeatures.getExposurePoint();
     exposurePointFeature.setValue(point);
@@ -537,8 +585,8 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 设置曝光模式。
-  // 进行设置之前，需要先检查设备是否支持指定的曝光模式，可使用方法
+  // Sets the exposure mode.
+  // Check support before setting; use isExposureModeSupported.
   // isExposureModeSupported。
   setExposureMode(result: MethodResult, newMode: camera.ExposureMode) {
     if (!CameraUtils.isExposureModeSupported(this.getCurSession(), newMode)) {
@@ -569,10 +617,10 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 设置闪光灯模式。
-  // 进行设置之前，需要先检查：
-  // 设备是否支持闪光灯，可使用方法hasFlash。
-  // 设备是否支持指定的闪光灯模式，可使用方法isFlashModeSupported。
+  // Sets the flash mode.
+  // Check support before setting:
+  // hasFlash for flash availability.
+  // isFlashModeSupported for the specific flash mode.
   setFlashMode(result: MethodResult, newMode: camera.FlashMode) {
     if (!CameraUtils.hasFlash(this.getCurSession())) {
       result.error('setFlashModeFailed', 'The camera device does not have flash.', null);
@@ -638,7 +686,7 @@ export class Camera implements CameraCaptureStateListener {
     try {
       await this.runPictureAutoFocus();
     } catch (error) {
-      // capture 发起阶段抛异常（如 session 状态异常）：立即报错，避免 Dart Future 永久挂起
+      // Exception while initiating capture (e.g. session state): fail fast to avoid a hanging Dart Future
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
       this.takePictureResult?.error('captureFailed', error.message, null);
       this.takePictureResult = undefined;
@@ -659,7 +707,7 @@ export class Camera implements CameraCaptureStateListener {
       // reset status and callback error
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
       this.takePictureResult?.error('captureSession null', errMsg, -1);
-      this.takePictureResult = undefined;   // 清空引用，避免 MethodResult 闭包滞留
+      this.takePictureResult = undefined;   // Drop the reference so the MethodResult closure does not linger
       return;
     }
 
@@ -690,18 +738,21 @@ export class Camera implements CameraCaptureStateListener {
 
     this.cameraCaptureCallback.setCameraState(CameraState.STATE_CAPTURING);
 
-    // 触发拍照
+    // Trigger the capture
+    this.captureStartTime = Date.now();
     this.photoOutput?.capture(settings, (err: BusinessError) => {
-      // 拍照完成，更新CameraState
+      // Capture finished, update CameraState
       this.cameraCaptureCallback.setCameraState(CameraState.STATE_PREVIEW);
       if (err) {
-        console.error(`Failed to capture the photo ${err.code}`);
+        Log.e(TAG, 'Failed to capture the photo: ' + err.code);
         this.takePictureResult?.error(err.code.toString(), err.message, err.data);
         this.takePictureResult = undefined;
         this.sendCameraErrorEvent(err.message);
         return;
       }
-      // 拍照成功
+      // Capture succeeded
+      Log.i(TAG, 'capture latency (control): ' + (Date.now() - this.captureStartTime) +
+        'ms (zslRequested=' + this.zeroShutterLagRequested + ')');
     });
   }
 
@@ -744,7 +795,7 @@ export class Camera implements CameraCaptureStateListener {
           : this.lastDeviceDegree % 360 + 360;
       } catch (error) {
         let err = error as BusinessError;
-        console.error(TAG + ' Decimal failed, error: ' + err.code);
+        Log.e(TAG, 'Decimal failed, error: ' + err.code);
       }
     }
     return this.lastDeviceDegree;
@@ -796,7 +847,7 @@ export class Camera implements CameraCaptureStateListener {
 
     const result = await Promise.race([sensorPromise, timeoutPromise]);
     clearTimeout(timerId);
-    // 取消尚未触发的 once 监听，避免回调闭包持有 this（Camera）直到下一条传感器数据到达
+    // Cancel the pending once-listener so its closure does not hold this Camera until the next sensor event.
     if (isGravitySupported && gravityCallback != null) {
       try {
         sensor.off(sensor.SensorId.GRAVITY, gravityCallback);
@@ -829,7 +880,8 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  async startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null) {
+  async startVideoRecording(result: MethodResult, imageStreamChannel: EventChannel | null,
+    videoOutputPath: string | null) {
     this.prepareRecording(result);
 
     if (imageStreamChannel != null) {
@@ -840,8 +892,8 @@ export class Camera implements CameraCaptureStateListener {
     this.recordingVideo = true;
 
     try {
-      // 开始录制
-      await this.startCapture(true, imageStreamChannel != null);
+      // Start recording
+      await this.startCapture(true, imageStreamChannel != null, videoOutputPath);
       result.success(null);
     } catch (e) {
       this.recordingVideo = false;
@@ -872,7 +924,7 @@ export class Camera implements CameraCaptureStateListener {
         await this.avRecorder.stop();
       }
       await this.avRecorder.release();
-      // 停止录像输出流
+      // Stop the recording output stream
       this.videoOutput?.stop();
       if (isPrepared) {
         this.videoPath = this.captureFile?.path ?? null;
@@ -884,7 +936,7 @@ export class Camera implements CameraCaptureStateListener {
       Log.d(TAG, 'videoSession stop error' + e.toString());
     } finally {
       try {
-        // 释放录像输出
+        // Release the recording output
         if (this.videoOutput != null) {
           try { await this.videoOutput.stop(); } catch (e) { Log.d(TAG, 'Failed to stop videoOutput: ' + e.message); }
           try {
@@ -894,7 +946,7 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.videoOutput = null;
         }
-        // 释放视频 session
+        // Release the video session
         if (this.videoSession != null) {
           try { await this.videoSession.stop(); } catch (e) { Log.d(TAG, 'Failed to stop videoSession: ' + e.message); }
           try {
@@ -904,7 +956,7 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.videoSession = null;
         }
-        // 释放旧 previewOutput
+        // Release the old preview output
         if (this.previewOutput != null) {
           try {
             await this.previewOutput.release();
@@ -913,7 +965,7 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.previewOutput = null;
         }
-        // 释放 stream 录像/拍照相关辅助资源(previewOutput2/photoOutput/imageStreamReader), 避免泄漏
+        // Release stream helpers (previewOutput2/photoOutput/imageStreamReader) to avoid leaks.
         await this.releasePreviewOutput();
         await this.releasePhotoOutput();
         if (this.imageStreamReader != null) {
@@ -924,12 +976,15 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.imageStreamReader = null;
         }
-        fs.close(this.captureFile);
+        if (this.captureFile) {
+          fs.close(this.captureFile);
+        }
         this.captureFile = null;
         this.isVideoMode = false;
         await this.open(this.imageFormatGroup);
       } catch (e) {
-        Log.d(TAG, 'close file or openPreview error' + e.toString());
+        Log.e(TAG, 'stopVideoRecording: reopen camera failed: ' + e.toString());
+        this.sendCameraErrorEvent('Camera reopen failed after recording: ' + e.message);
       }
     }
     result.success(this.videoPath);
@@ -943,13 +998,13 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 开启录像预览
+  // Start video preview
   async startPreviewWithVideo() {
     try {
       this.cameraOutputCapability =
         CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
           this.cameraManager);
-      // 使用fps参数选择profile，保持与startCapture逻辑一致
+      // Select the profile with the fps parameter, consistent with startCapture logic
       const preferredFps = this.cameraFeatures.getFpsRange().getValue();
       let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
                                                          .getResolution()
@@ -991,31 +1046,30 @@ export class Camera implements CameraCaptureStateListener {
         await this.previewOutput.stop();
       }
       if (this.recordingVideo && this.avRecorder != undefined && this.avRecorder.state === 'paused') {
-        // 录像中且暂停状态
+        // Recording and in paused state
       } else {
         await this.videoOutput.start();
       }
     } catch (e) {
       await this.releaseCamera()
-      Log.e(TAG, `启用录像预览失败：${e}`)
-      throw e as Error;   // 不吞错，让 open()/startVideoRecording 感知预览失败而非误报成功
+      Log.e(TAG, 'Failed to start video preview: ' + e)
+      throw e as Error;   // Do not swallow: open()/startVideoRecording must see the preview failure
     }
   }
 
-  // 开启拍照预览
+  // Start photo preview
   async startPreviewWithPhoto() {
     try {
-      // 验证前置条件
       if (!this.cameraDevice) {
-        throw new Error('相机设备未初始化');
+        throw new Error('Camera device not initialized');
       }
 
       if (!this.cameraInput) {
-        throw new Error('相机输入未初始化');
+        throw new Error('Camera input not initialized');
       }
 
       if (!this.flutterTexture) {
-        throw new Error('Flutter纹理未初始化');
+        throw new Error('Flutter texture not initialized');
       }
 
       this.cameraOutputCapability =
@@ -1024,20 +1078,20 @@ export class Camera implements CameraCaptureStateListener {
       if (!this.cameraOutputCapability ||
           this.cameraOutputCapability.previewProfiles.length === 0 ||
           this.cameraOutputCapability.photoProfiles.length === 0) {
-        throw new Error('无法获取相机输出能力');
+        throw new Error('Failed to get camera output capability');
       }
-      // 查找匹配的预览配置
+      // Find the matching preview profile
       let previewProfileIndex = this.cameraFeatures
                                     .getResolution()
                                     .getPreviewProfileIndex(this.cameraOutputCapability.previewProfiles);
-      // 查找匹配的拍照配置
+      // Find the matching photo profile
       let photoProfileIndex = this.cameraFeatures
                                   .getResolution()
                                   .getPhotoProfileIndex(this.cameraOutputCapability.photoProfiles);
-      // 验证 Surface ID
+      // Validate the Surface ID
       const surfaceId = this.flutterTexture.getSurfaceId();
       if (surfaceId <= 0) {
-        throw new Error(`无效的Flutter纹理Surface ID: ${surfaceId}`);
+        throw new Error('Invalid Flutter texture Surface ID: ' + surfaceId);
       }
       const surfaceIdString = surfaceId.toString();
       let previewSize: camera.Size = this.cameraOutputCapability.previewProfiles[previewProfileIndex].size;
@@ -1048,7 +1102,7 @@ export class Camera implements CameraCaptureStateListener {
       this.photoOutput = this.cameraManager.createPhotoOutput(
         this.cameraOutputCapability.photoProfiles[photoProfileIndex]);
 
-      // 设置拍照回调（保存引用供 releasePhotoOutput 精确注销）
+      // Register the photo callback (keep the reference for precise unregistration in releasePhotoOutput)
       this.registerPhotoAssetAvailableListener();
 
       this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
@@ -1064,21 +1118,22 @@ export class Camera implements CameraCaptureStateListener {
       await this.photoSession.start();
       this.enableAutoDeviceSwitch(this.photoSession);
       await this.applyFlashMode(this.photoSession);
+      this.applyZeroShutterLag();
       if (this.pausedPreview) {
         await this.previewOutput.stop();
       }
     } catch (error) {
-      // 清理资源
+      // Clean up resources
       this.unregisterDisplayChangeListener();
       try {
-        // 统一释放 session/输出，避免仅 stop 不 release 导致原生资源泄漏
+        // Release session/outputs uniformly so stop-without-release does not leak native resources
         await this.releaseSession();
         await this.releasePreviewOutput();
         await this.releasePhotoOutput();
       } catch (cleanupError) {
         Log.e(TAG, 'startPreviewWithPhoto cleanup failed: ' + cleanupError.message);
       }
-      throw error as Error;   // 不吞错，让 open() 感知预览失败而非误报初始化成功
+      throw error as Error;   // Do not swallow: open() must see the preview failure instead of a false success
     }
   }
 
@@ -1105,8 +1160,8 @@ export class Camera implements CameraCaptureStateListener {
       if (this.imageFileFormat === PlatformImageFileFormat.heif) {
         await this.packImageBufferToFile(data, file.fd);
       } else if (this.jpegQuality !== null) {
-        // 用户显式设置了 JPEG 质量：用 ImagePacker 按指定质量重新编码（OHOS 拍照质量仅 3 档
-        // 枚举，无法连续精度，故在落盘时重压缩）。
+        // User explicitly set JPEG quality: re-encode with ImagePacker (OHOS photo quality is only a 3-level
+        // enum without continuous precision, so re-encode when writing to disk).
         await this.packJpegBufferToFile(data, file.fd, this.jpegQuality);
       } else {
         await fs.write(file.fd, data);
@@ -1114,22 +1169,28 @@ export class Camera implements CameraCaptureStateListener {
       if (this.takePictureResult) {
         this.takePictureResult.success(photoUri);
         this.takePictureResult = undefined;
+        Log.i(TAG, 'capture to file: ' + (Date.now() - this.captureStartTime) +
+          'ms (zslRequested=' + this.zeroShutterLagRequested + ')');
       }
-      fs.closeSync(file);
     } catch (error) {
       this.takePictureResult?.error(
         'imageFileFormatEncodingFailed',
         error instanceof Error ? error.message : 'Failed to write captured image.',
         null);
       this.takePictureResult = undefined;
-      // openSync 失败时 file 为 null，需判空避免 fs.closeSync(undefined) 二次抛错
-      if (file) {
-        try { fs.closeSync(file); } catch (e) { Log.d(TAG, 'convertBufferToFile: failed to close file: ' + e.message); }
-      }
       try {
         fs.unlinkSync(photoUri);
       } catch (cleanupError) {
         Log.e(TAG, 'convertBufferToFile: failed to delete temp file: ' + cleanupError.message);
+      }
+    } finally {
+      // openSync failure leaves file null; null-check before closeSync to avoid a second throw on undefined
+      if (file) {
+        try {
+          fs.closeSync(file);
+        } catch (e) {
+          Log.d(TAG, 'convertBufferToFile: failed to close file: ' + e.message);
+        }
       }
     }
   }
@@ -1157,11 +1218,67 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
     if (this.imageFileFormat !== format) {
-      // 跨格式切换使已存 JPEG 质量失效：质量只属于某一次 jpeg 会话，切回 jpeg 后
-      // 回到默认值 null（不重编码、与全新会话一致），避免旧质量悄悄复活。
+      // Cross-format switches invalidate the stored JPEG quality: quality belongs to one jpeg session only,
+      // resetting to null on switch-back so stale quality cannot quietly revive.
       this.jpegQuality = null;
     }
     this.imageFileFormat = format;
+    result.success(null);
+  }
+
+  public isZeroShutterLagSupported(): boolean {
+    const photoOutput = this.photoOutput;
+    // The version gate inside isCapable short-circuits on pre-API 21 runtimes without
+    // touching photoOutput; on API21+ the probe result is cached per Camera instance.
+    const capable: boolean = photoOutput != null && this.zslCapability.isCapable(photoOutput);
+    Log.i(TAG, 'ZeroShutterLag: supported=' + capable);
+    return capable;
+  }
+
+  // Re-applies the stored request to the live photoOutput. No-ops when the request is
+  // off (devices never touched keep their stock default priority), when no photoOutput
+  // exists (video mode), or when the version/capability gate is false. Errors are
+  // logged only; the try/catch stays as defense-in-depth for gate misjudgement.
+  private applyZeroShutterLag(): void {
+    const photoOutput = this.photoOutput;
+    if (!this.zeroShutterLagRequested || photoOutput == null) {
+      return;
+    }
+    if (!this.zslCapability.isCapable(photoOutput)) {
+      return;
+    }
+    try {
+      photoOutput.setPhotoQualityPrioritization(camera.PhotoQualityPrioritization.SPEED);
+      Log.i(TAG, 'ZeroShutterLag: replayed SPEED after session rebuild');
+    } catch (e) {
+      Log.e(TAG, 'applyZeroShutterLag: ' + e.message);
+    }
+  }
+
+  // Stores the request and applies it to the live photoOutput when present. Disabling
+  // restores HIGH_QUALITY once while the output is live; session rebuilds with the flag
+  // off are no-ops so devices never touched keep their stock default priority. On
+  // pre-API 21 runtimes (or when the capability gate is false) the setting is skipped
+  // but the request is still recorded and success is reported unconditionally, keeping
+  // the best-effort contract intact.
+  public setZeroShutterLagEnabled(result: MethodResult, enabled: boolean): void {
+    this.zeroShutterLagRequested = enabled;
+    const photoOutput = this.photoOutput;
+    if (photoOutput != null) {
+      if (!this.zslCapability.isCapable(photoOutput)) {
+        Log.i(TAG, 'ZeroShutterLag: photo quality prioritization skipped: capability gate false');
+      } else {
+        try {
+          photoOutput.setPhotoQualityPrioritization(
+            enabled ? camera.PhotoQualityPrioritization.SPEED : camera.PhotoQualityPrioritization.HIGH_QUALITY);
+          Log.i(TAG, 'ZeroShutterLag: photo quality prioritization set to ' + (enabled ? 'SPEED' : 'HIGH_QUALITY'));
+        } catch (e) {
+          Log.e(TAG, 'setZeroShutterLagEnabled: ' + e.message);
+        }
+      }
+    } else {
+      Log.i(TAG, 'ZeroShutterLag: photo quality prioritization skipped: no photoOutput (video mode)');
+    }
     result.success(null);
   }
 
@@ -1184,7 +1301,7 @@ export class Camera implements CameraCaptureStateListener {
       imagePackerObj = image.createImagePacker();
       const supportedFormats = imagePackerObj.supportedFormats;
       Log.d(TAG, 'isHeifEncodingSupported supportedFormats : ' + JSON.stringify(supportedFormats));
-      // ohos平台中heif和heic格式是相同的，但API 14之前不支持heic
+      // On OHOS, heif and heic formats are identical, but heic is unsupported before API 14
       this.heifEncodingSupported = supportedFormats.includes('image/heif') || supportedFormats.includes('image/heic');
     } catch (error) {
       Log.w(TAG, 'Failed to query HEIF encoding support: ' + error);
@@ -1196,8 +1313,8 @@ export class Camera implements CameraCaptureStateListener {
     return this.heifEncodingSupported;
   }
 
-  // 用指定 quality (1-100) 将拍照 buffer 重新编码为 JPEG 并写入文件。
-  // 用于实现 setJpegImageQuality 的连续精度（OHOS PhotoCaptureSetting.quality 仅 3 档枚举）。
+  // Re-encodes the captured buffer to JPEG with the given quality (1-100) and writes it to a file.
+  // Implements continuous precision for setJpegImageQuality (OHOS PhotoCaptureSetting.quality is a 3-level enum).
   private async packJpegBufferToFile(data: ArrayBuffer, fd: number, quality: number): Promise<void> {
     let imageSource: image.ImageSource | null = null;
     let imagePackerObj: image.ImagePacker | null = null;
@@ -1247,10 +1364,10 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     try {
-      // 仅在started状态下调用pause为合理状态切换
+      // Pause is a valid transition only from the started state
       if (this.avRecorder != undefined && this.avRecorder.state === 'started') {
         await this.avRecorder.pause();
-        await this.videoOutput?.stop(); // 停止相机出流
+        await this.videoOutput?.stop(); // Stop the camera output stream
       }
 
     } catch (e) {
@@ -1268,9 +1385,9 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
     try {
-      // 仅在paused状态下调用resume为合理状态切换
+      // Resume is a valid transition only from the paused state
       if (this.avRecorder != undefined && this.avRecorder.state === 'paused') {
-        await this.videoOutput?.start(); // 启动相机出流
+        await this.videoOutput?.start(); // Start the camera output stream
         await this.avRecorder?.resume();
       } else {
         result.error(
@@ -1288,50 +1405,85 @@ export class Camera implements CameraCaptureStateListener {
 
   startPreviewWithImageStream(imageStreamChannel: EventChannel) {
     this.setStreamHandler(imageStreamChannel);
-    // 消费异步链并捕获异常，避免 startImageStream 内部异步清理失败产生未处理的 Promise 拒
-    // 绝
+    // Consume the async chain and catch failures so async cleanup errors in startImageStream do not
+    // become unhandled Promise rejections.
     this.startImageStream().catch((e: Error) => {
       Log.e(TAG, 'startImageStream failed: ' + e.message);
+      this.sendCameraErrorEvent('startImageStream failed: ' + e.message);
     });
   }
 
   async startImageStream() {
-    // 释放旧的 session/输出，避免覆盖引用导致原生 PhotoOutput/PhotoSession 泄漏
+    // Release stale session/outputs to avoid native PhotoOutput/PhotoSession overwrite leaks
     await this.releaseSession();
     await this.releasePhotoOutput();
     await this.releasePreviewOutput();
 
-    let profiles =
-      CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
-    let previewProfileIndex = this.cameraFeatures
+    // Step tracker for failure localization: the next occurrence of the switch-race
+    // 401/7400101 failures can be pinned to the exact native call via this marker.
+    let step = 'getSupportedOutputCapability';
+    try {
+      let profiles =
+        CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
+      let previewProfileIndex = this.cameraFeatures
+                                    .getResolution()
+                                    .getPreviewProfileIndex(profiles.previewProfiles);
+      const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
+      if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+        Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+          ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+      }
+      this.imageStreamReader!.setReportedImageFormat(actualFormat);
+      step = 'createPreviewOutput';
+      this.previewOutput = this.cameraManager.createPreviewOutput(
+        profiles.previewProfiles[previewProfileIndex],
+        this.flutterTexture.getSurfaceId().toString());
+      step = 'createPhotoOutput';
+      let photoProfileIndex = this.cameraFeatures
                                   .getResolution()
-                                  .getPreviewProfileIndex(profiles.previewProfiles);
-    this.previewOutput = this.cameraManager.createPreviewOutput(
-      profiles.previewProfiles[previewProfileIndex],
-      this.flutterTexture.getSurfaceId().toString());
-    let photoProfileIndex = this.cameraFeatures
-                                .getResolution()
-                                .getPhotoProfileIndex(profiles.photoProfiles);
-    this.photoOutput = this.cameraManager.createPhotoOutput(
-      profiles.photoProfiles[photoProfileIndex]);
-    let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
-    this.previewOutput2 =
-      this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
+                                  .getPhotoProfileIndex(profiles.photoProfiles);
+      this.photoOutput = this.cameraManager.createPhotoOutput(
+        profiles.photoProfiles[photoProfileIndex]);
+      step = 'getReceivingSurfaceId';
+      let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
+      step = 'createPreviewOutput(imageReceiver)';
+      this.previewOutput2 =
+        this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
 
-    this.registerPhotoAssetAvailableListener();
+      this.registerPhotoAssetAvailableListener();
 
-    this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
-    this.photoSession.beginConfig();
-    await this.cameraInput?.open();
-    this.photoSession.addInput(this.cameraInput);
-    this.photoSession.addOutput(this.previewOutput);
-    this.photoSession.addOutput(this.previewOutput2);
-    this.photoSession.addOutput(this.photoOutput);
-    await this.photoSession.commitConfig();
-    this.updatePreviewRotation();
-    this.registerDisplayChangeListener();
-    await this.photoSession.start();
-    this.enableAutoDeviceSwitch(this.photoSession);
+      step = 'createSession';
+      this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
+      this.photoSession.beginConfig();
+      step = 'cameraInput.open';
+      await this.cameraInput?.open();
+      this.photoSession.addInput(this.cameraInput);
+      this.photoSession.addOutput(this.previewOutput);
+      this.photoSession.addOutput(this.previewOutput2);
+      this.photoSession.addOutput(this.photoOutput);
+      step = 'commitConfig';
+      await this.photoSession.commitConfig();
+      this.updatePreviewRotation();
+      this.registerDisplayChangeListener();
+      step = 'session.start';
+      await this.photoSession.start();
+      this.enableAutoDeviceSwitch(this.photoSession);
+      this.applyZeroShutterLag();
+    } catch (e) {
+      Log.e(TAG, 'startImageStream failed at step [' + step + ']: ' + e.message);
+      await this.releaseSession();
+      await this.releasePhotoOutput();
+      await this.releasePreviewOutput();
+      // Black-screen fallback: when this path runs during camera switching, the old
+      // instance is already gone and a failed stream start would leave the texture
+      // dead. Restart a plain photo preview so the user keeps a live picture (stream
+      // frames resume once Dart retries); the primary error still propagates to Dart
+      // via the caller's catch.
+      await this.startPreviewWithPhoto().catch((fallbackError: Error) => {
+        Log.e(TAG, 'startImageStream: fallback preview also failed: ' + fallbackError.message);
+      });
+      throw e as Error;  // Rethrow so the caller catch propagates the failure to Dart.
+    }
   }
 
   async prepareMediaRecorder(cameraManager: camera.CameraManager,
@@ -1342,11 +1494,11 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  async startCapture(record: boolean, stream: boolean) {
+  async startCapture(record: boolean, stream: boolean, videoOutputPath: string | null = null) {
     if (!this.pausedPreview) {
       await this.getCurSession().stop();
     }
-    // 释放旧的 photoSession / photoOutput / previewOutput，避免覆盖引用导致原生会话/输出泄漏
+    // Release stale photoSession/photoOutput/previewOutput to avoid native overwrite leaks
     await this.releaseSession();
     await this.releasePhotoOutput();
     await this.releasePreviewOutput();
@@ -1355,14 +1507,14 @@ export class Camera implements CameraCaptureStateListener {
       let recorder = await media.createAVRecorder();
       if (recorder != null) {
         this.avRecorder = recorder;
-        let videoUri: string = getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4';
+        let videoUri: string = videoOutputPath ?? (getContext(this).cacheDir + '/REC' + Date.now().toString() + '.mp4');
         this.captureFile = fs.openSync(videoUri, fs.OpenMode.READ_WRITE | fs.OpenMode.CREATE);
         let fd = this.captureFile.fd;
 
         this.cameraOutputCapability =
           CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_VIDEO,
             this.cameraManager);
-        // 录像模式下同样基于目标 fps 选择最合适的会话 profile。
+        // In video mode, select the session profile based on the target fps as well.
         const preferredFps = this.cameraFeatures.getFpsRange().getValue();
         let videoSessionProfile: VideoSessionProfile = this.cameraFeatures
                                                            .getResolution()
@@ -1373,7 +1525,7 @@ export class Camera implements CameraCaptureStateListener {
 
         this.aVRecorderProfile.videoFrameWidth = videoSessionProfile.getCaptureProfile()?.size.width;
         this.aVRecorderProfile.videoFrameHeight = videoSessionProfile.getCaptureProfile()?.size.height;
-        // 使用筛选后的 profile 更新 AVRecorder 目标帧率。
+        // Update the AVRecorder target frame rate using the filtered profile.
         this.updateRecorderFrameRate(videoSessionProfile.getCaptureProfile());
         if (this.targetVideoBitrate != null && this.targetVideoBitrate > 0) {
             this.aVRecorderProfile.videoBitrate = this.targetVideoBitrate;
@@ -1386,6 +1538,12 @@ export class Camera implements CameraCaptureStateListener {
           this.videoId = await this.avRecorder?.getInputSurface();
         });
 
+        const actualFormat: number = videoSessionProfile.getPreviewProfile()!.format;
+        if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+          Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+            ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+        }
+        this.imageStreamReader!.setReportedImageFormat(actualFormat);
         let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
         this.cameraFeatures.getResolution().setPreviewSize(previewSize);
         this.previewOutput = this.cameraManager.createPreviewOutput(
@@ -1440,12 +1598,12 @@ export class Camera implements CameraCaptureStateListener {
         }
       } else {
         Log.e(TAG, 'startVideo createAVRecorder fail : recorder is null');
-        // 抛错走外层 catch 统一清理，让 startVideoRecording 报 videoRecordingFailed
+        // Rethrow to the outer catch for unified cleanup; startVideoRecording reports videoRecordingFailed
         throw new Error('createAVRecorder returned null');
       }
     } catch (error) {
       Log.e(TAG, 'startVideo createAVRecorder fail :' + error.message);
-      // 清理已创建的资源
+      // Clean up created resources
       if (this.avRecorder) {
         try {
           await this.avRecorder.release();
@@ -1466,7 +1624,7 @@ export class Camera implements CameraCaptureStateListener {
       await this.releasePhotoOutput();
       await this.releasePreviewOutput();
       await this.releaseSession();
-      throw error as Error;  // 重新抛出，让调用者处理
+      throw error as Error;  // Rethrow for the caller to handle
     }
   }
 
@@ -1503,30 +1661,30 @@ export class Camera implements CameraCaptureStateListener {
     const fpsFeature = this.cameraFeatures.getFpsRange();
     const preferredFps = fpsFeature.getPreferredFpsForProfile(profile);
 
-    // 目标 fps 会按 profile 可支持范围钳制，避免设置非法帧率。
+    // The target fps is clamped to the profile supported range, avoiding illegal frame rate settings.
     if (preferredFps != null && preferredFps > 0) {
       this.aVRecorderProfile.videoFrameRate = preferredFps;
     }
   }
 
-  // 设置视频防抖模式
+  // Set the video stabilization mode
   public setVideoStabilizationMode(result: MethodResult, mode: PlatformVideoStabilizationMode) {
-    console.log(Camera.TAG, `Camera.ets - setVideoStabilizationMode called with mode: ${mode}`);
-    // 保存用户设置的防抖模式
+    Log.i(TAG, 'setVideoStabilizationMode called with mode: ' + mode);
+    // Store the user-selected stabilization mode
     this.cameraFeatures.getVideoStabilization().setValue(mode);
 
-    // 记录日志说明实际应用将在录制开始时进行
-    console.log(Camera.TAG, `Video stabilization mode ${mode} saved, will be applied during video recording start`);
+    // Logged to note that the actual application happens when recording starts
+    Log.i(TAG, 'Video stabilization mode ' + mode + ' saved, will be applied during video recording start');
 
     result.success(null);
   }
 
-  // 获取当前相机支持的防抖模式列表
+  // Get the stabilization modes supported by the current camera
   public getSupportedVideoStabilizationModes(): PlatformVideoStabilizationMode[] {
-    console.log(Camera.TAG, 'Camera.ets - getSupportedVideoStabilizationModes called');
-    // 通过特性管理类查询底层支持情况
+    Log.i(TAG, 'getSupportedVideoStabilizationModes called');
+    // Query the underlying support via the feature manager
     const modes = this.cameraFeatures.getVideoStabilization().getSupportedModes();
-    console.log(Camera.TAG, `Camera.ets - getSupportedVideoStabilizationModes returning from feature: ${modes}`);
+    Log.i(TAG, 'getSupportedVideoStabilizationModes returning from feature: ' + modes);
     return modes;
   }
 
@@ -1768,14 +1926,20 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 关闭
+  // Exposed for CameraApiImpl contention retry: guards against retrying open() on a
+  // torn-down instance (open-after-close is a silent no-op by design).
+  public isClosedState(): boolean {
+    return this.isClosed;
+  }
+
+  // Close
   public async close(): Promise<void> {
     if (this.isClosed) {
       return;
     }
     this.isClosed = true;
-    // 先 error 完成拍照的 Pigeon 回复再清空引用，避免拍照中途 dispose 后 Dart takePicture Future
-    // 永久挂起
+    // Complete the Pigeon reply for an in-flight capture with error BEFORE clearing the reference, so the
+    // Dart takePicture Future does not hang forever when dispose happens mid-capture.
     if (this.takePictureResult != null) {
       this.takePictureResult.error('cameraClosed', 'Camera was closed before picture could be taken.', null);
       this.takePictureResult = undefined;
@@ -1783,7 +1947,7 @@ export class Camera implements CameraCaptureStateListener {
     this.unregisterDisplayChangeListener();
     this.unregisterFoldStatusChangeListener();
     this.unregisterAutoDeviceSwitchListener();
-    // 停止 DeviceOrientationManager 的 display 'change' 监听，杜绝 close 后残留（stop 幂等）
+    // Stop the DeviceOrientationManager display change listener to leave no residue after close (idempotent)
     this.getDeviceOrientationManager()?.stop();
 
     await this.stopAndReleaseCamera();
@@ -1801,9 +1965,18 @@ export class Camera implements CameraCaptureStateListener {
     this.avRecorder = null;
     this.cameraDevice = null;
     this.sendCameraClosingEvent();
+    // An abandoned recording leaves captureFile open; close it to avoid leaking the fd.
+    if (this.captureFile) {
+      try {
+        fs.close(this.captureFile);
+      } catch (e) {
+        Log.d(TAG, 'close: failed to close captureFile: ' + e.message);
+      }
+      this.captureFile = null;
+    }
   }
 
-  // 关闭摄像头输入流
+  // Stop and release the camera input stream
   private async stopAndReleaseCamera() {
     if (this.cameraInput != null) {
       try {
@@ -1823,11 +1996,24 @@ export class Camera implements CameraCaptureStateListener {
       }
       this.cameraInput = null;
     }
-    // ② 释放输出资源
+    // (2) Release output resources
+    // Stop an in-flight recording so the mp4 container is finalized before outputs are released.
+    if (this.recordingVideo && this.avRecorder != null) {
+      const isPrepared = this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' ||
+        this.avRecorder.state === 'prepared';
+      if (isPrepared) {
+        try {
+          await this.avRecorder.stop();
+        } catch (e) {
+          Log.e(TAG, 'stopAndReleaseCamera: failed to stop avRecorder: ' + e.message);
+        }
+      }
+      this.recordingVideo = false;
+    }
     await this.releasePreviewOutput();
     await this.releaseVideoOutput();
     await this.releasePhotoOutput();
-    // ③ 停止并释放 session
+    // (3) Stop and release the session
     await this.releaseSession();
     if (this.imageStreamReader != null) {
       try {
@@ -1844,9 +2030,9 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   public setDescriptionWhileRecording(result: MethodResult, properties: CameraProperties) {
-    // OHOS Camera Kit 无"录制中切换相机"API（switchToRearCamera 为 close→recreate 流程，不适用录制
-    // 中）。
-    // 返回稳定英文错误码，Dart 侧据此识别该平台限制。
+    // OHOS Camera Kit has no switch-camera-while-recording API (switchToRearCamera is a close-recreate flow,
+    // not applicable while recording).
+    // Return a stable English error code so Dart can recognize this platform limitation.
     result.error('setDescriptionWhileRecordingUnsupported', 'Camera switching is not supported while recording.', null);
     return;
   }
@@ -1854,11 +2040,11 @@ export class Camera implements CameraCaptureStateListener {
   async dispose() {
     Log.e(TAG, 'dispose');
     await this.close();
-    // close() 已停止方向监听（幂等）；经 feature 统一收尾，保持资源释放入口内聚
+    // close() already stopped orientation listening (idempotent); finalize via the feature for cohesive release
     this.cameraFeatures.getSensorOrientation().dispose();
   }
 
-  // 释放Session
+  // Release the session
   private async releaseSession() {
     if (this.photoSession != null) {
       try {
@@ -1933,7 +2119,7 @@ export class Camera implements CameraCaptureStateListener {
   private async releasePhotoOutput() {
     if (this.photoOutput != null) {
       try {
-        // 带回调引用精确注销，避免无参 off 误删其他监听、或重复注册匿名回调
+        // Unregister with the stored callback reference so a bare off() does not remove other listeners.
         if (this.photoAssetAvailableCallback != null) {
           this.photoOutput.off('photoAssetAvailable', this.photoAssetAvailableCallback);
           this.photoAssetAvailableCallback = null;
@@ -1958,7 +2144,7 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
-  // 释放Camera
+  // Release the camera
   async releaseCamera() {
     await this.releaseCameraInput();
     await this.releaseSession();

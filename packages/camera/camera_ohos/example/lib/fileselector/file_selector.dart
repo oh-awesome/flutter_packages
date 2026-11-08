@@ -19,4 +19,9 @@ class FileSelector {
     print(fd);
     return fd;
   }
+
+  /// Closes a file descriptor previously returned by [openFileByPath].
+  ///
+  /// Returns whether the descriptor was closed by the native side.
+  Future<bool?> closeFileByFd(int fd) => _api.closeFileByFd(fd);
 }

@@ -44,6 +44,7 @@ import { CameraProperties } from '../../../main/ets/io/flutter/plugins/camera/Ca
 import { CameraCaptureStateListener } from
   '../../../main/ets/io/flutter/plugins/camera/CameraCaptureCallback';
 import { FlutterError, Result } from '../../../main/ets/io/flutter/plugins/camera/Messages';
+import { ZslVersionGate } from '../../../main/ets/io/flutter/plugins/camera/ZslCapability';
 
 export const PIGEON_CAMERA_API_PREFIX: string = 'dev.flutter.pigeon.camera_ohos.CameraApi.';
 export const PIGEON_GLOBAL_EVENT_PREFIX: string =
@@ -525,6 +526,24 @@ export function makeFakeImage(width: number, height: number): image.Image {
 
 export function fakeImageReleaseCount(fake: image.Image): number {
   return ((fake as ESObject) as FakeImageShell).releaseCount;
+}
+
+// ---------------------------------------------------------------------------
+// ZSL version gate stub.
+// ---------------------------------------------------------------------------
+
+// ZSL version gate double: scripted constant verdict, no system calls. Lets the
+// suites exercise both gate verdicts on any device regardless of its real API level.
+export class FakeZslGate implements ZslVersionGate {
+  private readonly supported: boolean;
+
+  constructor(supported: boolean) {
+    this.supported = supported;
+  }
+
+  isVersionSupported(): boolean {
+    return this.supported;
+  }
 }
 
 // ---------------------------------------------------------------------------

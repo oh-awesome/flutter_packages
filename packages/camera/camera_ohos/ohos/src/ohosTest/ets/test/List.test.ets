@@ -32,6 +32,7 @@ import cameraLifecycleTest from './CameraLifecycle.test';
 import pigeonDispatchTest from './PigeonDispatch.test';
 import cameraSessionMethodsTest from './CameraSessionMethods.test';
 import cameraApiImplDelegatedTest from './CameraApiImplDelegated.test';
+import zslCapabilityTest from './ZslCapability.test';
 
 export default function testsuite() {
   pureTypesAndEnumsTest();
@@ -51,4 +52,5 @@ export default function testsuite() {
   pigeonDispatchTest();
   cameraSessionMethodsTest();
   cameraApiImplDelegatedTest();
+  zslCapabilityTest();
 }

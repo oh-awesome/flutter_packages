@@ -36,11 +36,14 @@ import {
   PlatformImageFileFormat,
   PlatformImageFormatGroup,
   PlatformPoint,
-  PlatformVideoStabilizationMode
+  PlatformVideoStabilizationMode,
+  Result
 } from '../../../main/ets/io/flutter/plugins/camera/Messages';
 import { CameraPermissions } from '../../../main/ets/io/flutter/plugins/camera/CameraPermissions';
+import { ZslVersionGate } from '../../../main/ets/io/flutter/plugins/camera/ZslCapability';
 import { Point } from '../../../main/ets/io/flutter/plugins/camera/features/Point';
 import {
+  FakeZslGate,
   MockAbilityBinding,
   MockBinaryMessenger,
   StubPigeonResult,
@@ -54,6 +57,11 @@ class FakeCamera {
   calls: Array<string> = new Array<string>();
   failMode: string = '';
   failOpenWith: string = '';
+
+  // Mirrors Camera.isClosedState() for the contention retry guard in initialize().
+  isClosedState(): boolean {
+    return false;
+  }
 
   private deliver(name: string, result: MethodResult): void {
     this.calls.push(name);
@@ -143,6 +151,15 @@ class FakeCamera {
     this.deliver('setJpegImageQuality', result);
   }
 
+  isZeroShutterLagSupported(): boolean {
+    this.calls.push('isZeroShutterLagSupported');
+    return true;
+  }
+
+  setZeroShutterLagEnabled(result: MethodResult, enabled: boolean): void {
+    this.deliver('setZeroShutterLagEnabled:' + (enabled ? 'true' : 'false'), result);
+  }
+
   getSupportedVideoStabilizationModes(): PlatformVideoStabilizationMode[] {
     this.calls.push('getSupportedVideoStabilizationModes');
     return [PlatformVideoStabilizationMode.off, PlatformVideoStabilizationMode.level1,
@@ -224,6 +241,33 @@ function makeDelegatedApi(failMode: string): DelegateHandle {
     (new WorkingRegistryShell() as ESObject) as Object;
   const handle: DelegateHandle = { api: api, fake: fake };
   return handle;
+}
+
+// Same wiring as makeDelegatedApi, plus an injected ZSL version gate, so the
+// gate short-circuit paths can be exercised on any device.
+function makeDelegatedApiWithGate(failMode: string, gate: ZslVersionGate): DelegateHandle {
+  const api: CameraApiImpl =
+    new CameraApiImpl(new MockAbilityBinding().getAbility(), new MockBinaryMessenger(),
+      makeFakeTextureRegistry(), gate);
+  const fake: FakeCamera = new FakeCamera();
+  fake.failMode = failMode;
+  (api as ESObject).camera = (fake as ESObject) as Object;
+  (api as ESObject).textureRegistry =
+    (new WorkingRegistryShell() as ESObject) as Object;
+  const handle: DelegateHandle = { api: api, fake: fake };
+  return handle;
+}
+
+// Records Pigeon Result<boolean> success values for the ZSL support-probe assertions.
+class StubBooleanResult implements Result<boolean> {
+  successValues: Array<boolean> = new Array<boolean>();
+
+  success(result: boolean): void {
+    this.successValues.push(result);
+  }
+
+  error(_error: Error): void {
+  }
 }
 
 async function rejectCode(pending: Promise<void>): Promise<string> {
@@ -338,7 +382,7 @@ export default function cameraApiImplDelegatedTest() {
       await okHandle.api.resumePreview();
       await okHandle.api.pauseVideoRecording();
       await okHandle.api.resumeVideoRecording();
-      await okHandle.api.startVideoRecording(true);
+      await okHandle.api.startVideoRecording(true, null);
       await okHandle.api.setFocusMode(PlatformFocusMode.locked);
       expect(okHandle.fake.calls.indexOf('pausePreview') >= 0).assertTrue();
 
@@ -417,10 +461,34 @@ export default function cameraApiImplDelegatedTest() {
       expect(handle.fake.calls.indexOf('close') >= 0).assertTrue();
     });
 
+    it('initialize_contentionRetryReopensAndFailsClosed', 0, async (): Promise<void> => {
+      // AI-review regression lock (severe/stability): a contention failed open
+      // ('Camera service fatal error') retries on the same still-re-openable
+      // instance and reports CameraError only after the retry also fails. The
+      // previous implementation self-closed the instance inside Camera.open's
+      // catch, which turned the retry into a silent no-op zombie success.
+      // isClosedState stays false throughout and close() runs once after the
+      // final failure.
+      const handle: DelegateHandle = makeDelegatedApi('');
+      handle.fake.failOpenWith = 'Camera service fatal error';
+      let code: string = '(did not reject)';
+      try {
+        await handle.api.initialize(PlatformImageFormatGroup.jpeg);
+      } catch (e) {
+        code = (e as FlutterError).code;
+      }
+      expect(code).assertEqual('CameraError');
+      expect(handle.fake.calls.filter(c => c === 'open').length).assertEqual(2);
+      expect(handle.fake.calls.indexOf('close') >= 0).assertTrue();
+    });
+
     it('dispose_closesDisposesAndResetsTexture', 0, async (): Promise<void> => {
       const handle: DelegateHandle = makeDelegatedApi('');
       (handle.api as ESObject).textureId = 5;
-      await handle.api.dispose();
+      // dispose() only schedules the real teardown behind the 800ms lifecycle-jitter
+      // grace window, so synchronous assertions would never observe it;
+      // disposeImmediately() cancels the timer and runs the teardown now.
+      await handle.api.disposeImmediately();
       expect(handle.fake.calls.indexOf('close') >= 0).assertTrue();
       expect(handle.fake.calls.indexOf('dispose') >= 0).assertTrue();
       expect(((handle.api as ESObject).camera == null)).assertTrue();
@@ -452,6 +520,57 @@ export default function cameraApiImplDelegatedTest() {
       expect(handle.fake.calls.indexOf('close') >= 0).assertTrue();
       expect(handle.fake.calls.indexOf('dispose') >= 0).assertTrue();
       expect(((handle.api as ESObject).camera == null)).assertTrue();
+    });
+
+    it('zslGateFalse_isSupportedShortCircuitsWithoutDelegation', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(false));
+      const result: StubBooleanResult = new StubBooleanResult();
+      handle.api.isZeroShutterLagSupported(result);
+      expect(result.successValues.length).assertEqual(1);
+      expect(result.successValues[0]).assertEqual(false);
+      // Short-circuit: the camera delegate must never be reached.
+      expect(handle.fake.calls.indexOf('isZeroShutterLagSupported') < 0).assertTrue();
+    });
+
+    it('zslGateFalse_setRecordsNothingAndResolves', 0, async (): Promise<void> => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(false));
+      await handle.api.setZeroShutterLagEnabled(true);
+      // Best-effort contract: success without recording the request, so the
+      // camera-switch replay stays silent.
+      expect(handle.fake.calls.indexOf('setZeroShutterLagEnabled:true') < 0).assertTrue();
+      expect(((handle.api as ESObject).zeroShutterLagRequested as boolean)).assertEqual(false);
+    });
+
+    it('zslGateTrue_isSupportedDelegatesTrue', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(true));
+      const result: StubBooleanResult = new StubBooleanResult();
+      handle.api.isZeroShutterLagSupported(result);
+      expect(result.successValues.length).assertEqual(1);
+      expect(result.successValues[0]).assertEqual(true);
+      expect(handle.fake.calls.indexOf('isZeroShutterLagSupported') >= 0).assertTrue();
+    });
+
+    it('zslGateTrue_setDelegatesAndRecords', 0, async (): Promise<void> => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(true));
+      await handle.api.setZeroShutterLagEnabled(true);
+      expect(handle.fake.calls.indexOf('setZeroShutterLagEnabled:true') >= 0).assertTrue();
+      expect(((handle.api as ESObject).zeroShutterLagRequested as boolean)).assertEqual(true);
+    });
+
+    it('zslGateFalse_replayBlockedByGateDoubleGuard', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(false));
+      // Simulate a stale request state: even with the request flag set, the gate
+      // double-guard in replayCameraOutputSettings must block the delegation.
+      (handle.api as ESObject).zeroShutterLagRequested = true;
+      (handle.api as ESObject).replayCameraOutputSettings();
+      expect(handle.fake.calls.indexOf('setZeroShutterLagEnabled:true') < 0).assertTrue();
+    });
+
+    it('zslGateTrue_replayDelegates', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApiWithGate('', new FakeZslGate(true));
+      (handle.api as ESObject).zeroShutterLagRequested = true;
+      (handle.api as ESObject).replayCameraOutputSettings();
+      expect(handle.fake.calls.indexOf('setZeroShutterLagEnabled:true') >= 0).assertTrue();
     });
   });
 }

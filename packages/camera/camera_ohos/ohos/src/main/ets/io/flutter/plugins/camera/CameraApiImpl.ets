@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Hunan OpenValley Digital Industry Development Co., Ltd.
+ * Copyright (c) 2026 Huawei Device Co., Ltd.
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
@@ -37,6 +37,7 @@ import { FlashMode } from './features/flash/FlashMode';
 import { ExposureMode } from './features/exposurelock/ExposureMode';
 import { Point } from './features/Point';
 import { Camera } from './Camera';
+import { DeviceZslVersionGate, ZslVersionGate } from './ZslCapability';
 import { CameraPermissions } from './CameraPermissions';
 import { DartMessenger } from './DartMessenger';
 import { CameraProperties } from './CameraProperties';
@@ -64,7 +65,7 @@ enum CAMERA {
   External = 'external',
 }
 
-// 定义参数对象接口
+// Defines the parameter object interface.
 interface InitializeParams {
   imageFormatGroup: PlatformImageFormatGroup;
 }
@@ -116,7 +117,7 @@ interface DisposeParams {
   cameraId: number;
 }
 
-// 定义接口来解决类型问题
+// Defines an interface to work around typing issues.
 interface CallArgument {
   argument(key: string): string | number | boolean | null;
 }
@@ -295,29 +296,41 @@ export class CameraApiImpl extends CameraApi {
   private textureRegistry: TextureRegistry;
   private imageStreamChannel: EventChannel;
 
-  // 从 MethodCallHandlerImpl 移植的属性
+  // Properties ported from MethodCallHandlerImpl.
   private cameraPermissions: CameraPermissions;
   private camera: Camera | null = null;
   private flutterTexture: SurfaceTextureEntry | null = null;
   private textureId: number = -1;
   private curStatus: STATUS = STATUS.DEFAULT;
-  // 已释放标志：dispose() 后置 true，防护 create 权限异步回调迟到导致 dispose 后重建相机
+  // Disposed flag: set after dispose() so create's late permission callbacks cannot rebuild after release.
   private disposed: boolean = false;
   private currentImageFormat: string = 'jpeg';
   private currentResolutionPreset: ResolutionPreset = ResolutionPreset.medium;
   private currentEnableAudio: boolean = false;
-  // JPEG 质量 / 图片格式会话级缓存：切换摄像头会新建 Camera 实例（jpegQuality/imageFileFormat
-  // 复位为默认），此处缓存最近一次设置值，在 new Camera 后自动重放，避免切换后 Quality
-  // 失效。
+  // Session-level cache for JPEG quality / image file format: camera switching creates a fresh Camera
+  // instance (jpegQuality/imageFileFormat reset to defaults); the latest values are cached here and
+  // replayed onto each new Camera so quality stays effective across switches.
   private currentJpegQuality: number | null = null;
   private currentImageFileFormat: PlatformImageFileFormat = PlatformImageFileFormat.jpeg;
+  // Zero-shutter-lag request state (see Camera.zeroShutterLagRequested); cached here so it
+  // can be replayed onto Camera instances recreated by camera switching. On pre-API 21
+  // runtimes the gate short-circuit below never records the request, so the replay stays
+  // silent instead of triggering a doomed symbol access on every camera switch.
+  private zeroShutterLagRequested: boolean = false;
+  // ZSL API version gate; injectable so tests can fake pre-API 21 runtimes.
+  private zslGate: ZslVersionGate = new DeviceZslVersionGate();
   private cameraIdPositionMap: Map<string, camera.CameraPosition> = new Map();
   private isSwitchingCamera: boolean = false;
+  // Deferred preview restart fired by stopImageStream (un-awaited); the camera
+  // switch path awaits it so the restart does not overlap the old instance's
+  // teardown inside the camera service.
+  private pendingPreviewRestart: Promise<void> | null = null;
 
   private _disposeTimerId: number = -1;
   private static readonly DISPOSE_GRACE_MS: number = 800;
 
-  constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
+  constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry,
+    zslGate?: ZslVersionGate) {
     super();
     this.ability = ability;
     this.context = ability.context;
@@ -325,20 +338,24 @@ export class CameraApiImpl extends CameraApi {
     this.textureRegistry = textureRegistry;
     this.imageStreamChannel = new EventChannel(binaryMessenger, 'plugins.flutter.io/camera_ohos/imageStream');
     this.cameraPermissions = new CameraPermissions();
+    // ZSL gate injection: the default production gate reads sdkApiVersion once; tests
+    // inject a fake gate to simulate pre-API 21 runtimes without a real low-API device.
+    if (zslGate) {
+      this.zslGate = zslGate;
+    }
 
-    // 确保状态正确初始化
+    // Ensure the status is correctly initialized.
     this.curStatus = STATUS.DEFAULT;
     this.textureId = -1;
     this.camera = null;
     this.flutterTexture = null;
   }
 
-  // 添加正确的 create 方法实现以匹配 CameraApi 接口
-  // 在 create 方法中增强错误处理
+  // Implements create to match the CameraApi interface with enhanced error handling.
   async create(cameraName: string, mediaSettings: PlatformMediaSettings, result: Result<number>): Promise<void> {
     try {
       this._cancelPendingDispose();
-      this.disposed = false;   // 复位已释放标志，允许重新创建
+      this.disposed = false;   // Reset the disposed flag to allow re-creation
 
       console.log('mediaSettings:', JSON.stringify(mediaSettings));
 
@@ -350,12 +367,12 @@ export class CameraApiImpl extends CameraApi {
       this.curStatus = STATUS.CREATE_ING;
 
       if (this.camera) {
-        // releaseCamera 不释放 DeviceOrientationManager 的 display 监听；dispose() 是完整释放入口
+        // releaseCamera does not stop the DeviceOrientationManager display listener;
+        // dispose() is the full release entry.
         await this.camera.dispose();
       }
-      // 切换相机时旧 StreamHandler 闭包捕获旧 Camera，显式解绑切断 channel 对旧 Camera 的引用链
-      // ；
-      // 新相机会在 startVideoRecording/startPreviewWithImageStream 时重新注册 handler
+      // On camera switch the old stream handler closure holds the old Camera; unbind it explicitly to cut the
+      // reference chain. The new camera re-registers the handler on startVideoRecording/startPreviewWithImageStream.
       try {
         this.imageStreamChannel.setStreamHandler(null);
       } catch (handlerError) {
@@ -365,15 +382,15 @@ export class CameraApiImpl extends CameraApi {
         this.unregisterTexture(this.textureId);
       }
 
-      // 检查权限
+      // Check permissions
       this.cameraPermissions.requestPermissions(
         this.context,
         mediaSettings.getEnableAudio(),
         (errCode: string | null, errDesc: string | null) => {
 
           if (errCode == null) {
-            // 权限回调迟到：dispose() 已释放资源，直接报错返回，避免在已释放上下文上重
-            // 建相机
+            // Late permission callback: dispose() already released resources; fail fast instead of
+            // rebuilding the camera on a released context
             if (this.disposed) {
               this.curStatus = STATUS.DEFAULT;
               result.error(new FlutterError('CREATE_ERROR', 'CameraPlugin disposed during permission request',
@@ -385,7 +402,7 @@ export class CameraApiImpl extends CameraApi {
               this.registerCameraTexture();
 
 
-              // 创建相机实例
+              // Create the camera instance
               class CallArgumentImpl implements CallArgument {
                 argument(key: string): string | number | boolean | null {
                   switch (key) {
@@ -407,8 +424,8 @@ export class CameraApiImpl extends CameraApi {
             } catch (e) {
 
               this.curStatus = STATUS.DEFAULT;
-              // registerCameraTexture 已注册纹理但 instantiateCamera 抛错：回滚纹理，
-              // 保证异常路径与正常路径（dispose 清理）资源状态一致，避免纹理泄漏
+              // registerCameraTexture succeeded but instantiateCamera threw: roll back the texture so the
+              // failure path matches the dispose path and avoids texture leaks
               if (this.textureId > -1) {
                 try {
                   this.unregisterTexture(this.textureId);
@@ -425,7 +442,11 @@ export class CameraApiImpl extends CameraApi {
             result.error(new FlutterError(errCode, errDesc??'', errDesc??'', ''));
           }
         }
-      );
+      ).catch((e: Error): void => {
+        Log.e(TAG, 'requestPermissions rejected: ' + e.message);
+        this.curStatus = STATUS.DEFAULT;
+        result.error(new FlutterError('CREATE_ERROR', e.message, e.message, ''));
+      });
     } catch (error) {
 
       this.curStatus = STATUS.DEFAULT;
@@ -463,8 +484,8 @@ export class CameraApiImpl extends CameraApi {
       });
     } catch (error) {
       console.error('getAvailableCameras error:', error);
-      // 不再吞错降级：抛给 Pigeon 包装层（Messages.ets setUp 的 try/catch+wrapError）转
-      // PlatformException
+      // No swallow-and-degrade: rethrow to the Pigeon wrapper (try/catch + wrapError in Messages.ets setUp)
+      // which converts it to a PlatformException.
       throw error as Error;
     }
   }
@@ -497,34 +518,61 @@ export class CameraApiImpl extends CameraApi {
     return requestedCameraId;
   }
 
-  // 在 initialize 方法中增强错误处理
+  // Enhanced error handling for the initialize method.
   async initialize(imageFormat: PlatformImageFormatGroup): Promise<void> {
     this._cancelPendingDispose();
 
     this.curStatus = STATUS.INITIALIZE_ING;
     if (this.camera != null) {
-      try {
-        const imageFormatString = PlatformImageFormatGroup[imageFormat];
-        this.currentImageFormat = imageFormatString;
-        await this.camera.open(imageFormatString);
-        this.curStatus = STATUS.DEFAULT;
-      } catch (e) {
-        Log.e(TAG, 'initialize failed: ' + e.message);
-        this.curStatus = STATUS.DEFAULT;
-        // 与上游对齐：throw 的路径不发事件——若同时发事件再 throw，Dart 侧 initializeCamera
-        // 中"错误事件先完成 completer、PlatformException catch 再二次 completeError"会抛
-        // StateError。此处仅关闭相机释放资源（Camera.close 内部有 isClosed 守卫，重复调用
-        // 安全），错误经 Pigeon 错误回复单通道到达 Dart。
+      const imageFormatString = PlatformImageFormatGroup[imageFormat];
+      this.currentImageFormat = imageFormatString;
+      // Camera-switch contention retry: when this initialize races the previous
+      // instance's native teardown, open() can fail with 'Camera service fatal
+      // error' even after the 100ms settle delay on devices whose native release
+      // takes longer than the settle window. Wait and retry once on the same
+      // instance before giving up; non-contention failures retry nothing.
+      const maxAttempts: number = 2;
+      let lastErrorMessage: string = '';
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
         try {
-          await this.camera.close();
-        } catch (closeError) {
-          Log.e(TAG, 'close after initialize failed: ' + closeError.message);
+          await this.camera.open(imageFormatString);
+          this.curStatus = STATUS.DEFAULT;
+          return;
+        } catch (e) {
+          const err = e as Error;
+          const isContention = err.message.includes('Camera service fatal error');
+          Log.e(TAG, 'initialize: open attempt ' + attempt + '/' + maxAttempts +
+            (isContention ? ' (contention)' : '') + ' failed: ' + err.message);
+          lastErrorMessage = err.message;
+          if (attempt < maxAttempts && isContention) {
+            // Defense-in-depth: reopening a torn-down (isClosed) camera is a silent
+            // no-op by design, which would fake a success. Skip the retry if the
+            // instance ended up closed despite the non-self-closing cleanup above.
+            if (this.camera.isClosedState()) {
+              Log.e(TAG, 'initialize: camera closed after failed open, skip contention retry');
+              break;
+            }
+            // Let the camera service drain the previous session's async teardown,
+            // then reopen on the same instance.
+            await new Promise<void>((resolve: () => void) => { setTimeout(resolve, 300); });
+          }
         }
-        throw new FlutterError('CameraError', e.message, e.message, '');
       }
+      // All attempts failed: close to release resources (Camera.close has an isClosed
+      // guard, so repeat calls are safe); the error reaches Dart solely via the Pigeon
+      // error reply (single-channel convention: the throwing path must not also emit
+      // an event, otherwise Dart-side initializeCamera would double-complete its
+      // completer and throw StateError).
+      this.curStatus = STATUS.DEFAULT;
+      try {
+        await this.camera.close();
+      } catch (closeError) {
+        Log.e(TAG, 'close after initialize failed: ' + closeError.message);
+      }
+      throw new FlutterError('CameraError', lastErrorMessage, lastErrorMessage, '');
     } else {
-      // this.camera == null 时无法获取 cameraId 后缀，事件只能发往无人监听的裸 channel，
-      // 因此仅通过 throw 向方法调用方返回错误（wrapError → Dart PlatformException）
+      // With this.camera == null there is no cameraId suffix, so events would go to a bare channel with
+      // no listener; report the error to the caller only by throwing (wrapError -> Dart PlatformException).
       this.curStatus = STATUS.DEFAULT;
       throw new FlutterError('cameraNotFound',
           'Camera not found. Please call the \'create\' method before calling \'initialize\'.',
@@ -532,7 +580,7 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  // 在 dispose 方法中改进错误处理
+  // Enhanced error handling for the dispose method.
   async dispose(): Promise<void> {
     if (this._disposeTimerId !== -1) {
       Log.w(TAG, 'dispose: already pending, ignoring');
@@ -561,8 +609,8 @@ export class CameraApiImpl extends CameraApi {
   private async _doRealDispose(): Promise<void> {
     const cam = this.camera;
     try {
-      this.disposed = true;   // 标记已释放，防护 create 权限异步回调迟到重建
-      // 先停止相机
+      this.disposed = true;   // Mark as disposed to guard create's late permission callbacks
+      // Stop the camera first
       if (cam) {
         try {
           await cam.close();
@@ -587,17 +635,17 @@ export class CameraApiImpl extends CameraApi {
       } else {
         Log.w(TAG, '_doRealDispose: camera replaced during await, keeping new camera');
       }
-      // 解绑图像流 EventChannel stream handler，切断闭包对 Camera 的引用链（防 Dart 侧滞留订阅导
-      // 致泄漏）
+      // Unbind the image stream EventChannel handler to cut the closure-held reference to Camera
+      // (prevents leaks from Dart-side lingering subscriptions).
       try {
         this.imageStreamChannel.setStreamHandler(null);
       } catch (streamHandlerError) {
         console.error(`Failed to clear image stream handler: ${streamHandlerError}`);
       }
-      this.flutterTexture = null;         // 释放 SurfaceTextureEntry 引用
-      this.cameraIdPositionMap.clear();   // 清空 CameraPosition 缓存
-      // 资源释放后复位状态，避免 create 成功后未 initialize 即 dispose 的恢复路径再次 create
-      // 误报 already in progress
+      this.flutterTexture = null;         // Release the SurfaceTextureEntry reference
+      this.cameraIdPositionMap.clear();   // Clear the CameraPosition cache
+      // Reset the status after releasing resources so a create-after-dispose-without-initialize recovery
+      // path does not misreport "already in progress".
       this.curStatus = STATUS.DEFAULT;
     } catch (error) {
       console.error(`DISPOSE_ERROR: ${(error as Error).message}`);
@@ -614,7 +662,7 @@ export class CameraApiImpl extends CameraApi {
       console.log('lockCaptureOrientation success');
     } catch (error) {
       console.error('lockCaptureOrientation error:', error);
-      // 重新抛出，让 Pigeon 生成的 setUp handler 的 try/catch+wrapError 传播到 Dart
+      // Rethrow so the Pigeon setUp handler (try/catch + wrapError) propagates the error to Dart.
       throw error as Error;
     }
   }
@@ -656,11 +704,16 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  async startVideoRecording(enableStream: boolean): Promise<void> {
+  async startVideoRecording(enableStream: boolean, videoOutputPath: string | null): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       try {
         if (this.camera == null) {
           reject(new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized', ''));
+          return;
+        }
+        if (videoOutputPath != null && !videoOutputPath.endsWith('.mp4')) {
+          reject(new FlutterError('videoRecordingFailed', 'videoOutputPath must end with .mp4',
+            'videoOutputPath must end with .mp4', ''));
           return;
         }
         const methodResult: CameraMethodResult = {
@@ -678,7 +731,7 @@ export class CameraApiImpl extends CameraApi {
                 'startVideoRecording not implemented', ''));
           }
         };
-        this.camera.startVideoRecording(methodResult, enableStream ? this.imageStreamChannel : null);
+        this.camera.startVideoRecording(methodResult, enableStream ? this.imageStreamChannel : null, videoOutputPath);
       } catch (error) {
         console.error('startVideoRecording error:', error);
         reject(error);
@@ -794,10 +847,28 @@ export class CameraApiImpl extends CameraApi {
       if (this.camera == null) {
         throw new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized', '');
       }
-      // startPreview() 返回异步链：消费并捕获异常，避免未处理 Promise 拒绝（对齐
-      // startPreviewWithImageStream 模式）
-      this.camera.startPreview().catch((e: Error): void => {
+      // startPreview() returns an async chain: consume and catch it to avoid unhandled rejections
+      // (mirrors the startPreviewWithImageStream pattern).
+      this.pendingPreviewRestart = this.camera.startPreview().catch((e: Error): void => {
+        // Camera switching/disposal tears the old instance down asynchronously; when the
+        // deferred startPreview of stopImageStream loses that race, the failure belongs to
+        // an instance that is being discarded anyway (the new instance's preview takes
+        // over right after). Classify by lifecycle state instead of error message text so
+        // upstream wording changes cannot silently break the classification.
+        if (this.disposed || this.isSwitchingCamera) {
+          Log.e(TAG, 'stopImageStream: startPreview skipped (teardown race): ' + e.message);
+          return;
+        }
         Log.e(TAG, 'stopImageStream: startPreview failed: ' + e.message);
+        // No sendCameraErrorEvent helper on this class; report through the same
+        // CameraEventApi channel the camera-switch path uses (same Dart-side event).
+        try {
+          const cameraEventApi = new CameraEventApi(this.binaryMessenger,
+            this.camera?.dartMessenger?.getCameraIdSuffix());
+          cameraEventApi.error('stopImageStream: startPreview failed: ' + e.message, { reply: (): void => {} });
+        } catch (eventError) {
+          Log.e(TAG, 'stopImageStream: send error event failed: ' + (eventError as Error).message);
+        }
       });
       console.log('stopImageStream success');
     } catch (error) {
@@ -816,8 +887,9 @@ export class CameraApiImpl extends CameraApi {
 
       const methodResult: CameraMethodResult = {
         success: (value: Any) => {
-          // 与 Camera.setImageFileFormat 对齐：跨格式切换时缓存中的 JPEG 质量一并
-          // 失效（重置为 null），防止旧质量在切回 jpeg 后或相机重建重放时复活。
+          // Aligned with Camera.setImageFileFormat: a cross-format switch also invalidates the cached
+          // JPEG quality (reset to null), preventing stale quality from reviving after switching back to
+          // jpeg or after camera rebuild replay.
           if (this.currentImageFileFormat !== format) {
             this.currentJpegQuality = null;
           }
@@ -862,6 +934,59 @@ export class CameraApiImpl extends CameraApi {
     } catch (error) {
       result.error(new FlutterError('JPEG_QUALITY_ERROR', 'Failed to set JPEG quality',
           'Failed to set JPEG quality', ''));
+    }
+  }
+
+  async setZeroShutterLagEnabled(enabled: boolean): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      try {
+        if (this.camera == null) {
+          reject(new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized', ''));
+          return;
+        }
+        // Pre-API 21 runtimes: report success without recording the request, so the
+        // camera-switch replay stays silent (the gate makes the feature a no-op anyway).
+        if (!this.zslGate.isVersionSupported()) {
+          resolve();
+          return;
+        }
+        this.zeroShutterLagRequested = enabled;
+        const methodResult: CameraMethodResult = {
+          success: (value: Any) => {
+            resolve();
+          },
+          error: (errorCode: string, errorMessage: string, errorDetails: Any) => {
+            reject(new FlutterError(errorCode, errorMessage, errorMessage, ''));
+          },
+          notImplemented: () => {
+            reject(new FlutterError('ZERO_SHUTTER_LAG_ERROR', 'Method not implemented',
+                'Method not implemented', ''));
+          }
+        };
+        this.camera.setZeroShutterLagEnabled(methodResult, enabled);
+      } catch (error) {
+        reject(new FlutterError('ZERO_SHUTTER_LAG_ERROR', 'Failed to set zero shutter lag',
+            'Failed to set zero shutter lag', ''));
+      }
+    });
+  }
+
+  isZeroShutterLagSupported(result: Result<boolean>): void {
+    try {
+      if (this.camera == null) {
+        result.error(new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized',
+            ''));
+        return;
+      }
+      // Pre-API 21 runtimes: false without touching the camera delegate.
+      if (!this.zslGate.isVersionSupported()) {
+        result.success(false);
+        return;
+      }
+      result.success(this.camera.isZeroShutterLagSupported());
+    } catch (error) {
+      result.error(new FlutterError('ZERO_SHUTTER_LAG_ERROR', 'Failed to query zero shutter lag support',
+          'Failed to query zero shutter lag support', ''));
     }
   }
 
@@ -995,8 +1120,8 @@ export class CameraApiImpl extends CameraApi {
         let mode: camera.FocusMode;
         switch (focusMode) {
           case PlatformFocusMode.auto:
-            // auto 对应连续自动对焦（对齐 camera_android 的 CONTINUOUS_PICTURE），
-            // 单次 FOCUS_MODE_AUTO 对焦完成即停，观感如同锁定。
+            // auto maps to continuous auto focus (aligned with camera_android CONTINUOUS_PICTURE); a single
+            // FOCUS_MODE_AUTO stops once focus completes, which feels like a lock.
             mode = camera.FocusMode.FOCUS_MODE_CONTINUOUS_AUTO;
             break;
           case PlatformFocusMode.locked:
@@ -1057,7 +1182,7 @@ export class CameraApiImpl extends CameraApi {
   }
 
 
-  // 从 MethodCallHandlerImpl 移植的私有方法
+  // Private helpers ported from MethodCallHandlerImpl.
   private registerCameraTexture(): void {
     this.textureId = this.textureRegistry.getTextureId();
     this.flutterTexture = this.textureRegistry.registerTexture(this.textureId);
@@ -1112,8 +1237,8 @@ export class CameraApiImpl extends CameraApi {
         Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
     };
 
-    // 重建 Camera 实例后重放会话级输出设置（JPEG 质量 / 图片格式），避免切换后 Quality 失
-    // 效。
+    // Replay session-level output settings (JPEG quality / image format) after the Camera instance is
+    // rebuilt, keeping quality effective across switches.
     this.replayCameraOutputSettings();
 
     const reply: HashMap<String, Object> = new HashMap();
@@ -1121,8 +1246,8 @@ export class CameraApiImpl extends CameraApi {
     result.success(this.textureId);
   }
 
-  // 切换摄像头会 new Camera 全新实例（jpegQuality/imageFileFormat 复位为默认），
-  // 此处将缓存的会话级设置重放到新实例上。
+  // Camera switching creates a fresh Camera instance (jpegQuality/imageFileFormat reset to defaults);
+  // replay the cached session-level settings onto the new instance.
   private replayCameraOutputSettings(): void {
     if (this.camera == null) {
       return;
@@ -1137,11 +1262,19 @@ export class CameraApiImpl extends CameraApi {
       }
     };
     this.camera.setImageFileFormat(methodResult, this.currentImageFileFormat);
-    // 仅在用户显式设置过质量且当前格式为 jpeg 时重放；currentJpegQuality 为 null
-    // （用户从未设置）时必须保持原值——null 语义是"不启用拍照落盘重编码"，
-    // 此处禁止补写默认值或向相机下发 100，否则未设置过的会话会在重建后被动启用重编码。
+    // Replay only when the user explicitly set a quality AND the current format is jpeg; when
+    // currentJpegQuality is null (never set) it must stay null - null means "no re-encoding on capture",
+    // so writing a default or pushing 100 to the camera is forbidden here; sessions that never set
+    // quality must not passively enable re-encoding after rebuild.
     if (this.currentJpegQuality != null && this.currentImageFileFormat == PlatformImageFileFormat.jpeg) {
       this.camera.setJpegImageQuality(methodResult, this.currentJpegQuality);
+    }
+    // Replay only when the user explicitly requested ZSL; default-off devices must stay
+    // untouched (same explicit-request rationale as currentJpegQuality above). The gate
+    // check is belt-and-braces: pre-API 21 runtimes never record the request (short
+    // circuit in setZeroShutterLagEnabled), so the replay condition is false there.
+    if (this.zeroShutterLagRequested && this.zslGate.isVersionSupported()) {
+      this.camera.setZeroShutterLagEnabled(methodResult, true);
     }
   }
 
@@ -1177,25 +1310,43 @@ export class CameraApiImpl extends CameraApi {
 
       const oldCamera = this.camera;
       if (oldCamera != null) {
+        // Serialize with the old instance's deferred preview restart: stopImageStream
+        // fires it un-awaited, and its overlap with the switch teardown inside the
+        // camera service produced 'Camera service fatal error'/401 failures (see the
+        // switch black-screen log analysis). Best-effort wait; the chain has its own
+        // catch, so awaiting cannot throw here.
+        if (this.pendingPreviewRestart != null) {
+          try {
+            await this.pendingPreviewRestart;
+          } catch (e) {
+            Log.d(TAG, 'switchToRearCamera: pending preview restart already failed: ' + (e as Error).message);
+          }
+          this.pendingPreviewRestart = null;
+        }
         try {
-          oldCamera.onAutoSwitchToRearCamera = null; // 避免循环触发
+          oldCamera.onAutoSwitchToRearCamera = null; // Prevent re-trigger loops
           await oldCamera.close();
         } catch (e) {
           Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
         }
-        // close() 已停方向监听；dispose() 幂等兜底，确保旧 Camera 完整释放（含 closed 事件通知
-        // ）
+        // close() already stopped orientation listening; dispose() runs idempotently to fully release
+        // the old Camera (including the closed event notification).
         try {
           await oldCamera.dispose();
         } catch (e) {
           Log.e(TAG, 'switchToRearCamera: dispose old camera failed: ' + e.message);
         }
-        // 切换相机时旧 StreamHandler 闭包捕获旧 Camera，显式解绑切断引用链
+        // On camera switch the old stream handler closure holds the old Camera; unbind to cut the chain.
         try {
           this.imageStreamChannel.setStreamHandler(null);
         } catch (handlerError) {
           Log.e(TAG, 'switchToRearCamera: failed to clear image stream handler: ' + (handlerError as Error).message);
         }
+        // Give the camera service a moment to finish draining the old session's async
+        // teardown (native releases keep running on worker threads after close()
+        // resolves); overlapping new-instance setup with that drain produced the
+        // switch black screen on slower devices.
+        await new Promise<void>((resolve: () => void) => { setTimeout(resolve, 100); });
       }
       this.camera = null;
 
@@ -1232,15 +1383,15 @@ export class CameraApiImpl extends CameraApi {
           Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
       };
 
-      // 重建 Camera 实例后重放会话级输出设置，避免自动切后摄后 Quality 失效。
+      // Replay session-level output settings after the Camera instance is rebuilt (auto rear-switch case).
       this.replayCameraOutputSettings();
 
       try {
         await this.camera.open(this.currentImageFormat);
       } catch (e) {
         Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
-        // Camera.open 失败不再自带错误事件（见 Camera.open 注释），此处补发以保持
-        // 三折叠自动切后摄失败对 Dart 侧的通知
+        // Camera.open no longer emits an error event on failure (see Camera.open); re-emit here so the
+        // tri-fold auto rear-switch failure still reaches Dart.
         try {
           const cameraEventApi = new CameraEventApi(
               this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
@@ -1248,6 +1399,17 @@ export class CameraApiImpl extends CameraApi {
         } catch (eventError) {
           Log.e(TAG, 'switchToRearCamera: send error event failed: ' + eventError.message);
         }
+        // Tear the failed instance down (imageStreamReader/native ImageReceiver, fold
+        // listener, partial session resources): this switch path returns without any
+        // later close() covering this camera, so skipping cleanup would leak the
+        // receiver and the fold-listener closure would keep the failed Camera from GC.
+        try {
+          await this.camera.close();
+          await this.camera.dispose();
+        } catch (cleanupError) {
+          Log.e(TAG, 'switchToRearCamera: failed camera cleanup error: ' + cleanupError.message);
+        }
+        this.camera = null;
         return;
       }
 
@@ -1263,7 +1425,7 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  // 设置视频防抖模式
+  // Set the video stabilization mode
   setVideoStabilizationMode(mode: PlatformVideoStabilizationMode, result: Result<void>): void {
     Log.i(TAG, `CameraApiImpl.ets - setVideoStabilizationMode called with mode: ${mode}`);
     try {
@@ -1289,7 +1451,7 @@ export class CameraApiImpl extends CameraApi {
               'Method not implemented', ''));
         }
       };
-      // 传递给底层相机对象处理
+      // Delegate to the underlying camera object
       this.camera.setVideoStabilizationMode(methodResult, mode);
     } catch (error) {
       Log.e(TAG, `CameraApiImpl.ets - setVideoStabilizationMode exception: ${error}`);
@@ -1298,7 +1460,7 @@ export class CameraApiImpl extends CameraApi {
     }
   }
 
-  // 获取当前设备支持的视频防抖模式列表
+  // Get the video stabilization modes supported by the current device
   getSupportedVideoStabilizationModes(result: Result<Array<PlatformVideoStabilizationMode>>): void {
     Log.i(TAG, 'CameraApiImpl.ets - getSupportedVideoStabilizationModes called');
     try {
@@ -1309,7 +1471,7 @@ export class CameraApiImpl extends CameraApi {
         return;
       }
 
-      // 调用相机对象获取支持的防抖模式
+      // Query the camera object for supported stabilization modes
       const modes = this.camera.getSupportedVideoStabilizationModes();
       Log.i(TAG, `CameraApiImpl.ets - getSupportedVideoStabilizationModes modes: ${JSON.stringify(modes)}`);
       result.success(modes);

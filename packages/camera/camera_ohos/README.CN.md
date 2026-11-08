@@ -2,7 +2,7 @@
   <h1 align="center"> <code>camera_ohos</code> </h1>
 </p>
 
-本项目基于 [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2) 开发。
+本项目基于 [camera@0.12.2](https://pub.dev/packages/camera/versions/0.12.2) 开发。
 
 ## 1. 安装与使用
 
@@ -17,10 +17,11 @@
 ```yaml
 dependencies:
   camera_ohos:
-    git: 
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+    git:
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/camera/camera_ohos
-      ref: camera-v0.12.0+2-ohos-1.0.0
+      # ref: 根据下方表格选择不同框架适配的TAG版本
+      ref: TAG
 ```
 
 执行命令
@@ -78,21 +79,52 @@ Future<void> main() async {
 
 更多功能（录像、闪光灯/曝光/对焦控制、图像流等）详见 [example](./example)。
 
+在上述基本流程之外，最常用的功能场景：
+
+```dart
+// 继续使用上文已初始化的 `camera` 与 `cameraId`。
+
+// 4. 录制视频。在 VideoCaptureOptions 中传入 videoOutputPath，可将录像写入
+//    以 .mp4 结尾的自定义应用沙箱路径。
+await camera.startVideoRecording(cameraId);
+final XFile video = await camera.stopVideoRecording(cameraId);
+debugPrint('视频已保存至 ${video.path}');
+
+// 5. 控制闪光灯模式。
+await camera.setFlashMode(cameraId, FlashMode.torch);
+
+// 6. 消费相机帧流。OHOS 仅支持 ImageFormatGroup.jpeg（见 §4），因此需在
+//    initializeCamera 时传入 imageFormatGroup: ImageFormatGroup.jpeg，并从
+//    每一帧读取实际交付格式。
+final Stream<CameraImageData> frames = camera.onStreamedFrameAvailable(cameraId);
+frames.listen((CameraImageData frame) {
+  debugPrint('帧尺寸 ${frame.width}x${frame.height}');
+});
+```
+
 ## 2. 约束与限制
 
 ### 2.1 兼容性
 
 在以下版本中已测试通过
 
-1. Flutter: 3.44.9+ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.47.7+ohos-0.0.1-canary; SDK: 5.0.0(17); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
 
 Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对应关系如下：
 
 | Flutter 框架版本 | TAG           | 分支                     |
 | ----------------- | ------------- | ------------------------ |
-| 3.44 | camera-v0.12.0+2-ohos-1.0.0 | oh-3.44.9-dev |
+| 3.47 | camera-v0.12.2-ohos-1.0.0 | oh-3.47.7-release |
 
-> 说明：本包基于上游 [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2) 适配。上表分支即 §1.1 安装依赖中 `ref` 引用的分支；本包 `pubspec.yaml` 的包版本为 `0.10.10+11`，与上游 `camera` 版本相互独立。
+> 说明：本包基于上游 [camera@0.12.2](https://pub.dev/packages/camera/versions/0.12.2) 适配。上表分支即 §1.1 安装依赖中 `ref` 引用的分支；本包 `pubspec.yaml` 的包版本为 `0.12.2`，与上游 `camera` 版本相互独立。
+
+#### 版本升级说明
+
+从旧版本（`0.10.10` 系列）升级到 `0.12.2` 时：
+
+- **Pigeon 重构**：旧的 MethodChannel 通信路径已移除，通信统一走 Pigeon 通道；`CameraException.code` 透出的错误码已稳定化（如 `setDescriptionWhileRecordingUnsupported`、`EXPOSURE_POINT_ERROR`、`setFocusModeFailed`），依赖原始错误文案匹配的代码需要排查调整。
+- **0.12.2 新增**：`startVideoCapturing` 支持 `videoOutputPath`（可将录像写入调用方提供的、以 `.mp4` 结尾的应用沙箱路径）；新增零快门延迟接口 `isZeroShutterLagSupported` / `setZeroShutterLagEnabled`（API 21+；低版本 API 通过 `sdkApiVersion` 版本门与能力探测双层门禁隔离，调用不会触碰高版本符号）。
+- 完整变更清单见 [CHANGELOG.md](./CHANGELOG.md) 的 `camera-v0.12.2-ohos-1.0.0` 段。
 
 ### 2.2 权限要求
 
@@ -161,9 +193,9 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ## 3. API
 
-> \[!TIP] "ohos Support"列为 yes 表示 ohos 平台支持该属性，no 则表示不支持。使用方法跨平台一致，效果对标 IOS 或 Android 的效果。
+> \[!TIP] "OHOS 支持"列为 yes 表示 ohos 平台支持该属性，no 则表示不支持。使用方法跨平台一致，效果对标 IOS 或 Android 的效果。
 
-| Name                                                                                                                                                           | return value                                           | Description                | Type     | ohos Support |
+| 名称                                                                                                                                                           | 返回值                                           | 说明                | 类型     | OHOS 支持 |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | -------------------------- | -------- | ------------ |
 | registerWith()                                                                                                                                                 | void                                                   | 插件注册                       | function | yes          |
 | availableCameras()                                                                                                                                             | Future\<List<[CameraDescription](#CameraDescription)>> | 获取可用摄像头列表                  | function | yes          |
@@ -182,7 +214,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 | unlockCaptureOrientation(int cameraId)                                                                                                                         | Future<void>                                           | 解锁拍摄方向                     | function | yes          |
 | takePicture(int cameraId)                                                                                                                                      | Future<XFile>                                          | 拍照，并返回该照片的文件路径             | function | yes          |
 | prepareForVideoRecording()                                                                                                                                     | Future<void>                                           | 准备视频录制所需的拍摄会话              | function | no           |
-| startVideoRecording(int cameraId)                                                                                                                              | Future<void>                                           | 开始录制视频                     | function | yes          |
+| startVideoRecording(int cameraId, {Duration? maxVideoDuration})                                                                                                 | Future<void>                                           | 开始录制视频（`maxVideoDuration` 仅兼容保留，不生效） | function | yes          |
 | startVideoCapturing([VideoCaptureOptions](#VideoCaptureOptions) options)                                                                                       | Future<void>                                           | 开始录制视频和/或流式传输会话            | function | yes          |
 | stopVideoRecording(int cameraId)                                                                                                                               | Future<XFile>                                          | 停止视频录制，并返回保存该视频的文件路径       | function | yes          |
 | pauseVideoRecording(int cameraId)                                                                                                                              | Future<void>                                           | 暂停视频录制                     | function | yes          |
@@ -208,13 +240,15 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 | pausePreview(int cameraId)                                                                                                                                     | Future<void>                                           | 暂停当前帧的预览显示                 | function | yes          |
 | resumePreview(int cameraId)                                                                                                                                    | Future<void>                                           | 恢复已暂停的预览显示                 | function | yes          |
 | setDescriptionWhileRecording([CameraDescription](#CameraDescription) description)                                                                              | Future<void>                                           | 在录制过程中切换当前使用的摄像头           | function | no           |
+| isZeroShutterLagSupported(int cameraId)                                                                                                                         | Future<bool>                                           | 查询当前相机的照片输出是否支持启用零快门延迟拍摄（API 21+；不支持设备或低版本 API 返回 `false`，低版本由 `sdkApiVersion` 版本门短路、不触碰高版本符号）。查询时机：须在拍照模式就绪后调用，录像模式中返回 `false` 且结果不缓存，切回拍照后需重新查询 | function | yes (API 21+) |
+| setZeroShutterLagEnabled(int cameraId, bool enabled)                                                                                                            | Future<void>                                           | 启用/禁用零快门延迟拍摄，映射为照片输出画质优先级（`PhotoQualityPrioritization.SPEED`，API 21+；不支持设备或低版本 API 为 no-op，低版本由版本门短路并保持尽力而为语义：仍返回成功、请求不计入重放） | function | yes (API 21+) |
 | buildPreview(int cameraId)                                                                                                                                     | Widget                                                 | 构建预览控件                     | function | yes          |
 
 ## 4. 属性
 
 ### CameraDescription
 
-| Name              | Description                   | Type                                        | ohos Support |
+| 名称              | 说明                   | 类型                                        | OHOS 支持 |
 | ----------------- | ----------------------------- | ------------------------------------------- | ------------ |
 | name              | 相机设备名称                        | String                                      | yes          |
 | lensDirection     | 摄像机所面对的方向                     | [CameraLensDirection](#CameraLensDirection) | yes          |
@@ -223,7 +257,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### CameraLensDirection
 
-| Name                         | Description             | Type | ohos Support |
+| 名称                         | 说明             | 类型 | OHOS 支持 |
 | ---------------------------- | ----------------------- | ---- | ------------ |
 | CameraLensDirection.front    | 前置摄像头（用户看着屏幕，摄像头可以看到用户） | enum | yes          |
 | CameraLensDirection.back     | 后置摄像头（用户看屏幕时，摄像头看不到用户）  | enum | yes          |
@@ -231,7 +265,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### CameraLensType
 
-| Name                     | Description          | Type | ohos Support |
+| 名称                     | 说明          | 类型 | OHOS 支持 |
 | ------------------------ | -------------------- | ---- | ------------ |
 | CameraLensType.wide      | 内置广角相机设备类型           | enum | yes          |
 | CameraLensType.telephoto | 一种内置相机设备类型，其焦距比广角相机长 | enum | yes          |
@@ -240,7 +274,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### ResolutionPreset
 
-| Name                       | Description                               | Type | ohos Support |
+| 名称                       | 说明                               | 类型 | OHOS 支持 |
 | -------------------------- | ----------------------------------------- | ---- | ------------ |
 | ResolutionPreset.low       | 352x288 on iOS, \~240p on Android and Web | enum | yes          |
 | ResolutionPreset.medium    | 480p                                      | enum | yes          |
@@ -251,7 +285,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### imageFormatGroup
 
-| Name                      | Description                 | Type | ohos Support |
+| 名称                      | 说明                 | 类型 | OHOS 支持 |
 | ------------------------- | --------------------------- | ---- | ------------ |
 | ImageFormatGroup.unknown  | 图像格式不属于任何特定组。               | enum | no           |
 | ImageFormatGroup.yuv420   | Multi-plane YUV 420 format. | enum | no           |
@@ -261,7 +295,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### DeviceOrientation
 
-| Name                             | Description                        | Type | ohos Support |
+| 名称                             | 说明                        | 类型 | OHOS 支持 |
 | -------------------------------- | ---------------------------------- | ---- | ------------ |
 | DeviceOrientation.portraitUp     | 如果设备在启动时以竖屏显示，则启动徽标以【portraitUp】显示 | enum | yes          |
 | DeviceOrientation.landscapeLeft  | 与【portraitUp】逆时针旋转90度的方向           | enum | yes          |
@@ -270,7 +304,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### VideoCaptureOptions
 
-| Name           | Description        | Type                             | ohos Support |
+| 名称           | 说明        | 类型                             | OHOS 支持 |
 | -------------- | ------------------ | -------------------------------- | ------------ |
 | cameraId       | 用于捕获的摄像头的ID        | int                              | yes          |
 | streamCallback | 一个可选的回调函数，用于启用流式传输 | Function(CameraImageData image)? | yes          |
@@ -278,7 +312,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### CameraImageData
 
-| Name               | Description         | Type                                        | ohos Support |
+| 名称               | 说明         | 类型                                        | OHOS 支持 |
 | ------------------ | ------------------- | ------------------------------------------- | ------------ |
 | format             | 提供的图像的格式            | [CameraImageFormat](#CameraImageFormat)     | yes          |
 | planes             | 这张图片的像素平面           | List<[CameraImagePlane](#CameraImagePlane)> | yes          |
@@ -294,7 +328,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### CameraImagePlane
 
-| Name          | Description        | Type      | ohos Support |
+| 名称          | 说明        | 类型      | OHOS 支持 |
 | ------------- | ------------------ | --------- | ------------ |
 | bytes         | 表示该平面的字节           | Uint8List | yes          |
 | bytesPerRow   | 此颜色平面的行步长，以字节为单位   | int       | yes          |
@@ -304,7 +338,7 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### FlashMode
 
-| Name             | Description        | Type      | ohos Support |
+| 名称             | 说明        | 类型      | OHOS 支持 |
 | ---------------- | ------------------ | --------- | ------------ |
 | FlashMode.off    | 拍照时不要使用闪光灯         | enum      | yes          |
 | FlashMode.auto   | 让设备决定在拍照时是否闪烁相机    | enum      | yes          |
@@ -313,21 +347,21 @@ Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对�
 
 ### ExposureMode
 
-| Name                | Description | Type      | ohos Support |
+| 名称                | 说明 | 类型      | OHOS 支持 |
 | ------------------- | ----------- | --------- | ------------ |
 | ExposureMode.auto   | 自动确定曝光设置    | enum      | yes          |
 | ExposureMode.locked | 锁定当前确定的曝光设置 | enum      | yes          |
 
 ### FocusMode
 
-| Name             | Description | Type      | ohos Support |
+| 名称             | 说明 | 类型      | OHOS 支持 |
 | ---------------- | ----------- | --------- | ------------ |
 | FocusMode.auto   | 自动确定焦点设置    | enum      | yes          |
 | FocusMode.locked | 锁定当前确定的焦点设置 | enum      | yes          |
 
 ### VideoStabilizationMode
 
-| Name                          | Description | Type      | ohos Support |
+| 名称                          | 说明 | 类型      | OHOS 支持 |
 | ----------------------------- | ----------- | --------- | ------------ |
 | VideoStabilizationMode.off    | 视频防抖功能已禁用   | enum      | yes          |
 | VideoStabilizationMode.level1 | 最低防抖效果，延迟最低 | enum      | yes          |

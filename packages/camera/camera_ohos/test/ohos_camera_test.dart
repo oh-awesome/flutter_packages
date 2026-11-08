@@ -18,15 +18,15 @@ import 'src/test_helpers.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  // 测试用例：注册实例
+  // Test case: registers the instance
   test('registers instance', () async {
     OhosCamera.registerWith();
     expect(CameraPlatform.instance, isA<OhosCamera>());
   });
 
-  // 测试组：创建、初始化与销毁测试
+  // Test group: creation, initialization and disposal tests
   group('Creation, Initialization & Disposal Tests', () {
-    // 测试用例：应当发送创建数据并返回相机 ID
+    // Test case: should send create data and return the camera id
     test('Should send creation data and receive back a camera id', () async {
       final MockCameraApi mockApi = MockCameraApi();
       when(mockApi.create(any, any)).thenAnswer((_) async => 1);
@@ -56,7 +56,7 @@ void main() {
       expect(cameraId, 1);
     });
 
-    // 测试用例：当 create 抛出 PlatformException 时应当抛出 CameraException
+    // Test case: should throw CameraException when create throws a PlatformException
     test(
       'Should throw CameraException when create throws a PlatformException',
       () async {
@@ -91,7 +91,7 @@ void main() {
       },
     );
 
-    // 测试用例：当 initialize 抛出 PlatformException 时应当抛出 CameraException
+    // Test case: should throw CameraException when initialize throws a PlatformException
     test(
       'Should throw CameraException when initialize throws a PlatformException',
       () async {
@@ -119,7 +119,7 @@ void main() {
       },
     );
 
-    // 测试用例：应当发送初始化数据
+    // Test case: should send initialization data
     test('Should send initialization data', () async {
       final MockCameraApi mockApi = MockCameraApi();
       when(mockApi.create(any, any)).thenAnswer((_) async => 1);
@@ -149,7 +149,7 @@ void main() {
       verify(mockApi.initialize(PlatformImageFormatGroup.yuv420)).called(1);
     });
 
-    // 测试用例：销毁时应当发送 disposal 调用
+    // Test case: should send a disposal call on dispose
     test('Should send a disposal call on dispose', () async {
       final MockCameraApi mockApi = MockCameraApi();
       when(mockApi.create(any, any)).thenAnswer((_) async => 1);
@@ -183,7 +183,7 @@ void main() {
     });
   });
 
-  // 测试组：事件测试
+  // Test group: event tests
   group('Event Tests', () {
     late OhosCamera camera;
     late int cameraId;
@@ -200,7 +200,7 @@ void main() {
       await camera.hostHandler.deviceEventStreamController.close();
     });
 
-    // 测试用例：应当接收到 initialized（初始化完成）事件
+    // Test case: should receive the initialized event
     test('Should receive initialized event', () async {
       final Stream<CameraInitializedEvent> eventStream = camera
           .onCameraInitialized(cameraId);
@@ -229,7 +229,7 @@ void main() {
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当接收到 camera closing（相机关闭）事件
+    // Test case: should receive camera closing events
     test('Should receive camera closing events', () async {
       final Stream<CameraClosingEvent> eventStream = camera.onCameraClosing(
         cameraId,
@@ -248,7 +248,7 @@ void main() {
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当接收到 camera error（相机错误）事件
+    // Test case: should receive camera error events
     test('Should receive camera error events', () async {
       final Stream<CameraErrorEvent> errorStream = camera.onCameraError(
         cameraId,
@@ -267,7 +267,7 @@ void main() {
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当接收到 device orientation change（设备方向改变）事件
+    // Test case: should receive device orientation change events
     test('Should receive device orientation change events', () async {
       final Stream<DeviceOrientationChangedEvent> eventStream = camera
           .onDeviceOrientationChanged();
@@ -301,7 +301,7 @@ void main() {
     });
   });
 
-  // 测试组：功能测试
+  // Test group: function tests
   group('Function Tests', () {
     late OhosCamera camera;
     late int cameraId;
@@ -318,7 +318,7 @@ void main() {
       await camera.hostHandler.deviceEventStreamController.close();
     });
 
-    // 测试用例：应当获取可用相机的 CameraDescription 实例
+    // Test case: should fetch CameraDescription instances for available cameras
     test(
       'Should fetch CameraDescription instances for available cameras',
       () async {
@@ -350,7 +350,7 @@ void main() {
       },
     );
 
-    // 测试用例：当 availableCameras 抛出 PlatformException 时应当抛出 CameraException
+    // Test case: should throw CameraException when availableCameras throws a PlatformException
     test(
       'Should throw CameraException when availableCameras throws a PlatformException',
       () {
@@ -376,7 +376,7 @@ void main() {
       },
     );
 
-    // 测试用例：应当拍摄照片并返回 XFile 实例
+    // Test case: should take a picture and return an XFile instance
     test('Should take a picture and return an XFile instance', () async {
       when(mockApi.takePicture()).thenAnswer((_) async => '/test/path.jpg');
 
@@ -386,19 +386,21 @@ void main() {
       expect(file.path, '/test/path.jpg');
     });
 
-    // 测试用例：应当开始录制视频
+    // Test case: should start video recording
     test('Should start video recording', () async {
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
 
       await camera.startVideoRecording(cameraId);
 
-      verify(mockApi.startVideoRecording(false)).called(1);
+      verify(mockApi.startVideoRecording(false, null)).called(1);
     });
 
-    // 测试用例：应当停止视频录制并返回文件
+    // Test case: should stop the video recording and return the file
     test('Should stop a video recording and return the file', () async {
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
-      when(mockApi.stopVideoRecording()).thenAnswer((_) async => '/test/path.mp4');
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+      when(
+        mockApi.stopVideoRecording(),
+      ).thenAnswer((_) async => '/test/path.mp4');
 
       await camera.startVideoRecording(cameraId);
       final XFile file = await camera.stopVideoRecording(cameraId);
@@ -407,7 +409,7 @@ void main() {
       expect(file.path, '/test/path.mp4');
     });
 
-    // 测试用例：应当暂停视频录制
+    // Test case: should pause the video recording
     test('Should pause a video recording', () async {
       when(mockApi.pauseVideoRecording()).thenAnswer((_) async {});
 
@@ -416,7 +418,7 @@ void main() {
       verify(mockApi.pauseVideoRecording()).called(1);
     });
 
-    // 测试用例：应当恢复视频录制
+    // Test case: should resume the video recording
     test('Should resume a video recording', () async {
       when(mockApi.resumeVideoRecording()).thenAnswer((_) async {});
 
@@ -425,7 +427,7 @@ void main() {
       verify(mockApi.resumeVideoRecording()).called(1);
     });
 
-    // 测试用例：应当设置闪光灯模式
+    // Test case: should set the flash mode
     test('Should set the flash mode', () async {
       when(mockApi.setFlashMode(any)).thenAnswer((_) async {});
 
@@ -434,7 +436,7 @@ void main() {
       verify(mockApi.setFlashMode(PlatformFlashMode.always)).called(1);
     });
 
-    // 测试用例：应当设置曝光模式
+    // Test case: should set the exposure mode
     test('Should set the exposure mode', () async {
       when(mockApi.setExposureMode(any)).thenAnswer((_) async {});
 
@@ -443,7 +445,7 @@ void main() {
       verify(mockApi.setExposureMode(PlatformExposureMode.auto)).called(1);
     });
 
-    // 测试用例：应当设置曝光点
+    // Test case: should set the exposure point
     test('Should set the exposure point', () async {
       when(mockApi.setExposurePoint(any)).thenAnswer((_) async {});
 
@@ -460,7 +462,7 @@ void main() {
       ).called(1);
     });
 
-    // 测试用例：应当获取最小曝光偏移量
+    // Test case: should get the min exposure offset
     test('Should get the min exposure offset', () async {
       when(mockApi.getMinExposureOffset()).thenAnswer((_) async => 1.0);
 
@@ -470,7 +472,7 @@ void main() {
       expect(stepSize, 1.0);
     });
 
-    // 测试用例：应当获取最大曝光偏移量
+    // Test case: should get the max exposure offset
     test('Should get the max exposure offset', () async {
       when(mockApi.getMaxExposureOffset()).thenAnswer((_) async => 1.0);
 
@@ -480,7 +482,7 @@ void main() {
       expect(stepSize, 1.0);
     });
 
-    // 测试用例：应当获取曝光偏移步长
+    // Test case: should get the exposure offset step size
     test('Should get the exposure offset step size', () async {
       when(mockApi.getExposureOffsetStepSize()).thenAnswer((_) async => 1.0);
 
@@ -490,7 +492,7 @@ void main() {
       expect(stepSize, 1.0);
     });
 
-    // 测试用例：应当设置曝光偏移量
+    // Test case: should set the exposure offset
     test('Should set the exposure offset', () async {
       when(mockApi.setExposureOffset(any)).thenAnswer((_) async => 1.0);
 
@@ -500,7 +502,7 @@ void main() {
       expect(actualOffset, 1.0);
     });
 
-    // 测试用例：应当设置对焦模式
+    // Test case: should set the focus mode
     test('Should set the focus mode', () async {
       when(mockApi.setFocusMode(any)).thenAnswer((_) async {});
 
@@ -509,7 +511,7 @@ void main() {
       verify(mockApi.setFocusMode(PlatformFocusMode.auto)).called(1);
     });
 
-    // 测试用例：应当设置对焦点
+    // Test case: should set the focus point
     test('Should set the focus point', () async {
       when(mockApi.setFocusPoint(any)).thenAnswer((_) async {});
 
@@ -535,7 +537,7 @@ void main() {
       expect((widget as Texture).textureId, cameraId);
     });
 
-    // 测试用例：应当获取最大缩放级别
+    // Test case: should get the max zoom level
     test('Should get the max zoom level', () async {
       when(mockApi.getMaxZoomLevel()).thenAnswer((_) async => 1.0);
 
@@ -545,7 +547,7 @@ void main() {
       expect(maxZoomLevel, 1.0);
     });
 
-    // 测试用例：应当获取最小缩放级别
+    // Test case: should get the min zoom level
     test('Should get the min zoom level', () async {
       when(mockApi.getMinZoomLevel()).thenAnswer((_) async => 1.0);
 
@@ -555,7 +557,7 @@ void main() {
       expect(maxZoomLevel, 1.0);
     });
 
-    // 测试用例：应当设置缩放级别
+    // Test case: should set the zoom level
     test('Should set the zoom level', () async {
       when(mockApi.setZoomLevel(any)).thenAnswer((_) async {});
 
@@ -564,7 +566,7 @@ void main() {
       verify(mockApi.setZoomLevel(1.0)).called(1);
     });
 
-    // 测试用例：当提供非法的缩放级别时应当抛出 CameraException
+    // Test case: should throw CameraException when an illegal zoom level is supplied
     test(
       'Should throw CameraException when illegal zoom level is supplied',
       () async {
@@ -587,7 +589,7 @@ void main() {
       },
     );
 
-    // 测试用例：应当锁定捕获方向
+    // Test case: should lock the capture orientation
     test('Should lock the capture orientation', () async {
       when(mockApi.lockCaptureOrientation(any)).thenAnswer((_) async {});
 
@@ -601,7 +603,7 @@ void main() {
       ).called(1);
     });
 
-    // 测试用例：应当解锁捕获方向
+    // Test case: should unlock the capture orientation
     test('Should unlock the capture orientation', () async {
       when(mockApi.unlockCaptureOrientation()).thenAnswer((_) async {});
 
@@ -610,7 +612,7 @@ void main() {
       verify(mockApi.unlockCaptureOrientation()).called(1);
     });
 
-    // 测试用例：应当暂停相机预览
+    // Test case: should pause the camera preview
     test('Should pause the camera preview', () async {
       when(mockApi.pausePreview()).thenAnswer((_) async {});
 
@@ -619,7 +621,7 @@ void main() {
       verify(mockApi.pausePreview()).called(1);
     });
 
-    // 测试用例：应当恢复相机预览
+    // Test case: should resume the camera preview
     test('Should resume the camera preview', () async {
       when(mockApi.resumePreview()).thenAnswer((_) async {});
 
@@ -628,7 +630,7 @@ void main() {
       verify(mockApi.resumePreview()).called(1);
     });
 
-    // 测试用例：应当发送带设置的创建数据并返回相机 ID
+    // Test case: should send create data with settings and return the camera id
     test(
       'Should send creation data with settings and receive back a camera id',
       () async {
@@ -670,7 +672,7 @@ void main() {
       },
     );
 
-    // 测试用例：应当获取支持的视频防抖模式
+    // Test case: should get the supported video stabilization modes
     test('Should get supported video stabilization modes', () async {
       when(mockApi.getSupportedVideoStabilizationModes()).thenAnswer(
         (_) async => <PlatformVideoStabilizationMode>[
@@ -689,7 +691,7 @@ void main() {
       ]);
     });
 
-    // 测试用例：应当设置视频防抖模式
+    // Test case: should set the video stabilization mode
     test('Should set video stabilization mode', () async {
       when(mockApi.setVideoStabilizationMode(any)).thenAnswer((_) async {});
 
@@ -705,7 +707,7 @@ void main() {
       ).called(1);
     });
 
-    // 测试用例：当 setVideoStabilizationMode 抛出 PlatformException 时应当抛出 CameraException
+    // Test case: should throw CameraException when setVideoStabilizationMode throws a PlatformException
     test(
       'Should throw CameraException when setVideoStabilizationMode throws a PlatformException',
       () async {
@@ -731,7 +733,7 @@ void main() {
       },
     );
 
-    // 测试用例：应当在录制时设置描述信息
+    // Test case: should set the description while recording
     test('Should set description while recording', () async {
       when(mockApi.setDescriptionWhileRecording(any)).thenAnswer((_) async {});
 
@@ -746,21 +748,57 @@ void main() {
       verify(mockApi.setDescriptionWhileRecording('Test2')).called(1);
     });
 
-    // 测试用例：应当支持图像流
+    // Test case: should throw CameraException when setDescriptionWhileRecording throws a PlatformException
+    test(
+      'Should throw CameraException when setDescriptionWhileRecording throws a PlatformException',
+      () async {
+        when(mockApi.setDescriptionWhileRecording(any)).thenThrow(
+          PlatformException(
+            code: 'setDescriptionWhileRecordingUnsupported',
+            message: 'Mock error message used during testing.',
+          ),
+        );
+
+        expect(
+          () => camera.setDescriptionWhileRecording(
+            const CameraDescription(
+              name: 'Test2',
+              lensDirection: CameraLensDirection.front,
+              sensorOrientation: 90,
+            ),
+          ),
+          throwsA(
+            isA<CameraException>()
+                .having(
+                  (e) => e.code,
+                  'code',
+                  'setDescriptionWhileRecordingUnsupported',
+                )
+                .having(
+                  (e) => e.description,
+                  'description',
+                  'Mock error message used during testing.',
+                ),
+          ),
+        );
+      },
+    );
+
+    // Test case: should support image streaming
     test('Should support image streaming', () {
       expect(camera.supportsImageStreaming(), true);
     });
 
-    // 测试用例：应当构建预览组件
+    // Test case: should build the preview widget
     test('Should build preview widget', () {
       final Widget widget = camera.buildPreview(cameraId);
       expect(widget, isA<Texture>());
       expect((widget as Texture).textureId, cameraId);
     });
 
-    // 测试用例：应当带数据流开始视频捕获
+    // Test case: should start video capturing with a stream
     test('Should start video capturing with stream', () async {
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
       when(mockApi.startImageStream()).thenAnswer((_) async {});
 
       final Completer<void> streamCallbackCompleter = Completer<void>();
@@ -773,7 +811,7 @@ void main() {
         ),
       );
 
-      verify(mockApi.startVideoRecording(true)).called(1);
+      verify(mockApi.startVideoRecording(true, null)).called(1);
 
       // startVideoCapturing does not call startImageStream.
       // startImageStream is only called when we listen to onStreamedFrameAvailable
@@ -789,17 +827,47 @@ void main() {
       subscription.cancel();
     });
 
-    // 测试用例：应当无数据流开始视频捕获
+    // Test case: should start video capturing without a stream
     test('Should start video capturing without stream', () async {
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
 
       await camera.startVideoCapturing(VideoCaptureOptions(cameraId));
 
-      verify(mockApi.startVideoRecording(false)).called(1);
+      verify(mockApi.startVideoRecording(false, null)).called(1);
     });
+
+    // Test case: should pass videoOutputPath through to the host API
+    test('Should pass videoOutputPath through to the host API', () async {
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+
+      await camera.startVideoCapturing(
+        VideoCaptureOptions(cameraId, videoOutputPath: '/test/output.mp4'),
+      );
+
+      verify(mockApi.startVideoRecording(false, '/test/output.mp4')).called(1);
+    });
+
+    // Test case: should also pass videoOutputPath through to the host API with a stream
+    test(
+      'Should pass videoOutputPath through to the host API with a stream',
+      () async {
+        when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+        when(mockApi.startImageStream()).thenAnswer((_) async {});
+
+        await camera.startVideoCapturing(
+          VideoCaptureOptions(
+            cameraId,
+            streamCallback: (CameraImageData data) {},
+            videoOutputPath: '/test/output.mp4',
+          ),
+        );
+
+        verify(mockApi.startVideoRecording(true, '/test/output.mp4')).called(1);
+      },
+    );
   });
 
-  // 测试组：覆盖率缺口测试（补齐 XTS 公开接口覆盖）
+  // Test group: coverage gap tests (completing public XTS interface coverage)
   group('Coverage Gap Tests', () {
     late OhosCamera camera;
     late int cameraId;
@@ -816,21 +884,21 @@ void main() {
       await camera.hostHandler.deviceEventStreamController.close();
     });
 
-    // 测试用例：应当发射相机切换事件
+    // Test case: should emit camera switched events
     test('Should emit camera switched events', () async {
       final Stream<String> switchedStream = camera.onCameraSwitched(cameraId);
       final StreamQueue<String> streamQueue =
           StreamQueue<String>(switchedStream);
 
       camera.hostCameraHandlers[cameraId]!.cameraSwitched('rear');
-      // 直接引用 controller 字段，使覆盖率脚本能解析该字段。
+      // Reference the controller field directly so the coverage script can resolve it.
       expect(camera.cameraSwitchedStreamController.hasListener, isTrue);
 
       expect(await streamQueue.next, 'rear');
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当发射相机分辨率变化事件
+    // Test case: should emit camera resolution changed events
     test('Should emit camera resolution changed events', () async {
       final Stream<CameraResolutionChangedEvent> eventStream =
           camera.onCameraResolutionChanged(cameraId);
@@ -847,7 +915,7 @@ void main() {
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当发射视频录制完成事件
+    // Test case: should emit video recorded events
     test('Should emit video recorded events', () async {
       final Stream<VideoRecordedEvent> eventStream =
           camera.onVideoRecordedEvent(cameraId);
@@ -866,12 +934,12 @@ void main() {
       await streamQueue.cancel();
     });
 
-    // 测试用例：应当正常完成 prepareForVideoRecording
+    // Test case: should complete prepareForVideoRecording normally
     test('Should complete prepareForVideoRecording', () async {
       await camera.prepareForVideoRecording();
     });
 
-    // 测试用例：应当设置图片文件格式
+    // Test case: should set the image file format
     test('Should set the image file format', () async {
       when(mockApi.setImageFileFormat(any)).thenAnswer((_) async {});
 
@@ -881,7 +949,7 @@ void main() {
           .called(1);
     });
 
-    // 测试用例：应当设置 JPEG 图片质量
+    // Test case: should set the JPEG image quality
     test('Should set the jpeg image quality', () async {
       when(mockApi.setJpegImageQuality(any)).thenAnswer((_) async {});
 
@@ -890,131 +958,156 @@ void main() {
       verify(mockApi.setJpegImageQuality(85)).called(1);
     });
 
-    // 测试用例：setImageFileFormat 抛出 PlatformException 时应当抛出 CameraException
-    test(
-      'Should throw CameraException when setImageFileFormat throws a '
-      'PlatformException',
-      () async {
-        when(mockApi.setImageFileFormat(any)).thenThrow(
-          PlatformException(
-            code: 'IMG_FMT_ERROR',
-            message: 'Image format error',
-          ),
-        );
+    // Test case: isZeroShutterLagSupported should return the host result (supported)
+    test('Should return true when zero-shutter-lag is supported', () async {
+      when(mockApi.isZeroShutterLagSupported()).thenAnswer((_) async => true);
 
-        expect(
-          () => camera.setImageFileFormat(cameraId, ImageFileFormat.jpeg),
-          throwsA(
-            isA<CameraException>()
-                .having((e) => e.code, 'code', 'IMG_FMT_ERROR')
-                .having(
-                  (e) => e.description,
-                  'description',
-                  'Image format error',
-                ),
-          ),
-        );
+      final bool supported = await camera.isZeroShutterLagSupported(cameraId);
+
+      verify(mockApi.isZeroShutterLagSupported()).called(1);
+      expect(supported, true);
+    });
+
+    // Test case: isZeroShutterLagSupported should return the host result (unsupported)
+    test(
+      'Should return false when zero-shutter-lag is not supported',
+      () async {
+        when(
+          mockApi.isZeroShutterLagSupported(),
+        ).thenAnswer((_) async => false);
+
+        final bool supported = await camera.isZeroShutterLagSupported(cameraId);
+
+        verify(mockApi.isZeroShutterLagSupported()).called(1);
+        expect(supported, false);
       },
     );
 
-    // 测试用例：setJpegImageQuality 抛出 PlatformException 时应当抛出 CameraException
+    // Test case: should pass the ZSL toggle through to the host API
     test(
-      'Should throw CameraException when setJpegImageQuality throws a '
-      'PlatformException',
+      'Should pass zero-shutter-lag enabled flag through to the host API',
       () async {
-        when(mockApi.setJpegImageQuality(any)).thenThrow(
-          PlatformException(
-            code: 'JPEG_QUALITY_ERROR',
-            message: 'Jpeg quality error',
-          ),
-        );
+        when(mockApi.setZeroShutterLagEnabled(any)).thenAnswer((_) async {});
 
-        expect(
-          () => camera.setJpegImageQuality(cameraId, 85),
-          throwsA(
-            isA<CameraException>()
-                .having((e) => e.code, 'code', 'JPEG_QUALITY_ERROR')
-                .having(
-                  (e) => e.description,
-                  'description',
-                  'Jpeg quality error',
-                ),
-          ),
-        );
+        await camera.setZeroShutterLagEnabled(cameraId, true);
+
+        verify(mockApi.setZeroShutterLagEnabled(true)).called(1);
       },
     );
 
-    // 测试用例：直接构造的 HostCameraMessageHandler 应当广播相机事件
-    test(
-      'Should broadcast camera events from a directly constructed '
-      'HostCameraMessageHandler',
-      () async {
-        final StreamController<CameraEvent> eventCtrl =
-            StreamController<CameraEvent>.broadcast();
-        final StreamController<String> switchedCtrl =
-            StreamController<String>.broadcast();
-        final HostCameraMessageHandler handler =
-            HostCameraMessageHandler(42, eventCtrl, switchedCtrl);
-        final StreamQueue<CameraEvent> eventQueue =
-            StreamQueue<CameraEvent>(eventCtrl.stream);
-        final StreamQueue<String> switchedQueue =
-            StreamQueue<String>(switchedCtrl.stream);
+    // Test case: should throw CameraException when setImageFileFormat throws a PlatformException
+    test('Should throw CameraException when setImageFileFormat throws a '
+        'PlatformException', () async {
+      when(mockApi.setImageFileFormat(any)).thenThrow(
+        PlatformException(code: 'IMG_FMT_ERROR', message: 'Image format error'),
+      );
 
-        handler.initialized(
-          PlatformCameraState(
-            previewSize: PlatformSize(width: 1920, height: 1080),
-            exposureMode: PlatformExposureMode.auto,
-            exposurePointSupported: true,
-            focusMode: PlatformFocusMode.auto,
-            focusPointSupported: true,
-          ),
-        );
-        handler.error('boom');
-        handler.closed();
-        handler.cameraSwitched('front');
+      expect(
+        () => camera.setImageFileFormat(cameraId, ImageFileFormat.jpeg),
+        throwsA(
+          isA<CameraException>()
+              .having((e) => e.code, 'code', 'IMG_FMT_ERROR')
+              .having(
+                (e) => e.description,
+                'description',
+                'Image format error',
+              ),
+        ),
+      );
+    });
 
-        final CameraInitializedEvent initEvent =
-            (await eventQueue.next) as CameraInitializedEvent;
-        expect(initEvent.previewWidth, 1920);
-        expect(initEvent.previewHeight, 1080);
-        final CameraErrorEvent errorEvent =
-            (await eventQueue.next) as CameraErrorEvent;
-        expect(errorEvent.description, 'boom');
-        expect(await eventQueue.next, isA<CameraClosingEvent>());
-        expect(await switchedQueue.next, 'front');
+    // Test case: should throw CameraException when setJpegImageQuality throws a PlatformException
+    test('Should throw CameraException when setJpegImageQuality throws a '
+        'PlatformException', () async {
+      when(mockApi.setJpegImageQuality(any)).thenThrow(
+        PlatformException(
+          code: 'JPEG_QUALITY_ERROR',
+          message: 'Jpeg quality error',
+        ),
+      );
 
-        handler.dispose();
-        await eventQueue.cancel();
-        await switchedQueue.cancel();
-        await eventCtrl.close();
-        await switchedCtrl.close();
-      },
-    );
+      expect(
+        () => camera.setJpegImageQuality(cameraId, 85),
+        throwsA(
+          isA<CameraException>()
+              .having((e) => e.code, 'code', 'JPEG_QUALITY_ERROR')
+              .having(
+                (e) => e.description,
+                'description',
+                'Jpeg quality error',
+              ),
+        ),
+      );
+    });
 
-    // 测试用例：直接构造的 HostDeviceMessageHandler 应当广播设备方向事件
-    test(
-      'Should broadcast device orientation from a directly constructed '
-      'HostDeviceMessageHandler',
-      () async {
-        final HostDeviceMessageHandler handler = HostDeviceMessageHandler();
-        final StreamQueue<DeviceEvent> eventQueue = StreamQueue<DeviceEvent>(
-          handler.deviceEventStreamController.stream,
-        );
+    // Test case: a directly constructed HostCameraMessageHandler should broadcast camera events
+    test('Should broadcast camera events from a directly constructed '
+        'HostCameraMessageHandler', () async {
+      final StreamController<CameraEvent> eventCtrl =
+          StreamController<CameraEvent>.broadcast();
+      final StreamController<String> switchedCtrl =
+          StreamController<String>.broadcast();
+      final HostCameraMessageHandler handler = HostCameraMessageHandler(
+        42,
+        eventCtrl,
+        switchedCtrl,
+      );
+      final StreamQueue<CameraEvent> eventQueue = StreamQueue<CameraEvent>(
+        eventCtrl.stream,
+      );
+      final StreamQueue<String> switchedQueue = StreamQueue<String>(
+        switchedCtrl.stream,
+      );
 
-        handler.deviceOrientationChanged(
-          PlatformDeviceOrientation.landscapeLeft,
-        );
+      handler.initialized(
+        PlatformCameraState(
+          previewSize: PlatformSize(width: 1920, height: 1080),
+          exposureMode: PlatformExposureMode.auto,
+          exposurePointSupported: true,
+          focusMode: PlatformFocusMode.auto,
+          focusPointSupported: true,
+        ),
+      );
+      handler.error('boom');
+      handler.closed();
+      handler.cameraSwitched('front');
 
-        final DeviceOrientationChangedEvent event =
-            (await eventQueue.next) as DeviceOrientationChangedEvent;
-        expect(event.orientation, DeviceOrientation.landscapeLeft);
-        await eventQueue.cancel();
-        await handler.deviceEventStreamController.close();
-      },
-    );
+      final CameraInitializedEvent initEvent =
+          (await eventQueue.next) as CameraInitializedEvent;
+      expect(initEvent.previewWidth, 1920);
+      expect(initEvent.previewHeight, 1080);
+      final CameraErrorEvent errorEvent =
+          (await eventQueue.next) as CameraErrorEvent;
+      expect(errorEvent.description, 'boom');
+      expect(await eventQueue.next, isA<CameraClosingEvent>());
+      expect(await switchedQueue.next, 'front');
+
+      handler.dispose();
+      await eventQueue.cancel();
+      await switchedQueue.cancel();
+      await eventCtrl.close();
+      await switchedCtrl.close();
+    });
+
+    // Test case: a directly constructed HostDeviceMessageHandler should broadcast device orientation events
+    test('Should broadcast device orientation from a directly constructed '
+        'HostDeviceMessageHandler', () async {
+      final HostDeviceMessageHandler handler = HostDeviceMessageHandler();
+      final StreamQueue<DeviceEvent> eventQueue = StreamQueue<DeviceEvent>(
+        handler.deviceEventStreamController.stream,
+      );
+
+      handler.deviceOrientationChanged(PlatformDeviceOrientation.landscapeLeft);
+
+      final DeviceOrientationChangedEvent event =
+          (await eventQueue.next) as DeviceOrientationChangedEvent;
+      expect(event.orientation, DeviceOrientation.landscapeLeft);
+      await eventQueue.cancel();
+      await handler.deviceEventStreamController.close();
+    });
   });
 
-  // 测试组：边界与异常场景测试（补齐测试场景覆盖）
+  // Test group: edge case and exception scenario tests (completing test scenario coverage)
   group('Edge Case Tests', () {
     late OhosCamera camera;
     late int cameraId;
@@ -1031,7 +1124,7 @@ void main() {
       await camera.hostHandler.deviceEventStreamController.close();
     });
 
-    // 参数异常：应当发送空曝光点
+    // Parameter edge case: should send a null exposure point
     test('Should send null exposure point', () async {
       when(mockApi.setExposurePoint(any)).thenAnswer((_) async {});
 
@@ -1040,7 +1133,7 @@ void main() {
       verify(mockApi.setExposurePoint(null)).called(1);
     });
 
-    // 参数异常：曝光点越界时应当抛出 AssertionError
+    // Parameter edge case: should throw AssertionError when the exposure point is out of range
     test('Should throw AssertionError when exposure point is out of range', () {
       expect(
         () => camera.setExposurePoint(cameraId, const Point<double>(1.5, 0.5)),
@@ -1048,7 +1141,7 @@ void main() {
       );
     });
 
-    // 参数异常：应当发送空对焦点
+    // Parameter edge case: should send a null focus point
     test('Should send null focus point', () async {
       when(mockApi.setFocusPoint(any)).thenAnswer((_) async {});
 
@@ -1057,7 +1150,7 @@ void main() {
       verify(mockApi.setFocusPoint(null)).called(1);
     });
 
-    // 参数异常：对焦点越界时应当抛出 AssertionError
+    // Parameter edge case: should throw AssertionError when the focus point is out of range
     test('Should throw AssertionError when focus point is out of range', () {
       expect(
         () => camera.setFocusPoint(cameraId, const Point<double>(0.5, -0.2)),
@@ -1065,7 +1158,7 @@ void main() {
       );
     });
 
-    // 状态异常：未录制时停止录像应当抛出 CameraException
+    // State edge case: stopping video without an active recording should throw CameraException
     test(
       'Should throw CameraException when stopping video without recording',
       () async {
@@ -1084,18 +1177,15 @@ void main() {
       },
     );
 
-    // 状态异常：初始化错误事件应当使初始化失败
-    test(
-      'Should fail initialization with CameraException on error event',
-      () async {
-        final Future<void> initializeFuture =
-            camera.initializeCamera(cameraId);
+    // State edge case: an initialization error event should fail initialization
+    test('Should fail initialization with CameraException on error event', () async {
+      final Future<void> initializeFuture = camera.initializeCamera(cameraId);
 
-        camera.hostCameraHandlers[cameraId]!.error('Initialization failed');
-        // initializeCamera 内部的 `.first` 会等待 initialized 事件；此处补发一个
-        // 让挂起的 future 正常完成，避免 tearDown 关闭 controller 时触发
-        // "No element" unhandled error（error 已先置 completed=true，被忽略）。
-        camera.hostCameraHandlers[cameraId]!.initialized(testCameraState());
+      camera.hostCameraHandlers[cameraId]!.error('Initialization failed');
+      // initializeCamera internally awaits the initialized event via `.first`; re-emit one here
+      // so the pending future completes normally and that tearDown closing the controller does not
+      // trigger a "No element" unhandled error (the error handler already set completed=true and is ignored).
+      camera.hostCameraHandlers[cameraId]!.initialized(testCameraState());
 
         await expectLater(
           initializeFuture,
@@ -1107,15 +1197,15 @@ void main() {
       },
     );
 
-    // 状态异常：dispose 应当清理 handler 与录制状态
+    // State edge case: dispose should clear the handler and recording state
     test('Should clear handler and recording state on dispose', () async {
       when(mockApi.dispose()).thenAnswer((_) async {});
 
       await camera.dispose(cameraId);
 
       expect(camera.hostCameraHandlers.containsKey(cameraId), isFalse);
-      // _isRecordingMap 为私有字段，通过可观察行为间接验证：
-      // dispose 后再次停止录像应抛出"未在录制中"。
+      // _isRecordingMap is private; verify it indirectly through observable behavior:
+      // stopping video after dispose should throw "no recording in progress".
       expect(
         () => camera.stopVideoRecording(cameraId),
         throwsA(
@@ -1125,22 +1215,22 @@ void main() {
       );
     });
 
-    // 并发：应当去重并发 startVideoCapturing 请求
+    // Concurrency: should deduplicate concurrent startVideoCapturing requests
     test(
       'Should deduplicate concurrent startVideoCapturing requests',
       () async {
-        when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+        when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
 
         await camera.startVideoCapturing(VideoCaptureOptions(cameraId));
         await camera.startVideoCapturing(VideoCaptureOptions(cameraId));
 
-        verify(mockApi.startVideoRecording(false)).called(1);
+        verify(mockApi.startVideoRecording(false, null)).called(1);
       },
     );
 
-    // 并发：启动失败后应当复位录制状态
+    // Concurrency: should reset the recording state after a failed start
     test('Should reset recording state after failed start', () async {
-      when(mockApi.startVideoRecording(any)).thenThrow(
+      when(mockApi.startVideoRecording(any, any)).thenThrow(
         PlatformException(code: 'RECORD_FAILED', message: 'Record failed'),
       );
 
@@ -1149,18 +1239,18 @@ void main() {
         throwsA(isA<PlatformException>()),
       );
 
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
       await camera.startVideoCapturing(VideoCaptureOptions(cameraId));
 
-      verify(mockApi.startVideoRecording(false)).called(2);
+      verify(mockApi.startVideoRecording(false, null)).called(2);
     });
 
-    // 并发：多相机可同时录制
+    // Concurrency: multiple cameras may record concurrently
     test('Should allow recording on multiple cameras concurrently', () async {
       int nextId = 0;
       when(mockApi.create(any, any)).thenAnswer((_) async => ++nextId);
       when(mockApi.initialize(any)).thenAnswer((_) async {});
-      when(mockApi.startVideoRecording(any)).thenAnswer((_) async {});
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
       final OhosCamera camera = OhosCamera(hostApi: mockApi);
 
       final int cameraIdA = await camera.createCamera(
@@ -1183,10 +1273,10 @@ void main() {
       await camera.startVideoCapturing(VideoCaptureOptions(cameraIdA));
       await camera.startVideoCapturing(VideoCaptureOptions(cameraIdB));
 
-      verify(mockApi.startVideoRecording(false)).called(2);
+      verify(mockApi.startVideoRecording(false, null)).called(2);
     });
 
-    // 边界：无相机可用时应当返回空列表
+    // Boundary: should return an empty list when no cameras are available
     test('Should return empty list when no cameras available', () async {
       when(mockApi.getAvailableCameras())
           .thenAnswer((_) async => <PlatformCameraDescription?>[]);
@@ -1196,7 +1286,7 @@ void main() {
       expect(cameras, isEmpty);
     });
 
-    // 边界：曝光点边界值应当透传
+    // Boundary: exposure point boundary values should pass through
     test('Should set exposure point at boundary values', () async {
       when(mockApi.setExposurePoint(any)).thenAnswer((_) async {});
 
@@ -1212,5 +1302,377 @@ void main() {
         ),
       ).called(1);
     });
+  });
+
+  // Test group: recording frame stream lifecycle tests (startVideoCapturing subscription cleanup)
+  group('Video Recording Frame Stream Tests', () {
+    late OhosCamera camera;
+    late int cameraId;
+    late MockCameraApi mockApi;
+    const MethodChannel imageStreamChannel = MethodChannel(
+      'plugins.flutter.io/camera_ohos/imageStream',
+    );
+
+    setUp(() async {
+      mockApi = MockCameraApi();
+      // The EventChannel listen/cancel handshake just returns null; frame data is injected
+      // via handlePlatformMessage from the "host" side.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(imageStreamChannel, (
+            MethodCall call,
+          ) async {
+            return null;
+          });
+      (camera, cameraId) = await createInitializedCamera(mockApi);
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(imageStreamChannel, null);
+      await camera.cameraEventStreamController.close();
+      await camera.cameraSwitchedStreamController.close();
+      await camera.hostHandler.deviceEventStreamController.close();
+    });
+
+    // Delivers one YUV420 frame to the plugin from the host side via the mocked EventChannel.
+    // EventChannel parses host messages with decodeEnvelope, so wrap the payload in a success envelope.
+    Future<void> sendFrame() async {
+      final ByteData? encoded = const StandardMethodCodec()
+          .encodeSuccessEnvelope(<Object?, Object?>{
+            'format':
+                35, // YUV420, see the format mapping in type_conversion.dart
+            'width': 4,
+            'height': 4,
+            'planes': <Object?>[
+              <Object?, Object?>{
+                'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+                'bytesPerRow': 4,
+              },
+            ],
+          });
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            imageStreamChannel.name,
+            encoded,
+            (ByteData? reply) {},
+          );
+      // The EventChannel broadcast controller is asynchronous: events reach listeners
+      // in a later microtask; pump one event-loop turn so delivery completes (and wrong deliveries get a chance before negative assertions).
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    // Test case: the frame callback should receive frame data during recording
+    test('Should deliver frames to the recording stream callback', () async {
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+
+      int frameCount = 0;
+      await camera.startVideoCapturing(
+        VideoCaptureOptions(
+          cameraId,
+          streamCallback: (CameraImageData data) {
+            frameCount++;
+          },
+        ),
+      );
+      // Wait for the EventChannel listen handshake to complete before injecting a frame.
+      await Future<void>.delayed(Duration.zero);
+
+      await sendFrame();
+
+      expect(frameCount, 1);
+    });
+
+    // Test case: the frame callback should stop receiving frames after stopVideoRecording (subscription cleanup)
+    test('Should stop delivering frames after stopVideoRecording', () async {
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+      when(
+        mockApi.stopVideoRecording(),
+      ).thenAnswer((_) async => '/test/path.mp4');
+
+      int frameCount = 0;
+      await camera.startVideoCapturing(
+        VideoCaptureOptions(
+          cameraId,
+          streamCallback: (CameraImageData data) {
+            frameCount++;
+          },
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await sendFrame();
+      expect(frameCount, 1);
+
+      await camera.stopVideoRecording(cameraId);
+      // After stopping, deliver a frame; the callback must not fire again.
+      await sendFrame();
+
+      expect(
+        frameCount,
+        1,
+        reason:
+            'frames must not reach the callback after '
+            'stopVideoRecording',
+      );
+    });
+
+    // Test case: repeated startVideoCapturing should cancel the stale subscription so only the new callback receives frames
+    test(
+      'Should replace stale frame subscription on repeated startVideoCapturing',
+      () async {
+        when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+        when(
+          mockApi.stopVideoRecording(),
+        ).thenAnswer((_) async => '/test/path.mp4');
+
+        int framesA = 0;
+        int framesB = 0;
+        await camera.startVideoCapturing(
+          VideoCaptureOptions(
+            cameraId,
+            streamCallback: (CameraImageData data) {
+              framesA++;
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sendFrame();
+        expect(framesA, 1);
+
+        await camera.stopVideoRecording(cameraId);
+
+        await camera.startVideoCapturing(
+          VideoCaptureOptions(
+            cameraId,
+            streamCallback: (CameraImageData data) {
+              framesB++;
+            },
+          ),
+        );
+        await Future<void>.delayed(Duration.zero);
+        await sendFrame();
+
+        // Old callback A no longer receives frames (core assertion of the leak fix); new callback B receives normally.
+        expect(framesA, 1);
+        expect(framesB, 1);
+        verify(mockApi.startVideoRecording(true, null)).called(2);
+      },
+    );
+
+    // Test case: dispose should cancel the recording frame stream subscription so the frame callback stops receiving frames
+    test('Should cancel the recording frame stream on dispose', () async {
+      when(mockApi.startVideoRecording(any, any)).thenAnswer((_) async {});
+      when(mockApi.dispose()).thenAnswer((_) async {});
+
+      int frameCount = 0;
+      await camera.startVideoCapturing(
+        VideoCaptureOptions(
+          cameraId,
+          streamCallback: (CameraImageData data) {
+            frameCount++;
+          },
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await sendFrame();
+      expect(frameCount, 1);
+
+      await camera.dispose(cameraId);
+      await sendFrame();
+
+      expect(
+        frameCount,
+        1,
+        reason: 'frames must not reach the callback after dispose',
+      );
+    });
+  });
+
+  // Test group: frame stream lifecycle tests (onStreamedFrameAvailable error/close/pause-resume paths)
+  group('Frame Stream Lifecycle Tests', () {
+    late OhosCamera camera;
+    late int cameraId;
+    late MockCameraApi mockApi;
+    const MethodChannel imageStreamChannel = MethodChannel(
+      'plugins.flutter.io/camera_ohos/imageStream',
+    );
+
+    setUp(() async {
+      mockApi = MockCameraApi();
+      // The EventChannel listen/cancel handshake just returns null; error and close events are injected
+      // via handlePlatformMessage from the "host" side.
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(imageStreamChannel, (
+            MethodCall call,
+          ) async {
+            return null;
+          });
+      (camera, cameraId) = await createInitializedCamera(mockApi);
+    });
+
+    tearDown(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(imageStreamChannel, null);
+      await camera.cameraEventStreamController.close();
+      await camera.cameraSwitchedStreamController.close();
+      await camera.hostHandler.deviceEventStreamController.close();
+    });
+
+    // Test case: after the frame stream channel emits an error, the underlying subscription should be cleared and re-listening should rebuild it
+    test('Should rebuild the frame stream subscription after an error event', () async {
+      when(mockApi.startImageStream()).thenAnswer((_) async {});
+      when(mockApi.stopImageStream()).thenAnswer((_) async {});
+
+      int listenHandshakes = 0;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(imageStreamChannel, (
+            MethodCall call,
+          ) async {
+            if (call.method == 'listen') {
+              listenHandshakes++;
+            }
+            return null;
+          });
+
+      final Stream<CameraImageData> firstStream = camera
+          .onStreamedFrameAvailable(cameraId);
+      final StreamSubscription<CameraImageData> first = firstStream.listen(
+        (_) {},
+      );
+      // Wait for the onListen microtask: startImageStream + EventChannel 'listen' handshake.
+      await Future<void>.delayed(Duration.zero);
+      expect(listenHandshakes, 1);
+
+      // Inject an error envelope from the host side: the EventChannel internally throws a
+      // PlatformException in decodeEnvelope, which reaches the subscription onError callback via addError (clearing the underlying subscription).
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+            imageStreamChannel.name,
+            const StandardMethodCodec().encodeErrorEnvelope(
+              code: 'streamError',
+              message: 'frame stream error',
+            ),
+            (ByteData? reply) {},
+          );
+      await Future<void>.delayed(Duration.zero);
+
+      // After onError cleared the underlying subscription the _startStreamListener guard passes; listening again should
+      // redo the EventChannel 'listen' handshake (otherwise the guard returns early and the count stalls at 1).
+      final StreamSubscription<CameraImageData> second = camera
+          .onStreamedFrameAvailable(cameraId)
+          .listen((_) {});
+      await Future<void>.delayed(Duration.zero);
+      expect(
+        listenHandshakes,
+        2,
+        reason:
+            'onError must clear the stale subscription so the next listener '
+            'rebuilds it',
+      );
+
+      // Cleanup: cancel the rebuilt subscription first (its underlying subscription is the current field reference), then the first one.
+      await second.cancel();
+      await first.cancel();
+    });
+
+    // Test case: after the frame stream channel closes, the underlying subscription should be cleared and re-listening should rebuild it
+    test(
+      'Should rebuild the frame stream subscription after the channel closes',
+      () async {
+        when(mockApi.startImageStream()).thenAnswer((_) async {});
+        when(mockApi.stopImageStream()).thenAnswer((_) async {});
+
+        int listenHandshakes = 0;
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(imageStreamChannel, (
+              MethodCall call,
+            ) async {
+              if (call.method == 'listen') {
+                listenHandshakes++;
+              }
+              return null;
+            });
+
+        final Stream<CameraImageData> firstStream = camera
+            .onStreamedFrameAvailable(cameraId);
+        final StreamSubscription<CameraImageData> first = firstStream.listen(
+          (_) {},
+        );
+        await Future<void>.delayed(Duration.zero);
+        expect(listenHandshakes, 1);
+
+        // Inject null data: the EventChannel internal handler closes the broadcast stream on null,
+        // the onDone callback runs and clears the underlying subscription.
+        await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .handlePlatformMessage(
+              imageStreamChannel.name,
+              null,
+              (ByteData? reply) {},
+            );
+        await Future<void>.delayed(Duration.zero);
+
+        // After onDone cleared the underlying subscription the guard passes: listening again should redo the 'listen' handshake.
+        final StreamSubscription<CameraImageData> second = camera
+            .onStreamedFrameAvailable(cameraId)
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+        expect(
+          listenHandshakes,
+          2,
+          reason:
+              'onDone must clear the stale subscription so the next listener '
+              'rebuilds it',
+        );
+
+        // Cleanup order is the same as the error case.
+        await second.cancel();
+        await first.cancel();
+      },
+    );
+
+    // Test case: pausing/resuming the frame stream should throw the InvalidCall CameraException
+    test(
+      'Should throw CameraException when pausing or resuming the streamed frame stream',
+      () async {
+        when(mockApi.startImageStream()).thenAnswer((_) async {});
+        when(mockApi.stopImageStream()).thenAnswer((_) async {});
+
+        final StreamSubscription<CameraImageData> subscription = camera
+            .onStreamedFrameAvailable(cameraId)
+            .listen((_) {});
+        await Future<void>.delayed(Duration.zero);
+
+        // StreamController invokes onPause/onResume through _runGuarded; exceptions thrown by the callbacks go
+        // through the zone uncaught-error channel (neither synchronous throws nor stream error events),
+        // so capture them in a controlled runZonedGuarded and assert there.
+        final List<Object> uncaughtErrors = <Object>[];
+        runZonedGuarded(
+          () {
+            subscription.pause();
+            subscription.resume();
+          },
+          (Object error, StackTrace stackTrace) {
+            uncaughtErrors.add(error);
+          },
+        );
+
+        expect(uncaughtErrors, hasLength(2));
+        for (final Object error in uncaughtErrors) {
+          expect(
+            error,
+            isA<CameraException>()
+                .having((e) => e.code, 'code', 'InvalidCall')
+                .having(
+                  (e) => e.description,
+                  'description',
+                  'Pause and resume are not supported for onStreamedFrameAvailable',
+                ),
+          );
+        }
+
+        await subscription.cancel();
+      },
+    );
   });
 }

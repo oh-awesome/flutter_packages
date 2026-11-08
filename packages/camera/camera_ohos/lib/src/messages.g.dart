@@ -479,12 +479,17 @@ class CameraApi {
   }
 
   /// Starts recording a video on the camera with the given ID.
-  Future<void> startVideoRecording(bool arg_enableStream) async {
+  ///
+  /// If [videoOutputPath] is provided, the recording is written to that path
+  /// instead of the default cache directory. The path must be writable inside
+  /// the app sandbox and use the .mp4 extension.
+  Future<void> startVideoRecording(
+      bool arg_enableStream, String? arg_videoOutputPath) async {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.camera_ohos.CameraApi.startVideoRecording', codec,
         binaryMessenger: _binaryMessenger);
     final List<Object?>? replyList =
-        await channel.send(<Object?>[arg_enableStream]) as List<Object?>?;
+        await channel.send(<Object?>[arg_enableStream, arg_videoOutputPath]) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -660,6 +665,65 @@ class CameraApi {
       );
     } else {
       return;
+    }
+  }
+
+  /// Sets the OHOS photo quality prioritization strategy on the photo output
+  /// (API 21+; ignored on older APIs).
+  ///
+  /// Used to implement the platform interface's zero-shutter-lag API:
+  /// enabling maps to `PhotoQualityPrioritization.SPEED` (trade image quality
+  /// for capture latency), disabling maps back to the default priority.
+  /// Supported-ness is queried via [isZeroShutterLagSupported].
+  Future<void> setZeroShutterLagEnabled(bool arg_enabled) async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.camera_ohos.CameraApi.setZeroShutterLagEnabled',
+        codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList =
+        await channel.send(<Object?>[arg_enabled]) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else {
+      return;
+    }
+  }
+
+  /// Returns whether zero-shutter-lag (speed-priority) capture can be
+  /// enabled on the current photo output (API 21+; false on older APIs).
+  Future<bool> isZeroShutterLagSupported() async {
+    final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+        'dev.flutter.pigeon.camera_ohos.CameraApi.isZeroShutterLagSupported',
+        codec,
+        binaryMessenger: _binaryMessenger);
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
+    if (replyList == null) {
+      throw PlatformException(
+        code: 'channel-error',
+        message: 'Unable to establish connection on channel.',
+      );
+    } else if (replyList.length > 1) {
+      throw PlatformException(
+        code: replyList[0]! as String,
+        message: replyList[1] as String?,
+        details: replyList[2],
+      );
+    } else if (replyList[0] == null) {
+      throw PlatformException(
+        code: 'null-error',
+        message: 'Host platform returned null value for non-null return value.',
+      );
+    } else {
+      return (replyList[0] as bool?)!;
     }
   }
 
@@ -1087,7 +1151,10 @@ class CameraApi {
         message: 'Host platform returned null value for non-null return value.',
       );
     } else {
-      return (replyList[0] as List<Object?>?)!.cast<PlatformVideoStabilizationMode?>();
+      // The wire carries plain ints (ArkTS serializes enums numerically); a
+      // lazy cast cannot convert int -> enum and only defers the TypeError to
+      // first iteration, so decode with an explicit per-element mapping.
+      return (replyList[0] as List<Object?>?)!.map((Object? e) => e == null ? null : PlatformVideoStabilizationMode.values[e as int]).toList();
     }
   }
 }

@@ -12,14 +12,22 @@ import { EventSink } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventCh
 import { BusinessError } from '@kit.BasicServicesKit';
 
 export class ImageStreamReader {
-  private readonly dartImageFormat: number;
+  // Format reported to Dart with each frame. It is updated to the format of the selected
+  // preview profile, i.e. the actual delivered buffer format (NV21 / YUV420 semi-planar,
+  // V first, on current devices), and is decoupled from the ImageReceiver creation format
+  // (imageFormat).
+  private reportedImageFormat: number;
   private readonly imageReceiver: image.ImageReceiver;
   private imageArrivalListener: ((err: BusinessError) => void) | null = null;
 
-  constructor(size: Size, imageFormat: number, maxImages: number) {
-    this.dartImageFormat = imageFormat;
+  constructor(size: Size, imageFormat: number, maxImages: number, reportedImageFormat: number) {
+    this.reportedImageFormat = reportedImageFormat;
     this.imageReceiver =
       image.createImageReceiver(size, imageFormat, maxImages);
+  }
+
+  public setReportedImageFormat(format: number): void {
+    this.reportedImageFormat = format;
   }
 
   public async onImageAvailable(
@@ -33,7 +41,7 @@ export class ImageStreamReader {
       imageBuffer.set('planes', this.parsePlanes(_image, imgComponent));
       imageBuffer.set('width', _image.size.width);
       imageBuffer.set('height', _image.size.height);
-      imageBuffer.set('format', this.dartImageFormat);
+      imageBuffer.set('format', this.reportedImageFormat);
       imageBuffer.set('lensAperture', captureProps.getLastLensAperture());
       imageBuffer.set('sensorExposureTime', captureProps.getLastSensorExposureTime());
       let sensorSensitivity: number = captureProps.getLastSensorSensitivity();
@@ -71,7 +79,7 @@ export class ImageStreamReader {
   }
 
   public async subscribeListener(captureProps: CameraCaptureProperties, imageStreamSink: EventSink) {
-    // 先注销旧监听，防止重复订阅时累积多个 'imageArrival' 回调
+    // Unregister the stale listener first so repeated subscriptions do not accumulate extra 'imageArrival' callbacks.
     this.removeListener();
 
     this.imageArrivalListener = (err: BusinessError): void => {
@@ -83,12 +91,12 @@ export class ImageStreamReader {
         nextImage.getComponent(image.ComponentType.JPEG, (err: BusinessError, imgComponent: image.Component) => {
           if (err || imgComponent === undefined) {
             console.error('getComponent failed');
-            // 失败路径释放原生图像缓冲，避免图像流模式下无界累积
+            // Release the native image buffer on the failure path to avoid unbounded accumulation in image stream mode.
             nextImage.release();
             return;
           }
           if (imgComponent && imgComponent.byteBuffer as ArrayBuffer) {
-            // onImageAvailable 内部已 try/catch 并释放图像；此处 .catch 防御异步异常被吞
+            // onImageAvailable already try/catches and releases the image; this .catch guards swallowed async failures.
             this.onImageAvailable(nextImage, imgComponent, captureProps, imageStreamSink)
               .catch((error: Error) => {
                 console.error('onImageAvailable failed: ' + error.message);
@@ -111,7 +119,8 @@ export class ImageStreamReader {
   }
 
   public close(): void {
-    // 先注销 'imageArrival' 监听，释放闭包持有的 captureProps/EventSink 引用，再释放原生接收器
+    // Unregister the 'imageArrival' listener first to drop closure-held captureProps/EventSink refs,
+    // then release the native receiver.
     this.removeListener();
     this.imageReceiver.release()
   }
