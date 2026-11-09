@@ -1,3 +1,28 @@
+## camera-v0.11.1-ohos-1.0.3 - 2026.10
+
+* **Added:**
+
+  Unit tests covering the OHOS image stream format mapping for `1003` (`ImageFormatGroup.nv21`). ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  Unit tests covering the OHOS image stream format mapping for `2000` (`ImageFormatGroup.jpeg`). ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  Unit tests asserting legacy Android constants (`35`/`256`/`17`) fall through to `unknown`. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+
+* **Changed:**
+
+  Image stream format reporting now follows the actual `format` of the selected `previewProfile` instead of the `ImageReceiver` creation format. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  `_imageFormatGroupFromPlatformData` maps `1003` to `ImageFormatGroup.nv21`, matching the NV21 byte order confirmed on device. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  `_imageFormatGroupFromPlatformData` maps `2000` to `ImageFormatGroup.jpeg`. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+
+* **Removed:**
+
+  Legacy Android dead branch (`case 35` → `ImageFormatGroup.yuv420`) from the OHOS format mapping. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  Legacy Android dead branch (`case 256` → `ImageFormatGroup.jpeg`) from the OHOS format mapping. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  Legacy Android dead branch (`case 17` → `ImageFormatGroup.nv21`) from the OHOS format mapping. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+
+* **Fixed:**
+
+  `sensorExposureTime` no longer reports the sensor sensitivity value. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+  Misleading fallback log message now reports the actual output format. ([#1763](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1763))  
+
 ## 0.10.8+8
 
 * Adds pub topics to package metadata.

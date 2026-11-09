@@ -36,6 +36,10 @@ dependency_overrides:
     git:
       url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
       path: "packages/video_player/video_player_ohos"
+  # OHOS fork SDKs (>= 3.27) lack `UnmodifiableUint8ListView` in dart:typed_data;
+  # win32 >= 3.1 uses it and fails the kernel compile even though win32
+  # never runs on OHOS. Pin to 3.0.1 (the newest release without that usage).
+  win32: 3.0.1
 
 
 
