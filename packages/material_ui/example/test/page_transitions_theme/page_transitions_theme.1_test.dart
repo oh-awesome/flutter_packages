@@ -29,6 +29,7 @@ void main() {
           final ZoomPageTransitionsBuilder builder =
               theme.builders[platform]! as ZoomPageTransitionsBuilder;
           expect(builder.allowSnapshotting, isFalse);
+        case .ohos:
         case .iOS:
         case .macOS:
         case .linux:

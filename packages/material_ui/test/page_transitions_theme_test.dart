@@ -21,6 +21,7 @@ void main() {
     expect(theme.builders, isNotNull);
     for (final TargetPlatform platform in TargetPlatform.values) {
       switch (platform) {
+        case TargetPlatform.ohos:
         case TargetPlatform.android:
         case TargetPlatform.iOS:
         case TargetPlatform.macOS:
@@ -965,6 +966,7 @@ void main() {
         case TargetPlatform.linux:
         case TargetPlatform.fuchsia:
         case TargetPlatform.windows:
+        case TargetPlatform.ohos:
           // Does no transition yet; still shows page b only.
           expect(find.text('push'), findsNothing);
       }
@@ -1011,6 +1013,7 @@ void main() {
       case TargetPlatform.linux:
       case TargetPlatform.fuchsia:
       case TargetPlatform.windows:
+      case TargetPlatform.ohos:
         expect(
           themeData.pageTransitionsTheme.builders[defaultTargetPlatform],
           isNot(isA<PredictiveBackPageTransitionsBuilder>()),
@@ -1063,6 +1066,7 @@ void main() {
               TargetPlatform.windows: PredictiveBackPageTransitionsBuilder(),
               TargetPlatform.linux: PredictiveBackPageTransitionsBuilder(),
               TargetPlatform.fuchsia: PredictiveBackPageTransitionsBuilder(),
+              TargetPlatform.ohos: PredictiveBackPageTransitionsBuilder(),
             },
           ),
         ),
@@ -1105,6 +1109,7 @@ void main() {
       case TargetPlatform.android:
         expect(findPredictiveBackPageTransition(), findsOneWidget);
         expect(findFallbackPageTransition(), findsNothing);
+      case TargetPlatform.ohos:
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.linux:
@@ -1144,6 +1149,7 @@ void main() {
       case TargetPlatform.android:
         expect(findPredictiveBackPageTransition(), findsNWidgets(2));
         expect(findFallbackPageTransition(), findsNothing);
+      case TargetPlatform.ohos:
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.linux:
@@ -1183,6 +1189,7 @@ void main() {
       case TargetPlatform.android:
         expect(findPredictiveBackPageTransition(), findsNWidgets(2));
         expect(findFallbackPageTransition(), findsNothing);
+      case TargetPlatform.ohos:
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.linux:
@@ -1201,6 +1208,7 @@ void main() {
       case TargetPlatform.android:
         expect(findPredictiveBackPageTransition(), findsNothing);
         expect(findFallbackPageTransition(), findsOneWidget);
+      case TargetPlatform.ohos:
       case TargetPlatform.iOS:
       case TargetPlatform.macOS:
       case TargetPlatform.linux:

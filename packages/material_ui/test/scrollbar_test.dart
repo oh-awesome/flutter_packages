@@ -1425,6 +1425,7 @@ void main() {
       case TargetPlatform.linux:
       case TargetPlatform.macOS:
       case TargetPlatform.windows:
+      case TargetPlatform.ohos:
         // Draws a rectangle for the track and a rounded rectangle for the thumb.
         expect(tester.renderObject(find.byKey(key2)), paintsExactlyCountTimes(#drawRect, 1));
         expect(tester.renderObject(find.byKey(key2)), paintsExactlyCountTimes(#drawRRect, 1));

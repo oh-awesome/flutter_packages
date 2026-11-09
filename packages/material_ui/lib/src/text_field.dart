@@ -70,6 +70,12 @@ class _TextFieldSelectionGestureDetectorBuilder extends TextSelectionGestureDete
   void onUserTap() {
     _state.widget.onTap?.call();
   }
+
+  @override
+  void onSingleTapUp(TapDragUpDetails details) {
+    _state._deviceKind = details.kind;
+    super.onSingleTapUp(details);
+  }
 }
 
 /// A Material Design text field.
@@ -981,6 +987,7 @@ class TextField extends StatefulWidget {
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
       case TargetPlatform.windows:
+      case TargetPlatform.ohos:
         return SpellCheckSuggestionsToolbar.editableText(editableTextState: editableTextState);
     }
   }
@@ -1411,7 +1418,10 @@ class _TextFieldState extends State<TextField>
 
   EditableTextState? get _editableText => editableTextKey.currentState;
 
+  PointerDeviceKind _deviceKind = PointerDeviceKind.unknown;
+
   void _requestKeyboard() {
+    _deviceKind = PointerDeviceKind.unknown;
     _editableText?.requestKeyboard();
   }
 
@@ -1470,6 +1480,9 @@ class _TextFieldState extends State<TextField>
       case TargetPlatform.windows:
       case TargetPlatform.fuchsia:
       case TargetPlatform.android:
+      case TargetPlatform.ohos:
+        // EditableText scrolls the dragged endpoint into view. Scrolling to the
+        // extent here would also reveal an unchanged, off-screen end handle.
         if (cause == SelectionChangedCause.longPress) {
           _editableText?.bringIntoView(selection.extent);
         }
@@ -1479,6 +1492,7 @@ class _TextFieldState extends State<TextField>
       case TargetPlatform.iOS:
       case TargetPlatform.fuchsia:
       case TargetPlatform.android:
+      case TargetPlatform.ohos:
         break;
       case TargetPlatform.macOS:
       case TargetPlatform.linux:
@@ -1548,6 +1562,7 @@ class _TextFieldState extends State<TextField>
 
     return _editableText!.textInputConfiguration.copyWith(
       autofillConfiguration: autofillConfiguration,
+      deviceKind: _deviceKind,
     );
   }
 
@@ -1610,6 +1625,7 @@ class _TextFieldState extends State<TextField>
       case TargetPlatform.fuchsia:
       case TargetPlatform.linux:
       case TargetPlatform.windows:
+      case TargetPlatform.ohos:
         spellCheckConfiguration = TextField.inferAndroidSpellCheckConfiguration(
           widget.spellCheckConfiguration,
         );
@@ -1667,6 +1683,7 @@ class _TextFieldState extends State<TextField>
 
       case TargetPlatform.android:
       case TargetPlatform.fuchsia:
+      case TargetPlatform.ohos:
         forcePressEnabled = false;
         textSelectionControls ??= materialTextSelectionHandleControls;
         paintCursorAboveText = false;

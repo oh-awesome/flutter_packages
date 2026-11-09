@@ -3284,7 +3284,8 @@ class ScaffoldState extends State<Scaffold>
 
     final Widget? statusBar = switch (themeData.platform) {
       TargetPlatform.iOS ||
-      TargetPlatform.macOS => widget.primary ? _HitTestableAtOrigin(_statusBarKey) : null,
+      TargetPlatform.macOS ||
+      TargetPlatform.ohos => widget.primary ? _HitTestableAtOrigin(_statusBarKey) : null,
       TargetPlatform.android ||
       TargetPlatform.fuchsia ||
       TargetPlatform.linux ||

@@ -33,6 +33,9 @@ migration:
     - platform: windows
       create_revision: 5495b6f0c197ad1c40208cce7d4e0283b644b79b
       base_revision: 5495b6f0c197ad1c40208cce7d4e0283b644b79b
+    - platform: ohos
+      create_revision: bb40839ba4ac33cc8134e2268ae4d3c525206ea1
+      base_revision: bb40839ba4ac33cc8134e2268ae4d3c525206ea1
 
   # User provided section
 

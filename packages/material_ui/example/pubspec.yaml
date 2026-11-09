@@ -18,7 +18,11 @@ dependencies:
 
   material_ui:
     path: ..
-  cupertino_ui: ^1.0.0
+  cupertino_ui:
+    git:
+      url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
+      path: "packages/cupertino_ui"
+      ref: "oh-3.47.7-dev"
 
 dev_dependencies:
   integration_test:

@@ -55,6 +55,7 @@ void main() {
             find.byType(CupertinoTextSelectionToolbarButton),
             findsAtLeastNWidgets(1),
           );
+        case .ohos:
         case .android:
         case .fuchsia:
           expect(
@@ -96,5 +97,6 @@ void main() {
       expect(find.text('Select all'), findsNothing);
     },
     tags: 'reduced-web-test-set',
+    variant: TargetPlatformVariant.all(),
   );
 }
