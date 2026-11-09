@@ -367,15 +367,16 @@ class PigeonLogNewInstanceFailureReply implements Reply<void> {
   }
 
   reply(_value: void): void {
-    if (_value === undefined || _value === null) {
+    const replyValue: ESObject = _value as ESObject;
+    if (replyValue === undefined || replyValue === null) {
       return;
     }
-    if (_value instanceof FlutterError) {
-      const err: FlutterError = _value as FlutterError;
+    if (replyValue instanceof FlutterError) {
+      const err: FlutterError = replyValue as FlutterError;
       logNewInstanceFailure(this.apiName, this.value, err.code + ': ' + err.message);
       return;
     }
-    logNewInstanceFailure(this.apiName, this.value, String(_value));
+    logNewInstanceFailure(this.apiName, this.value, String(replyValue));
   }
 }
 

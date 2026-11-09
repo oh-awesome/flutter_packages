@@ -989,6 +989,12 @@ void main() {
           collapsed,
           contains('class PigeonLogNewInstanceFailureReply implements Reply<void>'),
         );
+        expect(
+          collapsed,
+          contains(
+            'const replyValue: ESObject = _value as ESObject; if (replyValue === undefined || replyValue === null)',
+          ),
+        );
       });
     });
 
