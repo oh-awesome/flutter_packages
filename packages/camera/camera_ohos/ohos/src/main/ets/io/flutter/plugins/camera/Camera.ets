@@ -66,6 +66,7 @@ const FOUR = 4; // format
 const EIGHT = 8; // capacity
 const FOUR_THOUSAND_AND_SIXTY_NINE = 4096; // buffer大小
 
+// Only used to create the image stream's ImageReceiver; unrelated to the format reported to Dart.
 const supportedImageFormats: HashMap<string, image.ImageFormat> = new HashMap();
 supportedImageFormats.set("ycbr422sp", image.ImageFormat.YCBCR_422_SP);
 supportedImageFormats.set("jpeg", image.ImageFormat.JPEG);
@@ -97,6 +98,8 @@ export class Camera implements CameraCaptureStateListener {
   private avRecorder: media.AVRecorder | null = null;
   private videoOutput: camera.VideoOutput | null = null;
   private recordingVideo: boolean = false;
+  // 应用态暂停请求标记：pause/resume 准入与幂等判断以此为准，不依赖 avRecorder.state 瞬时读取（相机重建窗口期不可靠）
+  private pausedRequested: boolean = false;
   private captureFile: fs.File | null = null;
   private cameraOutputCapability: camera.CameraOutputCapability | null = null;
   private initialCameraFacing: number = 0;
@@ -196,16 +199,25 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
+    // The ImageReceiver creation format only decides how the receiver is set up;
+    // it does NOT describe the frames actually delivered by the preview stream.
+    // The reported format defaults to CAMERA_FORMAT_YUV_420_SP here (NV21 on current
+    // devices) and is later updated to the format of the selected preview profile in
+    // startImageStream()/startCapture(), so the value reported to Dart still reflects
+    // the real buffer layout and the Dart-side mapping (type_conversion.dart) can
+    // recognize it.
+    const reportedImageFormat: number = camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP;
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
     if (imageFormat == null) {
-      Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. Defaulting to yuv420")
+      Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. " +
+        "The image stream reports the actual output format CAMERA_FORMAT_YUV_420_SP.")
       imageFormat = image.ImageFormat.JPEG
     }
-
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
-      1
+      1,
+      reportedImageFormat
     )
 
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
@@ -706,6 +718,7 @@ export class Camera implements CameraCaptureStateListener {
 
     this.initialCameraFacing = this.cameraProperties.getLensFacing();
     this.recordingVideo = true;
+    this.pausedRequested = false; // 新录像开始，复位暂停请求标记
 
     try {
       // 开始录制
@@ -738,6 +751,7 @@ export class Camera implements CameraCaptureStateListener {
 
     this.cameraFeatures.setAutoFocus(this.cameraFeatureFactory.createAutoFocusFeature(this.cameraProperties, false));
     this.recordingVideo = false;
+    this.pausedRequested = false; // 录像结束，复位暂停请求标记
     const isPrepared =
       this.avRecorder.state === 'started' || this.avRecorder.state === 'paused' || this.avRecorder.state === 'prepared';
     try {
@@ -815,7 +829,7 @@ export class Camera implements CameraCaptureStateListener {
     if (this.pausedPreview) {
       this.previewOutput.stop();
     }
-    if (this.recordingVideo && this.avRecorder != undefined && this.avRecorder.state === 'paused') {
+    if (this.recordingVideo && this.pausedRequested) {
       // 录像中且暂停状态
     } else {
       await this.videoOutput.start();
@@ -926,14 +940,17 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     try {
+      this.pausedRequested = true;
       if (this.avRecorder != undefined && this.avRecorder.state === 'started') { // 仅在started状态下调用pause为合理状态切换
         await this.avRecorder.pause();
         await this.videoOutput?.stop(); // 停止相机出流
+      } else {
+        // 状态漂移（如相机重建窗口期）时不静默吞掉：记录实际状态，pause 请求仍生效
+        Log.d(TAG, `pauseVideoRecording skipped, avRecorder state=${this.avRecorder?.state ?? 'undefined'}`);
       }
-
     } catch (e) {
       Log.d(TAG, "pauseVideoRecording error")
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", e.message, null);
       return;
     }
     result.success(null);
@@ -944,17 +961,27 @@ export class Camera implements CameraCaptureStateListener {
       result.success(null);
       return;
     }
+    if (!this.pausedRequested) { // resume 必须有对应 pause 请求，等价于原严格校验的准入检查
+      result.error("videoRecordingFailed", "resumeVideoRecording called without a prior pauseVideoRecording", null);
+      return;
+    }
     try {
-      if (this.avRecorder != undefined && this.avRecorder.state === 'paused') { // 仅在paused状态下调用resume为合理状态切换
+      this.pausedRequested = false;
+      if (this.avRecorder != undefined && this.avRecorder.state === 'paused') {
         await this.videoOutput?.start(); // 启动相机出流
         await this.avRecorder?.resume();
       } else {
-        result.error(
-          "videoRecordingFailed", "avRecorder state is not paused", null);
-        return;
+        // 相机重建/状态漂移期间 recorder 可能已非 paused（已被系统恢复录制），幂等成功并确保出流恢复，防止画面冻结
+        Log.d(TAG, `resumeVideoRecording idempotent success, avRecorder state=${this.avRecorder?.state ?? 'undefined'}`);
+        try {
+          await this.videoOutput?.start();
+        } catch (e2) {
+          // 出流已在运行（如重建流程已 start），忽略
+          Log.w(TAG, 'resumeVideoRecording videoOutput.start failed: ' + e2.message)
+        }
       }
     } catch (e) {
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", e.message, null);
       return;
     }
 
@@ -987,6 +1014,12 @@ export class Camera implements CameraCaptureStateListener {
     let previewProfileIndex = this.cameraFeatures
                                   .getResolution()
                                   .getPreviewProfileIndex(profiles.previewProfiles);
+    const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
+    if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+      Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+        ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+    }
+    this.imageStreamReader!.setReportedImageFormat(actualFormat);
     this.previewOutput = this.cameraManager.createPreviewOutput(
       profiles.previewProfiles[previewProfileIndex],
       this.flutterTexture.getSurfaceId().toString());
@@ -1058,6 +1091,12 @@ export class Camera implements CameraCaptureStateListener {
           this.videoId = await this.avRecorder?.getInputSurface();
         });
 
+        const actualFormat: number = videoSessionProfile.getPreviewProfile()!.format;
+        if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+          Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+            ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+        }
+        this.imageStreamReader!.setReportedImageFormat(actualFormat);
         let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
         this.cameraFeatures.getResolution().setPreviewSize(previewSize);
         this.previewOutput = this.cameraManager.createPreviewOutput(
@@ -1073,7 +1112,8 @@ export class Camera implements CameraCaptureStateListener {
         this.videoSession?.addOutput(this.previewOutput);
         if (stream && this.imageStreamReader != null) {
           let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
-          this.previewOutput2 = this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
+          this.previewOutput2 =
+            this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);
           this.videoSession.addOutput(this.previewOutput2);
         }
         this.videoSession?.addOutput(this.videoOutput);

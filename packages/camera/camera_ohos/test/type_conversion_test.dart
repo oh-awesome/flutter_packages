@@ -34,7 +34,9 @@ void main() {
     expect(cameraImage.planes.length, 1);
   });
 
-  test('CameraImageData has ImageFormatGroup.yuv420', () {
+  test(
+      'CameraImageData has ImageFormatGroup.unknown for legacy Android format 35',
+      () {
     final CameraImageData cameraImage =
         cameraImageFromPlatformData(<dynamic, dynamic>{
       'format': 35,
@@ -53,13 +55,13 @@ void main() {
         }
       ]
     });
-    expect(cameraImage.format.group, ImageFormatGroup.yuv420);
+    expect(cameraImage.format.group, ImageFormatGroup.unknown);
   });
 
-  test('CameraImageData has ImageFormatGroup.nv21', () {
+  test('CameraImageData has ImageFormatGroup.nv21 for format 1003', () {
     final CameraImageData cameraImage =
         cameraImageFromPlatformData(<dynamic, dynamic>{
-      'format': 17,
+      'format': 1003,
       'height': 1,
       'width': 4,
       'lensAperture': 1.8,
@@ -76,5 +78,29 @@ void main() {
       ]
     });
     expect(cameraImage.format.group, ImageFormatGroup.nv21);
+    expect(cameraImage.format.raw, 1003);
+  });
+
+  test('CameraImageData has ImageFormatGroup.jpeg for format 2000', () {
+    final CameraImageData cameraImage =
+        cameraImageFromPlatformData(<dynamic, dynamic>{
+      'format': 2000,
+      'height': 1,
+      'width': 4,
+      'lensAperture': 1.8,
+      'sensorExposureTime': 9991324,
+      'sensorSensitivity': 92.0,
+      'planes': <dynamic>[
+        <dynamic, dynamic>{
+          'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+          'bytesPerPixel': 1,
+          'bytesPerRow': 4,
+          'height': 1,
+          'width': 4
+        }
+      ]
+    });
+    expect(cameraImage.format.group, ImageFormatGroup.jpeg);
+    expect(cameraImage.format.raw, 2000);
   });
 }
