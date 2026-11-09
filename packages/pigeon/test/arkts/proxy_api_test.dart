@@ -953,6 +953,49 @@ void main() {
           ),
         );
       });
+
+      test('PigeonProxyApiBaseCodec writeValue auto pigeon_newInstance', () {
+        final root = Root(
+          apis: <Api>[
+            AstProxyApi(
+              name: 'Counter',
+              constructors: <Constructor>[
+                Constructor(name: '', parameters: <Parameter>[]),
+              ],
+              fields: <ApiField>[],
+              methods: <Method>[],
+            ),
+          ],
+          classes: <Class>[],
+          enums: <Enum>[],
+        );
+        final code = _generate(root);
+        final collapsed = _collapseWhitespace(code);
+
+        expect(collapsed, contains('export class Counter {}'));
+        expect(
+          collapsed,
+          contains(
+            'if (value instanceof Counter) { this.registrar.getCounter().pigeon_newInstance(value, new PigeonLogNewInstanceFailureReply(\'Counter\', value));',
+          ),
+        );
+        expect(
+          collapsed,
+          contains(
+            'function logNewInstanceFailure(apiName: string, value: ESObject, detail: string)',
+          ),
+        );
+        expect(
+          collapsed,
+          contains('class PigeonLogNewInstanceFailureReply implements Reply<void>'),
+        );
+        expect(
+          collapsed,
+          contains(
+            'const replyValue: ESObject = _value as ESObject; if (replyValue === undefined || replyValue === null)',
+          ),
+        );
+      });
     });
 
     group('Registrar', () {

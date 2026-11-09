@@ -36,6 +36,18 @@ export class FlutterError implements Error {
   }
 }
 
+/**
+ * Wrapper so PigeonCodec always serializes a Dart `double` as float64.
+ * ArkTS `number` values such as `1` or `1.0` would otherwise be encoded
+ * as integers by StandardMessageCodec and fail strict Dart double casts.
+ */
+export class PigeonInternalDoubleBox {
+  value: number;
+  constructor(value: number) {
+    this.value = value;
+  }
+}
+
 function wrapError(error: Error): Array<Object | null> {
   let errorList: Array<Object | null> = new Array<Object | null>(3);
   if (error instanceof FlutterError) {
@@ -54,14 +66,14 @@ function wrapError(error: Error): Array<Object | null> {
  * Maintains a 1:1 mapping between native objects and integer identifiers
  * shared with the Dart `InstanceManager`.
  *
- * Memory management mirrors Kotlin/Swift: each instance is tracked with a
+ * Memory management mirrors Android JNI / Swift: each instance is tracked with a
  * [WeakRef] and a strong reference. [remove] drops the strong reference; when
  * the weak reference is garbage collected, [FinalizationRegistry] notifies the
  * [finalizationListener]. [getIdentifierForStrongReference] re-creates a strong
  * reference when needed to pass an identifier to Dart.
  *
  * Thread safety: synchronous, single-threaded platform channel thread (see
- * Kotlin `InstanceManager` rationale).
+ * Android JNI `InstanceManager` rationale).
  */
 export class PigeonInstanceManager {
   private static readonly minHostCreatedIdentifier: number = 65536;
@@ -334,6 +346,40 @@ class PigeonNoOpVoidReply implements Reply<void> {
   }
 }
 
+function logNewInstanceFailure(apiName: string, value: ESObject, detail: string): void {
+  console.warn(
+    'PigeonProxyApiBaseCodec: Failed to create new Dart proxy instance of ' + apiName + ': ' +
+    String(value) + '. ' + detail);
+}
+
+/**
+ * [Reply] used from [PigeonProxyApiBaseCodec.writeValue] when auto-invoking
+ * [pigeon_newInstance]. Logs failures like the Android JNI codec; does not
+ * block encoding.
+ */
+class PigeonLogNewInstanceFailureReply implements Reply<void> {
+  private readonly apiName: string;
+  private readonly value: ESObject;
+
+  constructor(apiName: string, value: ESObject) {
+    this.apiName = apiName;
+    this.value = value;
+  }
+
+  reply(_value: void): void {
+    const replyValue: ESObject = _value as ESObject;
+    if (replyValue === undefined || replyValue === null) {
+      return;
+    }
+    if (replyValue instanceof FlutterError) {
+      const err: FlutterError = replyValue as FlutterError;
+      logNewInstanceFailure(this.apiName, this.value, err.code + ': ' + err.message);
+      return;
+    }
+    logNewInstanceFailure(this.apiName, this.value, String(replyValue));
+  }
+}
+
 class PigeonRegistrarFinalizationListener implements PigeonFinalizationListener {
   private readonly api: PigeonInstanceManagerApi;
 
@@ -592,7 +638,12 @@ export class PigeonCodec extends StandardMessageCodec {
   }
 
   writeValue(stream: ByteBuffer , value: ESObject): ESObject{
-    if (value instanceof IdentityEnum) {
+    if (value instanceof PigeonInternalDoubleBox) {
+      stream.writeInt8(this.getByte(6));
+      this.writeAlignment(stream, 8);
+      stream.writeFloat64((value as PigeonInternalDoubleBox).value, true);
+      return;
+    } else     if (value instanceof IdentityEnum) {
       stream.writeUint8(this.getByte(129));
       this.writeValue(stream, value == null ? null : Identity[value.index as string]);
     } else if (value instanceof ProxyRoleEnum) {
@@ -616,10 +667,17 @@ export interface Result<T> {
 
   error( error: Error): void;
 }
+/** Host-side instance marker for ProxyApi `HostEnumCounter`. */
+export class HostEnumCounter {}
+
+/** Host-side instance marker for ProxyApi `EnumCounter`. */
+export class EnumCounter {}
+
 /**
  * Codec extending `PigeonCodec` with ProxyApi instance
- * references (tag 128). Host-created
- * instances must be registered via `pigeon_newInstance` before encoding.
+ * references (tag 128). Unregistered
+ * host ProxyApi values trigger `pigeon_newInstance` on write,
+ * matching the Android JNI `PigeonProxyApiBaseCodec` behavior.
  */
 export class PigeonProxyApiBaseCodec extends PigeonCodec {
   registrar: PigeonProxyApiRegistrar;
@@ -644,6 +702,13 @@ export class PigeonProxyApiBaseCodec extends PigeonCodec {
   override writeValue(stream: ByteBuffer, value: ESObject): ESObject {
     if (value === null || typeof value === 'boolean' || typeof value === 'number' || typeof value === 'string' || Array.isArray(value) || value instanceof Map) {
       return super.writeValue(stream, value);
+    }
+
+    if (value instanceof HostEnumCounter) {
+      this.registrar.getHostEnumCounter().pigeon_newInstance(value, new PigeonLogNewInstanceFailureReply('HostEnumCounter', value));
+    }
+     else if (value instanceof EnumCounter) {
+      this.registrar.getEnumCounter().pigeon_newInstance(value, new PigeonLogNewInstanceFailureReply('EnumCounter', value));
     }
 
     if (this.registrar.instanceManager.containsInstance(value)) {
@@ -866,7 +931,7 @@ export abstract class DemoHostApi {
               let res: Array<Object | null> = [];
               try {
                 let output: number = api!.sendDouble(args[0] as number);
-                res.push(output);
+                res.push(new PigeonInternalDoubleBox(output));
               }
  catch (error) {
                 let wrappedError: Array<Object | null> = wrapError(error);

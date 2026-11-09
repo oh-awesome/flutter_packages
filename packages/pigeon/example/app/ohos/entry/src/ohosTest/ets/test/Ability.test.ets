@@ -9,19 +9,19 @@
 // device runs—not by assertions in this file.
 
 import hilog from '@ohos.hilog';
-import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium'
+import { describe, beforeAll, beforeEach, afterEach, afterAll, it, expect } from '@ohos/hypium';
 
 export default function abilityTest() {
-  describe('ActsAbilityTest', function () {
-    beforeAll(function () {
+  describe('ActsAbilityTest', () => {
+    beforeAll(() => {
     })
-    beforeEach(function () {
+    beforeEach(() => {
     })
-    afterEach(function () {
+    afterEach(() => {
     })
-    afterAll(function () {
+    afterAll(() => {
     })
-    it('hypiumWiring', 0, function () {
+    it('hypiumWiring', 0, () => {
       hilog.info(0x0000, 'testTag', '%{public}s', 'ohosTest scaffold; pigeon coverage in packages/pigeon/test');
       expect('pigeon_example').assertContain('pigeon');
     })
