@@ -16,6 +16,7 @@ import 'package:video_player/video_player.dart';
 import 'camera_controller.dart';
 import 'camera_preview.dart';
 import 'fileselector/file_selector.dart';
+import 'stream_thumb.dart';
 
 /// Camera example home widget.
 class CameraExampleHome extends StatefulWidget {
@@ -233,16 +234,28 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         onPointerCancel: (_) => _pointers--,
         child: CameraPreview(
           controller!,
-          child: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              return GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onScaleStart: _handleScaleStart,
-                onScaleUpdate: _handleScaleUpdate,
-                onTapDown: (TapDownDetails details) =>
-                    onViewFinderTap(details, constraints),
-              );
-            },
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onScaleStart: _handleScaleStart,
+                    onScaleUpdate: _handleScaleUpdate,
+                    onTapDown: (TapDownDetails details) =>
+                        onViewFinderTap(details, constraints),
+                  );
+                },
+              ),
+              Align(
+                alignment: Alignment.topRight,
+                child: StreamThumb(
+                  controller: controller!,
+                  cameraId: controller!.cameraId,
+                ),
+              ),
+            ],
           ),
         ),
       );
