@@ -33,6 +33,7 @@ import {
   makeFakeComponent,
   fakeImageReleaseCount
 } from './TestMocks';
+import { camera } from '@kit.CameraKit';
 
 let factoryFailureMessage: string = '';
 
@@ -110,14 +111,14 @@ export default function imageStreamReaderTest() {
       if (reader == null) {
         return;
       }
-      reader.setReportedImageFormat(image.ImageFormat.YUV420);
+      reader.setReportedImageFormat(camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP);
       const sink: StubEventSink = new StubEventSink();
       const img: image.Image = makeFakeImage(16, 16);
       await reader.onImageAvailable(img, makeFakeComponent(8, 1, 4),
         new CameraCaptureProperties(), sink);
       const payload: HashMap<string, Object> =
         (sink.successEvents[0] as ESObject) as HashMap<string, Object>;
-      expect(payload.get('format')).assertEqual(image.ImageFormat.YUV420);
+      expect(payload.get('format')).assertEqual(camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP);
     });
 
     it('onImageAvailable_defaultSensitivityZeroPassesThrough', 0, async (): Promise<void> => {
