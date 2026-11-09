@@ -1,3 +1,24 @@
+## camera-v0.10.5_5-ohos-1.0.2 - 2026.10
+
+* **Added:**
+
+  Unit tests covering the OHOS image stream format mapping for `1003`, `2000`, and the legacy Android constants. ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+
+* **Changed:**
+
+  Image stream format reporting now follows the actual `format` of the selected `previewProfile` (`camera.CameraFormat` constants) instead of the `ImageReceiver` creation format. ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+  `_imageFormatGroupFromPlatformData` maps OHOS native constants only: `1003` to `ImageFormatGroup.nv21` and `2000` to `ImageFormatGroup.jpeg`. ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+
+* **Removed:**
+
+  Legacy Android dead branches (`case 35`/`256`/`17`) from the OHOS format mapping. ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+
+* **Fixed:**
+
+  `sensorExposureTime` no longer reports the sensor sensitivity value; populating a real exposure time still depends on completing `CameraCaptureCallback` (currently a stub, so the field remains `0` until then). ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+  Misleading fallback log message now states the actual reported output format. ([#1762](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1762))
+
+
 ## 0.10.8+8
 
 * Adds pub topics to package metadata.

@@ -57,6 +57,7 @@ const FOUR = 4; // format
 const EIGHT = 8; // capacity
 const FOUR_THOUSAND_AND_SIXTY_NINE = 4096; // buffer大小
 
+// Only used to create the image stream's ImageReceiver; unrelated to the format reported to Dart.
 const supportedImageFormats: HashMap<string, image.ImageFormat> = new HashMap();
 supportedImageFormats.set("ycbr422sp", image.ImageFormat.YCBCR_422_SP);
 supportedImageFormats.set("jpeg", image.ImageFormat.JPEG);
@@ -179,16 +180,25 @@ export class Camera implements CameraCaptureStateListener {
       return;
     }
 
+    // The ImageReceiver creation format only decides how the receiver is set up;
+    // it does NOT describe the frames actually delivered by the preview stream.
+    // The reported format defaults to CAMERA_FORMAT_YUV_420_SP here (NV21 on current
+    // devices) and is later updated to the format of the selected preview profile in
+    // startImageStream()/startCapture(), so the value reported to Dart still reflects
+    // the real buffer layout and the Dart-side mapping (type_conversion.dart) can
+    // recognize it.
+    const reportedImageFormat: number = camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP;
     let imageFormat: number = supportedImageFormats.get(imageFormatGroup);
     if (imageFormat == null) {
-      Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. Defaulting to yuv420")
+      Log.w(TAG, "The selected imageFormatGroup is not supported by ohos. " +
+        "The image stream reports the actual output format CAMERA_FORMAT_YUV_420_SP.")
       imageFormat = image.ImageFormat.JPEG
     }
-
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
-      1
+      1,
+      reportedImageFormat
     )
 
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
@@ -795,7 +805,7 @@ export class Camera implements CameraCaptureStateListener {
 
     } catch (e) {
       Log.d(TAG, "pauseVideoRecording error")
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", e.message, null);
       return;
     }
     result.success(null);
@@ -816,7 +826,7 @@ export class Camera implements CameraCaptureStateListener {
         return;
       }
     } catch (e) {
-      result.error("videoRecordingFailed", e.getMessage(), null);
+      result.error("videoRecordingFailed", e.message, null);
       return;
     }
 
@@ -849,6 +859,12 @@ export class Camera implements CameraCaptureStateListener {
     let previewProfileIndex = this.cameraFeatures
                                   .getResolution()
                                   .getPreviewProfileIndex(profiles.previewProfiles);
+    const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
+    if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+      Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+        ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+    }
+    this.imageStreamReader!.setReportedImageFormat(actualFormat);
     this.previewOutput = this.cameraManager.createPreviewOutput(
       profiles.previewProfiles[previewProfileIndex],
       this.flutterTexture.getSurfaceId().toString());
@@ -921,6 +937,12 @@ export class Camera implements CameraCaptureStateListener {
               that.videoId = await that.avRecorder?.getInputSurface();
             });
 
+            const actualFormat: number = videoSessionProfile.getPreviewProfile()!.format;
+            if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+              Log.w(TAG, 'Selected preview profile format is ' + actualFormat +
+                ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
+            }
+            that.imageStreamReader!.setReportedImageFormat(actualFormat);
             let previewSize: camera.Size = videoSessionProfile.getPreviewProfile()!.size;
             that.cameraFeatures.getResolution().setPreviewSize(previewSize);
             that.previewOutput = that.cameraManager.createPreviewOutput(
