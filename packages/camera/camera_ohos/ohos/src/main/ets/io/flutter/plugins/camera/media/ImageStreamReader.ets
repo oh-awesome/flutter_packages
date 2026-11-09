@@ -13,15 +13,23 @@ import { EventSink } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventCh
 import { BusinessError } from '@kit.BasicServicesKit';
 
 export class ImageStreamReader {
-  private readonly dartImageFormat: number;
+  // Format reported to Dart with each frame. It is updated to the format of the selected
+  // preview profile, i.e. the actual delivered buffer format (NV21 / YUV420 semi-planar,
+  // V first, on current devices), and is decoupled from the ImageReceiver creation format
+  // (imageFormat).
+  private reportedImageFormat: number;
   private readonly imageReceiver: image.ImageReceiver;
   private readonly imageStreamReaderUtils: ImageStreamReaderUtils;
 
-  constructor(size: Size, imageFormat: number, maxImages: number) {
-    this.dartImageFormat = imageFormat;
+  constructor(size: Size, imageFormat: number, maxImages: number, reportedImageFormat: number) {
+    this.reportedImageFormat = reportedImageFormat;
     this.imageReceiver =
       image.createImageReceiver(size, imageFormat, maxImages);
     this.imageStreamReaderUtils = new ImageStreamReaderUtils();
+  }
+
+  public setReportedImageFormat(format: number): void {
+    this.reportedImageFormat = format;
   }
 
   public async onImageAvailable(
@@ -35,9 +43,9 @@ export class ImageStreamReader {
       imageBuffer.set("planes", this.parsePlanes(_image, imgComponent))
       imageBuffer.set('width', _image.size.width);
       imageBuffer.set('height', _image.size.height);
-      imageBuffer.set('format', this.dartImageFormat);
+      imageBuffer.set('format', this.reportedImageFormat);
       imageBuffer.set('lensAperture', captureProps.getLastLensAperture());
-      imageBuffer.set('sensorExposureTime', captureProps.getLastSensorSensitivity());
+      imageBuffer.set('sensorExposureTime', captureProps.getLastSensorExposureTime());
       let sensorSensitivity: number = captureProps.getLastSensorSensitivity();
       imageBuffer.set('sensorSensitivity', sensorSensitivity == null ? null : sensorSensitivity);
 
@@ -47,7 +55,7 @@ export class ImageStreamReader {
     } catch (e) {
       imageStreamSink.error(
         "IllegalStateException",
-        "Caught IllegalStateException: " + e.getMessage(),
+        'Caught IllegalStateException: ' + e.message,
         null)
       await _image.release()
     }
