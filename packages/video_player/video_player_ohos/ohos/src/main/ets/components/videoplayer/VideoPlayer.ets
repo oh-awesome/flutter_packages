@@ -494,13 +494,15 @@ export class VideoPlayer {
       Log.w(TAG, 'setAudioFocus: avPlayer is null, cannot set audio focus');
       return;
     }
-    // Set the interrupt mode based on the mixWithOthers parameter.
     this.interruptMode = mixWithOthers ?
           audio.InterruptMode.SHARE_MODE :
           audio.InterruptMode.INDEPENDENT_MODE;
-    // Update the player's audio interrupt mode.
+    // AVPlayer rejects setting audioInterruptMode unless it is in the
+    // prepared/playing/paused/completed state. Defer to the PREPARED callback.
+    if (!this.isPrepared) {
+      return;
+    }
     this.avPlayer.audioInterruptMode = this.interruptMode;
-
     Log.i(TAG, `setAudioFocus: mixWithOthers=${mixWithOthers}, interruptMode=${this.interruptMode}`);
   }
 

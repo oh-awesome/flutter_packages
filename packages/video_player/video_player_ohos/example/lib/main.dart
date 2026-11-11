@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:video_player_platform_interface/video_player_platform_interface.dart';
 
 import 'audio_tracks_demo.dart';
-import 'main_package_platform_view_page.dart';
 import 'demo_sources.dart';
 import 'fileselector/file_selector.dart';
 import 'fileselector/x_type_group.dart';
@@ -110,20 +109,6 @@ class _AppState extends State<_App> with RouteAware {
                     MaterialPageRoute<AudioTracksDemo>(
                       builder:
                           (BuildContext context) => const AudioTracksDemo(),
-                    ),
-                  );
-                },
-              ),
-              IconButton(
-                key: const ValueKey<String>('main_package_platform_view'),
-                icon: const Icon(Icons.fact_check),
-                tooltip: '主包 Platform view',
-                onPressed: () {
-                  Navigator.push<MainPackagePlatformViewPage>(
-                    context,
-                    MaterialPageRoute<MainPackagePlatformViewPage>(
-                      builder: (BuildContext context) =>
-                          const MainPackagePlatformViewPage(),
                     ),
                   );
                 },
@@ -830,7 +815,7 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
     _loadError = null;
     try {
       await _controller.initialize();
-      if (!mounted) {
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) {
         return;
       }
       await _controller.play();
@@ -859,7 +844,7 @@ class _BumbleBeeRemoteVideoState extends State<_BumbleBeeRemoteVideo> {
     });
     try {
       await _controller.initialize();
-      if (!mounted) {
+      if (!mounted || !(ModalRoute.of(context)?.isCurrent ?? true)) {
         return;
       }
       await _controller.play();
