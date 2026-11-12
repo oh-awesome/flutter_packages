@@ -1,0 +1,135 @@
+// Copyright 2013 The Flutter Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import 'dart:typed_data';
+
+import 'package:camera_ohos/src/messages.g.dart';
+import 'package:camera_ohos/src/type_conversion.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter_test/flutter_test.dart';
+
+void main() {
+  // Test case: CameraImageData can be created
+  test('CameraImageData can be created', () {
+    final CameraImageData cameraImage = cameraImageFromPlatformData(
+      <dynamic, dynamic>{
+        'format': 1,
+        'height': 1,
+        'width': 4,
+        'lensAperture': 1.8,
+        'sensorExposureTime': 9991324,
+        'sensorSensitivity': 92.0,
+        'planes': <dynamic>[
+          <dynamic, dynamic>{
+            'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+            'bytesPerPixel': 1,
+            'bytesPerRow': 4,
+            'height': 1,
+            'width': 4,
+          },
+        ],
+      },
+    );
+    expect(cameraImage.height, 1);
+    expect(cameraImage.width, 4);
+    expect(cameraImage.format.group, ImageFormatGroup.unknown);
+    expect(cameraImage.planes.length, 1);
+  });
+
+  test(
+    'CameraImageData has ImageFormatGroup.unknown for legacy Android format 35',
+    () {
+      final CameraImageData cameraImage = cameraImageFromPlatformData(
+        <dynamic, dynamic>{
+          'format': 35,
+          'height': 1,
+          'width': 4,
+          'lensAperture': 1.8,
+          'sensorExposureTime': 9991324,
+          'sensorSensitivity': 92.0,
+          'planes': <dynamic>[
+            <dynamic, dynamic>{
+              'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+              'bytesPerPixel': 1,
+              'bytesPerRow': 4,
+              'height': 1,
+              'width': 4,
+            },
+          ],
+        },
+      );
+      expect(cameraImage.format.group, ImageFormatGroup.unknown);
+    },
+  );
+
+  test('CameraImageData has ImageFormatGroup.nv21 for format 1003', () {
+    final CameraImageData cameraImage = cameraImageFromPlatformData(
+      <dynamic, dynamic>{
+        'format': 1003,
+        'height': 1,
+        'width': 4,
+        'lensAperture': 1.8,
+        'sensorExposureTime': 9991324,
+        'sensorSensitivity': 92.0,
+        'planes': <dynamic>[
+          <dynamic, dynamic>{
+            'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+            'bytesPerPixel': 1,
+            'bytesPerRow': 4,
+            'height': 1,
+            'width': 4,
+          },
+        ],
+      },
+    );
+    expect(cameraImage.format.group, ImageFormatGroup.nv21);
+    expect(cameraImage.format.raw, 1003);
+  });
+
+  test('CameraImageData has ImageFormatGroup.jpeg for format 2000', () {
+    final CameraImageData cameraImage = cameraImageFromPlatformData(
+      <dynamic, dynamic>{
+        'format': 2000,
+        'height': 1,
+        'width': 4,
+        'lensAperture': 1.8,
+        'sensorExposureTime': 9991324,
+        'sensorSensitivity': 92.0,
+        'planes': <dynamic>[
+          <dynamic, dynamic>{
+            'bytes': Uint8List.fromList(<int>[1, 2, 3, 4]),
+            'bytesPerPixel': 1,
+            'bytesPerRow': 4,
+            'height': 1,
+            'width': 4,
+          },
+        ],
+      },
+    );
+    expect(cameraImage.format.group, ImageFormatGroup.jpeg);
+    expect(cameraImage.format.raw, 2000);
+  });
+
+  // Test case: imageFileFormatToPlatform should map jpeg to PlatformImageFileFormat.jpeg
+  test(
+    'imageFileFormatToPlatform should map jpeg to PlatformImageFileFormat.jpeg',
+    () {
+      expect(
+        imageFileFormatToPlatform(ImageFileFormat.jpeg),
+        PlatformImageFileFormat.jpeg,
+      );
+    },
+  );
+
+  // Test case: imageFileFormatToPlatform should map heif to PlatformImageFileFormat.heif
+  test(
+    'imageFileFormatToPlatform should map heif to PlatformImageFileFormat.heif',
+    () {
+      expect(
+        imageFileFormatToPlatform(ImageFileFormat.heif),
+        PlatformImageFileFormat.heif,
+      );
+    },
+  );
+}

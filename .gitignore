@@ -70,3 +70,6 @@ gradlew.bat
 # AI related
 .agents/rules/personal-*
 .agents/skills/personal-*
+.omc
+.fvmrc
+.cpf-*

@@ -1,0 +1,315 @@
+// Copyright 2013 The Flutter Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+import 'package:pigeon/pigeon.dart';
+
+@ConfigurePigeon(
+  PigeonOptions(
+    input: 'pigeons/messages.dart',
+    arkTsOut: 'ohos/src/main/ets/io/flutter/plugins/camera/Messages.ets',
+    arkTsOptions: ArkTsOptions(className: 'Messages'),
+    dartOut: 'lib/src/messages.g.dart',
+    copyrightHeader: 'pigeons/copyright.txt',
+  ),
+)
+/// Pigeon equivalent of [CameraLensDirection].
+enum PlatformCameraLensDirection {
+  front,
+  back,
+  external,
+}
+
+/// Pigeon equivalent of [CameraDescription].
+class PlatformCameraDescription {
+  PlatformCameraDescription(
+      {required this.name,
+      required this.lensDirection,
+      required this.sensorOrientation});
+
+  final String name;
+  final PlatformCameraLensDirection lensDirection;
+  final int sensorOrientation;
+}
+
+/// Pigeon equivalent of [DeviceOrientation].
+enum PlatformDeviceOrientation {
+  portraitUp,
+  portraitDown,
+  landscapeLeft,
+  landscapeRight,
+}
+
+/// Pigeon equivalent of [ExposureMode].
+enum PlatformExposureMode {
+  auto,
+  locked,
+}
+
+/// Pigeon equivalent of [FocusMode].
+enum PlatformFocusMode {
+  auto,
+  locked,
+}
+
+/// Data needed for [CameraInitializedEvent].
+class PlatformCameraState {
+  PlatformCameraState({
+    this.previewSize, // required removed
+    required this.exposureMode,
+    required this.focusMode,
+    required this.exposurePointSupported,
+    required this.focusPointSupported,
+  });
+
+  final PlatformSize? previewSize; // made nullable
+  final PlatformExposureMode exposureMode;
+  final PlatformFocusMode focusMode;
+  final bool exposurePointSupported;
+  final bool focusPointSupported;
+}
+
+/// Pigeon equivalent of [Size].
+class PlatformSize {
+  PlatformSize({required this.width, required this.height});
+
+  final double width;
+  final double height;
+}
+
+/// Pigeon equivalent of [Point].
+class PlatformPoint {
+  PlatformPoint({required this.x, required this.y});
+
+  final double x;
+  final double y;
+}
+
+/// Pigeon equivalent of [ResolutionPreset].
+enum PlatformResolutionPreset {
+  low,
+  medium,
+  high,
+  veryHigh,
+  ultraHigh,
+  max,
+}
+
+/// Pigeon equivalent of [MediaSettings].
+class PlatformMediaSettings {
+  PlatformMediaSettings(
+      {required this.resolutionPreset,
+      required this.enableAudio,
+      this.fps,
+      this.videoBitrate,
+      this.audioBitrate});
+  final PlatformResolutionPreset resolutionPreset;
+  final int? fps;
+  final int? videoBitrate;
+  final int? audioBitrate;
+  final bool enableAudio;
+}
+
+/// Pigeon equivalent of [ImageFormatGroup].
+enum PlatformImageFormatGroup {
+  /// The default for Android.
+  yuv420,
+  jpeg,
+  nv21,
+}
+
+/// Pigeon equivalent of [FlashMode].
+enum PlatformFlashMode {
+  off,
+  auto,
+  always,
+  torch,
+}
+
+/// Pigeon equivalent of [ImageFileFormat].
+enum PlatformImageFileFormat { jpeg, heif }
+
+/// Pigeon equivalent of [VideoStabilizationMode].
+enum PlatformVideoStabilizationMode { 
+  off, 
+  level1, 
+  level2, 
+  level3 
+}
+
+/// Handles calls from Dart to the native side.
+@HostApi()
+abstract class CameraApi {
+  /// Returns the list of available cameras.
+  List<PlatformCameraDescription> getAvailableCameras();
+
+  /// Creates a new camera with the given name and settings and returns its ID.
+  @async
+  int create(String cameraName, PlatformMediaSettings mediaSettings);
+
+  /// Initializes the camera with the given ID for the given image format.
+  @async
+  void initialize(PlatformImageFormatGroup imageFormat);
+
+  /// Disposes of the camera with the given ID.
+  @async
+  void dispose();
+
+  /// Locks the camera with the given ID to the given orientation.
+  void lockCaptureOrientation(PlatformDeviceOrientation orientation);
+
+  /// Unlocks the orientation for the camera with the given ID.
+  void unlockCaptureOrientation();
+
+  /// Takes a picture on the camera with the given ID and returns a path to the
+  /// resulting file.
+  @async
+  String takePicture();
+
+  /// Starts recording a video on the camera with the given ID.
+  ///
+  /// If [videoOutputPath] is provided, the recording is written to that path
+  /// instead of the default cache directory. The path must be writable inside
+  /// the app sandbox and use the .mp4 extension.
+  @async
+  void startVideoRecording(bool enableStream, String? videoOutputPath);
+
+  /// Ends video recording on the camera with the given ID and returns the path
+  /// to the resulting file.
+  @async
+  String stopVideoRecording();
+
+  /// Pauses video recording on the camera with the given ID.
+  @async
+  void pauseVideoRecording();
+
+  /// Resumes previously paused video recording on the camera with the given ID.
+  @async
+  void resumeVideoRecording();
+
+  /// Begins streaming frames from the camera.
+  void startImageStream();
+
+  /// Stops streaming frames from the camera.
+  void stopImageStream();
+
+  /// Sets the file format used for captured still images.
+  @async
+  void setImageFileFormat(PlatformImageFileFormat format);
+
+  /// Sets the JPEG compression quality (1-100) for captured still images.
+  ///
+  /// OHOS does not support continuous JPEG quality via `PhotoCaptureSetting`
+  /// (only a 3-level enum), so the captured photo is re-encoded with the
+  /// requested quality after capture. Platforms that do not support this
+  /// setting ignore it.
+  @async
+  void setJpegImageQuality(int quality);
+
+  /// Sets the OHOS photo quality prioritization strategy on the photo output
+  /// (API 21+; ignored on older APIs).
+  ///
+  /// Used to implement the platform interface's zero-shutter-lag API:
+  /// enabling maps to `PhotoQualityPrioritization.SPEED` (trade image quality
+  /// for capture latency), disabling maps back to the default priority.
+  /// Supported-ness is queried via [isZeroShutterLagSupported].
+  @async
+  void setZeroShutterLagEnabled(bool enabled);
+
+  /// Returns whether zero-shutter-lag (speed-priority) capture can be
+  /// enabled on the current photo output (API 21+; false on older APIs).
+  @async
+  bool isZeroShutterLagSupported();
+
+  /// Sets the flash mode of the camera with the given ID.
+  @async
+  void setFlashMode(PlatformFlashMode flashMode);
+
+  /// Sets the exposure mode of the camera with the given ID.
+  @async
+  void setExposureMode(PlatformExposureMode exposureMode);
+
+  /// Sets the exposure point of the camera with the given ID.
+  ///
+  /// A null value resets to the default exposure point.
+  @async
+  void setExposurePoint(PlatformPoint? point);
+
+  /// Returns the minimum exposure offset of the camera with the given ID.
+  double getMinExposureOffset();
+
+  /// Returns the maximum exposure offset of the camera with the given ID.
+  double getMaxExposureOffset();
+
+  /// Returns the exposure step size of the camera with the given ID.
+  double getExposureOffsetStepSize();
+
+  /// Sets the exposure offset of the camera with the given ID and returns the
+  /// actual exposure offset.
+  @async
+  double setExposureOffset(double offset);
+
+  /// Sets the focus mode of the camera with the given ID.
+  @async
+  void setFocusMode(PlatformFocusMode focusMode);
+
+  /// Sets the focus point of the camera with the given ID.
+  ///
+  /// A null value resets to the default focus point.
+  @async
+  void setFocusPoint(PlatformPoint? point);
+
+  /// Returns the maximum zoom level of the camera with the given ID.
+  double getMaxZoomLevel();
+
+  /// Returns the minimum zoom level of the camera with the given ID.
+  double getMinZoomLevel();
+
+  /// Sets the zoom level of the camera with the given ID.
+  @async
+  void setZoomLevel(double zoom);
+
+  /// Pauses streaming of preview frames.
+  @async
+  void pausePreview();
+
+  /// Resumes previously paused streaming of preview frames.
+  @async
+  void resumePreview();
+
+  /// Changes the camera while recording video.
+  ///
+  /// This should be called only while video recording is active.
+  @async
+  void setDescriptionWhileRecording(String description);
+
+  /// Sets the video stabilization mode of the camera with the given ID.
+  @async
+  void setVideoStabilizationMode(PlatformVideoStabilizationMode mode);
+
+  /// Returns a list of video stabilization modes supported by the camera with the given ID.
+  @async
+  List<PlatformVideoStabilizationMode> getSupportedVideoStabilizationModes();
+}
+
+/// Handles calls from native side to Dart that are not camera-specific.
+@FlutterApi()
+abstract class CameraGlobalEventApi {
+  /// Called when the device's physical orientation changes.
+  void deviceOrientationChanged(PlatformDeviceOrientation orientation);
+}
+
+/// Handles device-specific calls from native side to Dart.
+@FlutterApi()
+abstract class CameraEventApi {
+  /// Called when the camera is initialized.
+  void initialized(PlatformCameraState initialState);
+
+  /// Called when an error occurs in the camera.
+  void error(String message);
+
+  /// Called when a camera is switched (e.g., on tri-fold devices).
+  void cameraSwitched(String newCameraName);
+
+  /// Called when the camera closes.
+  void closed();
+}

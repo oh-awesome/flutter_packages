@@ -1,0 +1,1799 @@
+// Copyright 2013 The Flutter Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+import 'dart:async';
+import 'dart:io';
+import 'dart:math';
+
+import 'package:camera_ohos/camera_ohos.dart';
+import 'package:camera_platform_interface/camera_platform_interface.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+// CameraPlatform ZSL passthroughs surface channel errors as PlatformException.
+import 'package:flutter/services.dart' show PlatformException;
+import 'package:path_provider/path_provider.dart';
+import 'package:video_player/video_player.dart';
+
+import 'camera_controller.dart';
+import 'camera_preview.dart';
+import 'fileselector/file_selector.dart';
+import 'stream_thumb.dart';
+
+/// Camera example home widget.
+class CameraExampleHome extends StatefulWidget {
+  /// Default Constructor
+  const CameraExampleHome({super.key});
+
+  @override
+  State<CameraExampleHome> createState() {
+    return _CameraExampleHomeState();
+  }
+}
+
+/// Returns a suitable camera icon for [direction].
+IconData getCameraLensIcon(CameraLensDirection direction) {
+  switch (direction) {
+    case CameraLensDirection.back:
+      return Icons.camera_rear;
+    case CameraLensDirection.front:
+      return Icons.camera_front;
+    case CameraLensDirection.external:
+      return Icons.camera;
+  }
+  // This enum is from a different package, so a new value could be added at
+  // any time. The example should keep working if that happens.
+  // ignore: dead_code
+  return Icons.camera;
+}
+
+void _logError(String code, String? message) {
+  // ignore: avoid_print
+  print('Error: $code${message == null ? '' : '\nError Message: $message'}');
+}
+
+class _CameraExampleHomeState extends State<CameraExampleHome>
+    with WidgetsBindingObserver, TickerProviderStateMixin {
+  CameraController? controller;
+  XFile? imageFile;
+  XFile? videoFile;
+  VideoPlayerController? videoController;
+  // File descriptor handed to the video player on ohos; closed when the previous
+  // player is torn down (see _closeVideoFileDescriptor).
+  int? _videoFileFd;
+  VoidCallback? videoPlayerListener;
+  bool enableAudio = true;
+  static const List<int> _fpsOptions = <int>[24, 30, 60];
+  int _requestedFps = 30;
+  ImageFileFormat _currentImageFileFormat = ImageFileFormat.jpeg;
+  VideoStabilizationMode _currentVideoStabilizationMode =
+      VideoStabilizationMode.off;
+  int _jpegQuality = 100;
+
+  // Zero-shutter-lag (ZSL) support probe. Re-queried on every camera
+  // (re)selection and auto-switch; a null value or false renders the
+  // "not supported" hint instead of the toggle.
+  bool? _isZslSupported;
+  bool _zslEnabled = false;
+  // Custom recording output path. Empty input keeps the platform default
+  // (cache dir) path; non-.mp4 paths are rejected by the native side.
+  final TextEditingController _videoOutputPathController =
+      TextEditingController();
+
+  // True when the current image file format is JPEG. The JPEG quality slider is
+  // only interactive in this case.
+  bool get _isJpegFormat => _currentImageFileFormat == ImageFileFormat.jpeg;
+
+  double _minAvailableExposureOffset = 0.0;
+  double _maxAvailableExposureOffset = 0.0;
+  double _currentExposureOffset = 0.0;
+  late AnimationController _flashModeControlRowAnimationController;
+  late Animation<double> _flashModeControlRowAnimation;
+  late AnimationController _exposureModeControlRowAnimationController;
+  late Animation<double> _exposureModeControlRowAnimation;
+  late AnimationController _focusModeControlRowAnimationController;
+  late Animation<double> _focusModeControlRowAnimation;
+  double _minAvailableZoom = 1.0;
+  double _maxAvailableZoom = 1.0;
+  double _currentScale = 1.0;
+  double _baseScale = 1.0;
+  CameraDescription? _selectedCameraDescription;
+  StreamSubscription<CameraErrorEvent>? _cameraErrorSubscription;
+  StreamSubscription<String>? _cameraSwitchedSubscription;
+  Timer? _refreshCamerasDebounceTimer;
+  bool _isRetryingWithRearCamera = false;
+
+  // Counting pointers (number of user fingers on screen)
+  int _pointers = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    _flashModeControlRowAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _flashModeControlRowAnimation = CurvedAnimation(
+      parent: _flashModeControlRowAnimationController,
+      curve: Curves.easeInCubic,
+    );
+    _exposureModeControlRowAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _exposureModeControlRowAnimation = CurvedAnimation(
+      parent: _exposureModeControlRowAnimationController,
+      curve: Curves.easeInCubic,
+    );
+    _focusModeControlRowAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 300),
+      vsync: this,
+    );
+    _focusModeControlRowAnimation = CurvedAnimation(
+      parent: _focusModeControlRowAnimationController,
+      curve: Curves.easeInCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _cameraErrorSubscription?.cancel();
+    _cameraSwitchedSubscription?.cancel();
+    _refreshCamerasDebounceTimer?.cancel();
+    _videoOutputPathController.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    _flashModeControlRowAnimationController.dispose();
+    _exposureModeControlRowAnimationController.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final CameraController? cameraController = controller;
+
+    // App state changed before we got the chance to initialize.
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    if (state == AppLifecycleState.inactive) {
+      cameraController.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _refreshAvailableCameras();
+      _initializeCameraController(
+        _selectedCameraDescription ?? cameraController.description,
+      );
+    }
+  }
+
+  @override
+  void didChangeMetrics() {
+    // Refresh available cameras when display metrics change (e.g., fold/unfold)
+    _refreshCamerasDebounceTimer?.cancel();
+    _refreshCamerasDebounceTimer = Timer(const Duration(milliseconds: 500), () {
+      _refreshAvailableCameras();
+    });
+  }
+
+  Future<void> _refreshAvailableCameras() async {
+    try {
+      final List<CameraDescription> newCameras = await CameraPlatform.instance
+          .availableCameras();
+      if (!mounted) return;
+      final Set<String> oldNames = _cameras
+          .map((CameraDescription c) => c.name)
+          .toSet();
+      final Set<String> newNames = newCameras
+          .map((CameraDescription c) => c.name)
+          .toSet();
+      if (!setEquals(oldNames, newNames)) {
+        setState(() {
+          _cameras = newCameras;
+        });
+      }
+    } on CameraException catch (e) {
+      _logError(e.code, e.description);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Camera example'),
+        actions: <Widget>[
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: _showSettingsDialog,
+          ),
+        ],
+      ),
+      body: Column(
+        children: <Widget>[
+          _settingsRowWidget(),
+          Expanded(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.black,
+                border: Border.all(
+                  color:
+                      controller != null && controller!.value.isRecordingVideo
+                      ? Colors.redAccent
+                      : Colors.grey,
+                  width: 3.0,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(1.0),
+                child: Center(child: _cameraPreviewWidget()),
+              ),
+            ),
+          ),
+          _captureControlRowWidget(),
+          _modeControlRowWidget(),
+          Padding(
+            padding: const EdgeInsets.all(5.0),
+            child: Row(
+              children: <Widget>[_cameraTogglesRowWidget(), _thumbnailWidget()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Display the preview from the camera (or a message if the preview is not available).
+  Widget _cameraPreviewWidget() {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return const Text(
+        'Tap a camera',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 24.0,
+          fontWeight: FontWeight.w900,
+        ),
+      );
+    } else {
+      return Listener(
+        onPointerDown: (_) => _pointers++,
+        onPointerUp: (_) => _pointers--,
+        onPointerCancel: (_) => _pointers--,
+        child: CameraPreview(
+          controller!,
+          child: Stack(
+            fit: StackFit.expand,
+            children: <Widget>[
+              LayoutBuilder(
+                builder: (BuildContext context, BoxConstraints constraints) {
+                  return GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onScaleStart: _handleScaleStart,
+                    onScaleUpdate: _handleScaleUpdate,
+                    onTapDown: (TapDownDetails details) =>
+                        onViewFinderTap(details, constraints),
+                  );
+                },
+              ),
+              Align(
+                alignment: Alignment.topRight,
+                child: StreamThumb(
+                  controller: controller!,
+                  cameraId: controller!.cameraId,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+  }
+
+  void _handleScaleStart(ScaleStartDetails details) {
+    _baseScale = _currentScale;
+  }
+
+  Future<void> _handleScaleUpdate(ScaleUpdateDetails details) async {
+    // When there are not exactly two fingers on screen don't scale
+    if (controller == null || _pointers != 2) {
+      return;
+    }
+
+    _currentScale = (_baseScale * details.scale).clamp(
+      _minAvailableZoom,
+      _maxAvailableZoom,
+    );
+
+    await CameraPlatform.instance.setZoomLevel(
+      controller!.cameraId,
+      _currentScale,
+    );
+  }
+
+  /// Display the thumbnail of the captured image or video.
+  Widget _thumbnailWidget() {
+    final VideoPlayerController? localVideoController = videoController;
+
+    return Expanded(
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            if (localVideoController == null && imageFile == null)
+              Container()
+            else
+              SizedBox(
+                width: 64.0,
+                height: 64.0,
+                child: (localVideoController == null)
+                    ? (
+                      // The captured image on the web contains a network-accessible URL
+                      // pointing to a location within the browser. It may be displayed
+                      // either with Image.network or Image.memory after loading the image
+                      // bytes to memory.
+                      kIsWeb
+                          ? Image.network(imageFile!.path)
+                          : Image.file(File(imageFile!.path)))
+                    : Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: Colors.pink),
+                        ),
+                        child: Center(
+                          child: AspectRatio(
+                            aspectRatio: localVideoController.value.aspectRatio,
+                            child: VideoPlayer(localVideoController),
+                          ),
+                        ),
+                      ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Display a bar with buttons to change the flash and exposure modes
+  Widget _modeControlRowWidget() {
+    return Column(
+      children: <Widget>[
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.flash_on),
+              color: Colors.blue,
+              onPressed: controller != null ? onFlashModeButtonPressed : null,
+            ),
+            // The exposure and focus mode are currently not supported on the web.
+            ...!kIsWeb
+                ? <Widget>[
+                    IconButton(
+                      icon: const Icon(Icons.exposure),
+                      color: Colors.blue,
+                      onPressed: controller != null
+                          ? onExposureModeButtonPressed
+                          : null,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.filter_center_focus),
+                      color: Colors.blue,
+                      onPressed: controller != null
+                          ? onFocusModeButtonPressed
+                          : null,
+                    ),
+                  ]
+                : <Widget>[],
+            IconButton(
+              icon: Icon(enableAudio ? Icons.volume_up : Icons.volume_mute),
+              color: Colors.blue,
+              onPressed: controller != null ? onAudioModeButtonPressed : null,
+            ),
+            IconButton(
+              icon: Icon(
+                controller?.value.isCaptureOrientationLocked ?? false
+                    ? Icons.screen_lock_rotation
+                    : Icons.screen_rotation,
+              ),
+              color: Colors.blue,
+              onPressed: controller != null
+                  ? onCaptureOrientationLockButtonPressed
+                  : null,
+            ),
+          ],
+        ),
+        _flashModeControlRowWidget(),
+        _exposureModeControlRowWidget(),
+        _focusModeControlRowWidget(),
+      ],
+    );
+  }
+
+  Widget _settingsRowWidget() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 6.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: <Widget>[
+                const Text(
+                  'FPS:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<int>(
+                  value: _requestedFps,
+                  onChanged: (int? newValue) {
+                    if (newValue != null && newValue != _requestedFps) {
+                      unawaited(_onRequestedFpsChanged(newValue));
+                    }
+                  },
+                  items: _fpsOptions.map<DropdownMenuItem<int>>((int fps) {
+                    return DropdownMenuItem<int>(
+                      value: fps,
+                      child: Text('$fps'),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(width: 24),
+                const Text(
+                  'Format:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<ImageFileFormat>(
+                  value: _currentImageFileFormat,
+                  onChanged: (ImageFileFormat? newValue) {
+                    if (newValue != null &&
+                        newValue != _currentImageFileFormat &&
+                        controller != null) {
+                      unawaited(_onImageFileFormatChanged(newValue));
+                    }
+                  },
+                  items: ImageFileFormat.values
+                      .map<DropdownMenuItem<ImageFileFormat>>((
+                        ImageFileFormat format,
+                      ) {
+                        return DropdownMenuItem<ImageFileFormat>(
+                          value: format,
+                          child: Text(format.name),
+                        );
+                      })
+                      .toList(),
+                ),
+                const SizedBox(width: 24),
+                const Text(
+                  'Stabilization:',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(width: 8),
+                DropdownButton<VideoStabilizationMode>(
+                  value: _currentVideoStabilizationMode,
+                  onChanged: (VideoStabilizationMode? newValue) {
+                    if (newValue != null &&
+                        newValue != _currentVideoStabilizationMode &&
+                        controller != null) {
+                      unawaited(_onVideoStabilizationModeChanged(newValue));
+                    }
+                  },
+                  items: VideoStabilizationMode.values
+                      .map<DropdownMenuItem<VideoStabilizationMode>>((
+                        VideoStabilizationMode mode,
+                      ) {
+                        return DropdownMenuItem<VideoStabilizationMode>(
+                          value: mode,
+                          child: Text(mode.name),
+                        );
+                      })
+                      .toList(),
+                ),
+              ],
+            ),
+          ),
+          // The JPEG quality slider is only interactive for JPEG captures. It
+          // lives outside the horizontal scroll view so that its horizontal
+          // drag gestures are not claimed by the scrollable row.
+          Row(
+            children: <Widget>[
+              const Text(
+                'Quality:',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(width: 8),
+              SizedBox(
+                width: 140,
+                child: Slider(
+                  value: _isJpegFormat ? _jpegQuality.toDouble() : 100,
+                  min: 1,
+                  max: 100,
+                  divisions: 99,
+                  label: '${_isJpegFormat ? _jpegQuality : 100}',
+                  onChanged: _isJpegFormat && controller != null
+                      ? _onJpegQualityChanged
+                      : null,
+                ),
+              ),
+              Text(_isJpegFormat ? '$_jpegQuality' : '100'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _flashModeControlRowWidget() {
+    return SizeTransition(
+      sizeFactor: _flashModeControlRowAnimation,
+      child: ClipRect(
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: <Widget>[
+            IconButton(
+              icon: const Icon(Icons.flash_off),
+              color: controller?.value.flashMode == FlashMode.off
+                  ? Colors.orange
+                  : Colors.blue,
+              onPressed: controller != null
+                  ? () => onSetFlashModeButtonPressed(FlashMode.off)
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.flash_auto),
+              color: controller?.value.flashMode == FlashMode.auto
+                  ? Colors.orange
+                  : Colors.blue,
+              onPressed: controller != null
+                  ? () => onSetFlashModeButtonPressed(FlashMode.auto)
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.flash_on),
+              color: controller?.value.flashMode == FlashMode.always
+                  ? Colors.orange
+                  : Colors.blue,
+              onPressed: controller != null
+                  ? () => onSetFlashModeButtonPressed(FlashMode.always)
+                  : null,
+            ),
+            IconButton(
+              icon: const Icon(Icons.highlight),
+              color: controller?.value.flashMode == FlashMode.torch
+                  ? Colors.orange
+                  : Colors.blue,
+              onPressed: controller != null
+                  ? () => onSetFlashModeButtonPressed(FlashMode.torch)
+                  : null,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _exposureModeControlRowWidget() {
+    final ButtonStyle styleAuto = TextButton.styleFrom(
+      foregroundColor: controller?.value.exposureMode == ExposureMode.auto
+          ? Colors.orange
+          : Colors.blue,
+    );
+    final ButtonStyle styleLocked = TextButton.styleFrom(
+      foregroundColor: controller?.value.exposureMode == ExposureMode.locked
+          ? Colors.orange
+          : Colors.blue,
+    );
+
+    return SizeTransition(
+      sizeFactor: _exposureModeControlRowAnimation,
+      child: ClipRect(
+        child: ColoredBox(
+          color: Colors.grey.shade50,
+          child: Column(
+            children: <Widget>[
+              const Center(child: Text('Exposure Mode')),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  TextButton(
+                    style: styleAuto,
+                    onPressed: controller != null
+                        ? () =>
+                              onSetExposureModeButtonPressed(ExposureMode.auto)
+                        : null,
+                    onLongPress: () {
+                      if (controller != null) {
+                        CameraPlatform.instance.setExposurePoint(
+                          controller!.cameraId,
+                          null,
+                        );
+                        showInSnackBar('Resetting exposure point');
+                      }
+                    },
+                    child: const Text('AUTO'),
+                  ),
+                  TextButton(
+                    style: styleLocked,
+                    onPressed: controller != null
+                        ? () => onSetExposureModeButtonPressed(
+                            ExposureMode.locked,
+                          )
+                        : null,
+                    child: const Text('LOCKED'),
+                  ),
+                  TextButton(
+                    style: styleLocked,
+                    onPressed: controller != null
+                        ? () => controller!.setExposureOffset(0.0)
+                        : null,
+                    child: const Text('RESET OFFSET'),
+                  ),
+                ],
+              ),
+              const Center(child: Text('Exposure Offset')),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  Text(_minAvailableExposureOffset.toString()),
+                  Slider(
+                    value: _currentExposureOffset,
+                    min: _minAvailableExposureOffset,
+                    max: _maxAvailableExposureOffset,
+                    label: _currentExposureOffset.toString(),
+                    onChanged:
+                        _minAvailableExposureOffset ==
+                            _maxAvailableExposureOffset
+                        ? null
+                        : setExposureOffset,
+                  ),
+                  Text(_maxAvailableExposureOffset.toString()),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _focusModeControlRowWidget() {
+    final ButtonStyle styleAuto = TextButton.styleFrom(
+      foregroundColor: controller?.value.focusMode == FocusMode.auto
+          ? Colors.orange
+          : Colors.blue,
+    );
+    final ButtonStyle styleLocked = TextButton.styleFrom(
+      foregroundColor: controller?.value.focusMode == FocusMode.locked
+          ? Colors.orange
+          : Colors.blue,
+    );
+
+    return SizeTransition(
+      sizeFactor: _focusModeControlRowAnimation,
+      child: ClipRect(
+        child: ColoredBox(
+          color: Colors.grey.shade50,
+          child: Column(
+            children: <Widget>[
+              const Center(child: Text('Focus Mode')),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  TextButton(
+                    style: styleAuto,
+                    onPressed: controller != null
+                        ? () => onSetFocusModeButtonPressed(FocusMode.auto)
+                        : null,
+                    onLongPress: () {
+                      if (controller != null) {
+                        CameraPlatform.instance.setFocusPoint(
+                          controller!.cameraId,
+                          null,
+                        );
+                      }
+                      showInSnackBar('Resetting focus point');
+                    },
+                    child: const Text('AUTO'),
+                  ),
+                  TextButton(
+                    style: styleLocked,
+                    onPressed: controller != null
+                        ? () => onSetFocusModeButtonPressed(FocusMode.locked)
+                        : null,
+                    child: const Text('LOCKED'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Display the control bar with buttons to take pictures and record videos.
+  Widget _captureControlRowWidget() {
+    final CameraController? cameraController = controller;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: <Widget>[
+        IconButton(
+          icon: const Icon(Icons.camera_alt),
+          color: Colors.blue,
+          onPressed:
+              cameraController != null &&
+                  cameraController.value.isInitialized &&
+                  !cameraController.value.isRecordingVideo
+              ? onTakePictureButtonPressed
+              : null,
+        ),
+        IconButton(
+          icon: const Icon(Icons.videocam),
+          color: Colors.blue,
+          onPressed:
+              cameraController != null &&
+                  cameraController.value.isInitialized &&
+                  !cameraController.value.isRecordingVideo
+              ? onVideoRecordButtonPressed
+              : null,
+        ),
+        IconButton(
+          icon:
+              cameraController != null &&
+                  (!cameraController.value.isRecordingVideo ||
+                      cameraController.value.isRecordingPaused)
+              ? const Icon(Icons.play_arrow)
+              : const Icon(Icons.pause),
+          color: Colors.blue,
+          onPressed:
+              cameraController != null &&
+                  cameraController.value.isInitialized &&
+                  cameraController.value.isRecordingVideo
+              ? cameraController.value.isRecordingPaused
+                    ? onResumeButtonPressed
+                    : onPauseButtonPressed
+              : null,
+        ),
+        IconButton(
+          icon: const Icon(Icons.stop),
+          color: Colors.red,
+          onPressed:
+              cameraController != null &&
+                  cameraController.value.isInitialized &&
+                  cameraController.value.isRecordingVideo
+              ? onStopButtonPressed
+              : null,
+        ),
+        IconButton(
+          icon: const Icon(Icons.pause_presentation),
+          color:
+              cameraController != null && cameraController.value.isPreviewPaused
+              ? Colors.red
+              : Colors.blue,
+          onPressed: cameraController == null
+              ? null
+              : onPausePreviewButtonPressed,
+        ),
+      ],
+    );
+  }
+
+  /// Display a row of toggle to select the camera (or a message if no camera is available).
+  Widget _cameraTogglesRowWidget() {
+    final List<Widget> toggles = <Widget>[];
+
+    void onChanged(CameraDescription? description) {
+      if (description == null) {
+        return;
+      }
+
+      onNewCameraSelected(description);
+    }
+
+    if (_cameras.isEmpty) {
+      SchedulerBinding.instance.addPostFrameCallback((_) async {
+        showInSnackBar('No camera found.');
+      });
+      return const Text('None');
+    } else {
+      for (final CameraDescription cameraDescription in _cameras) {
+        toggles.add(
+          SizedBox(
+            width: 90.0,
+            child: RadioListTile<CameraDescription>(
+              title: Icon(getCameraLensIcon(cameraDescription.lensDirection)),
+              groupValue: _selectedCameraDescription,
+              value: cameraDescription,
+              onChanged: onChanged,
+            ),
+          ),
+        );
+      }
+    }
+
+    return Row(children: toggles);
+  }
+
+  String timestamp() => DateTime.now().millisecondsSinceEpoch.toString();
+
+  void showInSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void onViewFinderTap(TapDownDetails details, BoxConstraints constraints) {
+    if (controller == null) {
+      return;
+    }
+
+    final CameraController cameraController = controller!;
+
+    final Point<double> point = Point<double>(
+      details.localPosition.dx / constraints.maxWidth,
+      details.localPosition.dy / constraints.maxHeight,
+    );
+    CameraPlatform.instance.setExposurePoint(cameraController.cameraId, point);
+    CameraPlatform.instance.setFocusPoint(cameraController.cameraId, point);
+  }
+
+  Future<void> onNewCameraSelected(CameraDescription cameraDescription) async {
+    if (controller != null) {
+      try {
+        await controller!.setDescription(cameraDescription);
+        if (mounted) {
+          setState(() {
+            _selectedCameraDescription = cameraDescription;
+            // Reset video stabilization mode UI state since the native side
+            // creates a new Camera instance with default stabilization OFF.
+            _currentVideoStabilizationMode = VideoStabilizationMode.off;
+          });
+        }
+        await _cameraErrorSubscription?.cancel();
+        _cameraErrorSubscription = CameraPlatform.instance
+            .onCameraError(controller!.cameraId)
+            .listen((CameraErrorEvent event) {});
+        await _cameraSwitchedSubscription?.cancel();
+        final OhosCamera platform = CameraPlatform.instance as OhosCamera;
+        _cameraSwitchedSubscription = platform
+            .onCameraSwitched(controller!.cameraId)
+            .listen(_handleAutoSwitchedToRear);
+        await Future.wait(<Future<Object?>>[
+          // The exposure mode is currently not supported on the web.
+          ...!kIsWeb
+              ? <Future<Object?>>[
+                  CameraPlatform.instance
+                      .getMinExposureOffset(controller!.cameraId)
+                      .then(
+                        (double value) => _minAvailableExposureOffset = value,
+                      ),
+                  CameraPlatform.instance
+                      .getMaxExposureOffset(controller!.cameraId)
+                      .then(
+                        (double value) => _maxAvailableExposureOffset = value,
+                      ),
+                ]
+              : <Future<Object?>>[],
+          CameraPlatform.instance
+              .getMaxZoomLevel(controller!.cameraId)
+              .then((double value) => _maxAvailableZoom = value),
+          CameraPlatform.instance
+              .getMinZoomLevel(controller!.cameraId)
+              .then((double value) => _minAvailableZoom = value),
+        ]);
+
+        // Refresh ZSL support for the newly selected camera.
+        await _refreshZslSupport();
+      } on CameraException catch (e) {
+        if (e.code == 'CameraError' &&
+            e.description == 'FRONT_CAMERA_UNAVAILABLE') {
+          _handleFrontCameraUnavailable();
+        } else {
+          showInSnackBar(e.toString());
+        }
+      }
+    } else {
+      return _initializeCameraController(cameraDescription);
+    }
+  }
+
+  void _handleAutoSwitchedToRear(String eventName) {
+    if (eventName != 'CAMERA_AUTO_SWITCHED_TO_REAR') {
+      return;
+    }
+    final CameraDescription? backCamera = _cameras
+        .cast<CameraDescription?>()
+        .firstWhere(
+          (CameraDescription? c) =>
+              c?.lensDirection == CameraLensDirection.back,
+          orElse: () => null,
+        );
+    if (backCamera != null && mounted) {
+      final bool wasFront =
+          _selectedCameraDescription?.lensDirection ==
+          CameraLensDirection.front;
+      setState(() {
+        _selectedCameraDescription = backCamera;
+        // Reset video stabilization mode UI state since the native side
+        // creates a new Camera instance with default stabilization OFF.
+        _currentVideoStabilizationMode = VideoStabilizationMode.off;
+      });
+      if (wasFront) {
+        showInSnackBar(
+          'Auto-switched to rear camera in tri-fold dual-screen mode',
+        );
+      }
+    }
+    if (controller != null) {
+      _currentScale = 1.0;
+      _currentExposureOffset = 0.0;
+      Future.wait(<Future<Object?>>[
+            CameraPlatform.instance
+                .getMaxZoomLevel(controller!.cameraId)
+                .then((double value) => _maxAvailableZoom = value),
+            CameraPlatform.instance
+                .getMinZoomLevel(controller!.cameraId)
+                .then((double value) => _minAvailableZoom = value),
+            CameraPlatform.instance
+                .getMinExposureOffset(controller!.cameraId)
+                .then((double value) => _minAvailableExposureOffset = value),
+            CameraPlatform.instance
+                .getMaxExposureOffset(controller!.cameraId)
+                .then((double value) => _maxAvailableExposureOffset = value),
+          ])
+          .then((_) {
+            if (mounted) {
+              setState(() {});
+            }
+          })
+          .catchError((Object e) {
+            debugPrint('Failed to refresh camera ranges after auto switch: $e');
+          });
+      // Re-probe ZSL support: the auto-switch recreates the native camera, so
+      // the toggle must reflect the new camera's capabilities.
+      unawaited(_refreshZslSupport());
+    }
+  }
+
+  void _handleFrontCameraUnavailable() {
+    showInSnackBar('Front camera unavailable in tri-fold dual-screen mode');
+    final CameraDescription? backCamera = _cameras
+        .cast<CameraDescription?>()
+        .firstWhere(
+          (CameraDescription? c) =>
+              c?.lensDirection == CameraLensDirection.back,
+          orElse: () => null,
+        );
+    if (backCamera != null) {
+      if (mounted) {
+        setState(() {
+          _selectedCameraDescription = backCamera;
+          _currentVideoStabilizationMode = VideoStabilizationMode.off;
+        });
+      }
+      if (!_isRetryingWithRearCamera) {
+        _isRetryingWithRearCamera = true;
+        _initializeCameraController(backCamera)
+            .catchError((Object err) => showInSnackBar(err.toString()))
+            .whenComplete(() {
+              _isRetryingWithRearCamera = false;
+            });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          controller = null;
+        });
+      }
+    }
+  }
+
+  Future<void> _initializeCameraController(
+    CameraDescription cameraDescription,
+  ) async {
+    await _cameraErrorSubscription?.cancel();
+    _cameraErrorSubscription = null;
+    await _cameraSwitchedSubscription?.cancel();
+    _cameraSwitchedSubscription = null;
+    final CameraController cameraController = CameraController(
+      cameraDescription,
+      mediaSettings: MediaSettings(
+        resolutionPreset: kIsWeb
+            ? ResolutionPreset.max
+            : ResolutionPreset.medium,
+        fps: _requestedFps,
+        enableAudio: enableAudio,
+      ),
+      imageFormatGroup: ImageFormatGroup.jpeg,
+    );
+
+    controller = cameraController;
+    if (mounted) {
+      setState(() {
+        _selectedCameraDescription = cameraDescription;
+        _currentVideoStabilizationMode = VideoStabilizationMode.off;
+      });
+    }
+
+    // If the controller is updated then update the UI.
+    cameraController.addListener(() {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+
+    try {
+      await cameraController.initialize();
+      // OHOS: setImageFileFormat and setJpegImageQuality are ohos-specific
+      // extensions of the upstream camera API.
+      await cameraController.setImageFileFormat(_currentImageFileFormat);
+      await CameraPlatform.instance.setJpegImageQuality(
+        cameraController.cameraId,
+        _jpegQuality,
+      );
+      await Future.wait(<Future<Object?>>[
+        // The exposure mode is currently not supported on the web.
+        ...!kIsWeb
+            ? <Future<Object?>>[
+                CameraPlatform.instance
+                    .getMinExposureOffset(cameraController.cameraId)
+                    .then(
+                      (double value) => _minAvailableExposureOffset = value,
+                    ),
+                CameraPlatform.instance
+                    .getMaxExposureOffset(cameraController.cameraId)
+                    .then(
+                      (double value) => _maxAvailableExposureOffset = value,
+                    ),
+              ]
+            : <Future<Object?>>[],
+        CameraPlatform.instance
+            .getMaxZoomLevel(cameraController.cameraId)
+            .then((double value) => _maxAvailableZoom = value),
+        CameraPlatform.instance
+            .getMinZoomLevel(cameraController.cameraId)
+            .then((double value) => _minAvailableZoom = value),
+      ]);
+
+      // Refresh ZSL support for the new camera before any recording starts.
+      await _refreshZslSupport();
+
+      _cameraErrorSubscription = CameraPlatform.instance
+          .onCameraError(cameraController.cameraId)
+          .listen((CameraErrorEvent event) {});
+      // OHOS: onCameraSwitched fires when the system auto-switches the camera
+      // in tri-fold dual-screen mode.
+      final OhosCamera platform = CameraPlatform.instance as OhosCamera;
+      _cameraSwitchedSubscription = platform
+          .onCameraSwitched(cameraController.cameraId)
+          .listen(_handleAutoSwitchedToRear);
+    } on CameraException catch (e) {
+      switch (e.code) {
+        case 'CameraError':
+          // Front camera blocked by tri-fold dual-screen guard
+          if (e.description == 'FRONT_CAMERA_UNAVAILABLE') {
+            _handleFrontCameraUnavailable();
+            return;
+          } else {
+            _showCameraException(e);
+          }
+        case 'CameraAccessDenied':
+          showInSnackBar('You have denied camera access.');
+        case 'CameraAccessDeniedWithoutPrompt':
+          // iOS only
+          showInSnackBar('Please go to Settings app to enable camera access.');
+        case 'CameraAccessRestricted':
+          // iOS only
+          showInSnackBar('Camera access is restricted.');
+        case 'AudioAccessDenied':
+          showInSnackBar('You have denied audio access.');
+        case 'AudioAccessDeniedWithoutPrompt':
+          // iOS only
+          showInSnackBar('Please go to Settings app to enable audio access.');
+        case 'AudioAccessRestricted':
+          // iOS only
+          showInSnackBar('Audio access is restricted.');
+        case 'cameraPermission':
+          // Android & web only
+          showInSnackBar('Unknown permission error.');
+        default:
+          _showCameraException(e);
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  // Opens the settings dialog holding the ZSL toggle and the custom video
+  // output path input. The dialog is only a container: the ZSL switch applies
+  // immediately (optimistic + rollback) and the path field shares
+  // _videoOutputPathController, so edits take effect for the next recording.
+  Future<void> _showSettingsDialog() async {
+    // Prefill a sandbox path so the field demonstrates the custom-path feature
+    // without typing it by hand. On failure keep the field empty (the hint
+    // explains the default-path behavior) and still open the dialog.
+    if (_videoOutputPathController.text.isEmpty) {
+      try {
+        final Directory dir = await getTemporaryDirectory();
+        _videoOutputPathController.text = '${dir.path}/camera_demo_rec.mp4';
+      } catch (_) {
+        // Prefill is best-effort; leave the field empty on failure.
+      }
+    }
+    if (!mounted) {
+      return;
+    }
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        // StatefulBuilder: the dialog is an independent route subtree, so the
+        // home page's setState does not rebuild it. The dialog drives its own
+        // rebuilds for the ZSL switch via setDialogState.
+        return StatefulBuilder(
+          builder: (BuildContext dialogContext, StateSetter setDialogState) {
+            return AlertDialog(
+              title: const Text('Settings'),
+              content: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    // Zero-shutter-lag toggle. Rendered only when the current
+                    // camera reports support; the query is refreshed on every
+                    // camera (re)selection, so unsupported devices show a plain
+                    // hint.
+                    Row(
+                      children: <Widget>[
+                        const Text(
+                          'ZSL:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        if (_isZslSupported != true)
+                          const Expanded(
+                            child: Text('Not supported on this camera'),
+                          )
+                        else
+                          Switch(
+                            value: _zslEnabled,
+                            onChanged:
+                                controller != null &&
+                                    !controller!.value.isRecordingVideo
+                                ? (bool newValue) => unawaited(
+                                    _onZslChanged(newValue, () {
+                                      // After the async native call the dialog
+                                      // may already be dismissed; only rebuild
+                                      // the dialog subtree while it is mounted.
+                                      if (dialogContext.mounted) {
+                                        setDialogState(() {});
+                                      }
+                                    }),
+                                  )
+                                : null,
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    // Custom recording output path. Empty input keeps the platform
+                    // default (cache dir) path; the native side rejects non-.mp4
+                    // paths with videoRecordingFailed at recording start.
+                    // The disabled state reads isRecordingVideo only when this
+                    // dialog subtree rebuilds; recording cannot start while the
+                    // modal dialog is up, so it never goes stale in practice.
+                    Row(
+                      children: <Widget>[
+                        const Text(
+                          'Path:',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: TextField(
+                            controller: _videoOutputPathController,
+                            enabled:
+                                controller != null &&
+                                !controller!.value.isRecordingVideo,
+                            style: const TextStyle(fontSize: 12),
+                            decoration: const InputDecoration(
+                              isDense: true,
+                              border: OutlineInputBorder(),
+                              labelText: 'Video output path',
+                              hintText: 'Sandbox .mp4 path; empty = default',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Done'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // Queries ZSL support for the freshly (re)initialized camera and refreshes
+  // the toggle UI. Query failures are treated as unsupported, matching the
+  // API 21+ guard semantics of the native side. Must not be called while
+  // recording: the native side rejects support queries from a recording
+  // camera.
+  //
+  // _zslEnabled is deliberately kept as-is here: it mirrors the user's
+  // requested state, and the native layer preserves zeroShutterLagRequested
+  // across camera switches and replays it onto the new camera instance, so
+  // resetting it to false would desync the UI from the still-active request.
+  Future<void> _refreshZslSupport() async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+    bool supported = false;
+    try {
+      supported = await CameraPlatform.instance.isZeroShutterLagSupported(
+        cameraController.cameraId,
+      );
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    } on PlatformException catch (e) {
+      // Unified wrapping: keep the failure-as-unsupported semantics but hand
+      // the wrapped CameraException to the shared display entry point.
+      _showCameraException(CameraException(e.code, e.message));
+    }
+    if (mounted) {
+      setState(() {
+        _isZslSupported = supported;
+      });
+    }
+  }
+
+  // Optimistically toggles ZSL and rolls the switch back if the native call
+  // rejects it (e.g. unsupported camera or wrong lifecycle timing).
+  // [setDialogState] drives the settings dialog's own StatefulBuilder: the
+  // dialog is an independent route subtree, so the home page setState alone
+  // never rebuilds the switch. It is invoked only through a wrapper that
+  // checks dialogContext.mounted, so calling it after the dialog is dismissed
+  // is a no-op.
+  Future<void> _onZslChanged(
+    bool newValue,
+    VoidCallback? setDialogState,
+  ) async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null) {
+      return;
+    }
+    final bool previous = _zslEnabled;
+    void syncUi() {
+      setState(() {
+        _zslEnabled = newValue;
+      });
+      setDialogState?.call();
+    }
+
+    void rollbackUi() {
+      setState(() {
+        _zslEnabled = previous;
+      });
+      setDialogState?.call();
+    }
+
+    syncUi();
+    try {
+      await CameraPlatform.instance.setZeroShutterLagEnabled(
+        cameraController.cameraId,
+        newValue,
+      );
+      // Re-affirm after the await: another flow (e.g. _refreshZslSupport) may
+      // have reset the flag while the native call was in flight.
+      if (mounted) {
+        setState(() {
+          _zslEnabled = newValue;
+        });
+      }
+      setDialogState?.call();
+      showInSnackBar('Zero-shutter-lag ${newValue ? 'enabled' : 'disabled'}');
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      if (mounted) {
+        rollbackUi();
+      }
+    } on PlatformException catch (e) {
+      // Unified wrapping: hand the wrapped CameraException to the shared
+      // display entry point instead of a bare snackbar.
+      _showCameraException(CameraException(e.code, e.message));
+      if (mounted) {
+        rollbackUi();
+      }
+    }
+  }
+
+  Future<void> _onRequestedFpsChanged(int fps) async {
+    setState(() {
+      _requestedFps = fps;
+    });
+    showInSnackBar('Switching requested fps to $_requestedFps');
+
+    final CameraDescription? currentDescription = controller?.description;
+    if (currentDescription == null) {
+      return;
+    }
+    await _initializeCameraController(currentDescription);
+  }
+
+  Future<void> _onImageFileFormatChanged(ImageFileFormat format) async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+
+    try {
+      await cameraController.setImageFileFormat(format);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _currentImageFileFormat = format;
+        // The JPEG quality setting only applies to JPEG captures. Reset it so
+        // the disabled slider shows 100 and switching back to JPEG starts over.
+        if (format != ImageFileFormat.jpeg) {
+          _jpegQuality = 100;
+        }
+      });
+      showInSnackBar('Image file format set to ${format.name}');
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    }
+  }
+
+  Future<void> _onVideoStabilizationModeChanged(
+    VideoStabilizationMode mode,
+  ) async {
+    setState(() {
+      _currentVideoStabilizationMode = mode;
+    });
+    final CameraController? cameraController = controller;
+    if (cameraController != null && cameraController.value.isInitialized) {
+      try {
+        await cameraController.setVideoStabilizationMode(mode);
+        showInSnackBar('Video stabilization mode set to ${mode.name}');
+      } on CameraException catch (e) {
+        _showCameraException(e);
+      }
+    }
+  }
+
+  Future<void> _onJpegQualityChanged(double value) async {
+    final int quality = value.round();
+    setState(() {
+      _jpegQuality = quality;
+    });
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      return;
+    }
+    try {
+      await CameraPlatform.instance.setJpegImageQuality(
+        cameraController.cameraId,
+        quality,
+      );
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    }
+  }
+
+  void onTakePictureButtonPressed() {
+    takePicture().then((XFile? file) {
+      if (mounted) {
+        setState(() {
+          imageFile = file;
+          videoController?.dispose();
+          videoController = null;
+        });
+        unawaited(_closeVideoFileDescriptor());
+        if (file != null) {
+          showInSnackBar('Picture saved to ${file.path}');
+        }
+      }
+    });
+  }
+
+  void onFlashModeButtonPressed() {
+    if (_flashModeControlRowAnimationController.value == 1) {
+      _flashModeControlRowAnimationController.reverse();
+    } else {
+      _flashModeControlRowAnimationController.forward();
+      _exposureModeControlRowAnimationController.reverse();
+      _focusModeControlRowAnimationController.reverse();
+    }
+  }
+
+  void onExposureModeButtonPressed() {
+    if (_exposureModeControlRowAnimationController.value == 1) {
+      _exposureModeControlRowAnimationController.reverse();
+    } else {
+      _exposureModeControlRowAnimationController.forward();
+      _flashModeControlRowAnimationController.reverse();
+      _focusModeControlRowAnimationController.reverse();
+    }
+  }
+
+  void onFocusModeButtonPressed() {
+    if (_focusModeControlRowAnimationController.value == 1) {
+      _focusModeControlRowAnimationController.reverse();
+    } else {
+      _focusModeControlRowAnimationController.forward();
+      _flashModeControlRowAnimationController.reverse();
+      _exposureModeControlRowAnimationController.reverse();
+    }
+  }
+
+  void onAudioModeButtonPressed() {
+    enableAudio = !enableAudio;
+    if (mounted) {
+      setState(() {});
+    }
+    if (controller != null) {
+      onNewCameraSelected(controller!.description);
+    }
+  }
+
+  Future<void> onCaptureOrientationLockButtonPressed() async {
+    try {
+      if (controller != null) {
+        final CameraController cameraController = controller!;
+        if (cameraController.value.isCaptureOrientationLocked) {
+          await cameraController.unlockCaptureOrientation();
+          showInSnackBar('Capture orientation unlocked');
+        } else {
+          await cameraController.lockCaptureOrientation();
+          showInSnackBar(
+            'Capture orientation locked to ${cameraController.value.lockedCaptureOrientation.toString().split('.').last}',
+          );
+        }
+      }
+    } on CameraException catch (e) {
+      _showCameraException(e);
+    }
+  }
+
+  void onSetFlashModeButtonPressed(FlashMode mode) {
+    setFlashMode(mode).then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      showInSnackBar('Flash mode set to ${mode.toString().split('.').last}');
+    });
+  }
+
+  void onSetExposureModeButtonPressed(ExposureMode mode) {
+    setExposureMode(mode).then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      showInSnackBar('Exposure mode set to ${mode.toString().split('.').last}');
+    });
+  }
+
+  void onSetFocusModeButtonPressed(FocusMode mode) {
+    setFocusMode(mode).then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      showInSnackBar('Focus mode set to ${mode.toString().split('.').last}');
+    });
+  }
+
+  void onVideoRecordButtonPressed() {
+    startVideoRecording().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void onStopButtonPressed() {
+    stopVideoRecording().then((XFile? file) {
+      if (mounted) {
+        setState(() {});
+      }
+      if (file != null) {
+        showInSnackBar('Video recorded to ${file.path}');
+        videoFile = file;
+        _startVideoPlayer();
+      }
+    });
+  }
+
+  Future<void> onPausePreviewButtonPressed() async {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      showInSnackBar('Error: select a camera first.');
+      return;
+    }
+
+    if (cameraController.value.isPreviewPaused) {
+      await cameraController.resumePreview();
+    } else {
+      await cameraController.pausePreview();
+    }
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void onPauseButtonPressed() {
+    pauseVideoRecording().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      showInSnackBar('Video recording paused');
+    });
+  }
+
+  void onResumeButtonPressed() {
+    resumeVideoRecording().then((_) {
+      if (mounted) {
+        setState(() {});
+      }
+      showInSnackBar('Video recording resumed');
+    });
+  }
+
+  Future<void> startVideoRecording() async {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      showInSnackBar('Error: select a camera first.');
+      return;
+    }
+
+    if (cameraController.value.isRecordingVideo) {
+      // A recording is already started, do nothing.
+      return;
+    }
+
+    try {
+      final String trimmedPath = _videoOutputPathController.text.trim();
+      await cameraController.startVideoRecording(
+        videoOutputPath: trimmedPath.isEmpty ? null : trimmedPath,
+      );
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      return;
+    }
+  }
+
+  Future<XFile?> stopVideoRecording() async {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isRecordingVideo) {
+      return null;
+    }
+
+    try {
+      return await cameraController.stopVideoRecording();
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      return null;
+    }
+  }
+
+  Future<void> pauseVideoRecording() async {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isRecordingVideo) {
+      return;
+    }
+
+    try {
+      await cameraController.pauseVideoRecording();
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> resumeVideoRecording() async {
+    final CameraController? cameraController = controller;
+
+    if (cameraController == null || !cameraController.value.isRecordingVideo) {
+      return;
+    }
+
+    try {
+      await cameraController.resumeVideoRecording();
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> setFlashMode(FlashMode mode) async {
+    if (controller == null) {
+      return;
+    }
+
+    try {
+      await controller!.setFlashMode(mode);
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> setExposureMode(ExposureMode mode) async {
+    if (controller == null) {
+      return;
+    }
+
+    try {
+      await controller!.setExposureMode(mode);
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> setExposureOffset(double offset) async {
+    if (controller == null) {
+      return;
+    }
+
+    setState(() {
+      _currentExposureOffset = offset;
+    });
+    try {
+      offset = await controller!.setExposureOffset(offset);
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> setFocusMode(FocusMode mode) async {
+    if (controller == null) {
+      return;
+    }
+
+    try {
+      await controller!.setFocusMode(mode);
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      rethrow;
+    }
+  }
+
+  Future<void> _startVideoPlayer() async {
+    if (videoFile == null) {
+      return;
+    }
+    final VideoPlayerController vController;
+    int? newFd;
+    if (Platform.operatingSystem == 'ohos') {
+      // OHOS: on the ohos platform the video player must open the file by descriptor,
+      // so the file is opened through FileSelector.
+      final FileSelector instance = FileSelector();
+      int? fileFd = await instance.openFileByPath(videoFile!.path);
+      vController = VideoPlayerController.fileFd(fileFd!);
+      newFd = fileFd;
+    } else {
+      vController = kIsWeb
+          ? VideoPlayerController.network(videoFile!.path)
+          : VideoPlayerController.file(File(videoFile!.path));
+    }
+    videoPlayerListener = () {
+      if (videoController != null) {
+        // Refreshing the state to update video player with the correct ratio.
+        if (mounted) {
+          setState(() {});
+        }
+        videoController!.removeListener(videoPlayerListener!);
+      }
+    };
+    vController.addListener(videoPlayerListener!);
+    await vController.setLooping(true);
+    await vController.initialize();
+    await videoController?.dispose();
+    await _closeVideoFileDescriptor();
+    _videoFileFd = newFd;
+    if (mounted) {
+      setState(() {
+        imageFile = null;
+        videoController = vController;
+      });
+    }
+    await vController.play();
+  }
+
+  // Closes the descriptor handed to the video player for the previous recording.
+  // The native side keeps it open while the player reads it, so the plugin must
+  // be asked to close it once the player is torn down; best-effort cleanup.
+  Future<void> _closeVideoFileDescriptor() async {
+    final int? fd = _videoFileFd;
+    if (fd == null) {
+      return;
+    }
+    _videoFileFd = null;
+    try {
+      await FileSelector().closeFileByFd(fd);
+    } catch (e) {
+      // Best-effort cleanup; surface without interrupting the recording flow.
+      showInSnackBar('Failed to close video file descriptor: $e');
+    }
+  }
+
+  Future<XFile?> takePicture() async {
+    final CameraController? cameraController = controller;
+    if (cameraController == null || !cameraController.value.isInitialized) {
+      showInSnackBar('Error: select a camera first.');
+      return null;
+    }
+
+    if (cameraController.value.isTakingPicture) {
+      // A capture is already pending, do nothing.
+      return null;
+    }
+
+    try {
+      final XFile file = await cameraController.takePicture();
+      return file;
+    } on CameraException catch (e) {
+      _showCameraException(e);
+      return null;
+    }
+  }
+
+  void _showCameraException(CameraException e) {
+    _logError(e.code, e.description);
+    showInSnackBar('Error: ${e.code}\n${e.description}');
+  }
+}
+
+/// CameraApp is the Main Application.
+class CameraApp extends StatelessWidget {
+  /// Default Constructor
+  const CameraApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(home: CameraExampleHome());
+  }
+}
+
+List<CameraDescription> _cameras = <CameraDescription>[];
+
+Future<void> main() async {
+  // Fetch the available cameras before initializing the app.
+  try {
+    WidgetsFlutterBinding.ensureInitialized();
+    // OHOS: availableCameras() requires the ohos.permission.CAMERA permission declared
+    // in entry/src/main/module.json5, otherwise a CameraAccessDenied error is thrown.
+    _cameras = await CameraPlatform.instance.availableCameras();
+  } on CameraException catch (e) {
+    _logError(e.code, e.description);
+  }
+  runApp(const CameraApp());
+}
+
+/// This allows a value of type T or T? to be treated as a value of type T?.
+///
+/// We use this so that APIs that have become non-nullable can still be used
+/// with `!` and `?` on the stable branch.
+T? _ambiguate<T>(T? value) => value;

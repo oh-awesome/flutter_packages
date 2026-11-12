@@ -78,6 +78,16 @@ class ImageFormat {
 // Only used by the deprecated codepath that's kept to avoid breaking changes.
 // Never called by the plugin itself.
 ImageFormatGroup _asImageFormatGroup(dynamic rawFormat) {
+  if (defaultTargetPlatform == TargetPlatform.ohos) {
+    switch (rawFormat) {
+      // camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP
+      case 1003:
+        return ImageFormatGroup.nv21;
+      // camera.CameraFormat.CAMERA_FORMAT_JPEG
+      case 2000:
+        return ImageFormatGroup.jpeg;
+    }
+  }
   if (defaultTargetPlatform == TargetPlatform.android) {
     switch (rawFormat) {
       // android.graphics.ImageFormat.YUV_420_888

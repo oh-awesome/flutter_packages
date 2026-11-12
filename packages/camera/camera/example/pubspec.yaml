@@ -16,9 +16,29 @@ dependencies:
     path: ../
   flutter:
     sdk: flutter
-  path_provider: ^2.0.0
-  video_player: ^2.7.0
+  path_provider:
+    git:
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      path: "packages/path_provider/path_provider"
+      ref: "br_path_provider-v2.1.5_ohos"
+  video_player:
+    git:
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      path: "packages/video_player/video_player"
+      ref: "br_video_player-v2.10.1_ohos"
 
+dependency_overrides:
+  path_provider_foundation:
+    git:
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      path: "packages/path_provider/path_provider_foundation"
+      ref: "br_path_provider-v2.1.5_ohos"
+  pigeon:
+    git:
+      url: "https://gitcode.com/openharmony-sig/flutter_packages.git"
+      path: "packages/pigeon"
+      ref: "br_pigeon-v26.1.5_ohos"
+      
 dev_dependencies:
   build_runner: ^2.1.10
   flutter_driver:
