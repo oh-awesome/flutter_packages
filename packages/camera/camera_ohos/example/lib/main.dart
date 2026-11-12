@@ -858,7 +858,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         await _cameraErrorSubscription?.cancel();
         _cameraErrorSubscription = CameraPlatform.instance
             .onCameraError(controller!.cameraId)
-            .listen((CameraErrorEvent event) {});
+            .listen((CameraErrorEvent event) {
+          _logError('cameraError', event.description);
+        });
         await _cameraSwitchedSubscription?.cancel();
         final OhosCamera platform = CameraPlatform.instance as OhosCamera;
         _cameraSwitchedSubscription = platform
@@ -1066,7 +1068,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
       _cameraErrorSubscription = CameraPlatform.instance
           .onCameraError(cameraController.cameraId)
-          .listen((CameraErrorEvent event) {});
+          .listen((CameraErrorEvent event) {
+        _logError('cameraError', event.description);
+      });
       // OHOS: onCameraSwitched fires when the system auto-switches the camera
       // in tri-fold dual-screen mode.
       final OhosCamera platform = CameraPlatform.instance as OhosCamera;
@@ -1249,11 +1253,13 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         cameraController.cameraId,
       );
     } on CameraException catch (e) {
-      _showCameraException(e);
+      // Query failure is treated as unsupported: log silently and fall back to
+      // supported=false. The settings dialog already shows a 'Not supported on
+      // this camera' hint for the toggle.
+      _logError(e.code, e.description);
     } on PlatformException catch (e) {
-      // Unified wrapping: keep the failure-as-unsupported semantics but hand
-      // the wrapped CameraException to the shared display entry point.
-      _showCameraException(CameraException(e.code, e.message));
+      // Same failure-as-unsupported semantics for the wrapped exception.
+      _logError(e.code, e.message);
     }
     if (mounted) {
       setState(() {
@@ -1734,8 +1740,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
     try {
       await FileSelector().closeFileByFd(fd);
     } catch (e) {
-      // Best-effort cleanup; surface without interrupting the recording flow.
-      showInSnackBar('Failed to close video file descriptor: $e');
+      // Best-effort cleanup; log only so the following 'Video recorded to ...'
+      // success toast is not preempted by a cleanup error the user cannot act on.
+      _logError('closeFileByFd', e.toString());
     }
   }
 

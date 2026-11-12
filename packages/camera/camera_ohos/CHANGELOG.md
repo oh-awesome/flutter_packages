@@ -35,6 +35,20 @@
   capability probe, so pre-API 21 runtimes short-circuit without touching
   the API 21+ symbols (no more throw-and-catch noise) and the camera-switch
   replay stays silent when the gate is off.
+  `stopImageStream` no longer unconditionally restarts the preview. A stop
+  landing on an instance with no active image stream (for example a
+  Dart-side subscription cancel reaching a freshly recreated instance
+  after a background/foreground lifecycle recreate) is now a no-op, and
+  during create/initialize/switch/dispose transitions the preview restart
+  is skipped so it cannot race the in-flight `open()` (7400101
+  SERVICE_FATAL_ERROR) on the new instance.
+  `startImageStream` issued during a camera transition (create/initialize/
+  switch/dispose) is no longer executed against the half-initialized
+  instance — which corrupted the camera service state and surfaced as
+  'GetSupportedOutputCapability parse error' / 'Session not config' dialogs —
+  the request is deferred and re-evaluated once the transition settles, and
+  dropped silently when its cameraId has gone stale (the Dart side
+  re-subscribes under the new cameraId).
 
 ## camera-0.12.0+2-ohos-1.0.0 - 2026.08
 

@@ -198,6 +198,21 @@ class FakeCamera {
     this.calls.push('startPreviewWithImageStream');
   }
 
+  // Mirrors Camera's real accessors consulted by stopImageStream. Defaults to an
+  // active stream so the full delegated chain runs (clear marker + preview
+  // restart); tests flip imageStreamActive to drive the no-active-stream no-op
+  // guard and the deferred-start execution check.
+  imageStreamActive: boolean = true;
+
+  isImageStreamActiveState(): boolean {
+    this.calls.push('isImageStreamActiveState');
+    return this.imageStreamActive;
+  }
+
+  clearImageStreamActiveState(): void {
+    this.calls.push('clearImageStreamActiveState');
+  }
+
   async startPreview(): Promise<void> {
     this.calls.push('startPreview');
   }
@@ -440,6 +455,71 @@ export default function cameraApiImplDelegatedTest() {
       handle.api.stopImageStream();
       expect(handle.fake.calls.indexOf('lockCaptureOrientation') >= 0).assertTrue();
       expect(handle.fake.calls.indexOf('startPreviewWithImageStream') >= 0).assertTrue();
+      // stopImageStream runs the full delegated chain: active-state check,
+      // marker clear, then the preview restart (CameraApiImpl.stopImageStream).
+      expect(handle.fake.calls.indexOf('isImageStreamActiveState') >= 0).assertTrue();
+      expect(handle.fake.calls.indexOf('clearImageStreamActiveState') >= 0).assertTrue();
+      expect(handle.fake.calls.indexOf('startPreview') >= 0).assertTrue();
+    });
+
+    it('startImageStream_midTransition_defersWithoutExecuting', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApi('');
+      // STATUS.CREATE_ING (any non-DEFAULT value): the call must record the pending
+      // request (arrival-time textureId) instead of running against the
+      // half-initialized instance, and it must not start a stream nobody drives.
+      (handle.api as ESObject).curStatus = 1;
+      handle.api.startImageStream();
+      expect(((handle.api as ESObject).pendingStartImageStream as number)).assertEqual(-1);
+      expect(handle.fake.calls.indexOf('startPreviewWithImageStream') < 0).assertTrue();
+    });
+
+    it('stopImageStream_noActiveStream_isNoOp', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApi('');
+      handle.fake.imageStreamActive = false;
+      // Guard 1: a stop landing on an instance with no active stream (for example a
+      // Dart-side subscription cancel after a lifecycle recreate) must not clear the
+      // marker nor fire startPreview, whose race with the in-flight open() raised
+      // 7400101 SERVICE_FATAL_ERROR.
+      handle.api.stopImageStream();
+      expect(handle.fake.calls.indexOf('isImageStreamActiveState') >= 0).assertTrue();
+      expect(handle.fake.calls.indexOf('clearImageStreamActiveState') < 0).assertTrue();
+      expect(handle.fake.calls.indexOf('startPreview') < 0).assertTrue();
+    });
+
+    it('stopImageStream_midTransition_skipsPreviewRestart', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApi('');
+      (handle.api as ESObject).curStatus = 1;
+      // Guard 2: the in-flight create/initialize/switch/dispose restarts the preview
+      // itself, so the deferred one is skipped to avoid racing it on the cameraInput;
+      // only the marker is cleared so a back-to-back stop stays a no-op.
+      handle.api.stopImageStream();
+      expect(handle.fake.calls.indexOf('clearImageStreamActiveState') >= 0).assertTrue();
+      expect(handle.fake.calls.indexOf('startPreview') < 0).assertTrue();
+    });
+
+    it('evaluatePendingStartImageStream_executesAfterSettle', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApi('');
+      (handle.api as ESObject).curStatus = 1;
+      handle.api.startImageStream();
+      expect(((handle.api as ESObject).pendingStartImageStream as number)).assertEqual(-1);
+      // Transition exit: DEFAULT state plus a non-active stream lets the deferred
+      // request through, and the single slot is consumed.
+      (handle.api as ESObject).curStatus = 0;
+      handle.fake.imageStreamActive = false;
+      (handle.api as ESObject)._evaluatePendingStartImageStream();
+      expect(handle.fake.calls.indexOf('startPreviewWithImageStream') >= 0).assertTrue();
+      expect(((handle.api as ESObject).pendingStartImageStream == null)).assertTrue();
+    });
+
+    it('evaluatePendingStartImageStream_staleCameraIdDropped', 0, () => {
+      const handle: DelegateHandle = makeDelegatedApi('');
+      // Arrival-time id no longer matches the current textureId (-1): the Dart side
+      // re-subscribes under the new cameraId and re-issues startImageStream itself,
+      // so the stale request is dropped without touching the camera.
+      (handle.api as ESObject).pendingStartImageStream = 999;
+      (handle.api as ESObject)._evaluatePendingStartImageStream();
+      expect(handle.fake.calls.indexOf('startPreviewWithImageStream') < 0).assertTrue();
+      expect(((handle.api as ESObject).pendingStartImageStream == null)).assertTrue();
     });
 
     it('initialize_delegatesOpenAndResolves', 0, async (): Promise<void> => {
