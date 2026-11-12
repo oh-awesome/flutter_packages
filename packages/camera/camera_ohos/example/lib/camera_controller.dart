@@ -195,6 +195,10 @@ class CameraController extends ValueNotifier<CameraValue> {
   bool _isDisposed = false;
   StreamSubscription<CameraImageData>? _imageStreamSubscription;
   FutureOr<bool>? _initCalled;
+  // A Future awaiting an attempt to initialize (e.g. after `initialize` was
+  // just called). If the controller has not been initialized at least once,
+  // this value is null.
+  Future<void>? _initializeFuture;
   StreamSubscription<DeviceOrientationChangedEvent>?
       _deviceOrientationSubscription;
   StreamSubscription<CameraInitializedEvent>? _cameraInitializedSubscription;
@@ -224,7 +228,33 @@ class CameraController extends ValueNotifier<CameraValue> {
     return _wrapErrors(() => _initializeWithDescription(description));
   }
 
-  Future<void> _initializeWithDescription(CameraDescription description) async {
+  Future<void> _initializeWithDescription(CameraDescription description) {
+    // Publish the chain future before returning so a rebuild requested
+    // mid-cycle chains after the running cycle instead of overlapping it.
+    // A shared-future gate is not enough: when N rapid setDescription calls
+    // all await the same future, every continuation resumes at once the
+    // moment it completes and their dispose/create traffic still overlaps
+    // at the camera service. Chaining gives each cycle its own link that
+    // starts only after the previous link settles.
+    final Future<void>? prev = _initializeFuture;
+    final Future<void> cycle = () async {
+      if (prev != null) {
+        try {
+          await prev;
+        } catch (_) {
+          // A failed previous cycle must not block the next rebuild.
+        }
+      }
+      if (_initCalled != null) {
+        await CameraPlatform.instance.dispose(_cameraId);
+      }
+      await _runInitializeCycle(description);
+    }();
+    _initializeFuture = cycle;
+    return cycle;
+  }
+
+  Future<void> _runInitializeCycle(CameraDescription description) async {
     final Completer<CameraInitializedEvent> initializeCompleter =
         Completer<CameraInitializedEvent>();
 
@@ -324,6 +354,16 @@ class CameraController extends ValueNotifier<CameraValue> {
   }
 
   /// Sets the description of the camera.
+  ///
+  /// Non-recording rebuilds chain through [_initializeWithDescription]: each
+  /// cycle links after the previous cycle's future, so N rapid calls run
+  /// strictly one after another (previous design only made callers await a
+  /// shared future, which released all N continuations at once and let their
+  /// dispose/create traffic overlap at the camera service). The dispose of
+  /// the old cameraId lives inside the chain now, gated on [_initCalled] (at
+  /// least one successful cycle) so a first-cycle create failure — where
+  /// `_cameraId` has never been assigned — cannot crash the rebuild via
+  /// LateInitializationError.
   Future<void> setDescription(CameraDescription description) {
     return _wrapErrors(() async {
       if (value.isRecordingVideo) {

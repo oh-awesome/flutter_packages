@@ -325,6 +325,12 @@ export class CameraApiImpl extends CameraApi {
   // switch path awaits it so the restart does not overlap the old instance's
   // teardown inside the camera service.
   private pendingPreviewRestart: Promise<void> | null = null;
+  // Pending startImageStream deferred during a camera transition (create/initialize/switch/dispose).
+  // Holds the arrival-time textureId (the Dart cameraId): when the transition exits, the request is
+  // executed only if that id still matches the current textureId, otherwise dropped silently — the
+  // Dart side re-subscribes under the new cameraId and re-issues startImageStream itself. Single
+  // slot (newest wins); cleared by stopImageStream (subscription gone) and on dispose completion.
+  private pendingStartImageStream: number | null = null;
 
   private _disposeTimerId: number = -1;
   private static readonly DISPOSE_GRACE_MS: number = 800;
@@ -537,6 +543,7 @@ export class CameraApiImpl extends CameraApi {
         try {
           await this.camera.open(imageFormatString);
           this.curStatus = STATUS.DEFAULT;
+          this._evaluatePendingStartImageStream();
           return;
         } catch (e) {
           const err = e as Error;
@@ -644,6 +651,14 @@ export class CameraApiImpl extends CameraApi {
       }
       this.flutterTexture = null;         // Release the SurfaceTextureEntry reference
       this.cameraIdPositionMap.clear();   // Clear the CameraPosition cache
+      // A pending deferred startImageStream belongs to a subscription of the instance being
+      // released (Dart cancels stream subscriptions on dispose); drop it so it cannot execute
+      // after the instance is gone. A following create issues fresh requests under its new
+      // cameraId.
+      if (this.pendingStartImageStream != null) {
+        this.pendingStartImageStream = null;
+        Log.d(TAG, 'dispose: dropped pending startImageStream');
+      }
       // Reset the status after releasing resources so a create-after-dispose-without-initialize recovery
       // path does not misreport "already in progress".
       this.curStatus = STATUS.DEFAULT;
@@ -831,6 +846,17 @@ export class CameraApiImpl extends CameraApi {
 
   startImageStream(): void {
     try {
+      // Mid-transition (create/initialize/switch/dispose): defer instead of running or erroring.
+      // Running here executes against a half-initialized instance and corrupts the camera service
+      // state (GetSupportedOutputCapability parse error / cameraInput.open parameter error /
+      // 'Session not config' on the next open), and an error reply would just surface as a new
+      // Dart-side dialog. Record a pending request, evaluated when the transition exits (see
+      // _evaluatePendingStartImageStream). DEFAULT-state null-camera still throws below unchanged.
+      if (this.curStatus != STATUS.DEFAULT || this.disposed || this.isSwitchingCamera) {
+        this.pendingStartImageStream = this.textureId;
+        Log.w(TAG, 'startImageStream: mid-transition, deferring (textureId=' + this.textureId + ')');
+        return;
+      }
       if (this.camera == null) {
         throw new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized', '');
       }
@@ -844,9 +870,39 @@ export class CameraApiImpl extends CameraApi {
 
   stopImageStream(): void {
     try {
+      // A stop (subscription cancel) arriving while a start is pending makes the pending start
+      // obsolete: the subscription is gone, so the transition exit must not start a stream nobody
+      // listens to. Cleared before any guard so the cancel always wins.
+      if (this.pendingStartImageStream != null) {
+        this.pendingStartImageStream = null;
+        Log.d(TAG, 'stopImageStream: cleared pending startImageStream (subscription cancelled)');
+      }
       if (this.camera == null) {
         throw new FlutterError('CAMERA_NOT_INITIALIZED', 'Camera not initialized', 'Camera not initialized', '');
       }
+      // Guard 1: a stop landing on the current instance with no active image stream (e.g.
+      // a Dart-side subscription cancel reaching a freshly recreated instance after a
+      // lifecycle recreate) is a no-op: neither stop nor preview restart applies, and
+      // firing startPreviewWithPhoto without a release prefix onto an instance whose
+      // open() is in flight raises 7400101 SERVICE_FATAL_ERROR.
+      if (!this.camera.isImageStreamActiveState()) {
+        Log.d(TAG, 'stopImageStream: no active image stream, skipping');
+        return;
+      }
+      // Guard 2: during create/initialize/switch/dispose the in-flight transition's own
+      // flow starts the preview when ready; the deferred startPreview here would race it
+      // on the same cameraInput (7400101). We skip rather than defer: unlike the camera
+      // switch case, after initialize completes the preview is already restarted by
+      // open() itself, so deferring would only add a redundant restart.
+      if (this.curStatus != STATUS.DEFAULT || this.disposed || this.isSwitchingCamera) {
+        this.camera.clearImageStreamActiveState();
+        Log.w(TAG, 'stopImageStream: mid-transition, skipping preview restart');
+        return;
+      }
+      // Normal path (behavior unchanged): the restart IS the stop; the startPreview
+      // rebuild replaces the stream session, so clear the marker up front so a
+      // back-to-back second stop stays a no-op.
+      this.camera.clearImageStreamActiveState();
       // startPreview() returns an async chain: consume and catch it to avoid unhandled rejections
       // (mirrors the startPreviewWithImageStream pattern).
       this.pendingPreviewRestart = this.camera.startPreview().catch((e: Error): void => {
@@ -874,6 +930,44 @@ export class CameraApiImpl extends CameraApi {
     } catch (error) {
       console.error('stopImageStream error:', error);
       throw error as Error;
+    }
+  }
+
+  // Evaluates the pending deferred startImageStream (see pendingStartImageStream): runs only when
+  // the instance has settled (DEFAULT state, not disposed/switching, camera present, request's
+  // arrival-time textureId still matching); otherwise dropped silently. Failures during execution
+  // are logged only — the original call already replied success to Dart, so throwing here would
+  // just create the error surface the deferral exists to avoid. A transition still in flight
+  // leaves the request pending for the next exit point.
+  private _evaluatePendingStartImageStream(): void {
+    if (this.pendingStartImageStream == null) {
+      return;
+    }
+    if (this.curStatus != STATUS.DEFAULT || this.disposed || this.isSwitchingCamera) {
+      // Still mid-transition (e.g. initialize's contention-retry window, or a new create has
+      // already arrived): leave the request pending for the next exit point.
+      return;
+    }
+    const requestedTextureId: number | null = this.pendingStartImageStream;
+    this.pendingStartImageStream = null;
+    if (this.camera == null) {
+      Log.d(TAG, 'startImageStream: pending request dropped: no camera instance');
+      return;
+    }
+    if (requestedTextureId !== this.textureId) {
+      Log.d(TAG, 'startImageStream: pending request dropped: stale cameraId (requested ' +
+        requestedTextureId + ', current ' + this.textureId + ')');
+      return;
+    }
+    if (this.camera.isImageStreamActiveState()) {
+      Log.d(TAG, 'startImageStream: pending request skipped: image stream already active');
+      return;
+    }
+    try {
+      this.camera.startPreviewWithImageStream(this.imageStreamChannel);
+      Log.i(TAG, 'startImageStream: pending request executed after transition settled');
+    } catch (e) {
+      Log.e(TAG, 'startImageStream: pending request failed (logged only): ' + (e as Error).message);
     }
   }
 
@@ -1422,6 +1516,9 @@ export class CameraApiImpl extends CameraApi {
       }
     } finally {
       this.isSwitchingCamera = false;
+      // Transition exit: run a pending deferred startImageStream if the instance settled (the
+      // switch failure paths leave camera null, in which case the evaluator drops it silently).
+      this._evaluatePendingStartImageStream();
     }
   }
 

@@ -86,6 +86,11 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
+  // True while the live session was built by startImageStream(); CameraApiImpl.stopImageStream
+  // gates its preview restart on this marker so a stop landing on an instance that never had
+  // a stream (e.g. a freshly recreated instance) is a no-op instead of racing that instance's
+  // own (re)build flow.
+  private imageStreamActive: boolean = false;
   private previewOutput: camera.PreviewOutput | null = null; // First preview output stream
   private previewOutput2: camera.PreviewOutput | null = null; // Second preview output stream
   private pausedPreview: boolean = false; // Preview paused
@@ -246,6 +251,9 @@ export class Camera implements CameraCaptureStateListener {
       }
       this.imageStreamReader = null;
     }
+    // A reopen always lands in plain photo/video preview; mark any earlier image-stream
+    // mode as ended before rebuilding.
+    this.imageStreamActive = false;
 
     let imageFormat: number = getSupportedImageFormat(imageFormatGroup);
 
@@ -976,6 +984,9 @@ export class Camera implements CameraCaptureStateListener {
           }
           this.imageStreamReader = null;
         }
+        // The image-stream mode ends with the recording teardown; the reopen below lands
+        // in plain photo preview.
+        this.imageStreamActive = false;
         if (this.captureFile) {
           fs.close(this.captureFile);
         }
@@ -1414,6 +1425,10 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startImageStream() {
+    // Mark the stream active before any await (runs synchronously in the caller's tick) so
+    // a stopImageStream arriving mid-build sees a consistent marker; the catch clears it
+    // when the build fails.
+    this.imageStreamActive = true;
     // Release stale session/outputs to avoid native PhotoOutput/PhotoSession overwrite leaks
     await this.releaseSession();
     await this.releasePhotoOutput();
@@ -1470,6 +1485,9 @@ export class Camera implements CameraCaptureStateListener {
       this.enableAutoDeviceSwitch(this.photoSession);
       this.applyZeroShutterLag();
     } catch (e) {
+      // The stream build failed; the fallback below lands the instance in plain
+      // photo preview, so the marker must read "no stream".
+      this.imageStreamActive = false;
       Log.e(TAG, 'startImageStream failed at step [' + step + ']: ' + e.message);
       await this.releaseSession();
       await this.releasePhotoOutput();
@@ -1932,6 +1950,15 @@ export class Camera implements CameraCaptureStateListener {
     return this.isClosed;
   }
 
+  // State accessors for the stopImageStream guard in CameraApiImpl (see imageStreamActive).
+  public isImageStreamActiveState(): boolean {
+    return this.imageStreamActive;
+  }
+
+  public clearImageStreamActiveState(): void {
+    this.imageStreamActive = false;
+  }
+
   // Close
   public async close(): Promise<void> {
     if (this.isClosed) {
@@ -2023,6 +2050,8 @@ export class Camera implements CameraCaptureStateListener {
         Log.e(TAG, 'stopAndReleaseCamera: failed to close imageStreamReader: ' + e.message);
       }
     }
+    // close()/dispose() tear down the whole instance; any image-stream mode ends with it.
+    this.imageStreamActive = false;
 
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
