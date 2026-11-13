@@ -21,7 +21,8 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/pigeon"
-      ref: "pigeon-v27.3.1-ohos-1.0.0"
+      # ref: select the TAG from the table below for your Flutter train
+      ref: TAG
 
 ```
 
@@ -29,7 +30,7 @@ dependencies:
 
 | Flutter Version | TAG1 | TAG2 | Branch |
 | :--- | :--- | :--- | :--- |
-| 3.44 | `pigeon-v27.3.1-ohos-1.0.0` | `-` | `oh-3.44.9-dev` |
+| 3.44 | `pigeon-v27.3.1-ohos-1.0.0` | `-` | `oh-3.44.9-release` |
 | 3.41 | `-` | `pigeon-v26.3.4-ohos-1.0.0` | `br_pigeon-v26.3.4_ohos` |
 | 3.35 | `pigeon-v26.1.5-ohos-1.0.0` | `pigeon-v26.1.5-ohos-1.0.1` | `br_pigeon-v26.1.5_ohos` |
 | 3.27 | `pigeon-v25.3.2-ohos-1.0.0` | `pigeon-v25.3.2-ohos-1.0.1` | `br_pigeon-v25.3.2_ohos` |
@@ -55,7 +56,7 @@ For use cases, see [example](./example). For OHOS end-to-end integration, see [e
 
 This document is verified based on the following versions:
 
-1. Flutter version 3.44.10-ohos-0.0.1-canary1; SDK: 26.0.0 Beta2 (API Version 26.0.0 Beta2); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.135 SP8;
+1. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
 
 ## 3. API
 
@@ -129,6 +130,6 @@ Section 4 summarizes **annotation-level** OHOS support. The table below lists **
 
 ## 8. **License**
 
-This project is licensed under [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/oh-3.44.9-dev/packages/pigeon/LICENSE).
+This project is licensed under [BSD-3-Clause](./LICENSE).
 
 > Template version: v0.0.1

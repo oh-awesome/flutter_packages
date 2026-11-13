@@ -33,22 +33,22 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 |---|---|---|
-| 3.44 | video_player-v2.14.0-ohos-1.0.1 | oh-3.44.9-dev |
+| 3.44 | video_player-v2.14.0-ohos-1.0.1 | oh-3.44.9-release |
 
 > TAG 命名规则：`原库版本-ohos-版本号`。
 
 **版本升级与迁移（v2.11.1 → v2.14.0，Flutter 3.35 → 3.44）**
 
-1. 更新 Flutter SDK 到 3.44.9-ohos-1.0.0（含配套 DevEco Studio 6.1.1.268、SDK 5.0.0(12)）。
+1. 更新 Flutter SDK 到 3.44.9+ohos-1.0.0.beta（含配套 DevEco Studio 6.1.1.268、SDK 5.0.5(17)）。
 2. 将 `pubspec.yaml` 中 `video_player_ohos` 的 `ref` 从 `video_player-v2.11.1-ohos-1.0.0` 改为 `video_player-v2.14.0-ohos-1.0.1`，`video_player` 主包同步升到 `^2.14.0`。
 3. 执行 `flutter pub get` 后重新构建 HAP。主包 2.12.0 起 `VideoPlayerController` 构造新增 `VideoPlayerOptions.backBufferDurationMs`，OHOS 侧当前忽略该参数，升级无需改业务代码。
-4. 若旧工程使用 `br_video_player-v2.11.1_ohos` 分支，请切换到 `oh-3.44.9-dev` 分支后重新拉取。
+4. 若旧工程使用 `br_video_player-v2.11.1_ohos` 分支，请切换到 `oh-3.44.9-release` 分支后重新拉取。
 
 ## 约束与限制
 
 ### 兼容性
 
-1. Flutter: 3.44.9-ohos-1.0.0, DevEco Studio: 6.1.1.268, SDK: 5.0.5(17), ROM: 6.1 Developer Beta;
+1. Flutter: 3.44.9+ohos-1.0.0.beta, DevEco Studio: 6.1.1.268, SDK: 5.0.5(17), ROM: 6.1 Developer Beta;
 
 ### 权限要求
 
@@ -86,8 +86,8 @@ flutter pub get
 
 ### OHOS 环境搭建步骤
 
-1. 安装 DevEco Studio 6.1.1.268，并通过 `File > Settings > SDK` 安装 OpenHarmony SDK 5.0.0(12)。
-2. 获取 Flutter OHOS SDK（如 3.44.9-ohos-1.0.0），设置环境变量 `PUB_HOSTED_URL`、`FLUTTER_STORAGE_BASE_URL` 为镜像地址后执行 `flutter doctor` 确认环境就绪。
+1. 安装 DevEco Studio 6.1.1.268，并通过 `File > Settings > SDK` 安装 OpenHarmony SDK 5.0.5(17)。
+2. 获取 Flutter OHOS SDK（如 3.44.9+ohos-1.0.0.beta），设置环境变量 `PUB_HOSTED_URL`、`FLUTTER_STORAGE_BASE_URL` 为镜像地址后执行 `flutter doctor` 确认环境就绪。
 3. 业务工程执行 `flutter pub get`，随后 `flutter build hap --debug`（或直接在 DevEco Studio 中打开工程 `ohos/` 目录运行）完成 HAP 编译与安装。
 4. 运行真机需在 DevEco Studio 中配置签名（`File > Project Structure > Signing Configs`）。
 
@@ -320,4 +320,4 @@ video_player_ohos/
 
 ## 开源协议
 
-本项目基于 [The BSD-3-Clause License (BSD-3-Clause)](https://github.com/flutter/packages/blob/main/packages/video_player/video_player/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [The BSD-3-Clause License (BSD-3-Clause)](../../../LICENSE) ，请自由地享受和参与开源。

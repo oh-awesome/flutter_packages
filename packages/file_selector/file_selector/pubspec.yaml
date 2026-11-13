@@ -39,7 +39,7 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/file_selector/file_selector_ohos"
-      ref: "oh-3.44.9-dev"
+      ref: "oh-3.44.9-release"
   flutter:
     sdk: flutter
 

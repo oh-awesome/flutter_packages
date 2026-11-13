@@ -14,7 +14,7 @@ in_app_purchase_ohos 是 in_app_purchase 在 OpenHarmony 平台上的 federated 
 dependencies:
   in_app_purchase:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase
       # ref: 根据下方表格选择不同框架适配的TAG版本
       ref: TAG
@@ -26,7 +26,7 @@ dependencies:
 dependencies:
   in_app_purchase_ohos:
     git:
-      url: https://gitcode.com/openharmony-tpc/flutter_packages.git
+      url: https://gitcode.com/CPF-Flutter/flutter_packages.git
       path: packages/in_app_purchase/in_app_purchase_ohos
       # ref: 根据下方表格选择不同框架适配的TAG版本
       ref: TAG
@@ -45,7 +45,7 @@ flutter pub get
 ### 搭建 OHOS 开发环境
 
 1. 安装 DevEco Studio。本插件已在 DevEco Studio 6.1.1.268 上验证通过（见[兼容性](#兼容性)），兼容的更新版本亦可使用。
-2. 使用支持 OHOS 的 Flutter 工具链（例如 `flutter-ohos` SDK，如 `3.41.10-ohos-0.0.1`），并通过 `flutter create --platforms=ohos .` 为应用生成 OHOS 平台工程骨架。
+2. 使用支持 OHOS 的 Flutter 工具链（例如 `flutter-ohos` SDK，如 `3.44.9-ohos-1.0.0`），并通过 `flutter create --platforms=ohos .` 为应用生成 OHOS 平台工程骨架。
 3. OHOS entry 模块声明了 `ohos.permission.INTERNET`。若应用未具备联网权限，请参考[权限要求](#权限要求)进行添加。
 4. 通过 DevEco Studio（**Build → Build Hap(s)/APP(s)**）或命令行 `hvigorw` 构建 HAP，插件的原生代码会随 entry 模块一起编译。
 
@@ -55,7 +55,7 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.2(14); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117;
+1. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.2(14); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117;
 
 ### 版本兼容
 
@@ -63,7 +63,7 @@ flutter pub get
 
 | Flutter 框架版本 | 包版本（TAG） | 分支 |
 | --------------- | ------------- | ---- |
-| 3.44.9+ohos-0.0.1-canary1 | in_app_purchase-v3.0.0-ohos-1.0.0 | oh-3.44.9 |
+| 3.44 | in_app_purchase-v3.3.0-ohos-1.0.0 | oh-3.44.9-release |
 
 > 请选择与工程所用 flutter-ohos SDK 版本匹配的包版本；无法确定时，优先使用最新发布的分支或标签。
 

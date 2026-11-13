@@ -6,7 +6,7 @@ This document describes how the [example app](./app) integrates Pigeon-generated
 
 - Flutter OHOS SDK (see [README.en.md](../README.en.md) §2.1).
 - DevEco Studio with matching OpenHarmony SDK.
-- `pigeon` from this repository (`oh-3.44.9-dev`).
+- `pigeon` from this repository (`oh-3.44.9-release`).
 
 ## Generate ArkTS code
 
