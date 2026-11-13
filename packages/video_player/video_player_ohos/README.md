@@ -121,6 +121,175 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 }
 ```
 
+## HDR Video Playback Integration
+
+OpenHarmony `video_player` supports ordinary video playback through the default
+texture path. This path renders decoded frames through Flutter's texture, so
+10-bit, BT.2020, PQ, and HLG content is converted to SDR during composition.
+To preserve HDR output, request `VideoViewType.platformView` and enable the
+engine's Hybrid Composition++ (HCPP). The same `AVPlayer` is used, but frames
+are drawn to an ArkUI `XComponent` surface that the engine keeps in a DISPLAY
+system layer instead of sampling through a Flutter texture.
+
+| Rendering path | Application setting | Output | Notes |
+| --- | --- | --- | --- |
+| **Texture (default)** | Omit `viewType` | `AVPlayer` + Flutter texture | Existing applications keep working; HDR is converted to SDR. |
+| **PlatformView + HCPP** | Set `viewType: VideoViewType.platformView` and enable HCPP | `AVPlayer` + `XComponent` surface + DISPLAY layer | Volume, speed, headers, audio tracks, and video tracks use the same implementation as the texture path. |
+
+### Select PlatformView
+
+Use an OHOS `video_player` main package that supports
+`VideoViewType.platformView`, its matching `video_player_ohos` implementation,
+and an OHOS engine that includes HCPP. Select dependency refs from the release
+notes for your Flutter OH SDK. Network playback also requires the
+[network permission](#permission-requirements). Keep the main-package import
+and `VideoPlayer` widget from the usage example above.
+
+The controller must be created with the platform view type; it cannot be
+changed after `initialize()`. To switch rendering paths, dispose the controller
+and create a new one:
+
+```dart
+final controller = VideoPlayerController.networkUrl(
+  uri,
+  viewType: VideoViewType.platformView,
+);
+await controller.initialize();
+await controller.play();
+```
+
+The same option is available for assets and local files:
+
+```dart
+VideoPlayerController.asset(
+  'videos/demo.mp4',
+  viewType: VideoViewType.platformView,
+);
+VideoPlayerController.file(
+  file,
+  viewType: VideoViewType.platformView,
+);
+```
+
+`VideoPlayer` must be mounted in the widget tree. `initialize()` may complete
+before the `XComponent` is loaded and the AVPlayer is prepared, so calls such
+as `play`, `setVolume`, `setPlaybackSpeed`, and looping are queued until the
+surface is attached and the player enters `prepared`. The deprecated
+`VideoPlayerPlatform.create(DataSource)` API
+still creates a texture player; use `VideoPlayerController` to select the HDR
+path.
+
+### Enable HCPP
+
+HCPP is disabled by default. The two supported ways to enable it are:
+
+```bash
+flutter run --enable-hcpp
+```
+
+For a packaged application, merge the following configuration into
+`ohos/entry/src/main/resources/rawfile/buildinfo.json5`, preserving existing
+entries in the `string` array:
+
+```json5
+{
+  "string": [
+    {
+      "name": "enable_ohos_hybrid_composition",
+      "value": "true"
+    }
+  ]
+}
+```
+
+The command-line option is written into `buildinfo.json5` during the build.
+After changing the option, perform a full rebuild; hot restart does not update
+the packaged configuration. In 3.44 toolchain revisions that preserve manual
+HCPP configuration, `flutter run` without `--enable-hcpp` keeps an existing
+value. Other SDK revisions may behave differently; check the final packaged
+HAP. A missing file, invalid JSON, missing entry, or a value other than
+`"true"` is treated as disabled. The
+plugin reads this file to check HCPP, and the engine uses it to set the startup
+argument. The CLI, buildinfo, and engine names are
+`--enable-hcpp`, `enable_ohos_hybrid_composition`, and
+`--enable-ohos-hybrid-composition`, respectively.
+
+If HCPP is not enabled, `initialize()` fails with
+`PlatformException(code: hcpp_unavailable)`. The plugin does not silently fall
+back to a texture view, because that would make an application appear to use
+HDR while producing SDR output. Fix the HCPP configuration instead of catching
+this error and silently switching to texture. Internally, the plugin uses
+`initExpensiveOhosView` to retain the `RENDER_TYPE_DISPLAY` layer;
+`initSurfaceOhosView` would rasterize the native view back into a texture and
+lose HDR. Applications do not need to call either engine API.
+
+### PlatformView behavior and troubleshooting
+
+The PlatformView path uses the same AVPlayer capabilities as the texture path:
+
+| Capability | PlatformView behavior |
+| --- | --- |
+| Play, pause, seek, position | Supported; `play` and seek requested before `prepared` are queued. |
+| Volume, speed, looping | Supported; values set before `prepared` are applied when preparation completes. |
+| HTTP headers, audio tracks, video tracks | Supported. Track operations wait for `prepared` and may take up to 15 seconds. |
+| `formatHint`, `contentUri`, `backBufferDurationMs` | Not mapped to AVPlayer on either rendering path. |
+
+The main differences from the texture path are:
+
+- There is no texture first-frame placeholder; the image appears after the
+  `XComponent` produces its first frame.
+- Duration and dimensions come from metadata probing before the source is set.
+  If probing fails, they can remain `0` and the aspect ratio becomes `1.0`.
+  HTTP/HTTPS metadata probing is skipped on API levels below 20. The
+  `initialized` event is sent only once, so the metadata is not updated after
+  `prepared`; use the texture path when accurate duration and aspect ratio are
+  required.
+- Removing `VideoPlayer` from the tree only detaches the surface. Call
+  `controller.dispose()` to release the AVPlayer.
+- The native surface ignores pointer events so Flutter controls remain above
+  the video (`IgnorePointer` and `HitTestMode.None`). Do not wrap it in another
+  native view that captures those events.
+- If no window is available, PlatformView creation still succeeds, but
+  keep-screen-on has no effect. Texture player creation fails in that case.
+
+| Symptom | Cause and action |
+| --- | --- |
+| `hcpp_unavailable` | Enable HCPP with `--enable-hcpp` or set `enable_ohos_hybrid_composition` to `"true"`, then rebuild the HAP. |
+| HDR looks like SDR | Confirm both `viewType: VideoViewType.platformView` and HCPP are enabled, and perform a full rebuild. |
+| The example reports a missing HDR asset | Read the following `PlatformException`; `hcpp_unavailable` indicates that HCPP is not enabled. |
+| No public HDR URL is available | Copy a sample to the device and pass a local `file://` URI to `networkUrl` to validate the network-source entry point. This does not test HTTP/HTTPS streaming. |
+| `initialize()` completes but no frame appears | Mount `VideoPlayer` so that `XComponent.onLoad` can provide a surface. Queued `play()` calls then proceed. |
+| Controls do not respond | Ensure the PlatformView is not wrapped by another native view that intercepts touch events. |
+| Playback restarts after a list item returns | Removing the widget only detaches the `XComponent`; keep the controller and dispose it only when the player is no longer needed. |
+| Duration stays at zero or the video is square | Metadata probing failed; use the texture path when accurate initial metadata is required. |
+| Multiple players show the wrong image | Check each controller's `playerId`; texture and PlatformView players share the engine's monotonically increasing ID source. |
+
+### HDR acceptance check
+
+Use a physical device with HEVC/HLG decoding and an HDR display, along with the
+bundled [HLG sample](./example/assets/video_hdr_hlg.mp4) (HEVC / BT.2020 / HLG).
+From the plugin's `example` directory, run:
+
+```bash
+flutter pub get
+flutter run --enable-hcpp
+```
+
+1. Select **HDR**, open **Asset**, and switch between **Texture view** and
+   **Platform view** to compare the same source. The SDR/HDR source toggle does
+   not replace this rendering-path comparison.
+2. Platform view should display frames and respond to play, pause, seek, and
+   Flutter overlay controls. In `hdc hilog` or DevEco Studio logs, confirm
+   `HCPP pre-check enable_ohos_hybrid_composition=true` and
+   `XComponent onLoad playerId=...` with a valid `surfaceId`, with no
+   `hcpp_unavailable` error.
+3. `display hdrFormats=...` only reports the display's advertised capabilities.
+   Confirm actual HDR output using the target device's HDR status or display
+   diagnostics, and record the device, system version, source, and result.
+   Brightness differences, successful initialization, and these logs alone do
+   not prove HDR output. If output status cannot be inspected, record actual
+   HDR output as pending device verification.
+
 ## Usage Notes
 
 - This implementation renders video with `Texture` by default.
