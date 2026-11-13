@@ -47,13 +47,13 @@ preparation_steps:
   - name: Prepare Flutter
     script: .ci/scripts/clone_project.sh
     description: Prepare Flutter project and sync to target branch
-    args: ["https://gitcode.com/CPF-Flutter/flutter_flutter.git", "oh-3.44.9-dev"]
+    args: ["https://gitcode.com/CPF-Flutter/flutter_flutter.git", "oh-3.44.9-release"]
     required: true
 
   - name: Prepare Packages
     script: .ci/scripts/prepare_project.sh
     description: Prepare Packages project and sync to target branch
-    args: ["flutter_packages", "oh-3.44.9-dev"]
+    args: ["flutter_packages", "oh-3.44.9-release"]
     required: true
 
   - name: Prepare Tests
@@ -65,7 +65,7 @@ preparation_steps:
   - name: Prepare Integration Test
     script: .ci/scripts/prepare_integration_test.sh
     description: Generate PR info and move tests to archive directory for integration test
-    args: ["oh-3.44.9-dev"]
+    args: ["oh-3.44.9-release"]
     required: true
 
 # Compilation steps - executed in order
