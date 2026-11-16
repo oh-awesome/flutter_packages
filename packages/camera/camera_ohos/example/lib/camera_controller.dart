@@ -195,6 +195,10 @@ class CameraController extends ValueNotifier<CameraValue> {
   bool _isDisposed = false;
   StreamSubscription<CameraImageData>? _imageStreamSubscription;
   FutureOr<bool>? _initCalled;
+  // A Future awaiting an attempt to initialize (e.g. after `initialize` was
+  // just called). If the controller has not been initialized at least once,
+  // this value is null.
+  Future<void>? _initializeFuture;
   StreamSubscription<DeviceOrientationChangedEvent>?
       _deviceOrientationSubscription;
 
@@ -204,7 +208,42 @@ class CameraController extends ValueNotifier<CameraValue> {
   /// Initializes the camera on the device.
   Future<void> initialize() => _initializeWithDescription(description);
 
-  Future<void> _initializeWithDescription(CameraDescription description) async {
+  Future<void> _initializeWithDescription(CameraDescription description) {
+    // Publish the chain future before returning so a rebuild requested mid-cycle chains after
+    // the running cycle instead of overlapping it. A shared-future gate is not enough: when N
+    // rapid setDescription calls all await the same future, every continuation resumes at once
+    // the moment it completes and their dispose/create traffic still overlaps at the camera
+    // service. Chaining gives each cycle its own link that starts only after the previous
+    // link settles.
+    final Future<void>? prev = _initializeFuture;
+    final Future<void> cycle = () async {
+      if (prev != null) {
+        try {
+          await prev;
+        } catch (_) {
+          // A failed previous cycle must not block the next rebuild.
+        }
+      }
+      // A queued cycle may resume after dispose() has already released the
+      // camera; creating a new camera then would leak it.
+      if (_isDisposed) {
+        return;
+      }
+      if (_initCalled != null) {
+        await CameraPlatform.instance.dispose(_cameraId);
+      }
+      // Stop before creating a new camera if dispose() ran while the old
+      // camera was being released.
+      if (_isDisposed) {
+        return;
+      }
+      await _runInitializeCycle(description);
+    }();
+    _initializeFuture = cycle;
+    return cycle;
+  }
+
+  Future<void> _runInitializeCycle(CameraDescription description) async {
     final Completer<CameraInitializedEvent> initializeCompleter =
         Completer<CameraInitializedEvent>();
 
@@ -220,6 +259,14 @@ class CameraController extends ValueNotifier<CameraValue> {
       description,
       _mediaSettings,
     );
+    // A dispose() landing during the native create (which defers behind the
+    // previous instance's release) leaves this cycle running on a disposed
+    // notifier, and the freshly created camera would leak because dispose()
+    // only releases the cameraId held before the cycle started.
+    if (_isDisposed) {
+      await CameraPlatform.instance.dispose(_cameraId);
+      return;
+    }
 
     unawaited(CameraPlatform.instance
         .onCameraInitialized(_cameraId)
@@ -232,6 +279,13 @@ class CameraController extends ValueNotifier<CameraValue> {
       _cameraId,
       imageFormatGroup: imageFormatGroup ?? ImageFormatGroup.unknown,
     );
+    // A dispose() landing during the open must not let the cycle write `value`
+    // on a disposed notifier below; dispose() may already have released this
+    // id in the race (native dispose is a no-op for unknown ids).
+    if (_isDisposed) {
+      await CameraPlatform.instance.dispose(_cameraId);
+      return;
+    }
 
     value = value.copyWith(
       isInitialized: true,
@@ -277,6 +331,15 @@ class CameraController extends ValueNotifier<CameraValue> {
   }
 
   /// Sets the description of the camera.
+  ///
+  /// Non-recording rebuilds chain through [_initializeWithDescription]: each
+  /// cycle links after the previous cycle's future, so N rapid calls run
+  /// strictly one after another (previous design let each cycle run as soon as
+  /// it was called, letting their create traffic overlap at the camera
+  /// service). The dispose of the old cameraId lives inside the chain now,
+  /// gated on [_initCalled] (at least one successful cycle) so a first-cycle
+  /// create failure — where `_cameraId` has never been assigned — cannot
+  /// crash the rebuild via a LateInitializationError.
   Future<void> setDescription(CameraDescription description) async {
     if (value.isRecordingVideo) {
       await CameraPlatform.instance.setDescriptionWhileRecording(description);
