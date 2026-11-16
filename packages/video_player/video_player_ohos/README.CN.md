@@ -144,6 +144,154 @@ class _DemoVideoPageState extends State<DemoVideoPage> {
 }
 ```
 
+## HDR 视频播放接入指导
+
+鸿蒙上的 `video_player` 默认通过纹理路径播放视频：`AVPlayer` 将帧画到
+Flutter 纹理中，10-bit、BT.2020、PQ 和 HLG 等 HDR 内容会在这条合成路径中
+变成 SDR。要保留 HDR 出画，需要在构造控制器时选择
+`VideoViewType.platformView`，并开启引擎 Hybrid Composition++（HCPP）。解码器
+仍然是同一台 `AVPlayer`，但画面会绘制到 ArkUI `XComponent` 的 Surface，由引擎
+作为 DISPLAY 系统层合成，不经过 Flutter Texture。
+
+| 渲染路径 | 应用设置 | 出画方式 | 说明 |
+| --- | --- | --- | --- |
+| **纹理（默认）** | 不传 `viewType` | `AVPlayer` + Flutter 纹理 | 旧应用无需修改；HDR 会被转换为 SDR。 |
+| **PlatformView + HCPP** | 设置 `viewType: VideoViewType.platformView` 并开启 HCPP | `AVPlayer` + `XComponent` Surface + DISPLAY 层 | 音量、倍速、请求头、音轨和画质轨与纹理路径共用同一套实现。 |
+
+### 选择 PlatformView
+
+使用支持 `VideoViewType.platformView` 的 OHOS `video_player` 主包、配套的
+`video_player_ohos` 实现包，以及包含 HCPP 的 OHOS 引擎。依赖 `ref` 按所用
+Flutter OH SDK 的发布说明选择。网络片源还需配置[网络权限](#权限要求)。
+代码沿用上方使用示例中的主包导入和 `VideoPlayer` 界面。
+
+构造控制器时选择 PlatformView，`initialize()` 之后不能再修改
+`viewType`；如需切换渲染路径，应先 `dispose()`，再创建新的控制器：
+
+```dart
+final controller = VideoPlayerController.networkUrl(
+  uri,
+  viewType: VideoViewType.platformView,
+);
+await controller.initialize();
+await controller.play();
+```
+
+asset 和本地文件同样在构造时传入：
+
+```dart
+VideoPlayerController.asset(
+  'videos/demo.mp4',
+  viewType: VideoViewType.platformView,
+);
+VideoPlayerController.file(
+  file,
+  viewType: VideoViewType.platformView,
+);
+```
+
+`VideoPlayer` 必须放进 Widget 树。`initialize()` 可能在 `XComponent` 入树、
+播放器进入 `prepared` 之前返回，因此 `play`、音量、倍速和循环会先排队，待
+Surface 到达且播放器进入 `prepared` 后再执行。已废弃的
+`VideoPlayerPlatform.create(DataSource)` 接口
+仍强制创建纹理播放器；业务应使用主包 `VideoPlayerController` 才能选择 HDR 路径。
+
+### 开启 HCPP
+
+HCPP 默认关闭，可通过命令行或 `buildinfo.json5` 开启：
+
+```bash
+flutter run --enable-hcpp
+```
+
+打包直装时，将以下配置合并到
+`ohos/entry/src/main/resources/rawfile/buildinfo.json5`，保留 `string` 数组中的已有项：
+
+```json5
+{
+  "string": [
+    {
+      "name": "enable_ohos_hybrid_composition",
+      "value": "true"
+    }
+  ]
+}
+```
+
+命令行参数会在构建时写入 `buildinfo.json5`。修改开关后必须完整重新构建，
+hot restart 不会更新已经打进 HAP 的配置。包含“保留手动 HCPP 配置”处理的
+3.44 工具链在 `flutter run` 未传 `--enable-hcpp` 时保留已有值；不同 SDK
+修订版可能采用不同逻辑，请核对最终打进 HAP 的配置。缺文件、JSON
+无效、缺少该配置项或值不是 `"true"` 时，均视为未开启。插件读取此文件判断开关，
+引擎也从此文件读取配置并设置启动参数。三层名称分别是
+`--enable-hcpp`、`enable_ohos_hybrid_composition` 和
+`--enable-ohos-hybrid-composition`。
+
+HCPP 未开启时，`initialize()` 会失败并返回
+`PlatformException(code: hcpp_unavailable)`，插件不会静默回退到纹理路径，避免
+应用误以为正在播放 HDR。遇到此错误应修正 HCPP 配置，避免捕获后静默切换到纹理。
+插件内部已使用 `initExpensiveOhosView` 保留 `RENDER_TYPE_DISPLAY` 层；
+`initSurfaceOhosView` 会将原生视图再次栅格回纹理，导致 HDR 丢失。业务无需直接
+调用这两个引擎接口。
+
+### PlatformView 能力与排查
+
+PlatformView 与纹理路径使用同一套 AVPlayer 能力：
+
+| 能力 | PlatformView 行为 |
+| --- | --- |
+| 播放、暂停、seek、进度 | 支持；`prepared` 之前的 `play`、seek 会排队。 |
+| 音量、倍速、循环 | 支持；`prepared` 之前设置的值会在准备完成后应用。 |
+| HTTP 请求头、音轨、画质轨 | 支持；轨道操作会等待 `prepared`，最长约 15 秒。 |
+| `formatHint`、`contentUri`、`backBufferDurationMs` | 两条渲染路径都未映射到 AVPlayer。 |
+
+与纹理路径相比需要注意：
+
+- PlatformView 没有纹理路径的首帧占位图，需等 `XComponent` 绘制首帧。
+- 时长和宽高来自设源前的媒体探测；探测失败时可能一直为 `0`，画面比例变成
+  `1.0`。API 20 以下不会探测 HTTP/HTTPS 地址。`initialized` 只发送一次，进入
+  `prepared` 后也不会再更新这些数据；需要准确时长和比例时请使用纹理路径。
+- 从 Widget 树移除 `VideoPlayer` 只会拆下 Surface；只有调用
+  `controller.dispose()` 才会释放 AVPlayer。
+- 原生 Surface 不接收指针事件（`IgnorePointer` 和 `HitTestMode.None`），Flutter
+  播放控件可以显示在视频上方。不要再包一层会拦截触摸的原生视图。
+- 无可用窗口时，PlatformView 创建仍可成功，但屏幕常亮不生效；纹理路径的
+  `create` 会因取窗失败而抛错。
+
+| 现象 | 原因与处理 |
+| --- | --- |
+| `hcpp_unavailable` | 用 `--enable-hcpp` 或将 `enable_ohos_hybrid_composition` 设为 `"true"`，然后重新构建 HAP。 |
+| HDR 画面发灰、像 SDR | 确认同时设置了 `viewType: VideoViewType.platformView` 和 HCPP，并完整重新构建。 |
+| example 先提示未找到 HDR asset | 继续查看后面的 `PlatformException`；如果错误码是 `hcpp_unavailable`，说明 HCPP 未开启。 |
+| 没有可用的公网 HDR 地址 | 将样片推到设备后，用本地 `file://` URI 传给 `networkUrl`，只能验证 network 数据源入口，不能代替 HTTP/HTTPS 拉流。 |
+| `initialize()` 已返回但一直不出画 | 将 `VideoPlayer` 放入 Widget 树，让 `XComponent.onLoad` 提供 Surface；排队的 `play()` 会继续执行。 |
+| 播放键或进度条点不到 | 检查业务是否又包了一层会拦截触摸的原生视图。 |
+| 列表滑走再回来从头播 | 离开 Widget 树只会拆下 `XComponent`；保留 controller，只有播放器不再使用时才调用 `dispose()`。 |
+| 总时长为 0、画面比例为 1:1 | 媒体探测失败；需要准确初始元数据时改用纹理路径。 |
+| 多个播放器画面串了 | 检查各控制器的 `playerId`；纹理和 PlatformView 共用引擎递增的 ID 来源。 |
+
+### HDR 验收检查
+
+使用支持 HEVC/HLG 解码和 HDR 显示的真机，以及示例工程中的
+[HLG 样片](./example/assets/video_hdr_hlg.mp4)（HEVC / BT.2020 / HLG）。
+在插件的 `example` 目录执行：
+
+```bash
+flutter pub get
+flutter run --enable-hcpp
+```
+
+1. 首页选择 **HDR**，进入 **Asset**，依次切换 **Texture view** 和 **Platform view**，
+   对比同一条样片；不要用 SDR/HDR 片源开关代替渲染路径对比。
+2. Platform view 应正常出画，播放、暂停、seek 和 Flutter 覆盖控件均可操作。
+   通过 `hdc hilog` 或 DevEco Studio 日志确认出现
+   `HCPP pre-check enable_ohos_hybrid_composition=true` 和带有效 `surfaceId` 的
+   `XComponent onLoad playerId=...`，且没有 `hcpp_unavailable`。
+3. 日志中的 `display hdrFormats=...` 仅表示显示设备声明的能力。实际 HDR 输出
+   还需使用目标设备提供的 HDR 状态或显示诊断能力确认，并记录设备型号、系统版本、
+   片源和检测结果。单凭画面更亮、初始化成功或上述日志，不能判定 HDR 已生效；
+   无法获取输出状态时，将实际 HDR 输出记为“待真机确认”。
+
 ## 使用说明
 
 - 本实现默认使用 `Texture` 渲染视频画面。
