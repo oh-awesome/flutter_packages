@@ -158,9 +158,14 @@ class OhosCamera extends CameraPlatform {
     try {
       await _hostApi.initialize(imageFormatGroupToPlatform(imageFormatGroup));
     } on PlatformException catch (e, s) {
-      completed = true;
-      unawaited(errorSub.cancel());
-      completer.completeError(CameraException(e.code, e.message), s);
+      // The error event may already have completed the completer (the native side sends a
+      // cameraError event before replying result.error on the failure path); completing twice
+      // would throw StateError.
+      if (!completed) {
+        completed = true;
+        unawaited(errorSub.cancel());
+        completer.completeError(CameraException(e.code, e.message), s);
+      }
     }
 
     try {
