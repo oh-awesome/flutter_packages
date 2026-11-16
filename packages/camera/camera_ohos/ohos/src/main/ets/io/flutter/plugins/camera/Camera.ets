@@ -79,6 +79,11 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
+  // True while the live session was built by startImageStream(); MethodCallHandlerImpl.stopImageStream
+  // gates its preview restart on this marker so a stop landing on an instance that never had
+  // a stream (e.g. a freshly recreated instance) is a no-op instead of racing that instance's
+  // own (re)build flow.
+  private imageStreamActive: boolean = false;
   private previewOutput: camera.PreviewOutput | null = null; // 第一路预览流
   private previewOutput2: camera.PreviewOutput | null = null; // 第二路预览流
   private pausedPreview: boolean = false; // 暂停预览
@@ -194,6 +199,10 @@ export class Camera implements CameraCaptureStateListener {
         "The image stream reports the actual output format CAMERA_FORMAT_YUV_420_SP.")
       imageFormat = image.ImageFormat.JPEG
     }
+    // A reopen always lands in plain photo/video preview; mark any earlier image-stream
+    // mode as ended before rebuilding.
+    this.imageStreamActive = false;
+
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
@@ -651,6 +660,9 @@ export class Camera implements CameraCaptureStateListener {
       Log.d(TAG, "videoSession stop error" + e.toString());
     } finally {
       try {
+        // The image-stream mode ends with the recording teardown; the reopen below lands
+        // in plain photo preview.
+        this.imageStreamActive = false;
         fs.close(this.captureFile);
         this.captureFile = null;
         this.isVideoMode = false;
@@ -835,10 +847,20 @@ export class Camera implements CameraCaptureStateListener {
 
   startPreviewWithImageStream(imageStreamChannel: EventChannel) {
     this.setStreamHandler(imageStreamChannel);
-    this.startImageStream();
+    // Fire-and-forget execution (no await): a failed stream build clears the marker so the
+    // instance reads no-stream semantics, and is logged only — throwing here would just
+    // create the error surface the deferral exists to avoid.
+    this.startImageStream().catch((e: Error): void => {
+      this.imageStreamActive = false;
+      Log.e(TAG, 'startImageStream failed (logged only): ' + e.message);
+    });
   }
 
   async startImageStream() {
+    // Mark the stream active before any await (runs synchronously in the caller's tick) so
+    // a stopImageStream arriving mid-build sees a consistent marker; startPreviewWithImageStream
+    // clears it when the build fails.
+    this.imageStreamActive = true;
     try {
       if (this.photoSession != null) {
         await this.photoSession?.stop()
@@ -1045,6 +1067,15 @@ export class Camera implements CameraCaptureStateListener {
     this.imageStreamReader.subscribeListener(this.captureProps, imageStreamSink);
   }
 
+  // State accessors for the stopImageStream guard in MethodCallHandlerImpl (see imageStreamActive).
+  public isImageStreamActiveState(): boolean {
+    return this.imageStreamActive;
+  }
+
+  public clearImageStreamActiveState(): void {
+    this.imageStreamActive = false;
+  }
+
   // 关闭
   public async close(): Promise<void> {
     if (this.isClosed) {
@@ -1097,6 +1128,9 @@ export class Camera implements CameraCaptureStateListener {
     await this.releasePhotoOutput();
     // 停止并释放 session
     await this.releaseSession();
+
+    // close()/dispose() tear down the whole instance; any image-stream mode ends with it.
+    this.imageStreamActive = false;
 
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
