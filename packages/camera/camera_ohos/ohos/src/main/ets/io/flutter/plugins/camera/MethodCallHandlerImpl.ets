@@ -57,6 +57,13 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   private flutterTexture: SurfaceTextureEntry | null = null;
   private textureId: number = -1;
   private curStatus: STATUS = STATUS.DEFAULT;
+  // Pending startImageStream deferred during a camera transition (create/initialize/dispose).
+  // Holds the arrival-time textureId (the Dart cameraId): when the transition exits, the request is
+  // executed only if that id still matches the current textureId, otherwise dropped silently —
+  // the Dart side re-subscribes under the new cameraId and re-issues startImageStream itself.
+  // Single slot (newest wins); cleared by stopImageStream (subscription gone) and dropped on
+  // dispose completion.
+  private pendingStartImageStream: number | null = null;
 
   constructor(
     ability: UIAbility,
@@ -125,6 +132,10 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           try {
             await this.camera.open(call.argument('imageFormatGroup'));
             this.curStatus = STATUS.DEFAULT;
+            // Transition exit: run a pending deferred startImageStream now that the instance
+            // settled. A failed open resolves normally after closing the instance, so the
+            // closed-instance guard inside drops the request.
+            this._evaluatePendingStartImageStream();
             result.success(null)
           } catch (e) {
             Log.e(TAG, 'initialize failed: ' + e.message);
@@ -283,8 +294,21 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'startImageStream': {
         try {
-          this.camera!.startPreviewWithImageStream(this.imageStreamChannel);
-          result.success(null);
+          // Mid-transition (create/initialize): defer instead of running against a half-built
+          // instance — running here corrupts the camera service state (GetSupportedOutputCapability
+          // parse error / cameraInput.open parameter error / 'Session not config' on the next open),
+          // and an error reply would just surface as a new Dart-side dialog. Record a pending
+          // request, evaluated when the transition exits (see _evaluatePendingStartImageStream);
+          // reply success so the Dart future completes. DEFAULT-state null-camera still falls
+          // through unchanged.
+          if (this.curStatus != STATUS.DEFAULT) {
+            this.pendingStartImageStream = this.textureId;
+            Log.w(TAG, 'startImageStream: mid-transition, deferring (textureId=' + this.textureId + ')');
+            result.success(null);
+          } else {
+            this.camera!.startPreviewWithImageStream(this.imageStreamChannel);
+            result.success(null);
+          }
         } catch (e) {
           this.handleException(e, result);
         }
@@ -292,8 +316,38 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'stopImageStream': {
         try {
-          this.camera!.startPreview();
-          result.success(null);
+          // A stop (subscription cancel) arriving while a start is pending makes the pending start
+          // obsolete: the subscription is gone, so the transition exit must not start a stream nobody
+          // listens to. Cleared in front of any guard so the cancel always wins.
+          if (this.pendingStartImageStream != null) {
+            this.pendingStartImageStream = null;
+            Log.d(TAG, 'stopImageStream: cleared pending startImageStream (subscription cancelled)');
+          }
+          if (this.camera != null && !this.camera.isImageStreamActiveState()) {
+            // Guard 1: a stop landing on the current instance with no active image stream (e.g.
+            // a Dart-side subscription cancel reaching a freshly recreated instance after a
+            // lifecycle recreate) is a no-op: neither stop nor preview restart applies, and
+            // firing startPreview onto an instance whose open() is in flight raises 7400101
+            // SERVICE_FATAL_ERROR.
+            Log.d(TAG, 'stopImageStream: no active image stream, skipping');
+            result.success(null);
+          } else if (this.camera != null && this.curStatus != STATUS.DEFAULT) {
+            // Guard 2: during create/initialize/dispose the in-flight transition's own flow starts
+            // the preview when ready; the deferred restart here would race it on the same
+            // cameraInput (7400101). Skip rather than defer: after initialize completes the preview
+            // is already restarted by open() itself, so deferring would only add a redundant
+            // restart.
+            this.camera.clearImageStreamActiveState();
+            Log.w(TAG, 'stopImageStream: mid-transition, skipping preview restart');
+            result.success(null);
+          } else {
+            // Normal path (behavior unchanged): the restart IS the stop; the startPreview rebuild
+            // replaces the stream session, so clear the marker up front so a back-to-back second
+            // stop stays a no-op.
+            this.camera!.clearImageStreamActiveState();
+            this.camera!.startPreview();
+            result.success(null);
+          }
         } catch (e) {
           this.handleException(e, result);
         }
@@ -403,12 +457,62 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           }
           this.camera = null;
         }
+        // A pending deferred startImageStream belongs to a subscription of the instance being
+        // released (Dart cancels stream subscriptions on dispose); drop it so it cannot execute
+        // after the instance is gone. A following create issues fresh requests under its new
+        // cameraId.
+        if (this.pendingStartImageStream != null) {
+          this.pendingStartImageStream = null;
+          Log.d(TAG, 'dispose: dropped pending startImageStream');
+        }
         result.success(null);
         break;
       }
       default:
         result.notImplemented();
         break;
+    }
+  }
+
+  // Evaluates the pending deferred startImageStream (see pendingStartImageStream): runs only when
+  // the instance has settled (DEFAULT state, camera present, request's arrival-time textureId still
+  // matching); otherwise dropped silently. Failures during execution are logged only — the original
+  // call already replied success to Dart, so throwing here would just create the error surface the
+  // deferral exists to avoid. A transition still in flight leaves the request pending for the next
+  // exit point.
+  private _evaluatePendingStartImageStream(): void {
+    if (this.pendingStartImageStream == null) {
+      return;
+    }
+    if (this.curStatus != STATUS.DEFAULT) {
+      // Still mid-transition (e.g. a new create has already arrived): leave the request pending
+      // for the next exit point.
+      return;
+    }
+    const requestedTextureId: number | null = this.pendingStartImageStream;
+    this.pendingStartImageStream = null;
+    if (this.camera == null) {
+      Log.d(TAG, 'startImageStream: pending request dropped: no camera instance');
+      return;
+    }
+    if (this.camera.isClosedState()) {
+      Log.d(TAG, 'startImageStream: pending request dropped: camera already closed (failed open)');
+      return;
+    }
+    if (requestedTextureId !== this.textureId) {
+      Log.d(TAG, 'startImageStream: pending request dropped: stale cameraId (requested ' +
+        requestedTextureId + ', current ' + this.textureId + ')');
+      return;
+    }
+    if (this.camera.isImageStreamActiveState()) {
+      Log.d(TAG, 'startImageStream: pending request skipped: image stream already active');
+      return;
+    }
+    try {
+      this.camera.startPreviewWithImageStream(this.imageStreamChannel);
+      Log.i(TAG, 'startImageStream: pending request executed after transition settled');
+    } catch (e) {
+      Log.e(TAG, 'startImageStream: pending request failed (logged only): ' + e.message);
     }
   }
 

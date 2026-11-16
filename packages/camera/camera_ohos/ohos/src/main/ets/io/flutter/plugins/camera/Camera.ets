@@ -89,6 +89,11 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
+  // True while the live session was built by startImageStream(); MethodCallHandlerImpl.stopImageStream
+  // gates its preview restart on this marker so a stop landing on an instance that never had
+  // a stream (e.g. a freshly recreated instance) is a no-op instead of racing that instance's
+  // own (re)build flow.
+  private imageStreamActive: boolean = false;
   private previewOutput: camera.PreviewOutput | null = null; // 第一路预览流
   private previewOutput2: camera.PreviewOutput | null = null; // 第二路预览流
   private pausedPreview: boolean = false; // 暂停预览
@@ -220,6 +225,10 @@ export class Camera implements CameraCaptureStateListener {
       reportedImageFormat
     )
 
+    // A reopen always lands in plain photo/video preview; mark any earlier image-stream
+    // mode as ended before rebuilding.
+    this.imageStreamActive = false;
+
     this.cameraDevice = CameraUtils.getCameraDevice(this.cameraProperties.getCameraName(), this.cameraManager);
     if (!this.cameraDevice) {
       this.dartMessenger.sendCameraErrorEvent("无法获取相机设备: " + this.cameraProperties.getCameraName());
@@ -241,7 +250,11 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     this.cameraInput = this.cameraManager.createCameraInput(this.cameraDevice);
-    this.cameraInput.open()
+    // Return the open chain so callers awaiting open() resume only after
+    // startPreview() has settled. A fire-and-forget chain let a deferred
+    // startImageStream build a session concurrently with startPreview(),
+    // the two builds overwriting each other's photoSession unreleased.
+    return this.cameraInput.open()
       .then(async () => {
         try {
           await this.startPreview();
@@ -774,6 +787,9 @@ export class Camera implements CameraCaptureStateListener {
         fs.close(this.captureFile);
         this.captureFile = null;
         this.isVideoMode = false;
+        // The image-stream mode ends with the recording teardown; the reopen below lands
+        // in plain photo preview.
+        this.imageStreamActive = false;
         await this.open(this.imageFormatGroup);
       } catch (e) {
         Log.d(TAG, "close file or openPreview error" + e.toString());
@@ -994,6 +1010,10 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startImageStream() {
+    // Mark the stream active before any await (runs synchronously in the caller's tick) so
+    // a stopImageStream arriving mid-build sees a consistent marker; the catch below keeps
+    // the marker set so a later stopImageStream takes the normal restart path to restore preview.
+    this.imageStreamActive = true;
     try {
       if (this.photoSession != null) {
         await this.photoSession?.stop()
@@ -1009,6 +1029,7 @@ export class Camera implements CameraCaptureStateListener {
       Log.e(TAG, "startImageStream: failed to stop videoSession: " + e.message);
     }
 
+    try {
     let profiles =
       CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
     let previewProfileIndex = this.cameraFeatures
@@ -1052,6 +1073,13 @@ export class Camera implements CameraCaptureStateListener {
     this.registerDisplayChangeListener();
     await this.photoSession.start();
     this.enableAutoDeviceSwitch(this.photoSession);
+    } catch (e) {
+      // Keep the marker set: the failed rebuild already consumed the old preview session, so
+      // the camera has no preview now — the caller's later stopImageStream must take the
+      // normal restart path (startPreviewWithPhoto builds a fresh session) to restore it,
+      // matching pre-port behavior. close()/reopen clear the marker via stopAndReleaseCamera.
+      Log.e(TAG, 'startImageStream failed: ' + e.message);
+    }
   }
 
   async prepareMediaRecorder(cameraManager: camera.CameraManager,
@@ -1408,6 +1436,22 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
+  // State accessors for the stopImageStream guard in MethodCallHandlerImpl (see imageStreamActive).
+  public isImageStreamActiveState(): boolean {
+    return this.imageStreamActive;
+  }
+
+  public clearImageStreamActiveState(): void {
+    this.imageStreamActive = false;
+  }
+
+  // State accessor for the pending-startImageStream guard in MethodCallHandlerImpl: a closed
+  // instance must not receive startPreviewWithImageStream. The open() failure paths close() the
+  // instance without rejecting, so a resolved open() alone does not prove the instance is usable.
+  public isClosedState(): boolean {
+    return this.isClosed;
+  }
+
   // 关闭
   public async close(): Promise<void> {
     if (this.isClosed) {
@@ -1462,6 +1506,9 @@ export class Camera implements CameraCaptureStateListener {
     await this.releasePhotoOutput();
     // 停止并释放 session
     await this.releaseSession();
+
+    // close()/dispose() tear down the whole instance; any image-stream mode ends with it.
+    this.imageStreamActive = false;
 
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
