@@ -833,7 +833,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         await _cameraErrorSubscription?.cancel();
         _cameraErrorSubscription = CameraPlatform.instance
             .onCameraError(controller!.cameraId)
-            .listen((CameraErrorEvent event) {});
+            .listen((CameraErrorEvent event) {
+          _logError('cameraError', event.description);
+        });
         await _cameraSwitchedSubscription?.cancel();
         final OhosCamera platform = CameraPlatform.instance as OhosCamera;
         _cameraSwitchedSubscription = platform
@@ -1030,7 +1032,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
       _cameraErrorSubscription = CameraPlatform.instance
           .onCameraError(cameraController.cameraId)
-          .listen((CameraErrorEvent event) {});
+          .listen((CameraErrorEvent event) {
+        _logError('cameraError', event.description);
+      });
       // OHOS: onCameraSwitched fires when the system auto-switches the camera
       // in tri-fold dual-screen mode.
       final OhosCamera platform = CameraPlatform.instance as OhosCamera;
