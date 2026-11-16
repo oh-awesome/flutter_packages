@@ -703,7 +703,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
         await _cameraErrorSubscription?.cancel();
         _cameraErrorSubscription = CameraPlatform.instance
             .onCameraError(controller!.cameraId)
-            .listen((CameraErrorEvent event) {});
+            .listen((CameraErrorEvent event) {
+          _logError('cameraError', event.description);
+        });
         await _cameraSwitchedSubscription?.cancel();
         final OhosCamera platform = CameraPlatform.instance as OhosCamera;
         _cameraSwitchedSubscription = platform
@@ -737,7 +739,15 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
             e.description == 'FRONT_CAMERA_UNAVAILABLE') {
           _handleFrontCameraUnavailable();
         } else {
-          showInSnackBar(e.toString());
+          // Device-level 'CameraError' (e.g. 'Session not config') surfaces transiently when
+          // a rebuild lands inside the camera service's async teardown of the previous
+          // instance; the camera self-recovers on the next rebuild, so log instead of
+          // popping a dialog the user cannot act on. Other errors still surface.
+          if (e.code == 'CameraError') {
+            _logError(e.code, e.description);
+          } else {
+            showInSnackBar(e.toString());
+          }
         }
       }
     } else {
@@ -887,7 +897,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
 
       _cameraErrorSubscription = CameraPlatform.instance
           .onCameraError(cameraController.cameraId)
-          .listen((CameraErrorEvent event) {});
+          .listen((CameraErrorEvent event) {
+        _logError('cameraError', event.description);
+      });
       final OhosCamera platform = CameraPlatform.instance as OhosCamera;
       _cameraSwitchedSubscription = platform
           .onCameraSwitched(cameraController.cameraId)
@@ -922,7 +934,13 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           // Android & web only
           showInSnackBar('Unknown permission error.');
         default:
-          _showCameraException(e);
+          // Device-level 'CameraError' downgrade: transient rebuild races self-recover, log
+          // instead of popping a dialog (see the note in onNewCameraSelected).
+          if (e.code == 'CameraError') {
+            _logError(e.code, e.description);
+          } else {
+            _showCameraException(e);
+          }
       }
     }
 
