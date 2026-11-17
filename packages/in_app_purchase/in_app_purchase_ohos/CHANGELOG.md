@@ -1,4 +1,4 @@
-## in_app_purchase-v3.0.0-ohos-1.0.0 - 2026.8
+## in_app_purchase-v3.3.0-ohos-1.0.0 - 2026.8
 
 ### Added
 

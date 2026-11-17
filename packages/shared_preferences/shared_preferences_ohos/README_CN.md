@@ -26,7 +26,8 @@ dependencies:
     git:
       url: "https://gitcode.com/CPF-Flutter/flutter_packages.git"
       path: "packages/shared_preferences/shared_preferences"
-      ref: "shared_preferences-v2.5.5-ohos-1.0.0"
+      # ref: 根据下方表格选择不同框架适配的TAG版本
+      ref: TAG
 ```
 
 执行命令
@@ -39,9 +40,9 @@ flutter pub get
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | ----------------| ----------------------- | ---- |
-| 3.35            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
-| 3.41            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
-| 3.44            | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-dev |
+| 3.35  | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-release |
+| 3.41  | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-release |
+| 3.44  | shared_preferences-v2.5.5-ohos-1.0.0 | oh-3.44.9-release |
 
 ## 约束与限制
 
@@ -49,9 +50,9 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
-3. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.35.7+ohos-1.0.5; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+2. Flutter: 3.41.9+ohos-1.0.2; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+3. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
 
 ### 升级与迁移
 
@@ -357,6 +358,6 @@ shared_preferences_ohos/
 
 ## 开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_shared_preferences-v2.5.4_ohos/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](/packages/shared_preferences/shared_preferences/LICENSE)，请自由地享受和参与开源。
 
 > 模板版本: v0.0.1

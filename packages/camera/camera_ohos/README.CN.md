@@ -84,13 +84,13 @@ Future<void> main() async {
 
 在以下版本中已测试通过
 
-1. Flutter: 3.44.9+ohos-0.0.1; SDK: 5.0.0(12); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.0(12); IDE: DevEco Studio: 26.0.0.621; ROM: 6.1.0.117 SP6;
 
 Flutter 框架版本与本包所基于的上游 `camera` TAG、代码分支对应关系如下：
 
 | Flutter 框架版本 | TAG           | 分支                     |
 | ----------------- | ------------- | ------------------------ |
-| 3.44 | camera-v0.12.0+2-ohos-1.0.0 | oh-3.44.9-dev |
+| 3.44 | camera-v0.12.0+2-ohos-1.0.0 | oh-3.44.9-release |
 
 > 说明：本包基于上游 [camera@0.12.0+2](https://pub.dev/packages/camera/versions/0.12.0+2) 适配。上表分支即 §1.1 安装依赖中 `ref` 引用的分支；本包 `pubspec.yaml` 的包版本为 `0.10.10+11`，与上游 `camera` 版本相互独立。
 

@@ -30,9 +30,9 @@ flutter pub get
 
  | Flutter 框架版本 | TAG 名称 | 分支名 |
  |---|---|---|
- | 3.35 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 |
- | 3.41 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 |
- | 3.44 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9 | 
+ | 3.35 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9-release |
+ | 3.41 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9-release |
+ | 3.44 | url_launcher_v6.3.2-ohos-1.0.2 | oh-3.44.9-release | 
 
 ## 约束与限制
 
@@ -40,9 +40,9 @@ flutter pub get
 
 在以下版本中已测试通过：
 
-1. Flutter: 3.35.8-ohos-0.0.3; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
-2. Flutter: 3.41.10-ohos-0.0.1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
-3. Flutter: 3.44.9-ohos-0.0.1-canary1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
+1. Flutter: 3.35.7+ohos-1.0.5; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
+2. Flutter: 3.41.9+ohos-1.0.2; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
+3. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.290; ROM: 6.1.0.117 SP6;
 
 ### 权限要求
 

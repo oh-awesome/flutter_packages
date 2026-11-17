@@ -12,14 +12,22 @@ import { EventSink } from '@ohos/flutter_ohos/src/main/ets/plugin/common/EventCh
 import { BusinessError } from '@kit.BasicServicesKit';
 
 export class ImageStreamReader {
-  private readonly dartImageFormat: number;
+  // The format reported to Dart follows the selected preview profile's format, decoupled
+  // from the ImageReceiver creation format.
+  private reportedImageFormat: number;
   private readonly imageReceiver: image.ImageReceiver;
   private imageArrivalListener: ((err: BusinessError) => void) | null = null;
 
-  constructor(size: Size, imageFormat: number, maxImages: number) {
-    this.dartImageFormat = imageFormat;
+  constructor(size: Size, imageFormat: number, maxImages: number, reportedImageFormat: number) {
+    this.reportedImageFormat = reportedImageFormat;
     this.imageReceiver =
       image.createImageReceiver(size, imageFormat, maxImages);
+  }
+
+  // Updates the format reported to Dart once the actual output format becomes known
+  // (i.e. after the preview profile has been selected).
+  public setReportedImageFormat(format: number): void {
+    this.reportedImageFormat = format;
   }
 
   public async onImageAvailable(
@@ -33,7 +41,7 @@ export class ImageStreamReader {
       imageBuffer.set('planes', this.parsePlanes(_image, imgComponent));
       imageBuffer.set('width', _image.size.width);
       imageBuffer.set('height', _image.size.height);
-      imageBuffer.set('format', this.dartImageFormat);
+      imageBuffer.set('format', this.reportedImageFormat);
       imageBuffer.set('lensAperture', captureProps.getLastLensAperture());
       imageBuffer.set('sensorExposureTime', captureProps.getLastSensorExposureTime());
       let sensorSensitivity: number = captureProps.getLastSensorSensitivity();

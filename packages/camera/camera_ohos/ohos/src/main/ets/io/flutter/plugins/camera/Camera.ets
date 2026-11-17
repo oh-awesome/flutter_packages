@@ -61,7 +61,8 @@ function getSupportedImageFormat(imageFormatGroup: string | null): image.ImageFo
   if (imageFormatGroup === 'jpeg') {
     return image.ImageFormat.JPEG;
   }
-  Log.w(TAG, 'The selected imageFormatGroup ' + imageFormatGroup + ' is not supported by ohos. Defaulting to JPEG');
+  Log.w(TAG, 'The selected imageFormatGroup ' + imageFormatGroup +
+    ' is not supported by ohos. The image stream reports the actual output format CAMERA_FORMAT_YUV_420_SP.');
   return image.ImageFormat.JPEG;
 }
 
@@ -230,11 +231,14 @@ export class Camera implements CameraCaptureStateListener {
     }
 
     let imageFormat: number = getSupportedImageFormat(imageFormatGroup);
+    // Defaults here, updated later to the selected preview profile's format.
+    const reportedImageFormat: number = camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP;
 
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
-      1
+      1,
+      reportedImageFormat
     )
 
     // 增强相机设备获取的错误处理
@@ -1306,6 +1310,15 @@ export class Camera implements CameraCaptureStateListener {
     let previewProfileIndex = this.cameraFeatures
                                   .getResolution()
                                   .getPreviewProfileIndex(profiles.previewProfiles);
+    // The preview outputs (including the one bound to the ImageReceiver surface) deliver
+    // the selected preview profile's format, not the ImageReceiver creation format.
+    // Report the actual format to Dart.
+    const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
+    if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+      Log.w(TAG, 'Image stream preview profile format ' + actualFormat +
+        ' differs from the default CAMERA_FORMAT_YUV_420_SP, reporting the actual format');
+    }
+    this.imageStreamReader!.setReportedImageFormat(actualFormat);
     this.previewOutput = this.cameraManager.createPreviewOutput(
       profiles.previewProfiles[previewProfileIndex],
       this.flutterTexture.getSurfaceId().toString());
@@ -1400,6 +1413,14 @@ export class Camera implements CameraCaptureStateListener {
         this.videoSession?.addInput(this.cameraInput);
         this.videoSession?.addOutput(this.previewOutput);
         if (stream && this.imageStreamReader != null) {
+          // The image stream output is created from the selected video session's preview
+          // profile, so it delivers that profile's format. Report the actual format to Dart.
+          const actualFormat: number = videoSessionProfile.getPreviewProfile()!.format;
+          if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+            Log.w(TAG, 'Image stream preview profile format ' + actualFormat +
+              ' differs from the default CAMERA_FORMAT_YUV_420_SP, reporting the actual format');
+          }
+          this.imageStreamReader.setReportedImageFormat(actualFormat);
           let surfaceId: string = await this.imageStreamReader.getReceivingSurfaceId();
           this.previewOutput2 =
             this.cameraManager.createPreviewOutput(videoSessionProfile.getPreviewProfile(), surfaceId);

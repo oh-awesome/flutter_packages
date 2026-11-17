@@ -48,7 +48,7 @@ flutter pub get
  
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | ----------------| ----------------------- | ---- |
-| 3.44            | webview_flutter-v4.14.1-ohos-1.0.0 | oh-3.44.9 |
+| 3.44            | webview_flutter-v4.14.1-ohos-1.0.0 | oh-3.44.9-release |
 
 ## 约束与限制
 
@@ -56,7 +56,7 @@ flutter pub get
 
 在以下版本中已测试通过
 
-1. Flutter: 3.44.9+ohos-0.0.1-canary1; SDK: 5.0.0(12); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117 SP36;
+1. Flutter: 3.44.9+ohos-1.0.0-beta; SDK: 5.0.5(17); IDE: DevEco Studio: 6.1.1.268; ROM: 6.1.0.117;
 
 
 ### 权限要求
@@ -629,5 +629,5 @@ webview_flutter_ohos/
 
 ##  开源协议
 
-本项目基于 [BSD-3-Clause](https://gitcode.com/CPF-Flutter/flutter_packages/blob/br_webview_flutter-v4.13.1_ohos/packages/webview_flutter/webview_flutter/LICENSE) ，请自由地享受和参与开源。
+本项目基于 [BSD-3-Clause](LICENSE) ，请自由地享受和参与开源。
 

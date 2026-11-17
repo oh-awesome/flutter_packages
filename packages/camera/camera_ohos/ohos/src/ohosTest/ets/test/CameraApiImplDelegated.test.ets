@@ -44,7 +44,8 @@ import {
   MockAbilityBinding,
   MockBinaryMessenger,
   StubPigeonResult,
-  makeFakeTextureRegistry
+  makeFakeTextureRegistry,
+  waitUntil
 } from './TestMocks';
 
 // Scripted camera double: records every delegated call and answers Result
@@ -421,6 +422,14 @@ export default function cameraApiImplDelegatedTest() {
       const handle: DelegateHandle = makeDelegatedApi('');
       (handle.api as ESObject).textureId = 5;
       await handle.api.dispose();
+      // dispose() only schedules the real release behind DISPOSE_GRACE_MS
+      // (lifecycle jitter grace window); wait for the deferred release to
+      // finish its last step (texture reset) before asserting. Hypium 1.0.6
+      // ignores it()'s 4th argument and enforces a 5s per-case timeout from
+      // config, so the wait window must stay well below that budget.
+      const released: boolean = await waitUntil(
+        () => ((handle.api as ESObject).textureId as number) === -1, 3000);
+      expect(released).assertTrue();
       expect(handle.fake.calls.indexOf('close') >= 0).assertTrue();
       expect(handle.fake.calls.indexOf('dispose') >= 0).assertTrue();
       expect(((handle.api as ESObject).camera == null)).assertTrue();
