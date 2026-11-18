@@ -23,6 +23,30 @@
   `sensorExposureTime` no longer reports the sensor sensitivity value. ([#1764](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1764))  
   Misleading fallback log message now reports the actual output format. ([#1764](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1764))  
 
+  `startImageStream`/`stopImageStream` no longer race the camera instance
+  create/initialize/switch/dispose transitions: a start issued mid-transition is deferred and
+  re-evaluated once the transition settles (dropped silently when its cameraId has gone stale),
+  and a stop landing on an instance with no active image stream (for example a Dart-side
+  subscription cancel reaching a freshly recreated instance after a background/foreground
+  lifecycle recreate) is a no-op; the preview restart during transitions is skipped so it
+  cannot race the in-flight `open()` (7400101 SERVICE_FATAL_ERROR), which removes the
+  'GetSupportedOutputCapability parse error' / 'Session not config' error dialogs seen when
+  connecting a speaker and switching background→foreground. ([#1832](https://gitcode.com/CPF-Flutter/flutter_packages/pull/1832))
+
+  Rapid camera rebuilds (e.g. toggling the example's audio button repeatedly) no longer race
+  the previous instance's asynchronous release: `create` now records the in-flight `dispose()`
+  promise, waits for it to settle (2 s timeout guard) plus a 300 ms grace period before
+  instantiating the new instance — the camera service tears the old session/device down
+  asynchronously, so returning IPC alone does not clear the way for the next `open()` —
+  eliminating the device-level `CameraError`/`Session not config` dialogs caused by a new
+  `open()` landing mid-release; on top of that, the example no longer pops a dialog for
+  transient device-level `CameraError` codes and logs them instead, so a race that still
+  slips through degrades to a log line instead of blocking the user.
+  The Dart-side initialize wrapper gains double-completion protection: on the open failure
+  path the native side sends a cameraError event before replying the error, so both the
+  event listener and the PlatformException catch could complete the initialize completer
+  (StateError: Future already completed).
+
 ## 0.10.8+8
 
 * Adds pub topics to package metadata.

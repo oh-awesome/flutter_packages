@@ -83,6 +83,11 @@ export class Camera implements CameraCaptureStateListener {
   private cameraDevice: camera.CameraDevice | null = null;
   private cameraInput: camera.CameraInput | null = null;
   imageStreamReader: ImageStreamReader | null = null;
+  // True while the live session was built by startImageStream(); CameraApiImpl.stopImageStream
+  // gates its preview restart on this marker so a stop landing on an instance that never had
+  // a stream (e.g. a freshly recreated instance) is a no-op instead of racing that instance's
+  // own (re)build flow.
+  private imageStreamActive: boolean = false;
   private previewOutput: camera.PreviewOutput | null = null; // 第一路预览流
   private previewOutput2: camera.PreviewOutput | null = null; // 第二路预览流
   private pausedPreview: boolean = false; // 暂停预览
@@ -208,6 +213,10 @@ export class Camera implements CameraCaptureStateListener {
       Log.w(TAG, 'The selected imageFormatGroup is not supported by ohos. ImageReceiver creation format defaults to JPEG; the image stream reports the actual output format CAMERA_FORMAT_YUV_420_SP.')
       imageFormat = image.ImageFormat.JPEG
     }
+    // A reopen always lands in plain photo/video preview; mark any earlier image-stream
+    // mode as ended before rebuilding.
+    this.imageStreamActive = false;
+
     this.imageStreamReader = new ImageStreamReader(
       resolutionFeature.getPreviewSize(),
       imageFormat,
@@ -826,6 +835,9 @@ export class Camera implements CameraCaptureStateListener {
         }
         this.captureFile = null;
         this.isVideoMode = false;
+        // The image-stream mode ends with the recording teardown; the reopen below lands
+        // in plain photo preview.
+        this.imageStreamActive = false;
         await this.open(this.imageFormatGroup);
       } catch (e) {
         Log.d(TAG, "close file or openPreview error" + e.toString());
@@ -1136,6 +1148,10 @@ export class Camera implements CameraCaptureStateListener {
   }
 
   async startImageStream() {
+    // Mark the stream active before any await (runs synchronously in the caller's tick) so
+    // a stopImageStream arriving mid-build sees a consistent marker; the catch clears it
+    // when the build fails.
+    this.imageStreamActive = true;
     try {
       if (this.photoSession != null) {
         await this.photoSession?.stop()
@@ -1150,49 +1166,57 @@ export class Camera implements CameraCaptureStateListener {
     } catch (e) {
       Log.e(TAG, "startImageStream: failed to stop videoSession: " + e.message);
     }
-
-    let profiles =
-      CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
-    let previewProfileIndex = this.cameraFeatures
-                                  .getResolution()
-                                  .getPreviewProfileIndex(profiles.previewProfiles);
-    const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
-    if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
-      Log.w(TAG, 'Selected preview profile format is ' + actualFormat + ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
-    }
-    this.imageStreamReader!.setReportedImageFormat(actualFormat);
-    this.previewOutput = this.cameraManager.createPreviewOutput(
-      profiles.previewProfiles[previewProfileIndex],
-      this.flutterTexture.getSurfaceId().toString());
-    let photoProfileIndex = this.cameraFeatures
-                                .getResolution()
-                                .getPhotoProfileIndex(profiles.photoProfiles);
-    this.photoOutPut = this.cameraManager.createPhotoOutput(
-      profiles.photoProfiles[photoProfileIndex]);
-    let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
-    this.previewOutput2 =
-      this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
-
-    this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
-      if (err) {
-        this.takePictureResult?.error(err.code.toString(), err.message, err.data);
-        return;
+    try {
+      // The rest of the stream build; on failure clear the marker and rethrow so the
+      // caller's existing logging path is unchanged.
+      let profiles =
+        CameraUtils.getSupportedOutputCapability(this.cameraDevice!, camera.SceneMode.NORMAL_PHOTO, this.cameraManager)
+      let previewProfileIndex = this.cameraFeatures
+                                    .getResolution()
+                                    .getPreviewProfileIndex(profiles.previewProfiles);
+      const actualFormat: number = profiles.previewProfiles[previewProfileIndex].format;
+      if (actualFormat !== camera.CameraFormat.CAMERA_FORMAT_YUV_420_SP) {
+        Log.w(TAG, 'Selected preview profile format is ' + actualFormat + ', not CAMERA_FORMAT_YUV_420_SP. The image stream reports the actual format.');
       }
-      this.mediaLibRequestBuffer(photoAsset);
-    });
+      this.imageStreamReader!.setReportedImageFormat(actualFormat);
+      this.previewOutput = this.cameraManager.createPreviewOutput(
+        profiles.previewProfiles[previewProfileIndex],
+        this.flutterTexture.getSurfaceId().toString());
+      let photoProfileIndex = this.cameraFeatures
+                                  .getResolution()
+                                  .getPhotoProfileIndex(profiles.photoProfiles);
+      this.photoOutPut = this.cameraManager.createPhotoOutput(
+        profiles.photoProfiles[photoProfileIndex]);
+      let imageReceiverSurfaceId: string = await this.imageStreamReader!.getReceivingSurfaceId();
+      this.previewOutput2 =
+        this.cameraManager.createPreviewOutput(profiles.previewProfiles[previewProfileIndex], imageReceiverSurfaceId);
 
-    this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
-    this.photoSession.beginConfig();
-    await this.cameraInput?.open();
-    this.photoSession.addInput(this.cameraInput);
-    this.photoSession.addOutput(this.previewOutput);
-    this.photoSession.addOutput(this.previewOutput2);
-    this.photoSession.addOutput(this.photoOutPut);
-    await this.photoSession.commitConfig();
-    this.updatePreviewRotation();
-    this.registerDisplayChangeListener();
-    await this.photoSession.start();
-    this.enableAutoDeviceSwitch(this.photoSession);
+      this.photoOutPut.on('photoAssetAvailable', (err: BusinessError, photoAsset: photoAccessHelper.PhotoAsset): void => {
+        if (err) {
+          this.takePictureResult?.error(err.code.toString(), err.message, err.data);
+          return;
+        }
+        this.mediaLibRequestBuffer(photoAsset);
+      });
+
+      this.photoSession = this.cameraManager.createSession(camera.SceneMode.NORMAL_PHOTO) as camera.PhotoSession;
+      this.photoSession.beginConfig();
+      await this.cameraInput?.open();
+      this.photoSession.addInput(this.cameraInput);
+      this.photoSession.addOutput(this.previewOutput);
+      this.photoSession.addOutput(this.previewOutput2);
+      this.photoSession.addOutput(this.photoOutPut);
+      await this.photoSession.commitConfig();
+      this.updatePreviewRotation();
+      this.registerDisplayChangeListener();
+      await this.photoSession.start();
+      this.enableAutoDeviceSwitch(this.photoSession);
+    } catch (e) {
+      // The stream build failed; the marker must read "no stream" so a later stopImageStream
+      // on this instance stays a no-op. Rethrow so the caller's logging path is unchanged.
+      this.imageStreamActive = false;
+      throw e as Error;
+    }
   }
 
   async prepareMediaRecorder(cameraManager: camera.CameraManager,
@@ -1555,6 +1579,15 @@ export class Camera implements CameraCaptureStateListener {
     }
   }
 
+  // State accessors for the stopImageStream guard in CameraApiImpl (see imageStreamActive).
+  public isImageStreamActiveState(): boolean {
+    return this.imageStreamActive;
+  }
+
+  public clearImageStreamActiveState(): void {
+    this.imageStreamActive = false;
+  }
+
   // 关闭
   public async close(): Promise<void> {
     if (this.isClosed) {
@@ -1613,6 +1646,8 @@ export class Camera implements CameraCaptureStateListener {
     if (this.cameraDevice != null) {
       this.cameraDevice = null;
     }
+    // close()/dispose() tear down the whole instance; any image-stream mode ends with it.
+    this.imageStreamActive = false;
   }
 
 
