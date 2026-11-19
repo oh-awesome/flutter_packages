@@ -50,6 +50,18 @@ void _logError(String code, String? message) {
   print('Error: $code${message == null ? '' : '\nError Message: $message'}');
 }
 
+/// Transient device-level 'CameraError' codes (rebuild races inside the camera
+/// service's async teardown of the previous instance) self-recover: log only
+/// instead of popping a dialog the user cannot act on. Any other error surfaces
+/// through the caller's usual channel ([fallback]).
+void _handleCameraError(CameraException e, {required VoidCallback fallback}) {
+  if (e.code == 'CameraError') {
+    _logError(e.code, e.description);
+  } else {
+    fallback();
+  }
+}
+
 class _CameraExampleHomeState extends State<CameraExampleHome>
     with WidgetsBindingObserver, TickerProviderStateMixin {
   CameraController? controller;
@@ -646,7 +658,14 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
       try {
         await controller!
             .setDescription(cameraDescription)
-            .catchError((error) => {showInSnackBar(error.toString())});
+            .catchError((Object error) {
+              if (error is CameraException) {
+                _handleCameraError(
+                    error, fallback: () => showInSnackBar(error.toString()));
+              } else {
+                showInSnackBar(error.toString());
+              }
+            });
         await Future.wait(<Future<Object?>>[
           // The exposure mode is currently not supported on the web.
           ...!kIsWeb
@@ -669,7 +688,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
               .then((double value) => _minAvailableZoom = value),
         ]);
       } on CameraException catch (e) {
-        showInSnackBar(e.toString());
+        _handleCameraError(e, fallback: () => showInSnackBar(e.toString()));
       }
     } else {
       return _initializeCameraController(cameraDescription);
@@ -745,7 +764,7 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           showInSnackBar('Unknown permission error.');
           break;
         default:
-          _showCameraException(e);
+          _handleCameraError(e, fallback: () => _showCameraException(e));
           break;
       }
     }

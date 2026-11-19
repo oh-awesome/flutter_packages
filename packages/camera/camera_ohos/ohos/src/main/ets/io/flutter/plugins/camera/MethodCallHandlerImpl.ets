@@ -48,6 +48,17 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
   private flutterTexture: SurfaceTextureEntry | null = null;
   private textureId: number = -1;
   private curStatus: STATUS = STATUS.DEFAULT;
+  // The in-flight release of the previous camera instance started by create. Rebuilding (open) must
+  // wait for this to settle: a new open racing the still-running release leaves stale session/output
+  // state at the camera service and surfaces as device OnError (7400103 'Session not config') on the
+  // open chain when the rebuild lands mid-release (rapid toggles of the example's audio toggle).
+  private pendingRelease: Promise<void> | null = null;
+  // Pending startImageStream deferred during a camera transition (create/initialize). Holds the
+  // arrival-time textureId (the Dart cameraId): when the transition exits, the request is executed
+  // only if that id still matches the current textureId, otherwise dropped silently — the Dart
+  // side re-subscribes under the new cameraId and re-issues startImageStream itself. Single
+  // slot (newest wins); cleared by stopImageStream (subscription gone) and on dispose completion.
+  private pendingStartImageStream: number | null = null;
 
   constructor(
     ability: UIAbility,
@@ -84,7 +95,9 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         }
         this.curStatus = STATUS.CREATE_ING;
         if (this.camera) {
-          this.camera.releaseCamera();
+          // Record the in-flight release so the rebuild below waits for it (see pendingRelease):
+          // an unawaited release races the new instance's open at the camera service.
+          this.pendingRelease = this.camera.releaseCamera();
         }
         if (this.textureId > -1) {
           this.unregisterTexture(this.textureId);
@@ -93,9 +106,29 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
         this.cameraPermissions.requestPermissions(
           this.context,
           call.argument('enableAudio'),
-          (errCode: string | null, errDesc: string | null) => {
+          async (errCode: string | null, errDesc: string | null) => {
             if (errCode == null) {
               try {
+                // Serialize the rebuild behind the previous instance's release (see pendingRelease).
+                // Timeout guard: a wedged release must not block the rebuild forever.
+                if (this.pendingRelease != null) {
+                  try {
+                    await Promise.race([
+                      this.pendingRelease,
+                      new Promise<void>((resolve: () => void) => setTimeout(resolve, 2000)),
+                    ]);
+                  } catch (e) {
+                    console.error(TAG, 'create: waiting for the previous release failed: ' + (e as Error).message);
+                  }
+                  this.pendingRelease = null;
+                  // Grace period after the release promise settles: the camera service tears the
+                  // old session/device down asynchronously, so the client-side IPC returning does
+                  // NOT mean the service-side resources have landed. Reopening inside that window
+                  // surfaces as device OnError (7400103 'Session not config'). A short fixed delay
+                  // keeps the new open clear of the teardown; it only applies when an actual
+                  // release happened, so first-time create stays immediate.
+                  await new Promise<void>((resolve: () => void) => setTimeout(resolve, 300));
+                }
                 this.registerCameraTexture();
                 this.instantiateCamera(call, result);
               } catch (e) {
@@ -104,6 +137,9 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
               }
             } else {
               this.curStatus = STATUS.DEFAULT;
+              // The rebuild is aborted; drop the recorded release reference (the release itself
+              // already ran, so an already-settled promise reference is just stale state).
+              this.pendingRelease = null;
               result.error(errCode, errDesc, null);
             }
           }
@@ -116,6 +152,8 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           try {
             this.camera.open(call.argument('imageFormatGroup')).then(() => {
               this.curStatus = STATUS.DEFAULT;
+              // Transition exit: run a pending deferred startImageStream once the instance settled.
+              this.evaluatePendingStartImageStream();
               result.success(null);
             }).catch(async (e: BusinessError) => {
               console.error(TAG, 'initialize failed: ' + e.message);
@@ -280,6 +318,19 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'startImageStream': {
         try {
+          // Mid-transition (create/initialize): running here would execute against a half-open
+          // instance and corrupt the camera service state (GetSupportedOutputCapability parse
+          // error / 'Session not config' on the next open). Defer instead of running or erroring:
+          // record the arrival-time textureId, re-evaluated when the transition exits (see
+          // evaluatePendingStartImageStream). The request still replies success to Dart — the
+          // subscription exists, the stream starts once the instance settles. DEFAULT-state
+          // null-camera still fails below unchanged.
+          if (this.curStatus != STATUS.DEFAULT) {
+            this.pendingStartImageStream = this.textureId;
+            console.info(TAG, 'startImageStream: mid-transition, deferring (textureId=' + this.textureId + ')');
+            result.success(null);
+            return;
+          }
           this.camera!.startPreviewWithImageStream(this.imageStreamChannel);
           result.success(null);
         } catch (e) {
@@ -289,7 +340,50 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
       }
       case 'stopImageStream': {
         try {
-          this.camera!.startPreview();
+          // A stop (subscription cancel) arriving while a start is pending makes the pending start
+          // obsolete: the subscription is gone, so the transition exit must not start a stream nobody
+          // listens to. Cleared before any guard so the cancel always wins.
+          if (this.pendingStartImageStream != null) {
+            this.pendingStartImageStream = null;
+            console.info(TAG, 'stopImageStream: cleared pending startImageStream (subscription cancelled)');
+          }
+          // Guard 1: a stop landing on the current instance with no active image stream (e.g.
+          // a Dart-side subscription cancel reaching a freshly recreated instance after a
+          // lifecycle recreate) is a no-op: neither stop nor preview restart applies, and
+          // firing startPreview onto an instance whose open() is in flight raises 7400101
+          // SERVICE_FATAL_ERROR.
+          if (this.camera != null && !this.camera.isImageStreamActiveState()) {
+            console.info(TAG, 'stopImageStream: no active image stream, skipping');
+            result.success(null);
+            return;
+          }
+          // Guard 2: during create/initialize the in-flight transition's own open() restarts the
+          // preview when it lands; the deferred startPreview here would race it on the same
+          // cameraInput (7400101). We skip rather than defer: once the transition exits, the
+          // preview is already restarted by open() itself, so deferring would only add a
+          // redundant restart.
+          if (this.curStatus != STATUS.DEFAULT) {
+            // The chained dispose can already have released the camera (the null window
+            // between dispose and create): a no-op keeps the normal Dart reply instead of
+            // relying on a TypeError thrown by the non-null assertion.
+            if (this.camera == null) {
+              result.success(null);
+              return;
+            }
+            this.camera.clearImageStreamActiveState();
+            console.info(TAG, 'stopImageStream: mid-transition, skipping preview restart');
+            result.success(null);
+            return;
+          }
+          // Normal path (behavior unchanged): the restart IS the stop; the startPreview rebuild
+          // replaces the stream session, so clear the marker up front so a back-to-back second
+          // stop stays a no-op.
+          if (this.camera == null) {
+            result.success(null);
+            return;
+          }
+          this.camera.clearImageStreamActiveState();
+          this.camera.startPreview();
           result.success(null);
         } catch (e) {
           this.handleException(e, result);
@@ -404,12 +498,55 @@ export class MethodCallHandlerImpl implements MethodCallHandler {
           }
           this.camera = null;
         }
+        // A pending deferred startImageStream belongs to a subscription of the released instance
+        // (Dart cancels stream subscriptions on dispose); drop it so it cannot execute after the
+        // instance is gone. A following create issues fresh requests under its new cameraId.
+        if (this.pendingStartImageStream != null) {
+          this.pendingStartImageStream = null;
+          console.info(TAG, 'dispose: dropped pending startImageStream');
+        }
         result.success(null);
         break;
       }
       default:
         result.notImplemented();
         break;
+    }
+  }
+
+  // Evaluates the pending deferred startImageStream (see pendingStartImageStream): runs only when
+  // the instance has settled (DEFAULT state, camera present, request's arrival-time textureId still
+  // matching); otherwise dropped silently. Failures are logged only — the original call already
+  // replied success to Dart, so throwing here would just create the error surface the deferral
+  // exists to avoid. A transition still in flight leaves the request pending for the next exit point.
+  private evaluatePendingStartImageStream(): void {
+    if (this.pendingStartImageStream == null) {
+      return;
+    }
+    if (this.curStatus != STATUS.DEFAULT) {
+      // Still mid-transition: leave the request pending for the next exit point.
+      return;
+    }
+    const requestedTextureId: number | null = this.pendingStartImageStream;
+    this.pendingStartImageStream = null;
+    if (this.camera == null) {
+      console.info(TAG, 'startImageStream: pending request dropped: no camera instance');
+      return;
+    }
+    if (requestedTextureId !== this.textureId) {
+      console.info(TAG, 'startImageStream: pending request dropped: stale cameraId (requested ' +
+        requestedTextureId + ', current ' + this.textureId + ')');
+      return;
+    }
+    if (this.camera.isImageStreamActiveState()) {
+      console.info(TAG, 'startImageStream: pending request skipped: image stream already active');
+      return;
+    }
+    try {
+      this.camera.startPreviewWithImageStream(this.imageStreamChannel);
+      console.info(TAG, 'startImageStream: pending request executed after transition settled');
+    } catch (e) {
+      console.error(TAG, 'startImageStream: pending request failed (logged only): ' + (e as Error).message);
     }
   }
 
