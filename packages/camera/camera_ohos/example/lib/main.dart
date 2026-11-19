@@ -645,7 +645,17 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
            try {
         await controller!
             .setDescription(cameraDescription)
-            .catchError((error) => {showInSnackBar(error.toString())});
+            .catchError((Object error) {
+              // Device-level 'CameraError' (e.g. 'Session not config') surfaces transiently when
+              // a rebuild lands inside the camera service's async teardown of the previous
+              // instance; the camera self-recovers on the next rebuild, so log instead of
+              // popping a dialog the user cannot act on. Other errors still surface.
+              if (error is CameraException && error.code == 'CameraError') {
+                _logError(error.code, error.description);
+              } else {
+                showInSnackBar(error.toString());
+              }
+            });
         await Future.wait(<Future<Object?>>[
           // The exposure mode is currently not supported on the web.
           ...!kIsWeb
@@ -668,7 +678,9 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
               .then((double value) => _minAvailableZoom = value),
         ]);
       } on CameraException catch (e) {
-        showInSnackBar(e.toString());
+        // Query failure is treated as unsupported: log silently instead of popping an
+        // error dialog the user cannot act on.
+        _logError(e.code, e.description);
       }
     } else {
       return _initializeCameraController(cameraDescription);
@@ -740,7 +752,13 @@ class _CameraExampleHomeState extends State<CameraExampleHome>
           // Android & web only
           showInSnackBar('Unknown permission error.');
         default:
-          _showCameraException(e);
+          // Device-level 'CameraError' downgrade: transient rebuild races self-recover, log
+          // instead of popping a dialog (see the catchError note in onNewCameraSelected).
+          if (e.code == 'CameraError') {
+            _logError(e.code, e.description);
+          } else {
+            _showCameraException(e);
+          }
       }
     }
 
