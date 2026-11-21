@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   quick_actions_ohos:
     path: ../
+  quick_actions_platform_interface: ^1.0.0
 
 dev_dependencies:
   espresso: ^0.4.0
