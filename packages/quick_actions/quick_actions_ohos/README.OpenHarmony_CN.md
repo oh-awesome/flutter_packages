@@ -26,13 +26,13 @@ dependencies:
 flutter pub get
 ```
 
-> TAG 命名规则：`原库版本-ohos-版本号-betax`，不同 TAG 之间的变更详见 CHANGELOG.OpenHarmony.md。
+> TAG 命名规则：`原库版本-ohos-版本号-betax`，不同 TAG 之间的变更详见 [CHANGELOG.OpenHarmony.md](CHANGELOG.OpenHarmony.md)。
 
 | Flutter 框架版本 | TAG 名称 | 分支名 |
 | --------------- | -------- | ------ |
-| 3.22            | 1.0.0-ohos-1.0.0| br_3.35 |
-| 3.27            | 1.0.0-ohos-1.0.0| br_3.35 |
-| 3.35            | 1.0.0-ohos-1.0.0| br_3.35 |
+| 3.22            | 1.0.0-ohos-1.0.0| br_quick_actions-v1.1.0_ohos |
+| 3.27            | 1.0.0-ohos-1.0.0| br_quick_actions-v1.1.0_ohos |
+| 3.35            | 1.0.0-ohos-1.0.0| br_quick_actions-v1.1.0_ohos |
 
 > 本库未提供适配 Flutter 3.7 的 TAG，3.7 框架不支持。
 
@@ -42,9 +42,9 @@ flutter pub get
 
 在以下版本中已测试通过：
 
-1. Flutter: 3.22.0-ohos; SDK: 5.0.5(17); IDE: DevEco Studio: 5.1.0.828; ROM: 6.0.0.120 SP8;
-2. Flutter: oh-3.27.4-dev; SDK: 5.0.5(17); IDE: DevEco Studio: 5.1.0.828; ROM: 6.0.0.120 SP8;
-3. Flutter: 3.35.7-ohos-0.0.1; SDK: 5.0.5(17); IDE: DevEco Studio: 6.0.1.260; ROM: 6.0.0.120 SP6;
+1. Flutter: 3.22.3+ohos-1.1.6, SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
+2. Flutter: 3.27.4+ohos-1.0.9, SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
+3. Flutter: 3.35.7+ohos-1.0.5, SDK: 5.0.5(17); IDE: DevEco Studio: 26.0.0.621, ROM: 6.1.0.135 SP8;
 
 ### 权限要求
 
