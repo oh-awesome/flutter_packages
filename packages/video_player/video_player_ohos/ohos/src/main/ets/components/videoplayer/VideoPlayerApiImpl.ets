@@ -92,6 +92,7 @@ export class VideoPlayerApiImpl {
   private disposeAllPlayers(): void {
     this.videoPlayers.forEach(videoPlayer => videoPlayer?.release());
     this.videoPlayers.clear();
+    this.pixelMapRelease();
   }
 
   initialize(): void {
@@ -144,7 +145,10 @@ export class VideoPlayerApiImpl {
     let windowProperties = windowClass.getWindowProperties();
     const width = windowProperties.windowRect.width;
     const height = windowProperties.windowRect.height;
-    flutterRenderer.setTextureBackGroundPixelMap(textureId, await this.createBlackPixelMap());
+    // Track the background PixelMap so it can be released explicitly.
+    const blackPixelMap = await this.createBlackPixelMap();
+    this.pixelMaps.set(textureId.toString(), blackPixelMap);
+    flutterRenderer.setTextureBackGroundPixelMap(textureId, blackPixelMap);
     if (asset != null) {
       let avMetaExtractor = await media.createAVMetadataExtractor();
       avMetaExtractor.fdSrc = await this.getContext().resourceManager.getRawFd("flutter_assets/" + asset);
@@ -156,9 +160,14 @@ export class VideoPlayerApiImpl {
           width: -1,
           height: -1
         });
+        // Switch the renderer to the new frame first, then release the
+        // superseded background frame, so a PixelMap still referenced by the
+        // renderer is never released.
+        const supersededPixelMap = this.pixelMaps.get(textureId.toString());
         this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+        this.releaseSupersededPixelMap(supersededPixelMap);
       }
       avMetaExtractor.release();
     } else if (uri != null && uri.startsWith("fd://")) {
@@ -176,9 +185,14 @@ export class VideoPlayerApiImpl {
           width: -1,
           height: -1
         });
+        // Switch the renderer to the new frame first, then release the
+        // superseded background frame, so a PixelMap still referenced by the
+        // renderer is never released.
+        const supersededPixelMap = this.pixelMaps.get(textureId.toString());
         this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(textureId.toString()));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+        this.releaseSupersededPixelMap(supersededPixelMap);
       }
       avMetaExtractor.release();
     }
@@ -199,12 +213,40 @@ export class VideoPlayerApiImpl {
     return textureMessage;
   }
 
+  // Release and clear all tracked background PixelMaps.
+  pixelMapRelease() {
+    for (let pixelMap of this.pixelMaps.values()) {
+      if (pixelMap && typeof pixelMap.release === 'function') {
+        pixelMap.release();
+      }
+    }
+    this.pixelMaps.clear();
+  }
+
+  // Release the background PixelMap owned by the given player.
+  pixelMapReleaseById(textureId: number) {
+    const key = textureId.toString();
+    const pixelMap = this.pixelMaps.get(key);
+    if (pixelMap && typeof pixelMap.release === 'function') {
+      pixelMap.release();
+    }
+    this.pixelMaps.remove(key);
+  }
+
+  // Release the background frame superseded by the first video frame. The
+  // caller releases it only after the renderer switched to the new frame.
+  releaseSupersededPixelMap(pixelMap: image.PixelMap | undefined) {
+    if (pixelMap && typeof pixelMap.release === 'function') {
+      pixelMap.release();
+    }
+  }
+
   dispose(arg: TextureMessage): void {
     let videoPlayer = this.videoPlayers.get(arg.getTextureId().toString());
     videoPlayer?.release();
     this.flutterState?.getTextureRegistry().unregisterTexture(arg.getTextureId().valueOf());
+    this.pixelMapReleaseById(arg.getTextureId().valueOf());
     this.videoPlayers.remove(arg.getTextureId().toString());
-    this.pixelMaps.clear();
   }
 
   setLooping(arg: LoopingMessage) {
