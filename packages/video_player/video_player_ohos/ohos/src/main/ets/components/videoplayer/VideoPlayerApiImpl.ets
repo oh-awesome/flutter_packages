@@ -134,7 +134,10 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     let windowProperties = windowClass.getWindowProperties();
     const width = windowProperties.windowRect.width;
     const height = windowProperties.windowRect.height;
-    flutterRenderer.setTextureBackGroundPixelMap(textureId, await this.createBlackPixelMap(width, height));
+    // Track the background PixelMap so it can be released explicitly.
+    const blackPixelMap = await this.createBlackPixelMap(width, height);
+    this.pixelMaps.set(textureId.toString(), blackPixelMap);
+    flutterRenderer.setTextureBackGroundPixelMap(textureId, blackPixelMap);
     if (asset != null) {
       Log.i(TAG, "asset create called, asset is" + asset);
       let avMetaExtractor = await media.createAVMetadataExtractor();
@@ -148,9 +151,14 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           width: -1,
           height: -1
         });
-        this.pixelMaps.set(JSON.stringify(arg), pixelMap);
+        // Switch the renderer to the new frame first, then release the
+        // superseded background frame, so a PixelMap still referenced by the
+        // renderer is never released.
+        const supersededPixelMap = this.pixelMaps.get(textureId.toString());
+        this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+        this.releaseSupersededPixelMap(supersededPixelMap);
       }
       avMetaExtractor.release();
     } else if (uri != null && uri.startsWith("fd://")) {
@@ -170,9 +178,14 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
           width: -1,
           height: -1
         });
-        this.pixelMaps.set(JSON.stringify(arg), pixelMap);
+        // Switch the renderer to the new frame first, then release the
+        // superseded background frame, so a PixelMap still referenced by the
+        // renderer is never released.
+        const supersededPixelMap = this.pixelMaps.get(textureId.toString());
+        this.pixelMaps.set(textureId.toString(), pixelMap);
         avImageGenerator.release();
-        flutterRenderer.setTextureBackGroundPixelMap(textureId, this.pixelMaps.get(JSON.stringify(arg)));
+        flutterRenderer.setTextureBackGroundPixelMap(textureId, pixelMap);
+        this.releaseSupersededPixelMap(supersededPixelMap);
       }
       avMetaExtractor.release();
     }
@@ -202,6 +215,24 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
     this.pixelMaps.clear();
   }
 
+  // Release the background PixelMap owned by the given player.
+  pixelMapReleaseById(playerId: number) {
+    const key = playerId.toString();
+    const pixelMap = this.pixelMaps.get(key);
+    if (pixelMap && typeof pixelMap.release === 'function') {
+      pixelMap.release();
+    }
+    this.pixelMaps.remove(key);
+  }
+
+  // Release the background frame superseded by the first video frame. The
+  // caller releases it only after the renderer switched to the new frame.
+  releaseSupersededPixelMap(pixelMap: image.PixelMap | undefined) {
+    if (pixelMap && typeof pixelMap.release === 'function') {
+      pixelMap.release();
+    }
+  }
+
   dispose(playerId:number): void {
     const videoPlayer = this.videoPlayers.get(playerId);
     if (videoPlayer) {
@@ -209,6 +240,7 @@ export class VideoPlayerApiImpl extends OhosVideoPlayerApi{
       if (this.flutterState) {
         this.flutterState.getTextureRegistry().unregisterTexture(playerId);
       }
+      this.pixelMapReleaseById(playerId);
       this.videoPlayers.remove(playerId);
       Log.i(TAG, `Release player resources: ${playerId}`);
     } else {
