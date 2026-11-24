@@ -28,6 +28,7 @@ import webChromeClientTest from './WebChromeClient.test';
 import webViewPlatformViewEventsTest from './WebViewPlatformViewEvents.test';
 import webViewFlutterPluginTest from './WebViewFlutterPlugin.test';
 import cookieAndDisplayTest from './CookieAndDisplay.test';
+import webNodeControllerTest from './WebNodeController.test';
 
 export default function testsuite() {
   localUnitTest();
@@ -42,4 +43,5 @@ export default function testsuite() {
   webViewPlatformViewEventsTest();
   webViewFlutterPluginTest();
   cookieAndDisplayTest();
+  webNodeControllerTest();
 }

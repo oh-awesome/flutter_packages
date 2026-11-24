@@ -82,7 +82,14 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
       binaryMessenger,
       {
         clear: () => {
-          if(this.instanceManager){
+          if (this.instanceManager) {
+            // The instance manager is about to be cleared, so none of the
+            // WebViews it tracks can be displayed again. Fully release them
+            // (which also destroys their offline Web components) to free the
+            // memory the components occupy.
+            if (this.webViewHostApiImpl != null) {
+              this.webViewHostApiImpl.disposeAllActiveWebViews();
+            }
             this.instanceManager.clear();
           }
         }
@@ -221,6 +228,9 @@ export class WebViewFlutterPlugin implements FlutterPlugin {
     SslErrorHandlerHostApi.setup(binaryMessenger, null);
 
     if (this.instanceManager != null) {
+      // The active-view release backstop (disposeAllActiveWebViews) already
+      // ran above, which fully releases every registered WebView and its
+      // offline Web component; Dart finalizers will not run for the rest.
       this.instanceManager.clear();
       this.instanceManager.stopFinalizationListener();
       this.instanceManager = null;

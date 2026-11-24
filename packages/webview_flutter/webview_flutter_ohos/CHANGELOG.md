@@ -1,9 +1,20 @@
 ## webview_flutter-v4.14.1-ohos-1.0.1 - 2026.11
- 
+
 ### Added
 
+* Enables the "offline Web component" keep-alive by default: disposing the
+  widget no longer destroys the native Web component. A re-mounted controller
+  re-attaches it instantly and keeps page state (JS context, scroll position,
+  form input), matching the Android/iOS instance lifecycle. Re-mounting no
+  longer implicitly reloads the page - call `reload()` explicitly when fresh
+  content is required. No new API is introduced; the Dart surface stays
+  identical to Android/iOS.
+* Fixes a blank webview when the platform-view node is rebuilt (e.g. system
+  dark/light mode switches): content loaded with `loadData`/`loadDataWithBaseUrl`
+  is now snapshotted and automatically restored into the re-created Web
+  component. Internal behavior, no API added.
 * 3.47 adaptation.
- 
+
 
 ## webview_flutter-v4.14.1-ohos-1.0.0 - 2026.8
 
@@ -11,9 +22,6 @@
 * Fixes OpenHarmony resource leaks and lifecycle races: listeners, polling intervals and Pigeon handlers are now released at end-of-life (engine detach or Dart-side instance release) while `WebViewPlatformView.dispose` stays minimal, so a controller can still be reused with a new widget.
 * Hardens stability: missing-instance lookups fail fast with descriptive errors, and failure paths (load, scroll, cookie, fullscreen exit) log and rethrow instead of crashing or being swallowed.
 * Adds unit tests covering the OHOS platform implementation API surface and corrects interface naming and documentation.
-
-## NEXT
- 
 * Updates minimum supported SDK version to Flutter 3.7/Dart 2.19.
 
 ## 3.14.0
