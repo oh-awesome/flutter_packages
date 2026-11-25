@@ -480,9 +480,9 @@ export default function webViewPlatformViewEventsTest() {
     // ---------- 控制器附着与脚本通道 ----------
     it('controllerAttachLifecycleResolvesWaits', 0, async () => {
       const f: Fixture = new Fixture();
-      f.view.aboutToAppear();
+      f.view.onWebNodeBound();
       expect(f.view.isWebViewBinding).assertTrue();
-      f.view.aboutToDisappear();
+      f.view.onWebNodeUnbound();
       expect(f.view.isWebViewBinding).assertFalse();
       // 空通道表：reRegister 直接返回。
       f.view.onControllerAttached();
@@ -495,7 +495,7 @@ export default function webViewPlatformViewEventsTest() {
         threw = true;
       }
       expect(threw).assertFalse();
-      f.view.aboutToAppear();
+      f.view.onWebNodeBound();
     })
 
     it('javaScriptChannelsRegisterAndReregister', 0, () => {

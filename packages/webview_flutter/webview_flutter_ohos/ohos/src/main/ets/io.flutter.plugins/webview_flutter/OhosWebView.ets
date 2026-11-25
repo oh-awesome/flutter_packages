@@ -67,6 +67,12 @@ export struct OhosWebView {
             return;
           }
           this.throttle(() => {
+            // The status bar of an app is shared by all windows. Only scroll
+            // the page to the top while the Web component is actually bound
+            // to the UI; an offline (detached) Web component must not react.
+            if (!this.webView.isWebViewBinding) {
+              return;
+            }
             this.webView.waitControllerAttached().then(() => {
               this.controller?.scrollTo(0, 0, 1000);
             }).catch((attachErr: Error) => {
@@ -201,6 +207,43 @@ export function WebBuilder(params: Params) {
     webView: params.platformView as WebViewPlatformView,
     controller: (params.platformView as WebViewPlatformView).getController()
   }).backgroundColor(Color.Transparent)
+}
+
+/**
+ * Reads the per-view embedding texture surfaceId transparently passed by
+ * the engine through Params.surfaceId (engine fix: EmbeddingNodeController
+ * passes the surface it registered for THIS view when building the platform
+ * view's builder). Read defensively (cast via ESObject) so the plugin still
+ * compiles against older embeddings without the field; returns '' then and
+ * the WebNodeController falls back to its FlutterView lookup.
+ */
+function embeddingSurfaceIdOf(params: Params): string {
+  const surfaceId: ESObject = (params as ESObject).surfaceId;
+  return typeof surfaceId === 'string' ? surfaceId : '';
+}
+
+/**
+ * Builder returned to the Flutter embedding for a WebView platform view.
+ *
+ * Instead of building the Web component directly inside the embedding owned
+ * node (which would destroy the component as soon as the Flutter widget is
+ * disposed), the Web component lives in the `BuilderNode` owned by the
+ * [WebViewPlatformView]'s [WebNodeController] and is mounted here through a
+ * `NodeContainer`.
+ *
+ * This is the "offline Web component" pattern: when this container is
+ * unmounted, the Web component is merely detached (offline) and can be
+ * re-mounted instantly by a new `NodeContainer`, keeping the page state and
+ * avoiding Web component re-creation and render process churn.
+ */
+@Builder
+export function WebContainerBuilder(params: Params) {
+  NodeContainer(
+    (params.platformView as WebViewPlatformView)
+      .bindEmbeddingSurfaceId(embeddingSurfaceIdOf(params))
+  )
+    .width('100%')
+    .height('100%')
 }
 
 @CustomDialog

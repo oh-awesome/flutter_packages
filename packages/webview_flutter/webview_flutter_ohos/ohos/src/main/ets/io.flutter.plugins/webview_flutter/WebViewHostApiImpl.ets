@@ -8,7 +8,8 @@ import PlatformView, { Params } from '@ohos/flutter_ohos/src/main/ets/plugin/pla
 import { DVModel, DVModelParameters } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicView'
 import { Result, WebViewHostApi, WebViewPoint, HttpAuthHandler, SslErrorHandler } from './GeneratedOhosWebView'
 import web_webview from '@ohos.web.webview'
-import { WebBuilder, OhosWebView } from './OhosWebView'
+import { WebContainerBuilder } from './OhosWebView'
+import { WebNodeController } from './WebNodeController'
 import { createDVModelFromJson } from '@ohos/flutter_ohos/src/main/ets/view/DynamicView/dynamicViewJson'
 import { DVModelJson } from "./DynamicUtils"
 import { InstanceManager } from './InstanceManager'
@@ -157,6 +158,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     const webView: WebViewPlatformView = this.requireWebViewInstance(instanceId);
     try {
       webView.getController().loadData(data, mimeType, encoding, ' ', ' ');
+      // Record the data-load state so the content can be restored after the
+      // platform view node is rebuilt (e.g. on color-mode switches).
+      webView.setLastLoadData(new LoadDataState(' ', data, mimeType, encoding, ' '));
     } catch (error) {
       Log.e(TAG, 'loadData err = ' + error);
       throw new Error(String(error));
@@ -170,7 +174,10 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     await webView.waitControllerAttached();
     try {
       // When baseUrl is empty, default to "resource://rawfile/" to fix the <a href=""> anchor issue.
-      webView.getController().loadData(data, mimeType, encoding, baseUrl == null || baseUrl.trim().length === 0 ? "resource://rawfile/" : baseUrl , historyUrl == null ? " " : historyUrl);
+      const normalizedBaseUrl = baseUrl == null || baseUrl.trim().length === 0 ? "resource://rawfile/" : baseUrl;
+      const normalizedHistoryUrl = historyUrl == null ? " " : historyUrl;
+      webView.getController().loadData(data, mimeType, encoding, normalizedBaseUrl, normalizedHistoryUrl);
+      webView.setLastLoadData(new LoadDataState(normalizedBaseUrl, data, mimeType, encoding, normalizedHistoryUrl));
     } catch (err) {
       Log.e(TAG, "loadDataWithBaseUrl err = " + err);
       // Error-path fix only: rethrow the original error after logging so the
@@ -198,6 +205,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
         webView.getController().loadUrl(url, this.toWebHeaders(headers));
       }
       webView.setUrl(webView.getController().getUrl());
+      // URL loads are restored through the Web component's src; clear the
+      // data-load state so a rebuild does not wrongly restore stale content.
+      webView.clearLastLoadData();
     } catch (err) {
       Log.e(TAG, "loadUrl err = " + err);
       // Error-path fix only: rethrow the original error after logging so the
@@ -227,6 +237,9 @@ export class WebViewHostApiImpl extends WebViewHostApi {
     await webView.waitControllerAttached();
     try {
       webView.getController().postUrl(url,data.buffer);
+      // POST results cannot be restored through the data-load state; clear it
+      // so a rebuild does not wrongly restore stale content.
+      webView.clearLastLoadData();
     } catch (err) {
       Log.e(TAG, "postUrl err = " + err);
       // Error-path fix only: rethrow the original error after logging so the
@@ -517,6 +530,33 @@ export class WebViewHostApiImpl extends WebViewHostApi {
   }
 }
 
+// Snapshot of the most recent loadData / loadDataWithBaseUrl call, used to
+// restore the content after the platform view node is rebuilt.
+// `generation` records the Web component generation the content was loaded
+// on: if the current component belongs to the same generation (a pure
+// re-mount, e.g. a color-mode switch or a tab round-trip), the content is
+// naturally still there and needs no restore; only a real component rebuild
+// (generation change) requires replaying the content.
+export class LoadDataState {
+  baseUrl: string;
+  data: string;
+  mimeType: string;
+  encoding: string;
+  historyUrl: string;
+
+  // Component generation the content was loaded (or last restored) on;
+  // -1 means not recorded.
+  generation: number = -1;
+
+  constructor(baseUrl: string, data: string, mimeType: string, encoding: string, historyUrl: string) {
+    this.baseUrl = baseUrl;
+    this.data = data;
+    this.mimeType = mimeType;
+    this.encoding = encoding;
+    this.historyUrl = historyUrl;
+  }
+}
+
 export class WebViewPlatformView extends PlatformView {
 
   // Ownership note: per SDK @ohos.web.webview.d.ts, WebCookieManager is a
@@ -528,6 +568,14 @@ export class WebViewPlatformView extends PlatformView {
   private controller: web_webview.WebviewController = new web_webview.WebviewController();
 
   private tempUrl: string = "";
+
+  // Content and arguments of the most recent loadData/loadDataWithBaseUrl.
+  // On color-mode switches (and similar) the engine rebuilds the platform
+  // view node (the ArkWeb Web component is destroyed and re-created); a
+  // rebuilt Web component can only restore URL loads through its src(url),
+  // while data-loaded content cannot be expressed as a src. Record it here
+  // so it can be restored via controller.loadData after a rebuild.
+  private lastLoadData: LoadDataState | null = null;
 
   private downloadListener: DownloadListener = {} as ESObject;
 
@@ -559,6 +607,8 @@ export class WebViewPlatformView extends PlatformView {
 
   private javaScriptChannels: Map<string, JavaScriptChannel> = new Map();
 
+  private webNodeController: WebNodeController;
+
   private visibleAreaEventEnable: boolean = true;
 
   private visibleAreaEventRatios: Array<number> = [0, 0.1, 0.2, 0.5, 0.8, 1];
@@ -588,6 +638,7 @@ export class WebViewPlatformView extends PlatformView {
   constructor(binaryMessenger: BinaryMessenger, instanceManager: InstanceManager) {
     super();
     this.webViewFlutterApi = new WebViewFlutterApiImpl(binaryMessenger, instanceManager);
+    this.webNodeController = new WebNodeController(this);
   }
 
   onDownloadStart = (event: ESObject) => {
@@ -859,8 +910,23 @@ export class WebViewPlatformView extends PlatformView {
     this.scrollY = event.yOffset;
   }
 
-  aboutToAppear() {
+  onWebNodeBound() {
+    // Called by the WebNodeController when its NodeContainer (the mount
+    // point of the Web component) appears on the component tree.
     this.isWebViewBinding = true;
+    Log.i(TAG, "onWebNodeBound");
+    // Last-resort restore after the Web component is mounted: for a component
+    // rebuilt in the foreground after a background release the controller is
+    // unavailable before mounting, so retry here if the restore attempt in
+    // onControllerAttached failed.
+    this.restoreContentIfNecessary();
+  }
+
+  onWebNodeUnbound() {
+    // Called by the WebNodeController when its NodeContainer disappears;
+    // the Web component transitions to the offline (detached) state.
+    this.isWebViewBinding = false;
+    Log.i(TAG, "onWebNodeUnbound");
   }
 
   onControllerAttached = () => {
@@ -871,10 +937,49 @@ export class WebViewPlatformView extends PlatformView {
     }
     this.controllerAttached = true;
     this.reRegisterJavaScriptChannels();
+    // After the Web component is (re)created and bound to a controller,
+    // restore data-loaded content if needed. On first creation lastLoadData
+    // is not recorded yet, so nothing is restored; on component rebuilds
+    // (e.g. a foreground rebuild after a background release) the content is
+    // restored here, keeping the WebView from showing blank. Note: with the
+    // offline component architecture, color-mode switches no longer destroy
+    // the Web component, so no restore is needed for them.
+    this.restoreContentIfNecessary();
   }
 
-  aboutToDisappear() {
-    this.isWebViewBinding = false;
+  private restoreContentIfNecessary(): void {
+    // Data-content restore is an always-on internal behavior (no API): the
+    // generation guard keeps pure re-mounts (color-mode switches, keep-alive
+    // re-mounts) from replaying anything; only a real rebuild (e.g. a surface
+    // change after a re-attach) restores the last data content.
+    if (this.lastLoadData === null) {
+      return;
+    }
+    if (!this.isWebViewBinding) {
+      // The component is not mounted yet (e.g. an offline component rebuilt
+      // in the foreground after a background release) and the controller is
+      // unavailable; defer the restore to onWebNodeBound (mount complete).
+      Log.i(TAG, "restoreContentIfNecessary: web component not bound yet, defer restore");
+      return;
+    }
+    const generation: number = this.webNodeController.getComponentGeneration();
+    const state: LoadDataState = this.lastLoadData;
+    if (state.generation === generation) {
+      // The content was loaded/restored on the current generation: on a pure
+      // re-mount (color-mode switch, tab round-trip) it is naturally still
+      // there and must not be replayed.
+      return;
+    }
+    try {
+      Log.i(TAG, "restoreContentIfNecessary: restore data content, from generation = "
+        + state.generation + ", to generation = " + generation);
+      this.controller.loadData(state.data, state.mimeType, state.encoding, state.baseUrl, state.historyUrl);
+      // Mark the content as landed on the current generation so later
+      // re-mounts do not replay it.
+      state.generation = generation;
+    } catch (err) {
+      Log.e(TAG, "restoreContentIfNecessary err = " + err);
+    }
   }
 
   setOnDisposeCallback(callback: () => void) {
@@ -969,7 +1074,31 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   getView(): WrappedBuilder<[Params]> {
-    return new WrappedBuilder(WebBuilder);
+    return new WrappedBuilder(WebContainerBuilder);
+  }
+
+  /**
+   * Returns the controller that owns the Web component of this platform
+   * view as an offline (detachable) Web component.
+   */
+  getWebNodeController(): WebNodeController {
+    return this.webNodeController;
+  }
+
+  /**
+   * Receives the per-view embedding texture surfaceId transparently passed
+   * by the engine through Params.surfaceId (see the plugin's
+   * WebContainerBuilder) and forwards it to the WebNodeController, whose
+   * BuilderNode binds to it so the offline Web component renders into the
+   * texture surface the embedding created for THIS view.
+   *
+   * Returns the [WebNodeController] so the builder can forward the value in
+   * a single expression (the builder function may only contain UI syntax);
+   * the controller is consumed by the `NodeContainer`.
+   */
+  bindEmbeddingSurfaceId(surfaceId: string): WebNodeController {
+    this.webNodeController.setEmbeddingSurfaceId(surfaceId);
+    return this.webNodeController;
   }
 
   dispose(): void {
@@ -977,9 +1106,11 @@ export class WebViewPlatformView extends PlatformView {
     // widget from the tree disposes the platform view while the Dart
     // controller (and the native instance it references) stay alive, and a
     // new widget can re-attach the same instance (the OhosWebViewController
-    // reuse flow). Keep the historical minimal behavior here so a re-attached
-    // view keeps working - forwarding callbacks, clients, JavaScript
-    // channels and settings are all left untouched. The full resource
+    // reuse flow). With the offline Web component architecture the Web
+    // component is NOT destroyed here - it is only detached from the UI (the
+    // NodeContainer is unmounted) and stays in a hidden, inactive state, so a
+    // new widget reusing this controller can re-mount it instantly, keeping
+    // the page state and the render process alive. The full resource
     // teardown lives in release(), which runs only at true end-of-life
     // (engine detach or Dart-side instance release).
     // dispose() guard: stopAllMedia() can throw once the ArkWeb component is
@@ -990,8 +1121,13 @@ export class WebViewPlatformView extends PlatformView {
     } catch (error) {
       Log.e(TAG, 'dispose stopAllMedia err = ' + error);
     }
-    this.onDisposeCallback && this.onDisposeCallback();
-    this.onDisposeCallback = undefined;
+    Log.i(TAG, 'dispose: keep Web component offline');
+    // The dispose callback is intentionally NOT fired here: the embedding
+    // calls dispose() on transient widget removal as well (confirmed in the
+    // embedding's PlatformViewsController[Hybrid].dispose paths), and the
+    // callback flips OhosWebView's `disposed` @State, which would stop the
+    // kept-alive Web component from rendering after a re-mount. The callback
+    // is reserved for the terminal release() path only.
   }
 
   // Full end-of-life teardown. Runs from disposeAllActiveWebViews() at
@@ -1005,6 +1141,9 @@ export class WebViewPlatformView extends PlatformView {
       return;
     }
     this.isDisposed = true;
+    // Destroy the offline Web component (and free the ~200MB it occupies);
+    // this view will never be displayed again.
+    this.webNodeController.release();
     // Resource cleanup: release everything created for this platform view.
     for (let intervalId of this.pendingControllerAttachIntervals) {
       clearInterval(intervalId);
@@ -1096,11 +1235,19 @@ export class WebViewPlatformView extends PlatformView {
   }
 
   onInactive(): void {
-    this.controller.onInactive();
+    try {
+      this.controller.onInactive();
+    } catch (err) {
+      Log.e(TAG, `onInactive err = ${err}`);
+    }
   }
 
   onActive(): void {
-    this.controller.onActive();
+    try {
+      this.controller.onActive();
+    } catch (err) {
+      Log.e(TAG, `onActive err = ${err}`);
+    }
   }
 
   getController(): web_webview.WebviewController {
@@ -1118,6 +1265,18 @@ export class WebViewPlatformView extends PlatformView {
 
   getUrl(): string {
     return this.tempUrl;
+  }
+
+  setLastLoadData(state: LoadDataState): void {
+    // Record the component generation at load time: the content naturally
+    // exists on that generation, so later re-mounts onto the same generation
+    // (e.g. color-mode switches) need no restore.
+    state.generation = this.webNodeController.getComponentGeneration();
+    this.lastLoadData = state;
+  }
+
+  clearLastLoadData(): void {
+    this.lastLoadData = null;
   }
 
   getWebCookieManager(): web_webview.WebCookieManager {
