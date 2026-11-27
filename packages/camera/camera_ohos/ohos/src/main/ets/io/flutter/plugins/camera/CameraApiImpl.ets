@@ -298,6 +298,7 @@ export class CameraApiImpl extends CameraApi {
   private currentResolutionPreset: ResolutionPreset = ResolutionPreset.medium;
   private currentEnableAudio: boolean = false;
   private cameraIdPositionMap: Map<string, camera.CameraPosition> = new Map();
+  private isSwitchingCamera: boolean = false;
 
   constructor(ability: UIAbility, binaryMessenger: BinaryMessenger, textureRegistry: TextureRegistry) {
     super();
@@ -884,74 +885,84 @@ export class CameraApiImpl extends CameraApi {
   }
 
   private async switchToRearCamera(): Promise<void> {
-    const cameraManager = CameraUtils.getCameraManager(this.context);
-    let allCameraDevices: camera.CameraDevice[];
+    if (this.isSwitchingCamera) {
+      Log.w(TAG, 'switchToRearCamera: already in progress, ignoring');
+      return;
+    }
+    this.isSwitchingCamera = true;
     try {
-      allCameraDevices = cameraManager.getSupportedCameras();
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: getSupportedCameras failed: ' + e.message);
-      return;
-    }
-
-    const backCamera = allCameraDevices.find(
-      (d: camera.CameraDevice) => d.cameraPosition === camera.CameraPosition.CAMERA_POSITION_BACK
-    );
-    if (!backCamera) {
-      Log.w(TAG, 'switchToRearCamera: no rear camera found');
-      return;
-    }
-
-    if (this.camera != null) {
+      const cameraManager = CameraUtils.getCameraManager(this.context);
+      let allCameraDevices: camera.CameraDevice[];
       try {
-        this.camera.onAutoSwitchToRearCamera = null; // 避免循环触发
-        await this.camera.close();
+        allCameraDevices = cameraManager.getSupportedCameras();
       } catch (e) {
-        Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
+        Log.e(TAG, 'switchToRearCamera: getSupportedCameras failed: ' + e.message);
+        return;
       }
-    }
 
-    if (!this.flutterTexture) {
-      Log.e(TAG, 'switchToRearCamera: flutterTexture is null, cannot proceed');
-      return;
-    }
+      const backCamera = allCameraDevices.find(
+        (d: camera.CameraDevice) => d.cameraPosition === camera.CameraPosition.CAMERA_POSITION_BACK
+      );
+      if (!backCamera) {
+        Log.w(TAG, 'switchToRearCamera: no rear camera found');
+        return;
+      }
 
-    const dartMessenger = new DartMessenger(this.binaryMessenger, this.textureId);
-    let cameraProperties: CameraProperties;
-    try {
-      cameraProperties = new CameraPropertiesImpl(backCamera.cameraId, cameraManager);
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: create CameraPropertiesImpl failed: ' + e.message);
-      return;
-    }
+      if (this.camera != null) {
+        try {
+          this.camera.onAutoSwitchToRearCamera = null; // 避免循环触发
+          await this.camera.close();
+        } catch (e) {
+          Log.e(TAG, 'switchToRearCamera: close current camera failed: ' + e.message);
+        }
+      }
 
-    this.camera = new Camera(
-      this.ability,
-      this.flutterTexture,
-      new CameraFeatureFactoryImpl(),
-      dartMessenger,
-      cameraProperties,
-      this.currentResolutionPreset,
-      this.currentEnableAudio,
-      this.cameraPermissions,
-      this.textureRegistry
-    );
-    this.camera.onAutoSwitchToRearCamera = (): void => {
-      this.switchToRearCamera().catch((e: Error): void =>
-        Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
-    };
+      if (!this.flutterTexture) {
+        Log.e(TAG, 'switchToRearCamera: flutterTexture is null, cannot proceed');
+        return;
+      }
 
-    try {
-      await this.camera.open(this.currentImageFormat);
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
-      return;
-    }
+      const dartMessenger = new DartMessenger(this.binaryMessenger, this.textureId);
+      let cameraProperties: CameraProperties;
+      try {
+        cameraProperties = new CameraPropertiesImpl(backCamera.cameraId, cameraManager);
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: create CameraPropertiesImpl failed: ' + e.message);
+        return;
+      }
 
-    try {
-      const cameraEventApi = new CameraEventApi(this.binaryMessenger, this.camera?.dartMessenger?.getCameraIdSuffix());
-      cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
-    } catch (e) {
-      Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
+      this.camera = new Camera(
+        this.ability,
+        this.flutterTexture,
+        new CameraFeatureFactoryImpl(),
+        dartMessenger,
+        cameraProperties,
+        this.currentResolutionPreset,
+        this.currentEnableAudio,
+        this.cameraPermissions,
+        this.textureRegistry
+      );
+      this.camera.onAutoSwitchToRearCamera = (): void => {
+        this.switchToRearCamera().catch((e: Error): void =>
+          Log.e(TAG, 'Auto switch to rear camera failed: ' + e.message));
+      };
+
+      try {
+        await this.camera.open(this.currentImageFormat);
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: open rear camera failed: ' + e.message);
+        return;
+      }
+
+      try {
+        const cameraEventApi = new CameraEventApi(this.binaryMessenger,
+          this.camera?.dartMessenger?.getCameraIdSuffix());
+        cameraEventApi.cameraSwitched('CAMERA_AUTO_SWITCHED_TO_REAR', { reply: () => {} });
+      } catch (e) {
+        Log.e(TAG, 'switchToRearCamera: send CAMERA_AUTO_SWITCHED_TO_REAR event failed: ' + e.message);
+      }
+    } finally {
+      this.isSwitchingCamera = false;
     }
   }
 }
